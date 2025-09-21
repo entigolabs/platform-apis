@@ -1,0 +1,40 @@
+name: Reusable builder for Crossplane composition packages
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        required: true
+        type: string
+      name:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup the Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+          sudo mv crossplane /usr/local/bin
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}          
+          
+      - name: Build & Publish Package
+        working-directory: ${{ inputs.path }}
+        run: |
+          crossplane xpkg build \
+            --package-root=. \
+            --package-file=${{ inputs.name }}.xpkg 
+
+          crossplane xpkg push \
+            -f ${{ inputs.name }}.xpkg \
+            ghcr.io/${{ github.repository_owner }}/${{ inputs.name }}:${{ github.sha }}
