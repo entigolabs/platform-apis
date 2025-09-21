@@ -1,0 +1,12 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: postgresql-example
+  namespace: default
+spec:
+  allocatedStorage: 20
+  deletionProtection: false
+  engineVersion: "17.2"
+  instanceClass: db.t3.micro
+  multiAZ: false
+  
