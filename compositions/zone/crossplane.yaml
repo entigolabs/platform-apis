@@ -1,0 +1,23 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: entigo-zone-composition
+  annotations:
+    # Set the annotations defining the maintainer, source, license, and description of your Configuration
+    meta.crossplane.io/maintainer: Taivo Pikkmets <taivo.pikkmets@entigo.com>
+    meta.crossplane.io/source: github.com/entigolabs/platform-apis
+    # Set the license of your Configuration
+    meta.crossplane.io/license: AGPL
+    meta.crossplane.io/description: |
+      Divide Kubernetes infrastructure into isolated resource zones
+    meta.crossplane.io/readme: |
+      ...
+spec:
+  crossplane:
+    version: ">=v2.0.0"
+  # Add your dependencies here
+#  dependsOn:
+#    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+#      version: "v0.12.1"
+#    - function: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
+#      version: "v0.3.0"

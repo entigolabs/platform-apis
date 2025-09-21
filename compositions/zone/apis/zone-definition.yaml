@@ -1,0 +1,82 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: zones.tenancy.entigo.com
+spec:
+  group: tenancy.entigo.com
+  scope: Cluster
+  names:
+    kind: Zone
+    plural: zones
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                namespaces:
+                  type: array
+                  minItems: 1
+                  description: List of namespaces to manage as part of the Zone. At least one namespace must be specified. List of strings. 
+                  items:
+                    type: string
+                pools:
+                  type: array
+                  description: "List of node pool configurations"
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                    - name
+                    properties:
+                      name:
+                        type: string
+                        description: "Name of the node pool"
+                        minLength: 1
+                        maxLength: 63
+                        pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                      limits:
+                        type: object
+                        description: "Resource scaling limits for the node pool."
+                        properties:
+                          cpu:
+                            type: integer
+                            description: "Maximum number of CPU cores"
+                            minimum: 1
+                            maximum: 10000
+                          memory:
+                            type: string
+                            description: "Maximum amount of memory"
+                            pattern: "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei|k|M|G|T|P|E)?$"                      
+                      requirements:
+                        type: array
+                        description: "Node selection requirements"
+                        items:
+                          type: object
+                          required:
+                          - key
+                          - values
+                          properties:
+                            key:
+                              type: string
+                              description: "Requirement key"
+                              enum:
+                              - zone
+                              - arch
+                              - instance-type
+                              - capacity-type                            
+                            values:
+                              type: array
+                              description: "Values for the requirement"
+                              minItems: 1
+                              items:
+                                type: string
+                                minLength: 1
+              required:
+              - namespaces
+              - pools
