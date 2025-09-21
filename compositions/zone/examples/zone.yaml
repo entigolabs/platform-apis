@@ -1,0 +1,29 @@
+apiVersion: tenancy.entigo.com/v1alpha1
+kind: Zone
+metadata:
+  annotations:
+    example.com/role-group-reference: aaa-bbb-ccc-eee-rrr 
+  name: webapp-zone-example
+spec:
+  namespaces:
+    - webapp
+  pools: 
+    - name: default
+      limits:
+        cpu: 10 # maximum number of CPU cores 
+        memory: 100Gi
+      requirements:
+        - key: zone
+          values:
+            - eu-north-1a
+            - eu-north-1b
+        - key: arch
+          values: 
+            - amd64
+            - arm64
+        - key: instance-type
+          values: 
+            - c3.2xlarge
+        - key: capacity-type
+          values: 
+            - on-demand
