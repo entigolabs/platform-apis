@@ -3,12 +3,12 @@ name: Build PostgreSQL Composition
 on:
   workflow_dispatch:
   push:
-#    branches: [main]
-#    paths:
-#      - 'compositions/postgresql/**'
-#  pull_request:
-#    paths:
-#      - 'compositions/postgresql/**'
+    branches: [main]
+    paths:
+      - 'compositions/postgresql/**'
+  pull_request:
+    paths:
+      - 'compositions/postgresql/**'
     
 jobs:
   build:
