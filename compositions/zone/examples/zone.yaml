@@ -6,7 +6,9 @@ metadata:
   name: webapp-zone-example
 spec:
   namespaces:
-    - webapp
+    - name: webapp # when no pool is explicitly specified, default pool is used. 
+    - name: backend
+      pool: spot
   pools: 
     - name: default
       limits:
@@ -27,3 +29,22 @@ spec:
         - key: capacity-type
           values: 
             - on-demand
+    - name: spot
+      limits:
+        cpu: 10 # maximum number of CPU cores 
+        memory: 100Gi
+      requirements:
+        - key: zone
+          values:
+            - eu-north-1a
+            - eu-north-1b
+        - key: arch
+          values: 
+            - amd64
+            - arm64
+        - key: instance-type
+          values: 
+            - c3.2xlarge
+        - key: capacity-type
+          values: 
+            - spot

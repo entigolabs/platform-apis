@@ -24,7 +24,16 @@ spec:
                   minItems: 1
                   description: List of namespaces to manage as part of the Zone. At least one namespace must be specified. List of strings. 
                   items:
-                    type: string
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: Name of the namespace. 
+                      pool: 
+                        type: string
+                        description: Name of the Node Pool where to schedule workloads. 
+                    required:
+                      - name
                 pools:
                   type: array
                   description: "List of node pool configurations"
