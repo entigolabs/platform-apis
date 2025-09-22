@@ -48,7 +48,7 @@ spec:
                   type: string
                   description: |
                     Database engine version. Use AWS documentation to find a list of supported versions: https://docs.aws.amazon.com/AmazonRDS/latest/PostgreSQLReleaseNotes/postgresql-versions.html
-                instanceClass:
+                instanceType:
                   type: string
                   description: |
                     AWS database instance type. For a list of available instance types: https://aws.amazon.com/rds/instance-types/
@@ -69,7 +69,7 @@ spec:
               required:
                 - allocatedStorage
                 - engineVersion
-                - instanceClass
+                - instanceType
             status:
               type: object
               properties:
