@@ -22,7 +22,7 @@ type ResourceHandler struct {
 type GroupService interface {
 	GetResourceHandlers() map[string]ResourceHandler
 	GetReadyStatus(observed *composed.Unstructured) resource.Ready
-	GetRequiredResources(kind string) map[string]*fnv1.ResourceSelector
+	GetRequiredResources(compositeResource *composite.Unstructured) map[string]*fnv1.ResourceSelector
 	GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error)
 	AddStatusConditions(compositeResource *composite.Unstructured, observed map[resource.Name]resource.ObservedComposed)
 }

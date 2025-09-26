@@ -7,6 +7,10 @@ on:
     paths:
       - 'functions/postgresql/**'
       - 'functions/common/base/**'
+  pull_request:
+    paths:
+      - 'functions/postgresql/**'
+      - 'functions/common/base/**'
   workflow_dispatch:
     inputs:
       version:

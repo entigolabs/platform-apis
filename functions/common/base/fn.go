@@ -6,8 +6,8 @@ import (
 	"maps"
 	"runtime/debug"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/request"
 	"github.com/crossplane/function-sdk-go/resource"
@@ -114,7 +114,7 @@ func requiredResourcesPresent(requirements *fnv1.Requirements, resources map[str
 }
 
 func (f *Function) addRequiredResources(rsp *fnv1.RunFunctionResponse, composite *resource.Composite) {
-	resources := f.groupService.GetRequiredResources(composite.Resource.GetKind())
+	resources := f.groupService.GetRequiredResources(composite.Resource)
 	if len(resources) == 0 {
 		return
 	}
