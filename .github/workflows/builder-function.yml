@@ -54,6 +54,7 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           version: ${{ env.GOLANGCI_VERSION }}
+          working-directory: ${{ inputs.path }}
 
   unit-test:
     runs-on: ubuntu-24.04
