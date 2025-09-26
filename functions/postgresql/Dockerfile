@@ -1,5 +1,10 @@
 FROM --platform=${BUILDPLATFORM} golang:1.24-alpine AS build
 
+WORKDIR /fn
+
+COPY common common
+COPY postgresql postgresql
+
 WORKDIR /fn/postgresql
 
 ENV CGO_ENABLED=0
