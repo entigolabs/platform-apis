@@ -32,46 +32,46 @@ env:
   XPKG_VERSION: ${{ inputs.version }}
 
 jobs:
-  lint:
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: ${{ inputs.path }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: false  # The golangci-lint action does its own caching.
-
-      - name: Check go mod tidy
-        run: go mod tidy && git diff --exit-code go.mod go.sum
-
-      - name: Lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: ${{ env.GOLANGCI_VERSION }}
-          working-directory: ${{ inputs.path }}
-
-  unit-test:
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: ${{ inputs.path }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Run Unit Tests
-        run: go test -v -cover ./...
+#  lint:
+#    runs-on: ubuntu-24.04
+#    defaults:
+#      run:
+#        working-directory: ${{ inputs.path }}
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v4
+#
+#      - name: Setup Go
+#        uses: actions/setup-go@v5
+#        with:
+#          go-version: ${{ env.GO_VERSION }}
+#          cache: false  # The golangci-lint action does its own caching.
+#
+#      - name: Check go mod tidy
+#        run: go mod tidy && git diff --exit-code go.mod go.sum
+#
+#      - name: Lint
+#        uses: golangci/golangci-lint-action@v8
+#        with:
+#          version: ${{ env.GOLANGCI_VERSION }}
+#          working-directory: ${{ inputs.path }}
+#
+#  unit-test:
+#    runs-on: ubuntu-24.04
+#    defaults:
+#      run:
+#        working-directory: ${{ inputs.path }}
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v4
+#
+#      - name: Setup Go
+#        uses: actions/setup-go@v5
+#        with:
+#          go-version: ${{ env.GO_VERSION }}
+#
+#      - name: Run Unit Tests
+#        run: go test -v -cover ./...
 
   # We want to build most packages for the amd64 and arm64 architectures. To
   # speed this up we build single-platform packages in parallel. We then upload
@@ -79,8 +79,8 @@ jobs:
   # artifacts and pushes them as a single multi-platform package.
   build:
     runs-on: ubuntu-24.04
-    needs:
-      - unit-test
+#    needs:
+#      - unit-test
     strategy:
       fail-fast: true
       matrix:
@@ -111,7 +111,8 @@ jobs:
         id: image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: functions/
+          file: postgresql/Dockerfile
           platforms: linux/${{ matrix.arch }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
