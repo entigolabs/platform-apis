@@ -131,7 +131,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: package-${{ matrix.arch }}
-          path: "*.xpkg"
+          path: "${{ inputs.path }}/*.xpkg"
           if-no-files-found: error
           retention-days: 1
 
