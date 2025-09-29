@@ -1,0 +1,179 @@
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPC
+metadata:
+  annotations:
+  name: vpc
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
+status:
+  atProvider:
+    arn: arn:aws:ec2:eu-north-1:111111111111:vpc/vpc-aaaaaaaaaaaaaaaaa
+    assignGeneratedIpv6CidrBlock: false
+    cidrBlock: 10.122.0.0/16
+    defaultNetworkAclId: acl-0399fa955433ea583
+    defaultRouteTableId: rtb-0c7434647e87b1e0e
+    defaultSecurityGroupId: sg-007a53f64e7e4a7c4
+    dhcpOptionsId: dopt-05ac0aa1e926a60f2
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    enableNetworkAddressUsageMetrics: false
+    id: vpc-aaaaaaaaaaaaaaaaa
+    instanceTenancy: default
+    ipv6AssociationId: ""
+    ipv6CidrBlock: ""
+    ipv6CidrBlockNetworkBorderGroup: ""
+    ipv6IpamPoolId: ""
+    ipv6NetmaskLength: 0
+    mainRouteTableId: rtb-0c7434647e87b1e0e
+    ownerId: "111111111111"
+    region: eu-north-1
+
+---
+apiVersion: eks.aws.m.upbound.io/v1beta1
+kind: Cluster
+metadata:
+  name: eks
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
+status:
+  atProvider:
+    accessConfig:
+      authenticationMode: API_AND_CONFIG_MAP
+      bootstrapClusterCreatorAdminPermissions: true
+    arn: arn:aws:eks:eu-north-1:451773674263:cluster/rein-infra-eks
+    bootstrapSelfManagedAddons: false
+    certificateAuthority:
+    - data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCVENDQWUyZ0F3SUJBZ0lJTm0wYXZtNVN4dGt3RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB5TlRBNU1qVXhNekF4TURSYUZ3MHpOVEE1TWpNeE16QTJNRFJhTUJVeApFekFSQmdOVkJBTVRDbXQxWW1WeWJtVjBaWE13Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLCkFvSUJBUUNoOGpoaGd4OHVGSnFib2llY09KOVZUWEFxSndScmx5dHliWk9pdkhpSmJHQjBrZTJZcUY2VjFmQUkKbkRRR2pDSU00NTQ1RGE2bFE3NmdUckt3cGlLYzFLd0gvb2Z5eDhpVEZGc2ppVWF6dXhLLzY3OUhYdlNPZ2MzMwpYN1NSYW5wVXF2elh5cTRpZlZBNml4WUJULzVCVVFWRDkxalVxVlkzTnYxb0w4SVNYSkw0OGtXbmdSUWgzUjJDClVGRTV1ZUs2ZUljdk5oeExLcFgxQURTaXBLcW1Rc1d0Q3NzMTJwR0dZYnE1dkpsNU03Q3IwdFJPVU1Nbzd3bFcKa2lLQ3d1eng2YjhiTjZyQTNrcU1sQXN1SlVuN2hhTFNoU1c0M3REa0t5NzdmRDhiUHlJVWdkblRHWUpkeUtNbgovaFh3bU9CaDUyTWtSdklBUjZNckE3RDU3UTUvQWdNQkFBR2pXVEJYTUE0R0ExVWREd0VCL3dRRUF3SUNwREFQCkJnTlZIUk1CQWY4RUJUQURBUUgvTUIwR0ExVWREZ1FXQkJUaklkemVpSU9ON3d2YXI0OUpYblM2ZlI5VkdUQVYKQmdOVkhSRUVEakFNZ2dwcmRXSmxjbTVsZEdWek1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQ0ZZYitnVVlCbwpjMkZHb3JnWHpNQU9Bem5oY01XZzhYSkJtVXkzNUxWN2drVms3ZnhRczFNOEpqNUZ2Q0RrVkdjWWtTR0t2QWE1Ck5lTUtQa3BaM002ZVY4UzhaQjdlZHpSUit3dys5VUsxU1M4S2FWMlhZVXFIeE5SWFVyeVVsTHhMeDVFOEZjTkEKNjhoSzN4TUJ6NWJXNCthcWJXTVgwZ2luZ25WenlPa0NMSEZWMkRkOWM0WmFnOXhQRG1DQlJFdDMzdEJHaS8vVwpVZVFEK1BpS0srd0hjQzJIQk9GWXgxL3pYS29kOHlubGdrU0drMVFYTzdSekV2UW8vQTJyVWpVeE00U2xVczBTCk5TZVdYN205V2g5b1dMbEs5Q2hQcHVUZVM5SkVHVUlyN2YrUUVwZHJTM3VhSFQ1cC8zVnRXaGU3dW5WYmc5NVEKVjJFd2xrc3hZaFl3Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+    computeConfig: {}
+    createdAt: "2025-09-25T13:00:59Z"
+    enabledClusterLogTypes:
+    - api
+    - authenticator
+    encryptionConfig: {}
+    endpoint: https://93C9A05D349343069BEE2EE0C8137044.gr7.eu-north-1.eks.amazonaws.com
+    id: rein-infra-eks
+    identity:
+    - oidc:
+      - issuer: https://oidc.eks.eu-north-1.amazonaws.com/id/93C9A05D349343069BEE2EE0C8137044
+    kubernetesNetworkConfig:
+      elasticLoadBalancing:
+        enabled: false
+      ipFamily: ipv4
+      serviceIpv4Cidr: 172.20.0.0/16
+      serviceIpv6Cidr: ""
+    outpostConfig: {}
+    platformVersion: eks.21
+    region: eu-north-1
+    remoteNetworkConfig: {}
+    roleArn: arn:aws:iam::451773674263:role/rein-infra-eks-cluster-20250925130051872300000004
+    status: ACTIVE
+    storageConfig: {}
+    tags:
+      Prefix: rein-infra-eks
+      Terraform: "true"
+      created-by: entigo-infralib
+      terraform-aws-modules: eks
+    tagsAll:
+      Prefix: rein-infra-eks
+      Terraform: "true"
+      created-by: entigo-infralib
+      terraform-aws-modules: eks
+    upgradePolicy:
+      supportType: EXTENDED
+    version: "1.32"
+    vpcConfig:
+      clusterSecurityGroupId: sg-0886a56aa5d6388f5
+      endpointPrivateAccess: true
+      endpointPublicAccess: false
+      publicAccessCidrs:
+      - 0.0.0.0/0
+      securityGroupIds:
+      - sg-063a12c8e9532c8b3
+      subnetIds:
+      - subnet-011ea7a2a16392849
+      - subnet-0bc47b0c141f7f0ed
+      vpcId: vpc-080bf9e49a55d7994
+    zonalShiftConfig: {}
+
+---
+apiVersion: kms.aws.m.upbound.io/v1beta1
+kind: Alias
+metadata:
+  name: data
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
+status:
+  atProvider:
+    arn: arn:aws:kms:eu-north-1:451773674263:alias/rein-net-kms/data
+    id: alias/rein-net-kms/data
+    region: eu-north-1
+    targetKeyArn: arn:aws:kms:eu-north-1:451773674263:key/mrk-3a91cbba025546238ff6ba6a1f89ee12
+    targetKeyId: mrk-3a91cbba025546238ff6ba6a1f89ee12
+
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: SecurityGroup
+metadata:
+  annotations:
+  name: eks-node
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
+status:
+  atProvider:
+    arn: arn:aws:ec2:eu-north-1:451773674263:security-group/sg-00b54b0a78991d825
+    description: EKS node shared security group
+
+---
+apiVersion: aws.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  annotations:
+  name: crossplane-aws
+spec:
+  credentials:
+    source: IRSA
+status:
+  users: 11
+
+---
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: crossplane-aws
+spec:
+  credentials:
+    source: IRSA
+status:
+  users: 35
