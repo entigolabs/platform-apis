@@ -1,0 +1,240 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: zones.tenancy.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: tenancy.entigo.com/v1alpha1
+    kind: Zone
+  mode: Pipeline
+  pipeline:
+    - step: create-namespace-first
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            # Namespace must be created first
+            {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
+            ---
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
+            {{ end }}
+    # create a node pool launch template for and node pools
+    - step: node-pools
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              vpc:
+                apiVersion: ec2.aws.m.upbound.io/v1beta1
+                kind: VPC
+                name: vpc
+                namespace: crossplane-aws
+              kmsAlias:
+                apiVersion: kms.aws.m.upbound.io/v1beta1
+                kind: Alias
+                name: data
+                namespace: crossplane-aws
+              nodeSecurityGroup:
+                apiVersion: ec2.aws.m.upbound.io/v1beta1
+                kind: SecurityGroup
+                name: eks-node
+                namespace: crossplane-aws
+              awsProviderConfig:
+                apiVersion: aws.m.upbound.io/v1beta1
+                kind: ClusterProviderConfig
+                name: crossplane-aws
+              eks:
+                apiVersion: eks.aws.m.upbound.io/v1beta1
+                kind: Cluster
+                name: eks
+                namespace: crossplane-aws
+            ---
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
+            {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
+            {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
+            {{- $eks := mustFirst (getExtraResources . "eks") }}
+
+            {{- $configNamespace := "default" }}
+            apiVersion: ec2.aws.m.upbound.io/v1beta1
+            kind: LaunchTemplate
+            metadata:
+              name: {{ .observed.composite.resource.metadata.name }}
+              namespace: {{ $configNamespace }}
+              annotations:
+                {{ setResourceNameAnnotation "launchtemplate" }}
+            spec:
+              forProvider:
+                region: {{ $vpc.resource.status.atProvider.region }}
+                name: {{ .observed.composite.resource.metadata.name }}
+                updateDefaultVersion: true
+                blockDeviceMappings:
+                  - deviceName: /dev/xvda
+                    ebs:
+                      deleteOnTermination: "true"
+                      volumeSize: 50
+                      volumeType: gp3
+                      encrypted: "true"
+                      kmsKeyId: {{ $kmsAlias.resource.status.atProvider.arn }}
+                metadataOptions:
+                    httpEndpoint: enabled
+                    httpPutResponseHopLimit: 1
+                    httpTokens: required  # This enforces IMDSv2 only
+                vpcSecurityGroupIdRefs:
+                  - name: {{ $nodeSecurityGroup.resource.metadata.name }}
+                    namespace: {{ $nodeSecurityGroup.resource.metadata.namespace }}
+                tagSpecifications:
+                  - resourceType: instance
+                    tags:
+                       Name: {{ .observed.composite.resource.metadata.name }}
+                  - resourceType: volume
+                    tags:
+                      Name: {{ .observed.composite.resource.metadata.name }}-root
+              providerConfigRef:
+                kind: {{ $awsProviderConfig.resource.kind }}
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+          
+            ---
+            # Create IAM role for nodepool nodes
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: Role
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "role" }}
+              generateName: {{ .observed.composite.resource.metadata.name }}
+              namespace: {{ $configNamespace }}
+            spec:
+              forProvider:
+                assumeRolePolicy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Principal": {
+                          "Service": "ec2.amazonaws.com"
+                        },
+                        "Action": "sts:AssumeRole"
+                      }
+                    ]
+                  }
+                managedPolicyArns:
+                  - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+                  - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+                  - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+                tags:
+                  Name: Zone-{{ .observed.composite.resource.metadata.name }}
+                  entigo.com/managed: "true"
+              
+              providerConfigRef:
+                kind: {{ $awsProviderConfig.resource.kind }}
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+
+            # Create node pooles
+            {{ $role := getComposedResource . "role" }}
+            {{ range $index, $pool := .observed.composite.resource.spec.pools }}
+            ---              
+            apiVersion: eks.aws.m.upbound.io/v1beta1
+            kind: NodeGroup
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: nodepool-{{ $pool.name }}              
+              generateName: {{ $pool.name }}
+              namespace: {{ $configNamespace }}
+            spec:
+              forProvider:
+                region: {{ $vpc.resource.status.atProvider.region }}
+                clusterNameRef:
+                  name: {{ $eks.resource.metadata.name }}
+                  namespace: {{ $eks.resource.metadata.namespace }}
+
+                capacityType: ON_DEMAND
+                
+                scalingConfig:
+                  desiredSize: 1
+                  maxSize: 2
+                  minSize: 1
+                                
+                {{ range $pool.requirements}}
+                {{ if eq .key "instance-type" }}
+                instanceTypes: {{ .values }}
+                {{ end }}
+                {{ end }}
+
+                #TODO: should use required resources lookup
+                subnetIdRefs:
+                  - name: compute-0
+                    namespace: crossplane-aws
+                  - name: compute-1
+                    namespace: crossplane-aws
+                
+                nodeRoleArnRef:
+                  name:  {{ get $role.metadata "name" }}
+                
+                labels:
+                  environment: production
+                  nodegroup-type: managed
+                
+                # Launch template configuration - use 'name' not 'idRef'
+                launchTemplate:
+                  name: {{ $.observed.composite.resource.metadata.name }}
+                
+                updateConfig:
+                  maxUnavailable: 1
+                
+                tags:
+                  Name: eks-managed-node
+                  Environment: Production
+                  tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+              
+              providerConfigRef:
+                kind: {{ $awsProviderConfig.resource.kind }}
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+
+            {{ end }}
+
+    # create an ArgoCD project and associate namespaces with that project
+    - step: create-argocd-project
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $name := .observed.composite.resource.metadata.name -}}
+            ---
+            # ArgoCD AppProject
+            apiVersion: argoproj.io/v1alpha1
+            kind: AppProject
+            metadata:
+              name: {{ $name }}
+              namespace: argocd
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: appproject-{{ $name }}
+            spec:
+              description: {{ "Security zone for isolated team deployment" }}
+              destinations:
+                {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
+                - namespace: {{ $namespace.name }}
+                  server: https://kubernetes.default.svc
+                {{ end }}
+
