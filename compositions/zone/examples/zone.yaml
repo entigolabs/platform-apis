@@ -3,10 +3,10 @@ kind: Zone
 metadata:
   annotations:
     example.com/role-group-reference: aaa-bbb-ccc-eee-rrr 
-  name: webapp-zone-example
+  name: myapp-zone-example
 spec:
   namespaces:
-    - name: webapp # when no pool is explicitly specified, default pool is used. 
+    - name: myapp  # when no pool is explicitly specified, default pool is used. 
     - name: backend
       pool: spot
   pools: 
@@ -25,7 +25,7 @@ spec:
             - arm64
         - key: instance-type
           values: 
-            - c3.2xlarge
+            - t3.micro
         - key: capacity-type
           values: 
             - on-demand
@@ -44,7 +44,7 @@ spec:
             - arm64
         - key: instance-type
           values: 
-            - c3.2xlarge
+            - t3.small
         - key: capacity-type
           values: 
             - spot
