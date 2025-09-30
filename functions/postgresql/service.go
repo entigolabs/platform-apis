@@ -252,7 +252,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 
 	dbName, engine, storageType, masterUsername := "postgres", "postgres", "gp3", "dbadmin"
-	manageMasterUserPassword, performanceInsightsEnabled, publiclyAccessible, skipFinalSnapshot, storageEncrypted := true, false, false, true, true
+	manageMasterUserPassword, performanceInsightsEnabled, publiclyAccessible, skipFinalSnapshot, storageEncrypted := true, false, false, false, true
 
 	rdsInstance := &rdsmv1beta1.Instance{
 		TypeMeta:   metav1.TypeMeta{Kind: "Instance", APIVersion: rdsApiVersion},
@@ -382,9 +382,9 @@ func getSecretARNFromRDSInstanceStatus(instance *composed.Unstructured) (string,
 func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.PostgreSQLInstanceStatus {
 	status := v1alpha1.PostgreSQLInstanceStatus{}
 
-	base.SetBool(dbInstance.Spec.ForProvider.AllowMajorVersionUpgrade, &status.AllowMajorVersionUpgrade)
-	base.SetBool(dbInstance.Spec.ForProvider.AutoMinorVersionUpgrade, &status.AutoMinorVersionUpgrade)
-	base.SetString(dbInstance.Spec.ForProvider.BackupWindow, &status.BackupWindow)
+	base.SetBool(dbInstance.Status.AtProvider.AllowMajorVersionUpgrade, &status.AllowMajorVersionUpgrade)
+	base.SetBool(dbInstance.Status.AtProvider.AutoMinorVersionUpgrade, &status.AutoMinorVersionUpgrade)
+	base.SetString(dbInstance.Status.AtProvider.BackupWindow, &status.BackupWindow)
 
 	endpoint := v1alpha1.PostgreSQLInstanceEndpoint{}
 
@@ -394,7 +394,7 @@ func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1
 
 	status.Endpoint = endpoint
 
-	base.SetFloat64(dbInstance.Spec.ForProvider.Iops, &status.Iops)
+	base.SetFloat64(dbInstance.Status.AtProvider.Iops, &status.Iops)
 	base.SetString(dbInstance.Status.AtProvider.KMSKeyID, &status.KMSKeyID)
 
 	if dbInstance.Status.AtProvider.LatestRestorableTime != nil {
@@ -405,12 +405,13 @@ func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1
 		}
 	}
 
-	base.SetString(dbInstance.Spec.ForProvider.MaintenanceWindow, &status.MaintenanceWindow)
+	base.SetString(dbInstance.Status.AtProvider.MaintenanceWindow, &status.MaintenanceWindow)
 	base.SetString(dbInstance.Status.AtProvider.ParameterGroupName, &status.ParameterGroupName)
 	base.SetString(dbInstance.Status.AtProvider.ResourceID, &status.ResourceID)
 	base.SetString(dbInstance.Status.AtProvider.Status, &status.Status)
-	base.SetBool(dbInstance.Spec.ForProvider.StorageEncrypted, &status.StorageEncrypted)
-	base.SetFloat64(dbInstance.Spec.ForProvider.StorageThroughput, &status.StorageThroughput)
+	base.SetBool(dbInstance.Status.AtProvider.StorageEncrypted, &status.StorageEncrypted)
+	base.SetFloat64(dbInstance.Status.AtProvider.StorageThroughput, &status.StorageThroughput)
+	base.SetString(dbInstance.Status.AtProvider.StorageType, &status.StorageType)
 
 	var vpcSecurityGroupsIds []string
 	if len(dbInstance.Status.AtProvider.VPCSecurityGroupIds) > 0 {

@@ -55,6 +55,7 @@ type PostgreSQLInstanceStatus struct {
 	Status                   string                     `json:"status,omitempty"`
 	StorageEncrypted         bool                       `json:"storageEncrypted"`
 	StorageThroughput        float64                    `json:"storageThroughput,omitempty"`
+	StorageType              string                     `json:"storageType,omitempty"`
 	VpcSecurityGroupIds      []string                   `json:"vpcSecurityGroupIds,omitempty"`
 }
 
