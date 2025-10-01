@@ -1,0 +1,10 @@
+{{- if .Values.zone.install }}
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-zone
+spec:
+  package: {{ .Values.zone.package.image }}:{{ .Values.zone.package.tag }}
+
+{{- end }}
