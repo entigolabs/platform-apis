@@ -1,0 +1,18 @@
+{{- if .Values.postgresql.install }}
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-postgresql
+spec:
+  package: {{ .Values.postgresql.package.image }}:{{ .Values.postgresql.package.tag }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-postgresql-fn
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ .Values.postgresql.function.image }}:{{ .Values.postgresql.function.tag }}
+{{- end }}

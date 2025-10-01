@@ -1,0 +1,72 @@
+name: Helm Chart CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  CHART_PATH: helm
+  CHART_NAME: platform-apis
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Helm Lint
+        run: helm lint ${{ env.CHART_PATH }}
+
+      - name: Helm Template
+        run: |
+          mkdir -p out
+          helm template test-release ${{ env.CHART_PATH }} > out/manifest.yaml
+
+      - name: Install kube-score
+        run: |
+          wget https://github.com/zegl/kube-score/releases/download/v1.19.0/kube-score_1.19.0_linux_amd64 -O kube-score
+          chmod +x kube-score
+          sudo mv kube-score /usr/local/bin/
+
+      - name: Run kube-score
+        run: kube-score score out/manifest.yaml --output-format ci
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} --username ${{ github.actor }} --password-stdin
+
+      - name: Package Helm Chart
+        run: helm package ${{ env.CHART_PATH }}
+
+      - name: Push Helm Chart to GHCR
+        run: |
+          CHART_VERSION=$(helm show chart ${{ env.CHART_PATH }} | grep '^version:' | awk '{print $2}')
+          helm push ${{ env.CHART_NAME }}-${CHART_VERSION}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}
