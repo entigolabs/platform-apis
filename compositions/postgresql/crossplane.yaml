@@ -1,0 +1,23 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: entigo-postgresql
+  annotations:
+    # Set the annotations defining the maintainer, source, license, and description of your Configuration
+    meta.crossplane.io/maintainer: Jevgeni Fenko <jevgeni.fenko@entigo.com>
+    meta.crossplane.io/source: github.com/entigolabs/platform-apis
+    # Set the license of your Configuration
+    meta.crossplane.io/license: AGPL
+    meta.crossplane.io/description: |
+      Manage AWS RDS PostgreSQL through Kubernetes. 
+    meta.crossplane.io/readme: |
+      ...
+spec:
+  crossplane:
+    version: ">=2.0.0"
+  # Add your dependencies here
+  #dependsOn:
+  #  - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+  #    version: "v0.12.1"
+  #  - function: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
+  #    version: "v0.3.0"
