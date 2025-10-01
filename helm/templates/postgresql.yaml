@@ -6,6 +6,7 @@ metadata:
   name: platform-apis-postgresql
 spec:
   package: {{ .Values.postgresql.package.image }}:{{ .Values.postgresql.package.tag }}
+  skipDependencyResolution: true
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function

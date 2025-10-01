@@ -43,5 +43,5 @@ metadata:
   name: platform-apis-zone
 spec:
   package: {{ .Values.zone.package.image }}:{{ .Values.zone.package.tag }}
-
+  skipDependencyResolution: true
 {{- end }}
