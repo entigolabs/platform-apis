@@ -15,5 +15,5 @@ jobs:
     uses: ./.github/workflows/builder-composition.yml
     with:
       path: compositions/zone
-      name: entigo-zone-composition
+      name: platform-apis-zone
     secrets: inherit
