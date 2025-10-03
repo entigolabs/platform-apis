@@ -35,7 +35,13 @@ subjects:
 - kind: ServiceAccount
   name: crossplane
   namespace: crossplane-system
-
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-zone
+data:
+  argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration

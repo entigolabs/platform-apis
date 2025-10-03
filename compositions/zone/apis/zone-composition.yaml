@@ -8,6 +8,11 @@ spec:
     apiVersion: tenancy.entigo.com/v1alpha1
     kind: Zone
   mode: Pipeline
+  environment:
+    environmentConfigs:
+    - type: Reference
+      ref:
+        name: platform-apis-zone
   pipeline:
     - step: create-namespace-first
       functionRef:
@@ -221,13 +226,14 @@ spec:
         inline:
           template: |
             {{- $name := .observed.composite.resource.metadata.name -}}
+            {{- $argoCDNamespace := index .context.apiextensions.environment "argoCDNamespace" -}}
             ---
             # ArgoCD AppProject
             apiVersion: argoproj.io/v1alpha1
             kind: AppProject
             metadata:
               name: {{ $name }}
-              namespace: argocd
+              namespace: {{ $argoCDNamespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: appproject-{{ $name }}
             spec:

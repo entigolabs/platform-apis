@@ -12,6 +12,8 @@ zone:
   package:
     image: ghcr.io/entigolabs/platform-apis-zone
     tag: v0.1.9
+  environmentConfig:
+    argoCDNamespace: argocd
 
 providers: {}
 
