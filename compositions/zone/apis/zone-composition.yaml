@@ -230,21 +230,17 @@ spec:
               zoneEnvironment:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
-                matchName: platform-apis-zone
+                name: platform-apis-zone
             {{- $name := .observed.composite.resource.metadata.name -}}
-            {{- $envConfigs := index .extraResources "zoneEnvironment" | default list -}}
-            {{- if eq (len $envConfigs) 0 -}}
-            {{- fail "EnvironmentConfig 'platform-apis-zone' not found" -}}
-            {{- end -}}
-            {{- $envConfig := index $envConfigs 0 -}}
-            {{- $argoCDNamespace := index $envConfig.resource.data "argoCDNamespace" | default "argocd" -}}
+            {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
+
             ---
             # ArgoCD AppProject
             apiVersion: argoproj.io/v1alpha1
             kind: AppProject
             metadata:
               name: {{ $name }}
-              namespace: {{ $argoCDNamespace }}
+              namespace: {{ $envConfig.resource.data.argoCDNamespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: appproject-{{ $name }}
             spec:
