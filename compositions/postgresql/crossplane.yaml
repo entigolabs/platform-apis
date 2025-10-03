@@ -15,9 +15,4 @@ metadata:
 spec:
   crossplane:
     version: ">=2.0.0"
-  # Add your dependencies here
-  #dependsOn:
-  #  - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
-  #    version: "v0.12.1"
-  #  - function: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
-  #    version: "v0.3.0"
+
