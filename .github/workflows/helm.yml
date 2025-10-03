@@ -53,15 +53,15 @@ jobs:
           # Fetch latest semver tags for each package
           POSTGRESQL_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-postgresql/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(split(".") | map(tonumber)) | .[-1]')
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | .[-1]')
 
           POSTGRESQL_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-postgresql-fn/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(split(".") | map(tonumber)) | .[-1]')
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | .[-1]')
 
           ZONE_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-zone/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(split(".") | map(tonumber)) | .[-1]')
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | .[-1]')
 
           # Validate tags were fetched
           if [ -z "$POSTGRESQL_TAG" ] || [ "$POSTGRESQL_TAG" = "null" ]; then
