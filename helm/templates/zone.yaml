@@ -19,9 +19,9 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   activate:
-  - launchtemplate.ec2.aws.m.upbound.io
-  - nodegroup.eks.aws.m.upbound.io
-  - role.iam.upbound.io
+  - launchtemplates.ec2.aws.m.upbound.io
+  - nodegroups.eks.aws.m.upbound.io
+  - roles.iam.upbound.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
