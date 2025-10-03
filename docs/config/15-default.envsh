@@ -1,0 +1,4 @@
+#!/bin/sh
+export PORT=${PORT:-8080}
+
+echo "Configuring nginx to run on port $PORT."
