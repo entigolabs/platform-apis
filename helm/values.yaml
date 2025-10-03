@@ -16,6 +16,7 @@ zone:
     tag: v0.1.9
   environmentConfig:
     argoCDNamespace: "argocd"
+    awsProvider: "crossplane-aws"
 
 providers: {}
 

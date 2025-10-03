@@ -41,40 +41,47 @@ spec:
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
+              zoneEnvironment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                name: platform-apis-zone
+            ---
+            {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
+
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
               vpc:
                 apiVersion: ec2.aws.m.upbound.io/v1beta1
                 kind: VPC
                 name: vpc
-                namespace: crossplane-aws
+                namespace: {{ $envConfig.resource.data.awsProvider }}
               kmsAlias:
                 apiVersion: kms.aws.m.upbound.io/v1beta1
                 kind: Alias
                 name: data
-                namespace: crossplane-aws
+                namespace: {{ $envConfig.resource.data.awsProvider }}
               nodeSecurityGroup:
                 apiVersion: ec2.aws.m.upbound.io/v1beta1
                 kind: SecurityGroup
                 name: eks-node
-                namespace: crossplane-aws
+                namespace: {{ $envConfig.resource.data.awsProvider }}
               awsProviderConfig:
                 apiVersion: aws.m.upbound.io/v1beta1
                 kind: ClusterProviderConfig
-                name: crossplane-aws
+                name: {{ $envConfig.resource.data.awsProvider }}
               eks:
                 apiVersion: eks.aws.m.upbound.io/v1beta1
                 kind: Cluster
                 name: eks
-                namespace: crossplane-aws
-              zoneEnvironment:
-                apiVersion: apiextensions.crossplane.io/v1beta1
-                kind: EnvironmentConfig
-                matchName: platform-apis-zone
+                namespace: {{ $envConfig.resource.data.awsProvider }}
             ---
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
             {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
+
 
             {{- $configNamespace := "default" }}
             apiVersion: ec2.aws.m.upbound.io/v1beta1
@@ -185,9 +192,9 @@ spec:
                 #TODO: should use required resources lookup
                 subnetIdRefs:
                   - name: compute-0
-                    namespace: crossplane-aws
+                    namespace: {{ $envConfig.resource.data.awsProvider }}
                   - name: compute-1
-                    namespace: crossplane-aws
+                    namespace: {{ $envConfig.resource.data.awsProvider }}
                 
                 nodeRoleArnRef:
                   name:  {{ get $role.metadata "name" }}

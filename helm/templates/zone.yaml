@@ -42,6 +42,7 @@ metadata:
   name: platform-apis-zone
 data:
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
+  awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
