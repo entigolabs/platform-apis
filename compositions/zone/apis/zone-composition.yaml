@@ -232,8 +232,12 @@ spec:
                 kind: EnvironmentConfig
                 matchName: platform-apis-zone
             {{- $name := .observed.composite.resource.metadata.name -}}
-            {{- $envConfig := mustFirst (index .extraResources "zoneEnvironment") -}}
-            {{- $argoCDNamespace := index $envConfig.resource.data "argoCDNamespace" -}}
+            {{- $envConfigs := index .extraResources "zoneEnvironment" | default list -}}
+            {{- if eq (len $envConfigs) 0 -}}
+            {{- fail "EnvironmentConfig 'platform-apis-zone' not found" -}}
+            {{- end -}}
+            {{- $envConfig := index $envConfigs 0 -}}
+            {{- $argoCDNamespace := index $envConfig.resource.data "argoCDNamespace" | default "argocd" -}}
             ---
             # ArgoCD AppProject
             apiVersion: argoproj.io/v1alpha1
