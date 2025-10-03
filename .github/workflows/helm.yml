@@ -50,18 +50,18 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Fetch Latest Image Tags from GHCR
         run: |
-          # Fetch latest semver tags for each package
+          # Fetch most recently pushed tags for each package
           POSTGRESQL_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-postgresql/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | .[-1]')
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))')
 
           POSTGRESQL_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-postgresql-fn/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | .[-1]')
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))')
 
           ZONE_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-zone/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v")) | .metadata.container.tags[] | select(startswith("v"))] | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | .[-1]')
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))')
 
           # Validate tags were fetched
           if [ -z "$POSTGRESQL_TAG" ] || [ "$POSTGRESQL_TAG" = "null" ]; then
@@ -84,9 +84,13 @@ jobs:
           echo "Latest tags: postgresql=$POSTGRESQL_TAG, postgresql-fn=$POSTGRESQL_FN_TAG, zone=$ZONE_TAG"
       - name: Update Values with Latest Tags
         run: |
-          yq eval ".postgresql.package.tag = \"${{ env.POSTGRESQL_TAG }}\"" -i ${{ env.CHART_PATH }}/values.yaml
-          yq eval ".postgresql.function.tag = \"${{ env.POSTGRESQL_FN_TAG }}\"" -i ${{ env.CHART_PATH }}/values.yaml
-          yq eval ".zone.package.tag = \"${{ env.ZONE_TAG }}\"" -i ${{ env.CHART_PATH }}/values.yaml
+          echo "Updating tags..."
+          yq -i '.postgresql.package.tag = "${{ env.POSTGRESQL_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
+          yq -i '.postgresql.function.tag = "${{ env.POSTGRESQL_FN_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
+          yq -i '.zone.package.tag = "${{ env.ZONE_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
+
+          echo "After update:"
+          cat ${{ env.CHART_PATH }}/values.yaml
 
           echo "Updated values.yaml with latest image tags"
       - name: Update Chart Version
