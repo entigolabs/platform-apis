@@ -34,4 +34,5 @@ This documentation is organized into two sections:
 
 ---
 
+
 *New to the platform? Start with [Quick Start Guide](#) to deploy your first application, or explore [Core Concepts](#) to understand the platform's architecture.*

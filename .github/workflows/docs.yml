@@ -22,15 +22,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Build, Push and Release a Docker container to Heroku. # Your custom step name
-        uses: gonuit/heroku-docker-deploy@v1.3.3 # GitHub action name (leave it as it is).
+      - name: Install Heroku CLI
+        run: |
+          curl https://cli-assets.heroku.com/install.sh | sh
+      - uses: akhileshns/heroku-deploy@v3.14.15
         with:
-          email: ${{ secrets.HEROKU_EMAIL }}
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
           heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-
-          dockerfile_directory: ./docs
-          dockerfile_name: Dockerfile
-          docker_options: "--no-cache"
-
-          process_type: web
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: docs/
+          stack: container
+          usedocker: true
