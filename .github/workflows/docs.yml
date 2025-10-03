@@ -2,10 +2,14 @@ name: Platform Docs
 
 on:
   push:
+    paths:
+      - 'docs/**'
     branches:
       - main
       - documentation
   pull_request:
+    paths:
+      - 'docs/**'
     branches:
       - main
   workflow_dispatch:
