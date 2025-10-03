@@ -6,6 +6,8 @@ postgresql:
   function:
     image: ghcr.io/entigolabs/platform-apis-postgresql-fn
     tag: v0.1.20
+    deploymentRuntimeConfig:
+      awsProvider: "crossplane-aws"
 
 zone:
   install: true
@@ -13,7 +15,7 @@ zone:
     image: ghcr.io/entigolabs/platform-apis-zone
     tag: v0.1.9
   environmentConfig:
-    argoCDNamespace: argocd
+    argoCDNamespace: "argocd"
 
 providers: {}
 

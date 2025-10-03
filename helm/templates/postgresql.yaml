@@ -9,6 +9,39 @@ spec:
   skipDependencyResolution: true
 ---
 apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-postgresql-fn
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+            - env:
+                - name: AWS_PROVIDER
+                  value: {{ .Values.postgresql.function.deploymentRuntimeConfig.awsProvider }}
+              name: package-runtime
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
   name: platform-apis-postgresql-fn
@@ -16,4 +49,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   package: {{ .Values.postgresql.function.image }}:{{ .Values.postgresql.function.tag }}
+  runtimeConfigRef:
+    name: platform-apis-postgresql-fn
 {{- end }}

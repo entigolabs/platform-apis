@@ -8,11 +8,6 @@ spec:
     apiVersion: tenancy.entigo.com/v1alpha1
     kind: Zone
   mode: Pipeline
-  environment:
-    environmentConfigs:
-    - type: Reference
-      ref:
-        name: platform-apis-zone
   pipeline:
     - step: create-namespace-first
       functionRef:
@@ -70,6 +65,10 @@ spec:
                 kind: Cluster
                 name: eks
                 namespace: crossplane-aws
+              zoneEnvironment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-zone
             ---
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
@@ -225,8 +224,16 @@ spec:
         source: Inline
         inline:
           template: |
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              zoneEnvironment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-zone
             {{- $name := .observed.composite.resource.metadata.name -}}
-            {{- $argoCDNamespace := index .context.apiextensions.environment "argoCDNamespace" -}}
+            {{- $envConfig := mustFirst (index .extraResources "zoneEnvironment") -}}
+            {{- $argoCDNamespace := index $envConfig.resource.data "argoCDNamespace" -}}
             ---
             # ArgoCD AppProject
             apiVersion: argoproj.io/v1alpha1
