@@ -1,0 +1,9 @@
+metadata:
+  title: "{Kind name}"
+  weight: 1
+  description: "{Kind name} description"
+groups:
+  - group: database.entigo.com
+    version: v1alpha1
+    kinds:
+      - name: PostgreSQLInstance

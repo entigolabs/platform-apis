@@ -6,7 +6,6 @@ on:
       - 'docs/**'
     branches:
       - main
-      - documentation
   pull_request:
     paths:
       - 'docs/**'
@@ -21,6 +20,16 @@ jobs:
       # Check-out your repository.
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Install crdoc & generate API documentation
+        run: |
+          mkdir docs/temp
+          cd docs/temp
+          pwd
+          sh ../config/install-crdoc.sh
+          sh ../config/generate-crds.sh
+          cd -
+          rm -rf temp
 
       - name: Install Heroku CLI
         run: |
