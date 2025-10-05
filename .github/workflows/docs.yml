@@ -22,6 +22,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Install crdoc
+        run: |
+          mkdir tmp                
+      - name: Install crdoc & generate API documentation
+        run: |
+          sh config/install-crdoc.sh
+          sh config/generate-crds.sh
+        working-directory: tmp
+
       - name: Install Heroku CLI
         run: |
           curl https://cli-assets.heroku.com/install.sh | sh

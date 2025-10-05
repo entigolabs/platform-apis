@@ -40,9 +40,9 @@ const config: Config = {
       'classic',
       {
         docs: {
+          path: 'docs',
+          routeBasePath: 'docs',          
           sidebarPath: './sidebars.ts',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
           editUrl:
             'https://github.com/entigolabs/platform-apis/docs',
         },
@@ -52,7 +52,17 @@ const config: Config = {
       } satisfies Preset.Options,
     ],
   ],
-
+  plugins: [
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'api',
+        path: 'api',
+        routeBasePath: 'api',
+        sidebarPath: './sidebars.ts',
+      },
+    ],
+  ],
   themeConfig: {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
@@ -70,10 +80,17 @@ const config: Config = {
       },
       items: [
         {
-          type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          type: 'doc',
+          docId: 'intro',
           position: 'left',
-          label: 'Tutorial',
+          label: 'Docs',
+        },
+        {
+          type: 'doc',
+          docId: 'intro',
+          docsPluginId: 'api',
+          position: 'left',
+          label: 'API',
         },
         {
           href: 'https://github.com/entigolabs',
