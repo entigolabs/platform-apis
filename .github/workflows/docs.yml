@@ -23,8 +23,8 @@ jobs:
 
       - name: Install crdoc & generate API documentation
         run: |
-          mkdir temp
-          cd temp
+          mkdir docs/temp
+          cd docs/temp
           pwd
           sh ../config/install-crdoc.sh
           sh ../config/generate-crds.sh
