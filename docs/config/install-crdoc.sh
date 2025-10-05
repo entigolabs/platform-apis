@@ -63,4 +63,4 @@ echo "Downloaded: $FILENAME"
 tar -xzf "$FILENAME"
 echo "Extraction complete"
 
-echo "Download complete!
+echo "Download complete!"
