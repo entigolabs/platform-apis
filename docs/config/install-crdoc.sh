@@ -9,10 +9,10 @@ VERSION="${CRDOC_VERSION:-0.6.4}"
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 case "$OS" in
     darwin)
-        OS="darwin"
+        OS="Darwin"
         ;;
     linux)
-        OS="linux"
+        OS="Linux"
         ;;
     *)
         echo "Unsupported OS: $OS"
@@ -24,7 +24,7 @@ esac
 ARCH=$(uname -m)
 case "$ARCH" in
     x86_64 | amd64)
-        ARCH="amd64"
+        ARCH="x86_64"
         ;;
     aarch64 | arm64)
         ARCH="arm64"
