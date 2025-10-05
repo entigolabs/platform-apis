@@ -25,11 +25,12 @@ jobs:
         run: |
           TEMP_DIR=$(mktemp -d)
           cd "$TEMP_DIR"
+          pwd
           sh ../config/install-crdoc.sh
           sh ../config/generate-crds.sh
           cd -
           rm -rf "$TEMP_DIR"
-          
+
       - name: Install Heroku CLI
         run: |
           curl https://cli-assets.heroku.com/install.sh | sh
