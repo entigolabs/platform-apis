@@ -2,7 +2,7 @@
 
 Packages:
 {{range .Groups}}
-- [{{.Group}}/{{.Version}}](#{{ anchorize (printf "%s/%s" .Group .Version) }})
+- [{{.Group}}/{{.Version}}](#{{ (printf "%s/%s" .Group .Version) }})
 {{- end -}}{{/* range .Groups */}}
 
 {{- range .Groups }}
@@ -18,7 +18,7 @@ Resource Types:
 {{range .Kinds}}
 {{$kind := .}}
 ## {{.Name}}
-<sup><sup>[↩ Parent](#{{ anchorize (printf "%s/%s" $group.Group $group.Version) }} )</sup></sup>
+<sup><sup>[↩ Parent](#{{ (printf "%s/%s" $group.Group $group.Version) }} )</sup></sup>
 
 {{range .Types}}
 
