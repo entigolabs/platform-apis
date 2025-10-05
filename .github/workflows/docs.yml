@@ -6,7 +6,6 @@ on:
       - 'docs/**'
     branches:
       - main
-      - documentation
   pull_request:
     paths:
       - 'docs/**'
@@ -27,8 +26,8 @@ jobs:
           mkdir tmp                
       - name: Install crdoc & generate API documentation
         run: |
-          sh config/install-crdoc.sh
-          sh config/generate-crds.sh
+          sh ../config/install-crdoc.sh
+          sh ../config/generate-crds.sh
         working-directory: tmp
 
       - name: Install Heroku CLI

@@ -39,9 +39,8 @@ echo "Detected OS: $OS"
 echo "Detected Architecture: $ARCH"
 echo "Version: $VERSION"
 
-# GitHub repository (modify these for your specific package)
-GITHUB_REPO="fybrik/crdoc"  # Change this to your repo
-PACKAGE_NAME="crdoc"     # Change this to your package name
+GITHUB_REPO="fybrik/crdoc"
+PACKAGE_NAME="crdoc"
 
 FILENAME="${PACKAGE_NAME}_${OS}_${ARCH}.tar.gz"
 
