@@ -1,0 +1,4 @@
+apiVersion: artifact.entigo.com/v1alpha1
+kind: Repository
+metadata:
+  name: new-repository

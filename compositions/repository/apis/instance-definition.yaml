@@ -1,0 +1,38 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: repositories.artifact.entigo.com
+spec:
+  scope: Namespaced
+  group: artifact.entigo.com
+  names:
+    kind: Repository
+    plural: repositories
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                imageScanningConfiguration:
+                  type: object
+                  properties:
+                    scanOnPush:
+                      type: boolean
+                imageTagMutability:
+                  type: string
+                  enum: ['IMMUTABLE', 'MUTABLE']
+                tags:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                      value:
+                        type: string
