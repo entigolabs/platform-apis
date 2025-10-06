@@ -1,4 +1,4 @@
-name: Build PostgreSQL Function
+name: Build Repository Function
 
 on:
   push:
