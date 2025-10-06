@@ -44,7 +44,7 @@ export default (function (): null {
     window.posthogConfig = {
       apiKey: config.apiKey,
       apiHost: config.apiHost,
-      appUrl: 'https://app.eu.posthog.com', // For PostHog UI
+      appUrl: 'https://eu.posthog.com', // For PostHog UI
       enableInDevelopment: false,
     };
 
