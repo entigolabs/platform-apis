@@ -2,6 +2,8 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+import posthogRuntimeConfigPlugin from './src/plugins/posthog-runtime-config';
+
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
@@ -64,17 +66,18 @@ const config: Config = {
       },
     ],
     // Custom plugin to inject PostHog runtime config
-    './src/plugins/posthog-runtime-config.ts',
+    posthogRuntimeConfigPlugin,
     
     // Official PostHog plugin with configuration
     [
       'posthog-docusaurus',
       {
-        apiKey: 'phc_disabled_at_build_time', // Will be replaced by runtime config
+        // Placeholder values - will be overridden at runtime
+        apiKey: 'phc_build_time_placeholder',
         appUrl: 'https://eu.posthog.com',
-        apiHost: '/ingest', // Use the nginx proxy path
-        enableInDevelopment: false, // Disable in dev
-        
+        apiHost: '/ingest',
+        enableInDevelopment: false,
+
         // Optional: additional PostHog options
         options: {
           autocapture: true,
