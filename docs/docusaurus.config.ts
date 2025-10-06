@@ -70,8 +70,8 @@ const config: Config = {
     [
       'posthog-docusaurus',
       {
-        apiKey: 'placeholder', // Will be replaced by runtime config
-        appUrl: 'https://app.posthog.com',
+        apiKey: 'phc_disabled_at_build_time', // Will be replaced by runtime config
+        appUrl: 'https://app.eu.posthog.com',
         apiHost: '/ingest', // Use the nginx proxy path
         enableInDevelopment: false, // Disable in dev
         
