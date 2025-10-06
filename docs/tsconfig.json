@@ -2,7 +2,12 @@
   // This file is not used in compilation. It is here just for a nice editor experience.
   "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": {
+      "@site/*": ["./src/*"]
+    },
+    "types": ["@docusaurus/module-type-aliases", "@docusaurus/theme-classic"],
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "exclude": [".docusaurus", "build"]
 }

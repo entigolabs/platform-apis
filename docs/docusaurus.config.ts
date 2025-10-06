@@ -63,7 +63,33 @@ const config: Config = {
         sidebarPath: './sidebars.ts',
       },
     ],
+    // Custom plugin to inject PostHog runtime config
+    './src/plugins/posthog-runtime-config.ts',
+    
+    // Official PostHog plugin with configuration
+    [
+      'posthog-docusaurus',
+      {
+        apiKey: 'placeholder', // Will be replaced by runtime config
+        appUrl: 'https://app.posthog.com',
+        apiHost: '/ingest', // Use the nginx proxy path
+        enableInDevelopment: false, // Disable in dev
+        
+        // Optional: additional PostHog options
+        options: {
+          autocapture: true,
+          capture_pageview: true,
+          capture_pageleave: true,
+          disable_session_recording: false,
+          session_recording: {
+            maskAllInputs: true,
+            maskTextSelector: '.sensitive',
+          },
+        },
+      },
+    ],
   ],
+  
   themeConfig: {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
