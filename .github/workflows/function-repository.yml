@@ -22,6 +22,6 @@ jobs:
     uses: ./.github/workflows/builder-function.yml
     with:
       path: functions/repository
-      name: entigo-repository-function
+      name: platform-apis-repository-fn
       version: ${{ inputs.version }}
     secrets: inherit
