@@ -26,6 +26,7 @@ spec:
               name: {{ $name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: clusterrole-{{ $name }}
+                gotemplating.fn.crossplane.io/ready: "True"
             rules:
             - apiGroups: ["*"]
               resources: ["*"]
@@ -41,6 +42,7 @@ spec:
                 zone: {{ $name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
 
             {{ end }}
     - step: create-policies
@@ -52,9 +54,19 @@ spec:
         source: Inline
         inline:
           template: |
+            # This will block until namespaces exist
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              namespaces:
+                apiVersion: v1
+                kind: Namespace
+                matchLabels:
+                  zone: {{ .observed.composite.resource.metadata.name }}
+            ---
+            {{- $namespaces := getExtraResources . "namespaces" }}
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
-            ---
             apiVersion: networking.k8s.io/v1
             kind: NetworkPolicy
             metadata:
@@ -62,6 +74,7 @@ spec:
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
             spec:
               podSelector: {}
               policyTypes:
@@ -104,6 +117,7 @@ spec:
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rolebinding-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: ClusterRole
@@ -112,7 +126,6 @@ spec:
             - kind: Group
               name: {{ $name }}-contributors
               apiGroup: rbac.authorization.k8s.io
-
             ---
             {{- $poolName := "default" }}
             {{- if $namespace.pool }}
@@ -126,26 +139,30 @@ spec:
               name: {{ $name }}-{{ $namespace.name }}-add-nodeselector
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: kyverno-mutate-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
             spec:
-              rules:
-              - name: add-nodeselector
-                match:
-                  any:
-                  - resources:
-                      kinds:
-                      - Pod
-                      namespaces:
-                      - {{ $namespace.name }}
-                preconditions:
-                  all:
-                  - key: "{{ `{{request.object.spec.nodeSelector || '' | length(@)}}` }}"
-                    operator: Equals
-                    value: 0
-                mutate:
-                  patchStrategicMerge:
-                    spec:
-                      nodeSelector:
-                        tenancy.entigo.com/pool: {{ $poolName }}
+              matchConstraints:
+                namespaceSelector:
+                  matchExpressions:
+                  - key: kubernetes.io/metadata.name
+                    operator: In
+                    values:
+                    - {{ $namespace.name }}
+                resourceRules:
+                - apiGroups: [""]
+                  apiVersions: ["v1"]
+                  operations: ["CREATE"]
+                  resources: ["pods"]
+              mutations:
+              - patchType: ApplyConfiguration
+                applyConfiguration:
+                  expression: |
+                    !has(object.spec.nodeSelector) || size(object.spec.nodeSelector) == 0 ?
+                    Object{
+                      spec: Object.spec{
+                        nodeSelector: {"tenancy.entigo.com/pool": "{{ $poolName }}"}
+                      }
+                    } : Object{}
             ---
             apiVersion: policies.kyverno.io/v1alpha1
             kind: ValidatingPolicy
@@ -153,32 +170,26 @@ spec:
               name: {{ $name }}-{{ $namespace.name }}-validate-nodeselector
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: kyverno-validate-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
             spec:
-              validationFailureAction: Enforce
-              rules:
-              - name: validate-pool-selector
-                match:
-                  any:
-                  - resources:
-                      kinds:
-                      - Pod
-                      namespaces:
-                      - {{ $namespace.name }}
-                preconditions:
-                  all:
-                  - key: "{{ `{{request.object.spec.nodeSelector.\"tenigo.entigo.com/pool\" || ''}}` }}"
-                    operator: NotEquals
-                    value: ""
-                validate:
-                  message: "Pod nodeSelector must use a valid pool from this zone. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $pool.name }}{{ end }}"
-                  deny:
-                    conditions:
-                      all:
-                      {{- range $poolIndex, $pool := $.observed.composite.resource.spec.pools }}
-                      - key: "{{ `{{request.object.spec.nodeSelector.\"tenancy.entigo.com/pool\"}}` }}"
-                        operator: NotEquals
-                        value: "{{ $pool.name }}"
-                      {{- end }}
+              matchConstraints:
+                namespaceSelector:
+                  matchExpressions:
+                  - key: kubernetes.io/metadata.name
+                    operator: In
+                    values:
+                    - {{ $namespace.name }}
+                resourceRules:
+                - apiGroups: [""]
+                  apiVersions: ["v1"]
+                  operations: ["CREATE", "UPDATE"]
+                  resources: ["pods"]
+              validations:
+              - expression: |
+                  !has(object.spec.nodeSelector) ||
+                  !("tenancy.entigo.com/pool" in object.spec.nodeSelector) ||
+                  object.spec.nodeSelector["tenancy.entigo.com/pool"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $pool.name }}"{{ end }}]
+                message: "Pod nodeSelector must use a valid pool from this zone. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $pool.name }}{{ end }}"
             {{ end }}
 
     - step: create-iam-role
@@ -198,14 +209,14 @@ spec:
                 apiVersion: aws.upbound.io/v1beta1
                 kind: ProviderConfig
             ---
+            {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
-
             apiVersion: iam.aws.upbound.io/v1beta1
             kind: Role
             metadata:
               annotations:
-                {{ setResourceNameAnnotation "role" }}
-              generateName: {{ .observed.composite.resource.metadata.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: role-{{ $name }}
+              name: {{ $name }}
             spec:
               managementPolicies: ["*"]
               forProvider:
@@ -265,46 +276,65 @@ spec:
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
             {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
-
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
-            ---
             apiVersion: ec2.aws.upbound.io/v1beta1
             kind: LaunchTemplate
             metadata:
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
               annotations:
-                {{ setResourceNameAnnotation (printf "launchtemplate-%s" $pool.name) }}
+                gotemplating.fn.crossplane.io/composition-resource-name: launchtemplate-{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
             spec:
-              managementPolicies: ["*"]
+              deletionPolicy: Delete
               forProvider:
-                region: {{ $vpc.resource.status.atProvider.region }}
                 name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                updateDefaultVersion: true
-                blockDeviceMappings:
-                  - deviceName: /dev/xvda
-                    ebs:
-                    - deleteOnTermination: "true"
-                      volumeSize: 50
-                      volumeType: gp3
-                      encrypted: "true"
-                      kmsKeyId: {{ $kmsAlias.resource.status.atProvider.arn }}
+                userData: ""
+                description: "{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}"
+                region: {{ $vpc.resource.status.atProvider.region }}
+                ramDiskId: ""
+                disableApiStop: false
+                disableApiTermination: false
+                ebsOptimized: ""
+                imageId: ""
+                instanceInitiatedShutdownBehavior: ""
+                instanceType: ""
+                kernelId: ""
+                keyName: ""
                 metadataOptions:
-                -   httpEndpoint: enabled
-                    httpPutResponseHopLimit: 1
-                    httpTokens: required
+                - httpEndpoint: enabled
+                  httpProtocolIpv6: ""
+                  httpPutResponseHopLimit: 1
+                  httpTokens: required
+                  instanceMetadataTags: ""
                 vpcSecurityGroupIdRefs:
-                  - name: {{ $nodeSecurityGroup.resource.metadata.name }}
+                - name: {{ $nodeSecurityGroup.resource.metadata.name }}
                 tagSpecifications:
-                  - resourceType: instance
-                    tags:
-                       Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                  - resourceType: volume
-                    tags:
-                      Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-root
+                - resourceType: instance
+                  tags:
+                    Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                - resourceType: volume
+                  tags:
+                    Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-root
+                blockDeviceMappings:
+                - deviceName: /dev/xvda
+                  ebs:
+                  - deleteOnTermination: "true"
+                    volumeSize: 50
+                    throughput: 0
+                    volumeInitializationRate: 0
+                    snapshotId: ""
+                    iops: 0
+                    volumeType: gp3
+                    encrypted: "true"
+                    kmsKeyId: {{ $kmsAlias.resource.status.atProvider.arn }}
+                  noDevice: ""
+                  virtualName: ""
+              initProvider:
+                updateDefaultVersion: true
+              managementPolicies:
+              - "*"
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
             {{ end }}
-
     - step: create-node-pools
       functionRef:
         name: function-go-templating
@@ -334,13 +364,24 @@ spec:
                 kind: Subnet
                 matchLabels:
                   subnet-type: compute
+              # Add these two dependencies
+              role:
+                apiVersion: iam.aws.upbound.io/v1beta1
+                kind: Role
+                name: {{ .observed.composite.resource.metadata.name }}
+              launchTemplates:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: LaunchTemplate
+                matchControllerRef: true
             ---
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $role := getComposedResource . "role" }}
             {{- $computeSubnets := getExtraResources . "computeSubnets" }}
-
+            {{- $role := mustFirst (getExtraResources . "role") }}
+            {{- $launchTemplates := getExtraResources . "launchTemplates" }}
+            {{- $name := .observed.composite.resource.metadata.name -}}
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
             apiVersion: eks.aws.upbound.io/v1beta1
@@ -370,7 +411,7 @@ spec:
                   - name: {{ .resource.metadata.name }}
                   {{- end }}
                 nodeRoleArnRef:
-                  name: {{ get $role.metadata "name" }}
+                  name: {{ $name }}
                 labels:
                   environment: production
                   nodegroup-type: managed
@@ -405,9 +446,7 @@ spec:
                 name: platform-apis-zone
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
-
             ---
-            # ArgoCD AppProject
             apiVersion: argoproj.io/v1alpha1
             kind: AppProject
             metadata:
@@ -415,6 +454,7 @@ spec:
               namespace: {{ $envConfig.resource.data.argoCDNamespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: appproject-{{ $name }}
+                gotemplating.fn.crossplane.io/ready: "True"
             spec:
               description: {{ "Security zone for isolated team deployment" }}
               destinations:
@@ -430,3 +470,21 @@ spec:
                   - p, proj:{{ $name }}:{{ $name }}, applications, *, {{ $name }}/*, allow
                   groups:
                   - {{ $name }}
+    - step: detect-readiness
+      functionRef:
+        name: function-auto-ready
+    - step: sequence-creation
+      functionRef:
+        name: function-sequencer
+      input:
+        apiVersion: sequencer.fn.crossplane.io/v1beta1
+        kind: Input
+        rules:
+          - sequence:
+            - clusterrole-.*
+            - namespace-.*
+            - netpol-.*
+            - rolebinding-.*
+            - launchtemplate-.*
+            - role-.*
+            - nodepool-.*

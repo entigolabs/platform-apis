@@ -29,6 +29,11 @@ functions:
    install: true
    image: xpkg.upbound.io/crossplane-contrib/function-auto-ready
    tag: v0.5.0
+  function-sequencer:
+   install: true
+   image: xpkg.upbound.io/crossplane-contrib/function-sequencer
+   tag: v0.3.0
+
 
 extraFunctions: []
 #  - name: function-foo

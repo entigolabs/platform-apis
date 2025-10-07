@@ -17,8 +17,10 @@ rules:
     resources: ["networkpolicies"]
     verbs: ["*"]
   - apiGroups: ["policies.kyverno.io"]
-    resources: ["mutatingpolicies", "validatingpolicies"]
+    resources: ["mutatingpolicies", "validatingpolicies","mutatingpolicies/status", "validatingpolicies/status"]
     verbs: ["*"]
+
+
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy

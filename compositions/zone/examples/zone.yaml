@@ -3,11 +3,11 @@ kind: Zone
 metadata:
   annotations:
     example.com/role-group-reference: aaa-bbb-ccc-eee-rrr 
-  name: myapp-zone-example
+  name: acdhrapp
 spec:
   namespaces:
-    - name: myapp  # when no pool is explicitly specified, default pool is used.
-    - name: backend
+    - name: acdhrrapp  # when no pool is explicitly specified, default pool is used.
+    - name: acdhrbackend
       pool: spot
   pools: 
     - name: default
