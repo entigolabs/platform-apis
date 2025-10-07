@@ -54,17 +54,6 @@ spec:
         source: Inline
         inline:
           template: |
-            # This will block until namespaces exist
-            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-            kind: ExtraResources
-            requirements:
-              namespaces:
-                apiVersion: v1
-                kind: Namespace
-                matchLabels:
-                  zone: {{ .observed.composite.resource.metadata.name }}
-            ---
-            {{- $namespaces := getExtraResources . "namespaces" }}
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
             apiVersion: networking.k8s.io/v1
@@ -259,24 +248,24 @@ spec:
               vpc:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: VPC
-                name: vpc
+                matchName: vpc
               kmsAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
-                name: data
+                matchName: data
               nodeSecurityGroup:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: SecurityGroup
-                name: eks-node
+                matchName: eks-node
               awsProviderConfig:
                 apiVersion: aws.upbound.io/v1beta1
                 kind: ProviderConfig
-            ---
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
             {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
+            ---
             apiVersion: ec2.aws.upbound.io/v1beta1
             kind: LaunchTemplate
             metadata:
@@ -307,6 +296,8 @@ spec:
                   instanceMetadataTags: ""
                 vpcSecurityGroupIdRefs:
                 - name: {{ $nodeSecurityGroup.resource.metadata.name }}
+              initProvider:
+                updateDefaultVersion: true
                 tagSpecifications:
                 - resourceType: instance
                   tags:
@@ -328,8 +319,6 @@ spec:
                     kmsKeyId: {{ $kmsAlias.resource.status.atProvider.arn }}
                   noDevice: ""
                   virtualName: ""
-              initProvider:
-                updateDefaultVersion: true
               managementPolicies:
               - "*"
               providerConfigRef:
@@ -351,36 +340,26 @@ spec:
               vpc:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: VPC
-                name: vpc
+                matchName: vpc
               awsProviderConfig:
                 apiVersion: aws.upbound.io/v1beta1
                 kind: ProviderConfig
               eks:
                 apiVersion: eks.aws.upbound.io/v1beta1
                 kind: Cluster
-                name: eks
+                matchName: eks
               computeSubnets:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: Subnet
                 matchLabels:
                   subnet-type: compute
-              # Add these two dependencies
-              role:
-                apiVersion: iam.aws.upbound.io/v1beta1
-                kind: Role
-                name: {{ .observed.composite.resource.metadata.name }}
-              launchTemplates:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: LaunchTemplate
-                matchControllerRef: true
+
             ---
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
-            {{- $role := getComposedResource . "role" }}
             {{- $computeSubnets := getExtraResources . "computeSubnets" }}
-            {{- $role := mustFirst (getExtraResources . "role") }}
-            {{- $launchTemplates := getExtraResources . "launchTemplates" }}
+
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
@@ -392,15 +371,16 @@ spec:
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
             spec:
               managementPolicies: ["*"]
+              initProvider: {}
               forProvider:
-                region: {{ $vpc.resource.status.atProvider.region }}
+                launchTemplate:
+                - name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                  version: "1"
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
-                capacityType: ON_DEMAND
-                scalingConfig:
-                - desiredSize: 1
-                  maxSize: 2
-                  minSize: 1
+                region: {{ $vpc.resource.status.atProvider.region }}
+                updateConfig:
+                - maxUnavailable: 1
                 {{ range $pool.requirements}}
                 {{ if eq .key "instance-type" }}
                 instanceTypes: {{ .values }}
@@ -410,19 +390,21 @@ spec:
                   {{- range $computeSubnets }}
                   - name: {{ .resource.metadata.name }}
                   {{- end }}
-                nodeRoleArnRef:
-                  name: {{ $name }}
+                releaseVersion: "1.32.9-20251002"
                 labels:
                   environment: production
                   nodegroup-type: managed
-                launchTemplate:
-                - name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                updateConfig:
-                - maxUnavailable: 1
+                nodeRoleArnRef:
+                  name: {{ $name }}
                 tags:
                   Name: eks-managed-node-{{ $pool.name }}
                   Environment: Production
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                capacityType: ON_DEMAND
+                scalingConfig:
+                - desiredSize: 1
+                  maxSize: 2
+                  minSize: 1
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
             {{ end }}
