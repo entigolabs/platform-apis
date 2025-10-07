@@ -39,3 +39,11 @@ GIT_USER=<Your GitHub username> yarn deploy
 ```
 
 If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+
+
+## Visitor analytics
+
+To enable visitor analytics with PostHog, set the following environment variables for Docker based static website deployment:
+- POSTHOG_API_KEY - get your key from Posthog, default ''
+- POSTHOG_CLOUD_REGION - eu or us, default 'eu'
+- POSTHOG_ENABLED - true or false, default 'false'

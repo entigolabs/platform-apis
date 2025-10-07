@@ -40,7 +40,7 @@ export default function Home(): ReactNode {
       <main>
         <HomepageFeatures />
       </main>
-      */}
+        */}
     </Layout>
   );
 }

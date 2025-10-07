@@ -63,7 +63,10 @@ const config: Config = {
         sidebarPath: './sidebars.ts',
       },
     ],
+    // Custom plugin to inject PostHog runtime config
+    './src/plugins/posthog-runtime-config.ts',
   ],
+  
   themeConfig: {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
