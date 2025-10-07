@@ -9,9 +9,12 @@ import (
 )
 
 const (
-	AppLabel          = "app"
-	ResourceLabel     = "entigo.com/resource"
-	ResourceKindLabel = "entigo.com/resource-kind"
+	AppLabel              = "app"
+	ResourceLabel         = "entigo.com/resource"
+	ResourceKindLabel     = "entigo.com/resource-kind"
+	EnvironmentKey        = "Environment"
+	EnvironmentKind       = "EnvironmentConfig"
+	EnvironmentApiVersion = "apiextensions.crossplane.io/v1beta1"
 )
 
 type ResourceHandler struct {

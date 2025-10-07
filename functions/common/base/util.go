@@ -6,10 +6,12 @@ import (
 	"regexp"
 	"strings"
 
+	"dario.cat/mergo"
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/crossplane/function-sdk-go/resource/composite"
@@ -34,6 +36,44 @@ func ToUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {
 	}
 	u := &unstructured.Unstructured{Object: m}
 	return u, nil
+}
+
+func RequiredEnvironmentConfig(name string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       EnvironmentKind,
+		ApiVersion: EnvironmentApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+	}
+}
+
+func GetEnvironmentData(key string, resources []resource.Required) (map[string]interface{}, error) {
+	if len(resources) == 0 {
+		return nil, fmt.Errorf("environment config with key '%s' not found", key)
+	}
+	result := make(map[string]interface{})
+	for _, r := range resources {
+		data, found, err := unstructured.NestedMap(r.Resource.Object, "data")
+		if err != nil {
+			return nil, fmt.Errorf("cannot get environment config data with key '%s': %w", key, err)
+		}
+		if found {
+			if err := mergo.Map(&result, data, mergo.WithAppendSlice); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return result, nil
+}
+
+func GetRequiredDataString(data map[string]interface{}, fields ...string) (string, error) {
+	value, found, err := unstructured.NestedString(data, fields...)
+	if err != nil {
+		return "", fmt.Errorf("cannot get required string field %s: %w", strings.Join(fields, "."), err)
+	}
+	if !found {
+		return "", fmt.Errorf("required string field %s not found", strings.Join(fields, "."))
+	}
+	return value, nil
 }
 
 func ExtractRequiredResource(requiredResources map[string][]resource.Required, key string, target runtime.Object) error {

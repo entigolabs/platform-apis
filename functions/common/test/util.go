@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func IgnoreFields(fields ...string) cmp.Option {
@@ -24,6 +25,27 @@ func IgnoreFields(fields ...string) cmp.Option {
 		_, ignored := fieldsMap[vx]
 		return ignored
 	}, cmp.Ignore())
+}
+
+func GetEnvironmentConfigWithData(name string, data map[string]interface{}) *fnv1.Resources {
+	resourceStruct, err := structpb.NewStruct(map[string]interface{}{
+		"apiVersion": base.EnvironmentApiVersion,
+		"kind":       base.EnvironmentKind,
+		"metadata": map[string]interface{}{
+			"name": name,
+		},
+		"data": data,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &fnv1.Resources{
+		Items: []*fnv1.Resource{
+			{
+				Resource: resourceStruct,
+			},
+		},
+	}
 }
 
 type Args struct {

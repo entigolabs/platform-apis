@@ -22,15 +22,6 @@ const (
 )
 
 type GroupImpl struct {
-	awsProvider string
-	region      string
-}
-
-func NewGroupImpl(awsProvider, region string) base.GroupService {
-	return &GroupImpl{
-		awsProvider: awsProvider,
-		region:      region,
-	}
 }
 
 var _ base.GroupService = &GroupImpl{}
@@ -45,7 +36,7 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 }
 
 func (g *GroupImpl) generateRepository(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
-	return GenerateRepositoryObject(*obj.(*v1alpha1.Repository), g.region, g.awsProvider, required)
+	return GenerateRepositoryObject(*obj.(*v1alpha1.Repository), required)
 }
 
 func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {
@@ -55,8 +46,9 @@ func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {
 func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured) map[string]*fnv1.ResourceSelector {
 	switch compositeResource.GetKind() {
 	case XRKindRepository:
-		// Get all repositories with the same name
 		return map[string]*fnv1.ResourceSelector{
+			base.EnvironmentKey: base.RequiredEnvironmentConfig("platform-apis-repository"),
+			// Get all repositories with the same name
 			RequiredRepositoryKey: {
 				Kind:       RepositoryKind,
 				ApiVersion: RepositoryApiVersion,

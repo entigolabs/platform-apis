@@ -37,6 +37,7 @@ func TestRunFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						RequiredRepositoryKey: {Items: []*fnv1.Resource{}},
+						base.EnvironmentKey:   test.GetEnvironmentConfigWithData("platform-apis-repository", map[string]interface{}{"region": "eu-north-1", "provider": "aws-provider"}),
 					},
 				},
 			},
@@ -53,6 +54,7 @@ func TestRunFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion, Match: &fnv1.ResourceSelector_MatchName{MatchName: "repository"}},
+							base.EnvironmentKey:   base.RequiredEnvironmentConfig("platform-apis-repository"),
 						},
 					},
 				},
@@ -61,7 +63,7 @@ func TestRunFunction(t *testing.T) {
 	}
 
 	newService := func() base.GroupService {
-		return NewGroupImpl("aws-provider", "eu-north-1")
+		return &GroupImpl{}
 	}
 	test.RunFunctionCases(t, newService, cases, "force-sync", "lastTransitionTime")
 }

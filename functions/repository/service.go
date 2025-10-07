@@ -13,8 +13,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func GenerateRepositoryObject(repository v1alpha1.Repository, region, provider string, required map[string][]resource.Required) (map[string]runtime.Object, error) {
+type environment struct {
+	provider string
+	region   string
+}
+
+func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required) (map[string]runtime.Object, error) {
 	if err := checkRepositoryConflict(repository, required); err != nil {
+		return nil, err
+	}
+
+	env, err := getEnvironment(required)
+	if err != nil {
 		return nil, err
 	}
 
@@ -33,14 +43,14 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, region, provider s
 			Name:      repository.Name,
 			Namespace: repository.Namespace,
 			Labels: map[string]string{
-				"region":               region,
+				"region":               env.region,
 				base.ResourceLabel:     repository.Name,
 				base.ResourceKindLabel: XRKindRepository,
 			},
 		},
 		Spec: v1beta2.RepositorySpec{
 			ForProvider: v1beta2.RepositoryParameters{
-				Region: &region,
+				Region: &env.region,
 				Tags:   tags,
 				ImageScanningConfiguration: &v1beta2.ImageScanningConfigurationParameters{
 					ScanOnPush: repository.Spec.ImageScanningConfiguration.ScanOnPush,
@@ -48,7 +58,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, region, provider s
 			},
 			ResourceSpec: xpv2v1.ResourceSpec{
 				ProviderConfigReference: &xpv2.Reference{
-					Name: provider,
+					Name: env.provider,
 				},
 			},
 		},
@@ -61,9 +71,28 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, region, provider s
 	return objects, nil
 }
 
+func getEnvironment(required map[string][]resource.Required) (environment, error) {
+	data, err := base.GetEnvironmentData(base.EnvironmentKey, required[base.EnvironmentKey])
+	if err != nil {
+		return environment{}, err
+	}
+	provider, err := base.GetRequiredDataString(data, "provider")
+	if err != nil {
+		return environment{}, err
+	}
+	region, err := base.GetRequiredDataString(data, "region")
+	if err != nil {
+		return environment{}, err
+	}
+	return environment{
+		provider: provider,
+		region:   region,
+	}, nil
+}
+
 func checkRepositoryConflict(repository v1alpha1.Repository, required map[string][]resource.Required) error {
-	repositories, found := required[RequiredRepositoryKey]
-	if !found || len(repositories) == 0 {
+	repositories := required[RequiredRepositoryKey]
+	if len(repositories) == 0 {
 		return nil
 	}
 	conflictRepository := repositories[0].Resource
