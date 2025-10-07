@@ -53,7 +53,7 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 	}
 }
 
-func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured) map[string]*fnv1.ResourceSelector {
+func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
 	switch compositeResource.GetKind() {
 	case XRKindPostgreSQL:
 		secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", compositeResource.GetName(), "dbadmin"))
@@ -84,9 +84,9 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 				Match:      &fnv1.ResourceSelector_MatchName{MatchName: secretName},
 				Namespace:  &secretNamespace,
 			},
-		}
+		}, nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 

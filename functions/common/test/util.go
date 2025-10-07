@@ -27,7 +27,7 @@ func IgnoreFields(fields ...string) cmp.Option {
 	}, cmp.Ignore())
 }
 
-func GetEnvironmentConfigWithData(name string, data map[string]interface{}) *fnv1.Resources {
+func EnvironmentConfigResourceWithData(name string, data map[string]interface{}) *fnv1.Resources {
 	resourceStruct, err := structpb.NewStruct(map[string]interface{}{
 		"apiVersion": base.EnvironmentApiVersion,
 		"kind":       base.EnvironmentKind,
@@ -35,6 +35,30 @@ func GetEnvironmentConfigWithData(name string, data map[string]interface{}) *fnv
 			"name": name,
 		},
 		"data": data,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &fnv1.Resources{
+		Items: []*fnv1.Resource{
+			{
+				Resource: resourceStruct,
+			},
+		},
+	}
+}
+
+func KMSKeyResource(name, namespace string) *fnv1.Resources {
+	resourceStruct, err := structpb.NewStruct(map[string]interface{}{
+		"apiVersion": base.KMSKeyApiVersion,
+		"kind":       base.KMSKeyKind,
+		"metadata": map[string]interface{}{
+			"annotations": map[string]interface{}{
+				"crossplane.io/external-name": "arn:aws:kms:eu-north-1:111111111111:key/mrk-6c709a49a34940a48025f3bbc412827e",
+			},
+			"name":      name,
+			"namespace": namespace,
+		},
 	})
 	if err != nil {
 		panic(err)

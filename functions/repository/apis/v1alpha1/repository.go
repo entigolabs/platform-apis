@@ -14,35 +14,11 @@ import (
 // Repository generates OCI repository resources
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Namespaced
 type Repository struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              RepositorySpec   `json:"spec"`
 	Status            RepositoryStatus `json:"status,omitempty"`
-}
-
-type RepositorySpec struct {
-	ImageScanningConfiguration ImageScanningConfiguration `json:"imageScanningConfiguration,omitempty"`
-	// +kubebuilder:validation:Enum=IMMUTABLE;MUTABLE
-	ImageTagMutability *ImageTagMutability `json:"imageTagMutability,omitempty"`
-	Tags               []Tag               `json:"tags,omitempty"`
-}
-
-type ImageScanningConfiguration struct {
-	ScanOnPush *bool `json:"scanOnPush"`
-}
-
-type ImageTagMutability string
-
-const (
-	ImageTagMutabilityImmutable ImageTagMutability = "IMMUTABLE"
-	ImageTagMutabilityMutable   ImageTagMutability = "MUTABLE"
-)
-
-type Tag struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
 }
 
 type RepositoryStatus struct {

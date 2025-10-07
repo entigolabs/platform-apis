@@ -46,34 +46,42 @@ func RequiredEnvironmentConfig(name string) *fnv1.ResourceSelector {
 	}
 }
 
-func GetEnvironmentData(key string, resources []resource.Required) (map[string]interface{}, error) {
+func RequiredKMSKey(name, namespace string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       KMSKeyKind,
+		ApiVersion: KMSKeyApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+		Namespace:  &namespace,
+	}
+}
+
+type Validatable interface {
+	Validate() error
+}
+
+func GetEnvironment(key string, resources []resource.Required, obj Validatable) error {
 	if len(resources) == 0 {
-		return nil, fmt.Errorf("environment config with key '%s' not found", key)
+		return fmt.Errorf("environment config with key '%s' not found", key)
 	}
 	result := make(map[string]interface{})
 	for _, r := range resources {
 		data, found, err := unstructured.NestedMap(r.Resource.Object, "data")
 		if err != nil {
-			return nil, fmt.Errorf("cannot get environment config data with key '%s': %w", key, err)
+			return fmt.Errorf("cannot get environment config data with key '%s': %w", key, err)
 		}
 		if found {
 			if err := mergo.Map(&result, data, mergo.WithAppendSlice); err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return result, nil
-}
-
-func GetRequiredDataString(data map[string]interface{}, fields ...string) (string, error) {
-	value, found, err := unstructured.NestedString(data, fields...)
-	if err != nil {
-		return "", fmt.Errorf("cannot get required string field %s: %w", strings.Join(fields, "."), err)
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(result, obj); err != nil {
+		return fmt.Errorf("cannot convert required resource %s: %w", key, err)
 	}
-	if !found {
-		return "", fmt.Errorf("required string field %s not found", strings.Join(fields, "."))
+	if err := obj.Validate(); err != nil {
+		return fmt.Errorf("invalid environment config with key '%s': %w", key, err)
 	}
-	return value, nil
+	return nil
 }
 
 func ExtractRequiredResource(requiredResources map[string][]resource.Required, key string, target runtime.Object) error {

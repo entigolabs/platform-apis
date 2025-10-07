@@ -5,36 +5,35 @@ import (
 
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
-	"github.com/entigolabs/platform-apis/model/v1alpha1"
-	"github.com/upbound/provider-aws/apis/cluster/ecr/v1beta2"
+	"github.com/entigolabs/platform-apis/apis"
+	"github.com/entigolabs/platform-apis/apis/v1alpha1"
+	"github.com/upbound/provider-aws/apis/namespaced/ecr/v1beta1"
+	kmsmv1beta1 "github.com/upbound/provider-aws/apis/namespaced/kms/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
-
-type environment struct {
-	provider string
-	region   string
-}
 
 func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required) (map[string]runtime.Object, error) {
 	if err := checkRepositoryConflict(repository, required); err != nil {
 		return nil, err
 	}
 
-	env, err := getEnvironment(required)
+	env, err := getEnvironment(required[base.EnvironmentKey])
 	if err != nil {
 		return nil, err
 	}
 
-	objects := make(map[string]runtime.Object)
-	// TODO Add org tag?
-	tags := make(map[string]*string)
-	for _, tag := range repository.Spec.Tags {
-		tags[tag.Key] = &tag.Value
+	var kms kmsmv1beta1.Key
+	if err = base.ExtractRequiredResource(required, KMSDataKey, &kms); err != nil {
+		return nil, err
 	}
-	repo := &v1beta2.Repository{
+	encryptionType := "KMS"
+
+	objects := make(map[string]runtime.Object)
+	repo := &v1beta1.Repository{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: RepositoryApiVersion,
 			Kind:       RepositoryKind,
@@ -43,51 +42,36 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 			Name:      repository.Name,
 			Namespace: repository.Namespace,
 			Labels: map[string]string{
-				"region":               env.region,
+				"region":               env.AWSRegion,
 				base.ResourceLabel:     repository.Name,
 				base.ResourceKindLabel: XRKindRepository,
 			},
 		},
-		Spec: v1beta2.RepositorySpec{
-			ForProvider: v1beta2.RepositoryParameters{
-				Region: &env.region,
-				Tags:   tags,
-				ImageScanningConfiguration: &v1beta2.ImageScanningConfigurationParameters{
-					ScanOnPush: repository.Spec.ImageScanningConfiguration.ScanOnPush,
+		Spec: v1beta1.RepositorySpec{
+			ForProvider: v1beta1.RepositoryParameters{
+				Region: &env.AWSRegion,
+				ImageScanningConfiguration: &v1beta1.ImageScanningConfigurationParameters{
+					ScanOnPush: env.ScanOnPush,
 				},
+				ImageTagMutability: env.ImageTagMutability,
+				EncryptionConfiguration: []v1beta1.EncryptionConfigurationParameters{{
+					EncryptionType: &encryptionType,
+					KMSKeyRef:      &xpv2v1.NamespacedReference{Name: kms.Name, Namespace: kms.Namespace},
+				}},
 			},
-			ResourceSpec: xpv2v1.ResourceSpec{
-				ProviderConfigReference: &xpv2.Reference{
-					Name: env.provider,
-				},
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
+				ProviderConfigReference: &xpv2.ProviderConfigReference{Name: env.AWSProvider, Kind: "ClusterProviderConfig"},
 			},
 		},
-	}
-	if repository.Spec.ImageTagMutability != nil {
-		mutability := string(*repository.Spec.ImageTagMutability)
-		repo.Spec.ForProvider.ImageTagMutability = &mutability
 	}
 	objects[repository.Name] = repo
 	return objects, nil
 }
 
-func getEnvironment(required map[string][]resource.Required) (environment, error) {
-	data, err := base.GetEnvironmentData(base.EnvironmentKey, required[base.EnvironmentKey])
-	if err != nil {
-		return environment{}, err
-	}
-	provider, err := base.GetRequiredDataString(data, "provider")
-	if err != nil {
-		return environment{}, err
-	}
-	region, err := base.GetRequiredDataString(data, "region")
-	if err != nil {
-		return environment{}, err
-	}
-	return environment{
-		provider: provider,
-		region:   region,
-	}, nil
+func getEnvironment(resources []resource.Required) (apis.Environment, error) {
+	var env apis.Environment
+	err := base.GetEnvironment(base.EnvironmentKey, resources, &env)
+	return env, err
 }
 
 func checkRepositoryConflict(repository v1alpha1.Repository, required map[string][]resource.Required) error {

@@ -1,0 +1,10 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: platform-apis-repository-fn
+  annotations:
+    # This tells crossplane beta render to connect to the function locally.
+    render.crossplane.io/runtime: Development
+spec:
+  # This is ignored when using the Development runtime. Only when using the cli render command.
+  package: index.docker.io/entigolabs/developer-portal-function:v0.0.0-20251002150333-9b5ef3ad8f93

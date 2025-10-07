@@ -15,6 +15,8 @@ const (
 	EnvironmentKey        = "Environment"
 	EnvironmentKind       = "EnvironmentConfig"
 	EnvironmentApiVersion = "apiextensions.crossplane.io/v1beta1"
+	KMSKeyKind            = "Key"
+	KMSKeyApiVersion      = "kms.aws.m.upbound.io/v1beta1"
 )
 
 type ResourceHandler struct {
@@ -25,7 +27,7 @@ type ResourceHandler struct {
 type GroupService interface {
 	GetResourceHandlers() map[string]ResourceHandler
 	GetReadyStatus(observed *composed.Unstructured) resource.Ready
-	GetRequiredResources(compositeResource *composite.Unstructured) map[string]*fnv1.ResourceSelector
+	GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error)
 	GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error)
 	AddStatusConditions(compositeResource *composite.Unstructured, observed map[resource.Name]resource.ObservedComposed)
 }

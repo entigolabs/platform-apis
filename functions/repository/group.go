@@ -8,7 +8,7 @@ import (
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/crossplane/function-sdk-go/resource/composite"
 	"github.com/entigolabs/function-base/base"
-	"github.com/entigolabs/platform-apis/model/v1alpha1"
+	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -19,6 +19,8 @@ const (
 	RequiredRepositoryKey = "Repository"
 	RepositoryKind        = "Repository"
 	RepositoryApiVersion  = "ecr.aws.m.upbound.io/v1beta2"
+
+	KMSDataKey = "KMSDataKey"
 )
 
 type GroupImpl struct {
@@ -43,21 +45,38 @@ func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {
 	return ""
 }
 
-func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured) map[string]*fnv1.ResourceSelector {
+func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
 	switch compositeResource.GetKind() {
 	case XRKindRepository:
-		return map[string]*fnv1.ResourceSelector{
+		resources := map[string]*fnv1.ResourceSelector{
 			base.EnvironmentKey: base.RequiredEnvironmentConfig("platform-apis-repository"),
-			// Get all repositories with the same name
-			RequiredRepositoryKey: {
-				Kind:       RepositoryKind,
-				ApiVersion: RepositoryApiVersion,
-				Match:      &fnv1.ResourceSelector_MatchName{MatchName: compositeResource.GetName()},
-			},
 		}
+		env, envPresent := required[base.EnvironmentKey]
+		if !envPresent {
+			return resources, nil
+		}
+		kms, err := getRequiredKMS(env)
+		if err != nil {
+			return nil, err
+		}
+		resources[KMSDataKey] = kms
+		resources[RequiredRepositoryKey] = &fnv1.ResourceSelector{
+			Kind:       RepositoryKind,
+			ApiVersion: RepositoryApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: compositeResource.GetName()},
+		}
+		return resources, nil
 	default:
-		return nil
+		return nil, nil
 	}
+}
+
+func getRequiredKMS(resources []resource.Required) (*fnv1.ResourceSelector, error) {
+	env, err := getEnvironment(resources)
+	if err != nil {
+		return nil, err
+	}
+	return base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider), nil
 }
 
 func (g *GroupImpl) GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error) {

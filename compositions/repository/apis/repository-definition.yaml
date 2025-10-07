@@ -16,23 +16,6 @@ spec:
         openAPIV3Schema:
           type: object
           properties:
-            spec:
-              type: object
-              properties:
-                imageScanningConfiguration:
-                  type: object
-                  properties:
-                    scanOnPush:
-                      type: boolean
-                imageTagMutability:
-                  type: string
-                  enum: ['IMMUTABLE', 'MUTABLE']
-                tags:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      key:
-                        type: string
-                      value:
-                        type: string
+            status:
+              repositoryUri:
+                type: string
