@@ -6,7 +6,7 @@ metadata:
   name: myapp-zone-example
 spec:
   namespaces:
-    - name: myapp  # when no pool is explicitly specified, default pool is used. 
+    - name: myapp  # when no pool is explicitly specified, default pool is used.
     - name: backend
       pool: spot
   pools: 
@@ -25,7 +25,7 @@ spec:
             - arm64
         - key: instance-type
           values: 
-            - t3.micro
+            - t3.medium
         - key: capacity-type
           values: 
             - on-demand
@@ -44,7 +44,7 @@ spec:
             - arm64
         - key: instance-type
           values: 
-            - t3.small
+            - t3.medium
         - key: capacity-type
           values: 
             - spot

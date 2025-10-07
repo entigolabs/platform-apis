@@ -1,9 +1,13 @@
 name: Helm Chart CI/CD
 on:
   push:
+    paths:
+      - 'helm/**'
     branches:
       - main
   pull_request:
+    paths:
+      - 'helm/**'
     branches:
       - main
   workflow_dispatch:

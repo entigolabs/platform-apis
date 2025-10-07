@@ -10,6 +10,15 @@ rules:
   - apiGroups: ["argoproj.io"]
     resources: ["appprojects"]
     verbs: ["*"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["rolebindings", "clusterroles"]
+    verbs: ["*"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["*"]
+  - apiGroups: ["policies.kyverno.io"]
+    resources: ["mutatingpolicies", "validatingpolicies"]
+    verbs: ["*"]
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
@@ -19,8 +28,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   activate:
-  - launchtemplates.ec2.aws.m.upbound.io
-  - nodegroups.eks.aws.m.upbound.io
+  - launchtemplates.ec2.aws.upbound.io
+  - nodegroups.eks.aws.upbound.io
   - roles.iam.upbound.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
