@@ -7,10 +7,11 @@ export default function posthogRuntimeConfigPlugin(
   return {
     name: 'posthog-runtime-config',
 
-    // Inject the runtime config script in the HTML head
     injectHtmlTags() {
       return {
         headTags: [
+          // Only load the runtime config
+          // React components will handle initialization
           {
             tagName: 'script',
             attributes: {
@@ -21,24 +22,9 @@ export default function posthogRuntimeConfigPlugin(
       };
     },
 
-    // Load client-side override module
+    // Load the client module
     getClientModules() {
-      return [require.resolve('./posthog-init')];
-    },
-
-    // Expose default/placeholder config for other plugins to use
-    async contentLoaded({ actions }) {
-      const { setGlobalData } = actions;
-      
-      // Set placeholder config for build time
-      // Will be overridden at runtime by /posthog-config.js
-      setGlobalData({
-        posthog: {
-          apiKey: 'phc_build_time_placeholder',
-          apiHost: '/ingest',
-          enabled: false,
-        },
-      });
+      return [require.resolve('./posthog-client')];
     },
   };
 }
