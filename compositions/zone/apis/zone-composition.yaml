@@ -43,19 +43,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
-
-            {{ end }}
-    - step: create-policies
-      functionRef:
-        name: function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{- $name := .observed.composite.resource.metadata.name -}}
-            {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
+            ---
             apiVersion: networking.k8s.io/v1
             kind: NetworkPolicy
             metadata:
@@ -142,16 +130,20 @@ spec:
                   apiVersions: ["v1"]
                   operations: ["CREATE"]
                   resources: ["pods"]
+
               mutations:
-              - patchType: ApplyConfiguration
-                applyConfiguration:
+              - patchType: JSONPatch
+                jsonPatch:
                   expression: |
                     !has(object.spec.nodeSelector) || size(object.spec.nodeSelector) == 0 ?
-                    Object{
-                      spec: Object.spec{
-                        nodeSelector: {"tenancy.entigo.com/pool": "{{ $poolName }}"}
+                    [
+                      JSONPatch{
+                        op: "add",
+                        path: "/spec/nodeSelector",
+                        value: {"eks.amazonaws.com/nodegroup": "{{ $name }}-{{ $poolName }}"}
                       }
-                    } : Object{}
+                    ] : []
+
             ---
             apiVersion: policies.kyverno.io/v1alpha1
             kind: ValidatingPolicy
@@ -167,7 +159,7 @@ spec:
                   - key: kubernetes.io/metadata.name
                     operator: In
                     values:
-                    - {{ $namespace.name }}
+                    - "{{ $namespace.name }}"
                 resourceRules:
                 - apiGroups: [""]
                   apiVersions: ["v1"]
@@ -175,13 +167,13 @@ spec:
                   resources: ["pods"]
               validations:
               - expression: |
-                  !has(object.spec.nodeSelector) ||
-                  !("tenancy.entigo.com/pool" in object.spec.nodeSelector) ||
-                  object.spec.nodeSelector["tenancy.entigo.com/pool"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $pool.name }}"{{ end }}]
-                message: "Pod nodeSelector must use a valid pool from this zone. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $pool.name }}{{ end }}"
+                  has(object.spec.nodeSelector) &&
+                  "eks.amazonaws.com/nodegroup" in object.spec.nodeSelector &&
+                  object.spec.nodeSelector["eks.amazonaws.com/nodegroup"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $name }}-{{ $pool.name }}"{{ end }}]
+                message: "Pod nodeSelector must use a valid nodeSelector label value for eks.amazonaws.com/nodegroup. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $name }}-{{ $pool.name }}{{ end }}"
             {{ end }}
 
-    - step: create-iam-role
+    - step: create-node-pools
       functionRef:
         name: function-go-templating
       input:
@@ -194,12 +186,41 @@ spec:
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
+              kmsAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: data
+              nodeSecurityGroup:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: SecurityGroup
+                matchName: eks-node
               awsProviderConfig:
                 apiVersion: aws.upbound.io/v1beta1
                 kind: ProviderConfig
+              eks:
+                apiVersion: eks.aws.upbound.io/v1beta1
+                kind: Cluster
+                matchName: eks
+              computeSubnets:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: Subnet
+                matchLabels:
+                  subnet-type: compute
+
             ---
             {{- $name := .observed.composite.resource.metadata.name -}}
+
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
+            {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
+            {{- $eks := mustFirst (getExtraResources . "eks") }}
+            {{- $computeSubnets := getExtraResources . "computeSubnets" }}
+
             apiVersion: iam.aws.upbound.io/v1beta1
             kind: Role
             metadata:
@@ -232,38 +253,6 @@ spec:
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
 
-    - step: create-launch-templates
-      functionRef:
-        name: function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            # Get required resources
-            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-            kind: ExtraResources
-            requirements:
-              vpc:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: VPC
-                matchName: vpc
-              kmsAlias:
-                apiVersion: kms.aws.upbound.io/v1beta1
-                kind: Alias
-                matchName: data
-              nodeSecurityGroup:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: SecurityGroup
-                matchName: eks-node
-              awsProviderConfig:
-                apiVersion: aws.upbound.io/v1beta1
-                kind: ProviderConfig
-            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
-            {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
-            {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
-            {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
             apiVersion: ec2.aws.upbound.io/v1beta1
@@ -279,15 +268,8 @@ spec:
                 userData: ""
                 description: "{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}"
                 region: {{ $vpc.resource.status.atProvider.region }}
-                ramDiskId: ""
                 disableApiStop: false
                 disableApiTermination: false
-                ebsOptimized: ""
-                imageId: ""
-                instanceInitiatedShutdownBehavior: ""
-                instanceType: ""
-                kernelId: ""
-                keyName: ""
                 metadataOptions:
                 - httpEndpoint: enabled
                   httpProtocolIpv6: ""
@@ -323,45 +305,6 @@ spec:
               - "*"
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
-            {{ end }}
-    - step: create-node-pools
-      functionRef:
-        name: function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            # Get required resources
-            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-            kind: ExtraResources
-            requirements:
-              vpc:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: VPC
-                matchName: vpc
-              awsProviderConfig:
-                apiVersion: aws.upbound.io/v1beta1
-                kind: ProviderConfig
-              eks:
-                apiVersion: eks.aws.upbound.io/v1beta1
-                kind: Cluster
-                matchName: eks
-              computeSubnets:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: Subnet
-                matchLabels:
-                  subnet-type: compute
-
-            ---
-            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
-            {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
-            {{- $eks := mustFirst (getExtraResources . "eks") }}
-            {{- $computeSubnets := getExtraResources . "computeSubnets" }}
-
-            {{- $name := .observed.composite.resource.metadata.name -}}
-            {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
             apiVersion: eks.aws.upbound.io/v1beta1
             kind: NodeGroup
@@ -381,16 +324,32 @@ spec:
                 region: {{ $vpc.resource.status.atProvider.region }}
                 updateConfig:
                 - maxUnavailable: 1
-                {{ range $pool.requirements}}
+                {{ range $pool.requirements }}
                 {{ if eq .key "instance-type" }}
                 instanceTypes: {{ .values }}
                 {{ end }}
                 {{ end }}
-                subnetIdRefs:
-                  {{- range $computeSubnets }}
-                  - name: {{ .resource.metadata.name }}
+
+                {{- $zoneFilter := list }}
+                {{- range $pool.requirements }}
+                  {{- if eq .key "zone" }}
+                    {{- $zoneFilter = .values }}
                   {{- end }}
-                releaseVersion: "1.32.9-20251002"
+                {{- end }}
+
+                subnetIdRefs:
+                  {{- if gt (len $zoneFilter) 0 }}
+                    {{- range $computeSubnets }}
+                      {{- if has .resource.status.atProvider.availabilityZone $zoneFilter }}
+                  - name: {{ .resource.metadata.name }}
+                      {{- end }}
+                    {{- end }}
+                  {{- else }}
+                    {{- range $computeSubnets }}
+                  - name: {{ .resource.metadata.name }}
+                    {{- end }}
+                  {{- end }}
+
                 labels:
                   environment: production
                   nodegroup-type: managed
@@ -400,11 +359,30 @@ spec:
                   Name: eks-managed-node-{{ $pool.name }}
                   Environment: Production
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-                capacityType: ON_DEMAND
+
+                {{- $capacityType := "ON_DEMAND" }}
+                {{- $minSize := 1 }}
+                {{- $maxSize := -1 }}
+                {{ range $pool.requirements }}
+                  {{ if eq .key "capacity-type" }}
+                    {{ $capacityType = .value }}
+                  {{ end }}
+                  {{ if eq .key "min-size" }}
+                    {{ $minSize = .value }}
+                  {{ end }}
+                  {{ if eq .key "max-size" }}
+                    {{ $maxSize = .value }}
+                  {{ end }}
+                {{ end }}
+                {{ if eq $maxSize -1 }}
+                  {{- $maxSize = $minSize }}
+                {{ end }}
+                capacityType: {{ $capacityType }}
+
                 scalingConfig:
-                - desiredSize: 1
-                  maxSize: 2
-                  minSize: 1
+                - desiredSize: {{ $minSize }}
+                  maxSize: {{ $maxSize }}
+                  minSize: {{ $minSize }}
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
             {{ end }}

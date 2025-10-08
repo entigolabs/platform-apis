@@ -11,40 +11,23 @@ spec:
       pool: spot
   pools: 
     - name: default
-      limits:
-        cpu: 10 # maximum number of CPU cores 
-        memory: 100Gi
       requirements:
-        - key: zone
-          values:
-            - eu-north-1a
-            - eu-north-1b
-        - key: arch
-          values: 
-            - amd64
-            - arm64
         - key: instance-type
-          values: 
-            - t3.medium
-        - key: capacity-type
-          values: 
-            - on-demand
+          values:
+            - t3.large
+        - key: max-size
+          value: 3
     - name: spot
-      limits:
-        cpu: 10 # maximum number of CPU cores 
-        memory: 100Gi
       requirements:
         - key: zone
           values:
             - eu-north-1a
-            - eu-north-1b
-        - key: arch
-          values: 
-            - amd64
-            - arm64
         - key: instance-type
           values: 
             - t3.medium
         - key: capacity-type
-          values: 
-            - spot
+          value: SPOT
+        - key: min-size
+          value: 2
+        - key: max-size
+          value: 3

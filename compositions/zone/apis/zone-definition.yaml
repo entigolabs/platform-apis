@@ -22,70 +22,64 @@ spec:
                 namespaces:
                   type: array
                   minItems: 1
-                  description: List of namespaces to manage as part of the Zone. At least one namespace must be specified. List of strings. 
+                  description: List of namespaces to manage as part of the Zone. At least one namespace must be specified.
                   items:
                     type: object
                     properties:
                       name:
                         type: string
-                        description: Name of the namespace. 
-                      pool: 
+                        description: Name of the namespace.
+                      pool:
                         type: string
-                        description: Name of the Node Pool where to schedule workloads. 
+                        description: Name of the Node Pool where to schedule workloads. If not specified, the first pool is used.
                     required:
                       - name
                 pools:
                   type: array
-                  description: "List of node pool configurations"
+                  description: List of node pool configurations for cluster-autoscaler
                   minItems: 1
                   items:
                     type: object
                     required:
-                    - name
+                      - name
+                      - requirements
                     properties:
                       name:
                         type: string
-                        description: "Name of the node pool"
+                        description: Name of the node pool
                         minLength: 1
                         maxLength: 63
                         pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
-                      limits:
-                        type: object
-                        description: "Resource scaling limits for the node pool."
-                        properties:
-                          cpu:
-                            type: integer
-                            description: "Maximum number of CPU cores"
-                            minimum: 1
-                            maximum: 10000
-                          memory:
-                            type: string
-                            description: "Maximum amount of memory"
-                            pattern: "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei|k|M|G|T|P|E)?$"                      
                       requirements:
                         type: array
-                        description: "Node selection requirements"
+                        description: Node pool requirements including instance type, capacity type, zone, and scaling limits
+                        minItems: 1
                         items:
                           type: object
                           required:
-                          - key
-                          - values
+                            - key
                           properties:
                             key:
                               type: string
-                              description: "Requirement key"
+                              description: Requirement key
                               enum:
-                              - zone
-                              - arch
-                              - instance-type
-                              - capacity-type                            
+                                - instance-type
+                                - capacity-type
+                                - zone
+                                - min-size
+                                - max-size
+                                - desired-size
+                            # Single value - accepts string or integer
+                            value:
+                              x-kubernetes-int-or-string: true
+                              description: Single value for capacity-type, min-size, max-size, or desired-size. Can be string or integer.
+                            # Array of values - used for instance-type, zone
                             values:
                               type: array
-                              description: "Values for the requirement"
-                              minItems: 1
+                              description: Array of values for instance-type or zone
                               items:
                                 type: string
                                 minLength: 1
               required:
-              - namespaces
-              - pools
+                - namespaces
+                - pools
