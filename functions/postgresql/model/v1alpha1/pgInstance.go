@@ -45,7 +45,9 @@ type PostgreSQLInstanceStatus struct {
 	AllowMajorVersionUpgrade bool                       `json:"allowMajorVersionUpgrade"`
 	AutoMinorVersionUpgrade  bool                       `json:"autoMinorVersionUpgrade"`
 	BackupWindow             string                     `json:"backupWindow,omitempty"`
+	DBInstanceIdentifier     string                     `json:"dbInstanceIdentifier,omitempty"`
 	Endpoint                 PostgreSQLInstanceEndpoint `json:"endpoint,omitempty"`
+	FinalSnapshotIdentifier  string                     `json:"finalSnapshotIdentifier,omitempty"`
 	Iops                     float64                    `json:"iops,omitempty"`
 	KMSKeyID                 string                     `json:"kmsKeyId,omitempty"`
 	LatestRestorableTime     *metav1.Time               `json:"latestRestorableTime,omitempty"`
