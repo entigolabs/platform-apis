@@ -33,16 +33,17 @@ type pgInstanceGenerator struct {
 	provider   string
 	hash       string
 	// Dependencies
-	vpc         ec2mv1beta1.VPC
-	kmsKey      kmsmv1beta1.Key
-	subnetGroup rdsmv1beta1.SubnetGroup
+	vpc          ec2mv1beta1.VPC
+	kmsDataKey   kmsmv1beta1.Key
+	kmsConfigKey kmsmv1beta1.Key
+	subnetGroup  rdsmv1beta1.SubnetGroup
 	// Internal State
 	names        resourceNames
 	readinessMap map[resource.Name]bool
 }
 
 type resourceNames struct {
-	sg, sgIngress, sgEgress, rdsInstance, es resource.Name
+	sg, sgIngress, sgEgress, rdsInstance, rdsInstanceSnapshot, es resource.Name
 }
 
 func GeneratePgInstanceObjects(
@@ -69,13 +70,17 @@ func newPgInstanceGenerator(
 ) (*pgInstanceGenerator, error) {
 
 	var vpc ec2mv1beta1.VPC
-	var kmsKey kmsmv1beta1.Key
+	var kmsDataKey kmsmv1beta1.Key
+	var kmsConfigKey kmsmv1beta1.Key
 	var subnetGroup rdsmv1beta1.SubnetGroup
 
 	if err := base.ExtractRequiredResource(required, "VPC", &vpc); err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, "KMSKey", &kmsKey); err != nil {
+	if err := base.ExtractRequiredResource(required, "KMSDataKey", &kmsDataKey); err != nil {
+		return nil, err
+	}
+	if err := base.ExtractRequiredResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
 		return nil, err
 	}
 	if err := base.ExtractRequiredResource(required, "DBSubnetGroup", &subnetGroup); err != nil {
@@ -83,13 +88,14 @@ func newPgInstanceGenerator(
 	}
 
 	g := &pgInstanceGenerator{
-		pgInstance:  pgInstance,
-		observed:    observed,
-		provider:    provider,
-		hash:        base.GenerateFNVHash(pgInstance.UID),
-		vpc:         vpc,
-		kmsKey:      kmsKey,
-		subnetGroup: subnetGroup,
+		pgInstance:   pgInstance,
+		observed:     observed,
+		provider:     provider,
+		hash:         base.GenerateFNVHash(pgInstance.UID),
+		vpc:          vpc,
+		kmsDataKey:   kmsDataKey,
+		kmsConfigKey: kmsConfigKey,
+		subnetGroup:  subnetGroup,
 	}
 
 	g.generateNames()
@@ -159,6 +165,7 @@ func (g *pgInstanceGenerator) generateNames() {
 	g.names.sgIngress = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-ingress-%s", g.pgInstance.Name, g.hash)))
 	g.names.sgEgress = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-egress-%s", g.pgInstance.Name, g.hash)))
 	g.names.rdsInstance = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-%s", g.pgInstance.Name, g.hash)))
+	g.names.rdsInstanceSnapshot = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-snapshot-%s", g.pgInstance.Name, g.hash)))
 	g.names.es = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-es-%s", g.pgInstance.Name, g.hash)))
 }
 
@@ -246,6 +253,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 	rdsInstances := make(map[string]runtime.Object)
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
+	snapshotIdentifier := string(g.names.rdsInstanceSnapshot)
 	region := g.vpc.Spec.ForProvider.Region
 	availabilityZone := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a"))
 
@@ -271,11 +279,12 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 				DeletionProtection:          &g.pgInstance.Spec.DeletionProtection,
 				Engine:                      &engine,
 				EngineVersion:               &g.pgInstance.Spec.EngineVersion,
+				FinalSnapshotIdentifier:     &snapshotIdentifier,
 				Identifier:                  &rdsInstanceName,
 				InstanceClass:               &g.pgInstance.Spec.InstanceType,
-				KMSKeyIDRef:                 &xpv2v1.NamespacedReference{Name: g.kmsKey.Name, Namespace: g.kmsKey.Namespace},
+				KMSKeyIDRef:                 &xpv2v1.NamespacedReference{Name: g.kmsDataKey.Name, Namespace: g.kmsDataKey.Namespace},
 				ManageMasterUserPassword:    &manageMasterUserPassword,
-				MasterUserSecretKMSKeyIDRef: &xpv2v1.NamespacedReference{Name: g.kmsKey.Name, Namespace: g.kmsKey.Namespace},
+				MasterUserSecretKMSKeyIDRef: &xpv2v1.NamespacedReference{Name: g.kmsConfigKey.Name, Namespace: g.kmsConfigKey.Namespace},
 				MultiAz:                     &g.pgInstance.Spec.MultiAZ,
 				PerformanceInsightsEnabled:  &performanceInsightsEnabled,
 				PubliclyAccessible:          &publiclyAccessible,
@@ -291,6 +300,9 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 
 	if g.pgInstance.Spec.BackupWindow != "" {
 		rdsInstance.Spec.ForProvider.BackupWindow = &g.pgInstance.Spec.BackupWindow
+	}
+	if g.pgInstance.Spec.MaintenanceWindow != "" {
+		rdsInstance.Spec.ForProvider.MaintenanceWindow = &g.pgInstance.Spec.MaintenanceWindow
 	}
 	if g.pgInstance.Spec.ParameterGroupName != "" {
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.pgInstance.Spec.ParameterGroupName
@@ -381,10 +393,12 @@ func getSecretARNFromRDSInstanceStatus(instance *composed.Unstructured) (string,
 
 func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.PostgreSQLInstanceStatus {
 	status := v1alpha1.PostgreSQLInstanceStatus{}
+	dbInstanceName := dbInstance.Name
 
 	base.SetBool(dbInstance.Status.AtProvider.AllowMajorVersionUpgrade, &status.AllowMajorVersionUpgrade)
 	base.SetBool(dbInstance.Status.AtProvider.AutoMinorVersionUpgrade, &status.AutoMinorVersionUpgrade)
 	base.SetString(dbInstance.Status.AtProvider.BackupWindow, &status.BackupWindow)
+	base.SetString(&dbInstanceName, &status.DBInstanceIdentifier)
 
 	endpoint := v1alpha1.PostgreSQLInstanceEndpoint{}
 
@@ -394,6 +408,7 @@ func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1
 
 	status.Endpoint = endpoint
 
+	base.SetString(dbInstance.Status.AtProvider.FinalSnapshotIdentifier, &status.FinalSnapshotIdentifier)
 	base.SetFloat64(dbInstance.Status.AtProvider.Iops, &status.Iops)
 	base.SetString(dbInstance.Status.AtProvider.KMSKeyID, &status.KMSKeyID)
 
@@ -436,17 +451,5 @@ func GetRDSInstanceReadyStatus(observed *composed.Unstructured) resource.Ready {
 	if notReady {
 		return resource.ReadyFalse
 	}
-	conditions, foundCond, errCond := unstructured.NestedSlice(observed.Object, "status", "conditions")
-	if errCond == nil && foundCond {
-		for _, c := range conditions {
-			cond, ok := c.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if cond["type"] == "Ready" && cond["status"] == "True" {
-				return resource.ReadyTrue
-			}
-		}
-	}
-	return resource.ReadyFalse
+	return base.GetCrossplaneReadyStatus(observed)
 }
