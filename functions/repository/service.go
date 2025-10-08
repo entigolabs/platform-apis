@@ -80,9 +80,6 @@ func checkRepositoryConflict(repository v1alpha1.Repository, required map[string
 		return nil
 	}
 	conflictRepository := repositories[0].Resource
-	if conflictRepository.GetName() != repository.Name {
-		return nil
-	}
 	if conflictRepository.GetNamespace() != repository.GetNamespace() {
 		return fmt.Errorf("repository %s already exists in namespace %s", repository.Name, conflictRepository.GetNamespace())
 	}

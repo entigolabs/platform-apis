@@ -66,19 +66,15 @@ func TestRepositoryFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"repository": {Resource: resource.MustStructJSON(`
-{"apiVersion":"ecr.aws.m.upbound.io/v1beta2","kind":"Repository","metadata":{"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","region":"eu-north-1"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"imageScanningConfiguration":{"scanOnPush":null},"region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
+{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","region":"eu-north-1"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"imageScanningConfiguration":{"scanOnPush":null},"region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
 							`)},
 						},
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion,
-								Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{
-									Labels: map[string]string{"crossplane.io/composition-resource-name": "repository"},
-								}},
-							},
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							KMSDataKey:          base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion, Match: &fnv1.ResourceSelector_MatchName{MatchName: "repository"}},
+							base.EnvironmentKey:   base.RequiredEnvironmentConfig(environmentName),
+							KMSDataKey:            base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -106,19 +102,15 @@ func TestRepositoryFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"repository": {Resource: resource.MustStructJSON(`
-{"apiVersion":"ecr.aws.m.upbound.io/v1beta2","kind":"Repository","metadata":{"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","region":"eu-north-1"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"imageScanningConfiguration":{"scanOnPush":true},"imageTagMutability":"MUTABLE","region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
+{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","region":"eu-north-1"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"imageScanningConfiguration":{"scanOnPush":true},"imageTagMutability":"MUTABLE","region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
 							`)},
 						},
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion,
-								Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{
-									Labels: map[string]string{"crossplane.io/composition-resource-name": "repository"},
-								}},
-							},
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							KMSDataKey:          base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion, Match: &fnv1.ResourceSelector_MatchName{MatchName: "repository"}},
+							base.EnvironmentKey:   base.RequiredEnvironmentConfig(environmentName),
+							KMSDataKey:            base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},

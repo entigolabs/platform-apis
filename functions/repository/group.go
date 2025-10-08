@@ -18,7 +18,7 @@ const (
 
 	RequiredRepositoryKey = "Repository"
 	RepositoryKind        = "Repository"
-	RepositoryApiVersion  = "ecr.aws.m.upbound.io/v1beta2"
+	RepositoryApiVersion  = "ecr.aws.m.upbound.io/v1beta1"
 
 	KMSDataKey = "KMSDataKey"
 )
@@ -63,9 +63,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		resources[RequiredRepositoryKey] = &fnv1.ResourceSelector{
 			Kind:       RepositoryKind,
 			ApiVersion: RepositoryApiVersion,
-			Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{
-				Labels: map[string]string{"crossplane.io/composition-resource-name": compositeResource.GetName()},
-			}},
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: compositeResource.GetName()},
 		}
 		return resources, nil
 	default:
