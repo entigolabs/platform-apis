@@ -1,7 +1,7 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: repository-example-environment
+  name: platform-apis-repository
 data:
   awsProvider: crossplane-aws
   awsRegion: eu-west-1

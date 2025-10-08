@@ -2,3 +2,5 @@ apiVersion: artifact.entigo.com/v1alpha1
 kind: Repository
 metadata:
   name: repository-example
+# Empty spec is mandatory
+spec: {}

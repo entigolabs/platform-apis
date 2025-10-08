@@ -63,7 +63,9 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		resources[RequiredRepositoryKey] = &fnv1.ResourceSelector{
 			Kind:       RepositoryKind,
 			ApiVersion: RepositoryApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: compositeResource.GetName()},
+			Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{
+				Labels: map[string]string{"crossplane.io/composition-resource-name": compositeResource.GetName()},
+			}},
 		}
 		return resources, nil
 	default:
