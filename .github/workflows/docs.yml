@@ -1,0 +1,44 @@
+name: Platform Docs
+
+on:
+  push:
+    paths:
+      - 'docs/**'
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'docs/**'
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Check-out your repository.
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install crdoc & generate API documentation
+        run: |
+          mkdir docs/temp
+          cd docs/temp
+          pwd
+          sh ../config/install-crdoc.sh
+          sh ../config/generate-crds.sh
+          cd -
+          rm -rf temp
+
+      - name: Install Heroku CLI
+        run: |
+          curl https://cli-assets.heroku.com/install.sh | sh
+      - uses: akhileshns/heroku-deploy@v3.14.15
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: docs/
+          stack: container
+          usedocker: true
