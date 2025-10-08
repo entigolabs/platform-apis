@@ -30,7 +30,7 @@ const (
 	environmentName = "platform-apis-repository"
 )
 
-func TestRunFunction(t *testing.T) {
+func TestRepositoryFunction(t *testing.T) {
 	repoResource := resource.MustStructJSON(repoJson)
 	environmentData := map[string]interface{}{
 		"awsRegion":   "eu-north-1",
@@ -72,9 +72,13 @@ func TestRunFunction(t *testing.T) {
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion, Match: &fnv1.ResourceSelector_MatchName{MatchName: "repository"}},
-							base.EnvironmentKey:   base.RequiredEnvironmentConfig(environmentName),
-							KMSDataKey:            base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion,
+								Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{
+									Labels: map[string]string{"crossplane.io/composition-resource-name": "repository"},
+								}},
+							},
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							KMSDataKey:          base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -108,9 +112,13 @@ func TestRunFunction(t *testing.T) {
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion, Match: &fnv1.ResourceSelector_MatchName{MatchName: "repository"}},
-							base.EnvironmentKey:   base.RequiredEnvironmentConfig(environmentName),
-							KMSDataKey:            base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							RequiredRepositoryKey: {Kind: RepositoryKind, ApiVersion: RepositoryApiVersion,
+								Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{
+									Labels: map[string]string{"crossplane.io/composition-resource-name": "repository"},
+								}},
+							},
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							KMSDataKey:          base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
