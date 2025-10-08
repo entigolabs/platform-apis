@@ -15,5 +15,5 @@ jobs:
     uses: ./.github/workflows/builder-composition.yml
     with:
       path: compositions/postgresql
-      name: entigo-postgresql
+      name: platform-apis-postgresql
     secrets: inherit
