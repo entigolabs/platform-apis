@@ -70,6 +70,21 @@ jobs:
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
+          WEBAPP_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-webapp/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
+            | head -n 1)
+
+          WEBACCESS_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-webaccess/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
+            | head -n 1)
+
+          CRONJOB_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-cronjob/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
+            | head -n 1)
+
           # Validate tags were fetched
           if [ -z "$POSTGRESQL_TAG" ] || [ "$POSTGRESQL_TAG" = "null" ]; then
             echo "Failed to fetch postgresql tag"
@@ -84,9 +99,27 @@ jobs:
             exit 1
           fi
 
+          if [ -z "$WEBAPP_TAG" ] || [ "$WEBAPP_TAG" = "null" ]; then
+            echo "Failed to fetch webapp tag"
+            exit 1
+          fi
+
+          if [ -z "$WEBACCESS_TAG" ] || [ "$WEBACCESS_TAG" = "null" ]; then
+            echo "Failed to fetch webaccess tag"
+            exit 1
+          fi
+
+          if [ -z "$CRONJOB_TAG" ] || [ "$CRONJOB_TAG" = "null" ]; then
+            echo "Failed to fetch cronjob tag"
+            exit 1
+          fi
+
           echo "POSTGRESQL_TAG=$POSTGRESQL_TAG" >> $GITHUB_ENV
           echo "POSTGRESQL_FN_TAG=$POSTGRESQL_FN_TAG" >> $GITHUB_ENV
           echo "ZONE_TAG=$ZONE_TAG" >> $GITHUB_ENV
+          echo "WEBAPP_TAG=$WEBAPP_TAG" >> $GITHUB_ENV
+          echo "WEBACCESS_TAG=$WEBACCESS_TAG" >> $GITHUB_ENV
+          echo "CRONJOB_TAG=$CRONJOB_TAG" >> $GITHUB_ENV
 
           echo "Latest tags: postgresql=$POSTGRESQL_TAG, postgresql-fn=$POSTGRESQL_FN_TAG, zone=$ZONE_TAG"
       - name: Update Values with Latest Tags
@@ -95,7 +128,9 @@ jobs:
           yq -i '.postgresql.package.tag = "${{ env.POSTGRESQL_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
           yq -i '.postgresql.function.tag = "${{ env.POSTGRESQL_FN_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
           yq -i '.zone.package.tag = "${{ env.ZONE_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
-
+          yq -i '.webapp.package.tag = "${{ env.WEBAPP_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
+          yq -i '.webaccess.package.tag = "${{ env.WEBACCESS_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
+          yq -i '.cronjob.package.tag = "${{ env.CRONJOB_TAG }}"' ${{ env.CHART_PATH }}/values.yaml
           echo "After update:"
           cat ${{ env.CHART_PATH }}/values.yaml
 
