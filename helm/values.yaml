@@ -19,7 +19,7 @@ repository:
     tag: v0.0.0
   environmentConfig:
     awsProvider: "crossplane-aws"
-    awsRegion: eu-west-1
+    awsRegion: ""
     dataKMSKey: data
     scanOnPush: true
     imageTagMutability: "MUTABLE"

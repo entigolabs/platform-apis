@@ -135,14 +135,14 @@ jobs:
           fi
 
           echo "Updating tags..."
-          yq -i '.postgresql.package.tag = "$POSTGRESQL_TAG"' ${{ env.CHART_PATH }}/values.yaml
-          yq -i '.postgresql.function.tag = "$POSTGRESQL_FN_TAG"' ${{ env.CHART_PATH }}/values.yaml
-          yq -i '.repository.package.tag = "$REPOSITORY_TAG"' ${{ env.CHART_PATH }}/values.yaml
-          yq -i '.repository.function.tag = "$REPOSITORY_FN_TAG"' ${{ env.CHART_PATH }}/values.yaml
-          yq -i '.zone.package.tag = "$ZONE_TAG"' ${{ env.CHART_PATH }}/values.yaml
-          yq -i '.webapp.package.tag = "$WEBAPP_TAG"' ${{ env.CHART_PATH }}/values.yaml
-          yq -i '.webaccess.package.tag = "$WEBACCESS_TAG"' ${{ env.CHART_PATH }}/values.yaml
-          yq -i '.cronjob.package.tag = "$CRONJOB_TAG"' ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".postgresql.package.tag = \"$POSTGRESQL_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".postgresql.function.tag = \"$POSTGRESQL_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".repository.package.tag = \"$REPOSITORY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".repository.function.tag = \"$REPOSITORY_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".zone.package.tag = \"$ZONE_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".webapp.package.tag = \"$WEBAPP_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".webaccess.package.tag = \"$WEBACCESS_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".cronjob.package.tag = \"$CRONJOB_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           echo "After update:"
           cat ${{ env.CHART_PATH }}/values.yaml
 
