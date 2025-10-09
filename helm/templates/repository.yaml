@@ -42,6 +42,7 @@ spec:
                         values:
                           - 'true'
                   weight: 90
+          containers: []
           tolerations:
             - effect: NoSchedule
               key: tools
