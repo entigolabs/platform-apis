@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: auto-pool-abdhrbackend
+  namespace: abdhrbackend
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: auto-pool-abdhrrapp
+  namespace: abdhrrapp
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: set-pool
+  namespace: abdhrbackend
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: abdhrapp-default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: set-wrong-pool
+  namespace: abdhrbackend
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: tools
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: set-wrong-pooltwo
+  namespace: abdhrbackend
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+  nodeSelector:
+    tools: "true"
+

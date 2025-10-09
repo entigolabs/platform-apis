@@ -1,0 +1,53 @@
+package base
+
+import (
+	"fmt"
+	"strings"
+)
+
+type Set[T comparable] map[T]bool
+
+func NewSet[T comparable](items ...T) Set[T] {
+	set := make(Set[T])
+	for _, item := range items {
+		set[item] = true
+	}
+	return set
+}
+
+func ToSet[T comparable](items []T) Set[T] {
+	return NewSet(items...)
+}
+
+func (s Set[T]) Add(item T) {
+	s[item] = true
+}
+
+func (s Set[T]) Remove(item T) {
+	delete(s, item)
+}
+
+func (s Set[T]) Contains(item T) bool {
+	_, ok := s[item]
+	return ok
+}
+
+func (s Set[T]) Size() int {
+	return len(s)
+}
+
+func (s Set[T]) ToSlice() []T {
+	slice := make([]T, 0, len(s))
+	for item := range s {
+		slice = append(slice, item)
+	}
+	return slice
+}
+
+func (s Set[T]) String() string {
+	strItems := make([]string, 0, len(s))
+	for item := range s {
+		strItems = append(strItems, fmt.Sprintf("%v", item))
+	}
+	return strings.Join(strItems, ", ")
+}

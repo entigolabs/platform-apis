@@ -2,28 +2,65 @@ postgresql:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-postgresql
-    tag: 1.0.0
+    tag: v0.0.0
   function:
     image: ghcr.io/entigolabs/platform-apis-postgresql-fn
-    tag: 1.0.0
+    tag: v0.0.0
+    deploymentRuntimeConfig:
+      awsProvider: "crossplane-aws"
 
 zone:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-zone
-    tag: 1.0.0
+    tag: v0.0.0
+  environmentConfig:
+    argoCDNamespace: "argocd"
+    awsProvider: "crossplane-aws"
+
+webaccess:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-webaccess
+    tag: v0.0.0
+
+webapp:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-webapp
+    tag: v0.0.0
+
+cronjob:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-cronjob
+    tag: v0.0.0
+
+#Will be split later
+developer-portal-function:
+  install: true
+  function:
+    image: docker.io/entigolabs/developer-portal-function
+    tag: v0.0.0-20251008090721-c7815a3bc8fa
+    deploymentRuntimeConfig:
+      awsProvider: "crossplane-aws"
 
 providers: {}
 
 functions:
  function-go-templating:
    install: true
-   image: docker.io/entigolabs/function-go-templating
+   image: xpkg.upbound.io/crossplane-contrib/function-go-templating
    tag: v0.11.0
  function-auto-ready:
    install: true
-   image: docker.io/entigolabs/function-auto-ready
+   image: xpkg.upbound.io/crossplane-contrib/function-auto-ready
    tag: v0.5.0
+ function-sequencer:
+   install: true
+   image: xpkg.upbound.io/crossplane-contrib/function-sequencer
+   tag: v0.3.0
+
 
 extraFunctions: []
 #  - name: function-foo

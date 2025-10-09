@@ -1,0 +1,9 @@
+# functions need to be installed separately, function dependencies are defined in crossplane.yaml.
+# function definitions here are intended for development purposes and for use with crossplane render command. 
+
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-go-templating
+spec:
+  package: ghcr.io/rremmel/function-go-templating:v0.11.1

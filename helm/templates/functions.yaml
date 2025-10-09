@@ -22,6 +22,18 @@ spec:
   package: {{ (index .Values.functions "function-auto-ready").image }}:{{ (index .Values.functions "function-auto-ready").tag }}
 {{- end }}
 
+{{- if (index .Values.functions "function-sequencer").install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-sequencer
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ (index .Values.functions "function-sequencer").image }}:{{ (index .Values.functions "function-sequencer").tag }}
+{{- end }}
+
 {{- range .Values.extraFunctions }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1
