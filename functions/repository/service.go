@@ -49,10 +49,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		},
 		Spec: v1beta1.RepositorySpec{
 			ForProvider: v1beta1.RepositoryParameters{
-				Region: &env.AWSRegion,
-				ImageScanningConfiguration: &v1beta1.ImageScanningConfigurationParameters{
-					ScanOnPush: env.ScanOnPush,
-				},
+				Region:             &env.AWSRegion,
 				ImageTagMutability: env.ImageTagMutability,
 				EncryptionConfiguration: []v1beta1.EncryptionConfigurationParameters{{
 					EncryptionType: &encryptionType,
@@ -63,6 +60,11 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 				ProviderConfigReference: &xpv2.ProviderConfigReference{Name: env.AWSProvider, Kind: "ClusterProviderConfig"},
 			},
 		},
+	}
+	if env.ScanOnPush != nil {
+		repo.Spec.ForProvider.ImageScanningConfiguration = &v1beta1.ImageScanningConfigurationParameters{
+			ScanOnPush: env.ScanOnPush,
+		}
 	}
 	objects[repository.Name] = repo
 	return objects, nil
