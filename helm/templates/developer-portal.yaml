@@ -30,7 +30,7 @@ spec:
                 - name: ISTIO_GATEWAY
                   value: "istio-gateway/istio-gateway"
                 - name: AWS_PROVIDER
-                  value: "{{ (index .Values.functions "developer-portal-function").function.deploymentRuntimeConfig.awsProvider }}"
+                  value: {{ (index .Values "developer-portal-function").function.deploymentRuntimeConfig.awsProvider }}
                 - name: IMAGE_PULL_SECRETS
                   value: ""
 
@@ -42,7 +42,7 @@ metadata:
 spec:
   runtimeConfigRef:
     name: developer-portal-function
-  package: {{ (index .Values.functions "developer-portal-function").image }}:{{ (index .Values.functions "developer-portal-function").tag }}
+  package: {{ (index .Values "developer-portal-function").function.image }}:{{ (index .Values "developer-portal-function").function.tag }}
   packagePullSecrets:
     - name: developer-portal-regcred
 {{- end }}
