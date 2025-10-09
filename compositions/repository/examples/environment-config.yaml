@@ -4,7 +4,7 @@ metadata:
   name: platform-apis-repository
 data:
   awsProvider: crossplane-aws
-  awsRegion: eu-west-1
+  awsRegion: eu-north-1
   dataKMSKey: data
 # scanOnPush: bool
 # imageTagMutability: string
