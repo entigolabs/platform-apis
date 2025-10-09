@@ -1,19 +1,19 @@
-name: Build PostgreSQL Composition
+name: Build Webapp Composition
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'compositions/postgresql/**'
+      - 'compositions/webapp/**'
   pull_request:
     paths:
-      - 'compositions/postgresql/**'
+      - 'compositions/webapp/**'
     
 jobs:
   build:
     uses: ./.github/workflows/builder-composition.yml
     with:
-      path: compositions/postgresql
-      name: platform-apis-postgresql
+      path: compositions/webapp
+      name: platform-apis-webapp
     secrets: inherit

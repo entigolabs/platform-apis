@@ -22,6 +22,6 @@ jobs:
     uses: ./.github/workflows/builder-function.yml
     with:
       path: functions/postgresql
-      name: entigo-postgresql-function
+      name: platform-apis-postgresql-fn
       version: ${{ inputs.version }}
     secrets: inherit

@@ -1,19 +1,19 @@
-name: Build PostgreSQL Composition
+name: Build Cronjob Composition
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'compositions/postgresql/**'
+      - 'compositions/cronjob/**'
   pull_request:
     paths:
-      - 'compositions/postgresql/**'
+      - 'compositions/cronjob/**'
     
 jobs:
   build:
     uses: ./.github/workflows/builder-composition.yml
     with:
-      path: compositions/postgresql
-      name: platform-apis-postgresql
+      path: compositions/cronjob
+      name: platform-apis-cronjob
     secrets: inherit

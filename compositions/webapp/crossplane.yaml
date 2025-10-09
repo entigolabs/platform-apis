@@ -1,7 +1,7 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: entigo-postgresql
+  name: entigo-webapp-composition
   annotations:
     # Set the annotations defining the maintainer, source, license, and description of your Configuration
     meta.crossplane.io/maintainer: Jevgeni Fenko <jevgeni.fenko@entigo.com>
@@ -9,10 +9,9 @@ metadata:
     # Set the license of your Configuration
     meta.crossplane.io/license: AGPL
     meta.crossplane.io/description: |
-      Manage AWS RDS PostgreSQL through Kubernetes. 
+      Webapp
     meta.crossplane.io/readme: |
       ...
 spec:
   crossplane:
     version: ">=2.0.0"
-

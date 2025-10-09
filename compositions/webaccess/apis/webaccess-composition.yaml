@@ -1,0 +1,13 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: webaccesses.networking.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: networking.entigo.com/v1alpha1
+    kind: WebAccess
+  mode: Pipeline
+  pipeline:
+    - step: web-access
+      functionRef:
+        name: developer-portal-function

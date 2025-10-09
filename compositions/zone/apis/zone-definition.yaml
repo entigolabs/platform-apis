@@ -1,0 +1,85 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: zones.tenancy.entigo.com
+spec:
+  group: tenancy.entigo.com
+  scope: Cluster
+  names:
+    kind: Zone
+    plural: zones
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                namespaces:
+                  type: array
+                  minItems: 1
+                  description: List of namespaces to manage as part of the Zone. At least one namespace must be specified.
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: Name of the namespace.
+                      pool:
+                        type: string
+                        description: Name of the Node Pool where to schedule workloads. If not specified, the first pool is used.
+                    required:
+                      - name
+                pools:
+                  type: array
+                  description: List of node pool configurations for cluster-autoscaler
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - requirements
+                    properties:
+                      name:
+                        type: string
+                        description: Name of the node pool
+                        minLength: 1
+                        maxLength: 63
+                        pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                      requirements:
+                        type: array
+                        description: Node pool requirements including instance type, capacity type, zone, and scaling limits
+                        minItems: 1
+                        items:
+                          type: object
+                          required:
+                            - key
+                          properties:
+                            key:
+                              type: string
+                              description: Requirement key
+                              enum:
+                                - instance-type
+                                - capacity-type
+                                - zone
+                                - min-size
+                                - max-size
+                                - desired-size
+                            # Single value - accepts string or integer
+                            value:
+                              x-kubernetes-int-or-string: true
+                              description: Single value for capacity-type, min-size, max-size, or desired-size. Can be string or integer.
+                            # Array of values - used for instance-type, zone
+                            values:
+                              type: array
+                              description: Array of values for instance-type or zone
+                              items:
+                                type: string
+                                minLength: 1
+              required:
+                - namespaces
+                - pools
