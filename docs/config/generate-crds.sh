@@ -33,7 +33,7 @@ cat ../config/crdoc.yaml | \
     TMP_EXAMPLES=$(mktemp)
     trap 'rm -f "$TMP_EXAMPLES"' EXIT
 
-    yq -r '.examples[] | "### \(.title)\n\(.description)\n```yaml\n\(.code)\n```"' "$EXAMPLES_FILE" > "$TMP_EXAMPLES"
+    yq -r '.examples[] | "### \(.title) {#example-\(.title)}\n\(.description)\n```yaml\n\(.code)\n```"' "$EXAMPLES_FILE" > "$TMP_EXAMPLES"
     awk -v exfile="$TMP_EXAMPLES" '
     BEGIN { inserted = 0 }
     {

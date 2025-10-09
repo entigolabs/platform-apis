@@ -1,7 +1,7 @@
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-<Tabs>
+<Tabs queryString="tab">
 
 <TabItem value="api-reference" label="API Reference" default>
 
@@ -358,7 +358,7 @@ Must not overlap with maintenance_window. Default value is determined by the reg
 </TabItem>
 
 <TabItem value="examples" label="Examples">
-### Basic PostgreSQL Instance
+### Basic PostgreSQL Instance {#example-Basic PostgreSQL Instance}
 Minimal configuration example
 ```yaml
 apiVersion: database.entigo.com/v1alpha1
@@ -371,7 +371,7 @@ spec:
   instanceType: db.t3.medium
 
 ```
-### Advanced PostgreSQL Instance
+### Advanced PostgreSQL Instance {#example-Advanced PostgreSQL Instance}
 High availability and backups enabled
 ```yaml
 apiVersion: database.entigo.com/v1alpha1
