@@ -19,6 +19,7 @@ metadata:
 spec:
   activate:
   - securitygrouprules.ec2.aws.m.upbound.io
+  - securitygroups.ec2.aws.m.upbound.io
   - instances.rds.aws.m.upbound.io
 ---
 apiVersion: pkg.crossplane.io/v1
