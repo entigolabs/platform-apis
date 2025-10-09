@@ -24,7 +24,7 @@ cat ../config/crdoc.yaml | \
 ./crdoc  --resources $i --output ../api/${API_KIND}.md --toc crdoc.yaml -t ../config/api-reference.tmpl
 
   # Insert Examples into the existing Examples Tab (if examples exist)
-  EXAMPLES_FILE="../api/${API_KIND}Examples.md"
+  EXAMPLES_FILE="../examples/${API_KIND}.md"
   MD_FILE="../api/${API_KIND}.md"
 
   if [ -f "$EXAMPLES_FILE" ]; then
