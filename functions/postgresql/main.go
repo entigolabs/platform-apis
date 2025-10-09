@@ -26,4 +26,3 @@ func main() {
 	}
 	ctx.FatalIfErrorf(ctx.Run())
 }
-
