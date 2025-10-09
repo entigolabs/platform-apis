@@ -1,0 +1,19 @@
+name: Build Cronjob Composition
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'compositions/cronjob/**'
+  pull_request:
+    paths:
+      - 'compositions/cronjob/**'
+    
+jobs:
+  build:
+    uses: ./.github/workflows/builder-composition.yml
+    with:
+      path: compositions/cronjob
+      name: platform-apis-cronjob
+    secrets: inherit
