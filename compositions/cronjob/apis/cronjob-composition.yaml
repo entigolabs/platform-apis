@@ -1,4 +1,3 @@
-{{- if .Values.installCompositeResources }}
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -12,4 +11,3 @@ spec:
     - step: cron-job
       functionRef:
         name: developer-portal-function
-{{- end }}

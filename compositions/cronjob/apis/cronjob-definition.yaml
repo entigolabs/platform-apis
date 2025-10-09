@@ -1,4 +1,3 @@
-{{- if .Values.installCompositeResources }}
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
@@ -261,4 +260,3 @@ spec:
             - metadata
             - spec
           type: object
-{{- end }}
