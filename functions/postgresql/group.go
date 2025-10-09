@@ -53,10 +53,12 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 	}
 }
 
-func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured) map[string]*fnv1.ResourceSelector {
+func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
 	switch compositeResource.GetKind() {
 	case XRKindPostgreSQL:
 		secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", compositeResource.GetName(), "dbadmin"))
+		kmsDataKeyName := base.GenerateEligibleKubernetesFullName("data")
+		kmsConfigKeyName := base.GenerateEligibleKubernetesFullName("config")
 		secretNamespace := compositeResource.GetNamespace()
 		providerNamespace := g.awsProvider
 		return map[string]*fnv1.ResourceSelector{
@@ -66,10 +68,16 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 				Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{}},
 				Namespace:  &providerNamespace,
 			},
-			"KMSKey": {
+			"KMSDataKey": {
 				Kind:       "Key",
 				ApiVersion: "kms.aws.m.upbound.io/v1beta1",
-				Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{}},
+				Match:      &fnv1.ResourceSelector_MatchName{MatchName: kmsDataKeyName},
+				Namespace:  &providerNamespace,
+			},
+			"KMSConfigKey": {
+				Kind:       "Key",
+				ApiVersion: "kms.aws.m.upbound.io/v1beta1",
+				Match:      &fnv1.ResourceSelector_MatchName{MatchName: kmsConfigKeyName},
 				Namespace:  &providerNamespace,
 			},
 			"DBSubnetGroup": {
@@ -84,9 +92,9 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 				Match:      &fnv1.ResourceSelector_MatchName{MatchName: secretName},
 				Namespace:  &secretNamespace,
 			},
-		}
+		}, nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 

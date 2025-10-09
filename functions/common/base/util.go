@@ -6,10 +6,12 @@ import (
 	"regexp"
 	"strings"
 
+	"dario.cat/mergo"
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/crossplane/function-sdk-go/resource/composite"
@@ -34,6 +36,52 @@ func ToUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {
 	}
 	u := &unstructured.Unstructured{Object: m}
 	return u, nil
+}
+
+func RequiredEnvironmentConfig(name string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       EnvironmentKind,
+		ApiVersion: EnvironmentApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+	}
+}
+
+func RequiredKMSKey(name, namespace string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       KMSKeyKind,
+		ApiVersion: KMSKeyApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+		Namespace:  &namespace,
+	}
+}
+
+type Validatable interface {
+	Validate() error
+}
+
+func GetEnvironment(key string, resources []resource.Required, obj Validatable) error {
+	if len(resources) == 0 {
+		return fmt.Errorf("environment config with key '%s' not found", key)
+	}
+	result := make(map[string]interface{})
+	for _, r := range resources {
+		data, found, err := unstructured.NestedMap(r.Resource.Object, "data")
+		if err != nil {
+			return fmt.Errorf("cannot get environment config data with key '%s': %w", key, err)
+		}
+		if found {
+			if err := mergo.Map(&result, data, mergo.WithAppendSlice); err != nil {
+				return err
+			}
+		}
+	}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(result, obj); err != nil {
+		return fmt.Errorf("cannot convert required resource %s: %w", key, err)
+	}
+	if err := obj.Validate(); err != nil {
+		return fmt.Errorf("invalid environment config with key '%s': %w", key, err)
+	}
+	return nil
 }
 
 func ExtractRequiredResource(requiredResources map[string][]resource.Required, key string, target runtime.Object) error {

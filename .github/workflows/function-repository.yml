@@ -1,0 +1,27 @@
+name: Build Repository Function
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/repository/**'
+      - 'functions/common/base/**'
+  pull_request:
+    paths:
+      - 'functions/repository/**'
+      - 'functions/common/base/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version (e.g. v0.1.0)
+        required: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/builder-function.yml
+    with:
+      path: functions/repository
+      name: platform-apis-repository-fn
+      version: ${{ inputs.version }}
+    secrets: inherit

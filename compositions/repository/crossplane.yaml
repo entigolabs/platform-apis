@@ -1,0 +1,18 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: entigo-repository
+  annotations:
+    meta.crossplane.io/maintainer: Märt Erlenheim <mart.erlenheim@entigo.com>
+    meta.crossplane.io/source: github.com/entigolabs/platform-apis
+    meta.crossplane.io/license: AGPL
+    meta.crossplane.io/description: |
+      Manage AWS ECR Repository through Kubernetes.
+    meta.crossplane.io/readme: |
+      ...
+spec:
+  crossplane:
+    version: ">=2.0.0"
+  dependsOn:
+    - provider: xpkg.upbound.io/upbound/provider-aws-ecr
+      version: ">=v2.0.2"

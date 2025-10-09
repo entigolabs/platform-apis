@@ -50,7 +50,17 @@ func (f *Function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 		return rsp, nil
 	}
 
-	f.addRequiredResources(rsp, compositeResource)
+	requiredResources, err := request.GetRequiredResources(req)
+	if err != nil {
+		response.Fatal(rsp, fmt.Errorf("could not fetch required resources: %w", err))
+		return rsp, nil
+	}
+
+	err = f.addRequiredResources(rsp, compositeResource, requiredResources)
+	if err != nil {
+		response.Fatal(rsp, errors.Wrapf(err, "cannot add required resources to %T", rsp))
+		return rsp, nil
+	}
 	if !requiredResourcesPresent(rsp.Requirements, req.RequiredResources) {
 		return rsp, nil
 	}
@@ -64,12 +74,6 @@ func (f *Function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 	desired, err := request.GetDesiredComposedResources(req)
 	if err != nil {
 		response.Fatal(rsp, errors.Wrapf(err, "cannot get desired resources from %T", req))
-		return rsp, nil
-	}
-
-	requiredResources, err := request.GetRequiredResources(req)
-	if err != nil {
-		response.Fatal(rsp, fmt.Errorf("could not fetch required resources: %w", err))
 		return rsp, nil
 	}
 
@@ -113,14 +117,18 @@ func requiredResourcesPresent(requirements *fnv1.Requirements, resources map[str
 	return true
 }
 
-func (f *Function) addRequiredResources(rsp *fnv1.RunFunctionResponse, composite *resource.Composite) {
-	resources := f.groupService.GetRequiredResources(composite.Resource)
+func (f *Function) addRequiredResources(rsp *fnv1.RunFunctionResponse, composite *resource.Composite, required map[string][]resource.Required) error {
+	resources, err := f.groupService.GetRequiredResources(composite.Resource, required)
+	if err != nil {
+		return err
+	}
 	if len(resources) == 0 {
-		return
+		return nil
 	}
 	rsp.Requirements = &fnv1.Requirements{
 		Resources: resources,
 	}
+	return nil
 }
 
 func (f *Function) addDesiredComposedResources(rsp *fnv1.RunFunctionResponse, compositeResource *resource.Composite, requiredResources map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed, desired map[resource.Name]*resource.DesiredComposed) error {

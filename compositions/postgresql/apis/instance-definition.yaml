@@ -79,6 +79,8 @@ spec:
                   type: boolean
                 backupWindow:
                   type: string
+                dbInstanceIdentifier:
+                  type: string
                 endpoint:
                   properties:
                     address:
@@ -92,6 +94,8 @@ spec:
                     - hostedZoneId
                     - port
                   type: object
+                finalSnapshotIdentifier:
+                  type: string
                 iops:
                   type: number
                 kmsKeyId:

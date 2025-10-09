@@ -1,0 +1,19 @@
+name: Build Repository Composition
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'compositions/repository/**'
+  pull_request:
+    paths:
+      - 'compositions/repository/**'
+    
+jobs:
+  build:
+    uses: ./.github/workflows/builder-composition.yml
+    with:
+      path: compositions/repository
+      name: platform-apis-repository
+    secrets: inherit
