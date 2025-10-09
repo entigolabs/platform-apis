@@ -1,3 +1,10 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs>
+
+<TabItem value="api-reference" label="API Reference" default>
+
 # {{ or .Metadata.Title "API Reference" }}
 
 Packages:
@@ -100,3 +107,10 @@ Resource Types:
 {{- end}}{{/* range .Types */}}
 {{- end}}{{/* range .Kinds */}}
 {{- end}}{{/* range .Groups */}}
+
+</TabItem>
+
+<TabItem value="examples" label="Examples">
+</TabItem>
+
+</Tabs>

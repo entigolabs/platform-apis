@@ -1,3 +1,10 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs>
+
+<TabItem value="api-reference" label="API Reference" default>
+
 # PostgreSQLInstance
 
 Packages:
@@ -347,3 +354,37 @@ Must not overlap with maintenance_window. Default value is determined by the reg
         <td>true</td>
       </tr></tbody>
 </table>
+
+</TabItem>
+
+<TabItem value="examples" label="Examples">
+### Basic PostgreSQL Instance
+Minimal configuration example
+```yaml
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: basic-db
+spec:
+  allocatedStorage: 20
+  engineVersion: "13.4"
+  instanceType: db.t3.medium
+
+```
+### Advanced PostgreSQL Instance
+High availability and backups enabled
+```yaml
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: advanced-db
+spec:
+  allocatedStorage: 100
+  engineVersion: "13.4"
+  instanceType: db.m5.large
+  multiAZ: true
+  backupWindow: "00:00-01:00"
+```
+</TabItem>
+
+</Tabs>
