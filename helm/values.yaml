@@ -17,7 +17,7 @@ repository:
   function:
     image: ghcr.io/entigolabs/platform-apis-repository-fn
     tag: v0.0.0
-    deploymentRuntimeConfig:
+    environmentConfig:
       awsProvider: "crossplane-aws"
       awsRegion: eu-west-1
       dataKMSKey: data
