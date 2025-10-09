@@ -1,0 +1,48 @@
+{{- if (index .Values "developer-portal-function").install }}
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: developer-portal-function
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+            - name: package-runtime
+              env:
+                - name: ISTIO_GATEWAY
+                  value: "istio-gateway/istio-gateway"
+                - name: AWS_PROVIDER
+                  value: "{{ (index .Values.functions "developer-portal-function").function.deploymentRuntimeConfig.awsProvider }}"
+                - name: IMAGE_PULL_SECRETS
+                  value: ""
+
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: developer-portal-function
+spec:
+  runtimeConfigRef:
+    name: developer-portal-function
+  package: {{ (index .Values.functions "developer-portal-function").image }}:{{ (index .Values.functions "developer-portal-function").tag }}
+  packagePullSecrets:
+    - name: developer-portal-regcred
+{{- end }}

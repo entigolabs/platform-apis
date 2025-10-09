@@ -1,0 +1,17 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: entigo-cronjob-composition
+  annotations:
+    # Set the annotations defining the maintainer, source, license, and description of your Configuration
+    meta.crossplane.io/maintainer: Jevgeni Fenko <jevgeni.fenko@entigo.com>
+    meta.crossplane.io/source: github.com/entigolabs/platform-apis
+    # Set the license of your Configuration
+    meta.crossplane.io/license: AGPL
+    meta.crossplane.io/description: |
+      Cronjob
+    meta.crossplane.io/readme: |
+      ...
+spec:
+  crossplane:
+    version: ">=2.0.0"

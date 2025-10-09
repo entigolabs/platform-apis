@@ -1,0 +1,8 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-webaccess
+spec:
+  package: {{ .Values.webaccess.package.image }}:{{ .Values.webaccess.package.tag }}
+  skipDependencyResolution: true
+{{- end }}

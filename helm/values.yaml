@@ -2,10 +2,10 @@ postgresql:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-postgresql
-    tag: v0.1.26
+    tag: v0.0.0
   function:
     image: ghcr.io/entigolabs/platform-apis-postgresql-fn
-    tag: v0.1.20
+    tag: v0.0.0
     deploymentRuntimeConfig:
       awsProvider: "crossplane-aws"
 
@@ -13,10 +13,37 @@ zone:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-zone
-    tag: v0.1.9
+    tag: v0.0.0
   environmentConfig:
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
+
+webaccess:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-webaccess
+    tag: v0.0.0
+
+webapp:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-webapp
+    tag: v0.0.0
+
+cronjob:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-cronjob
+    tag: v0.0.0
+
+#Will be split later
+developer-portal-function:
+  install: true
+  function:
+    image: docker.io/entigolabs/developer-portal-function
+    tag: v0.0.0-20251008090721-c7815a3bc8fa
+    deploymentRuntimeConfig:
+      awsProvider: "crossplane-aws"
 
 providers: {}
 
