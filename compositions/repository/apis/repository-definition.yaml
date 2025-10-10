@@ -21,3 +21,4 @@ spec:
               properties:
                 repositoryUri:
                   type: string
+                  description: "Repository URI for pulling and pushing images."

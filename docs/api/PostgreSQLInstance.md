@@ -219,8 +219,22 @@ Must not overlap with maintenance_window. Default value is determined by the reg
         </td>
         <td>false</td>
       </tr><tr>
+        <td><b>dbInstanceIdentifier</b></td>
+        <td>string</td>
+        <td>
+          <br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
         <td><b><a href="#postgresqlinstancestatusendpoint">endpoint</a></b></td>
         <td>object</td>
+        <td>
+          <br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>finalSnapshotIdentifier</b></td>
+        <td>string</td>
         <td>
           <br/>
         </td>
