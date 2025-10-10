@@ -15,7 +15,7 @@ However, this approach incurs significant costs. Each account requires its own i
 - Supporting network infrastructure, for example Transit Gateway attachments or NAT Gateways
 - Kubernetes cluster with necessary controllers
 
-These components typically cost $200-400 per month per account. For large organizations managing multiple data assets across lifecycle environments (development, testing, and production), cloud provider level isolation for every asset becomes prohibitively expensive.
+These components typically cost $200-400 per month per account. For large organizations managing multiple data assets across lifecycle environments (development, testing, and production), cloud provider level isolation for every asset may become prohibitively expensive.
 
 ## Platform Instance Level Isolation
 Zones provide isolated security segments within a single platform instance. This approach offers a cost-effective alternative when you need to separate data assets that share similar security requirements and controls, without the overhead of maintaining separate cloud accounts.
