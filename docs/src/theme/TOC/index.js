@@ -18,7 +18,5 @@ export default function TOCWrapper(props) {
     return false
   });
 
-  console.log("Filtered TOC:", filteredToc);
-
   return <TOC {...props} toc={filteredToc} />;
 }
