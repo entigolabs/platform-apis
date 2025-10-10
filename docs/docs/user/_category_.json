@@ -1,8 +1,7 @@
 {
-  "label": "Using the Platform",
   "position": 2,
   "link": {
-    "type": "generated-index",
-    "description": "Understand the key conepts and run applications with the Platform"
+    "type": "doc",
+    "id": "index"
   }
 }

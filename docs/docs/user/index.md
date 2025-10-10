@@ -1,5 +1,4 @@
 ---
-sidepar_position: 1
 ---
 
 # Use the platform
