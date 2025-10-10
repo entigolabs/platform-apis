@@ -27,7 +27,7 @@ rules:
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
 metadata:
-  name: zone-resource-dependencies
+  name: platform-apis-zone
   annotations:
     argocd.argoproj.io/sync-wave: "-5"
 spec:

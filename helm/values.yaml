@@ -9,6 +9,21 @@ postgresql:
     deploymentRuntimeConfig:
       awsProvider: "crossplane-aws"
 
+repository:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-repository
+    tag: v0.0.0
+  function:
+    image: ghcr.io/entigolabs/platform-apis-repository-fn
+    tag: v0.0.0
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    awsRegion: ""
+    dataKMSKey: data
+    scanOnPush: true
+    imageTagMutability: "MUTABLE"
+
 zone:
   install: true
   package:
