@@ -76,7 +76,7 @@ spec:
                             # Array of values - used for instance-type, zone
                             values:
                               type: array
-                              description: Array of values for instance-type or zone
+                              description: Array of values for instance-type or availability-zone
                               items:
                                 type: string
                                 minLength: 1

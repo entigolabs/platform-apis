@@ -17,5 +17,8 @@ spec:
           type: object
           properties:
             status:
-              repositoryUri:
-                type: string
+              type: object
+              properties:
+                repositoryUri:
+                  type: string
+                  description: "Repository URI for pulling and pushing images."
