@@ -1,3 +1,10 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs queryString="tab">
+
+<TabItem value="api-reference" label="API Reference" default>
+
 # Repository
 
 Packages:
@@ -80,8 +87,13 @@ Resource Types:
         <td><b>repositoryUri</b></td>
         <td>string</td>
         <td>
-          Repository URI for pulling and pushing images<br/>
+          Repository URI for pulling and pushing images.<br/>
         </td>
         <td>false</td>
       </tr></tbody>
 </table>
+
+</TabItem>
+
+
+</Tabs>

@@ -60,7 +60,14 @@ cat ../config/crdoc.yaml | \
     ' "$MD_FILE" > "$MD_FILE.tmp" && mv "$MD_FILE.tmp" "$MD_FILE"
 
   else
-    echo "No examples file found for ${API_KIND} (expected ${EXAMPLES_FILE}), skipping."
+    echo "No examples file found for ${API_KIND} (expected ${EXAMPLES_FILE}), removing Examples tab."
+
+    awk '
+      BEGIN { skip=0 }
+      /<TabItem[[:space:]]+value="examples"[[:space:]]+label="Examples">/ { skip=1; next }
+      /<\/TabItem>/ { if (skip) { skip=0; next } }
+      { if (!skip) print }
+    ' "$MD_FILE" > "$MD_FILE.tmp" && mv "$MD_FILE.tmp" "$MD_FILE"
   fi
 
 done
