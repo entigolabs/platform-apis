@@ -1,3 +1,10 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs queryString="tab">
+
+<TabItem value="api-reference" label="API Reference" default>
+
 # Zone
 
 Packages:
@@ -198,8 +205,13 @@ Resource Types:
         <td><b>values</b></td>
         <td>[]string</td>
         <td>
-          Array of values for instance-type or zone<br/>
+          Array of values for instance-type or availability-zone<br/>
         </td>
         <td>false</td>
       </tr></tbody>
 </table>
+
+</TabItem>
+
+
+</Tabs>

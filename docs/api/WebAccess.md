@@ -1,3 +1,10 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs queryString="tab">
+
+<TabItem value="api-reference" label="API Reference" default>
+
 # WebAccess
 
 Packages:
@@ -166,3 +173,8 @@ Resource Types:
         <td>false</td>
       </tr></tbody>
 </table>
+
+</TabItem>
+
+
+</Tabs>

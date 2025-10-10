@@ -1,3 +1,10 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs queryString="tab">
+
+<TabItem value="api-reference" label="API Reference" default>
+
 # PostgreSQLInstance
 
 Packages:
@@ -361,3 +368,38 @@ Must not overlap with maintenance_window. Default value is determined by the reg
         <td>true</td>
       </tr></tbody>
 </table>
+
+</TabItem>
+
+<TabItem value="examples" label="Examples">
+### Basic Instance {#example-basic-instance}
+A minimal PostgreSQL instance definition showing the required fields only.
+
+```yaml
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: basic-instance
+spec:
+  storageGB: 10
+  version: "14"
+```
+### High Availability Instance {#example-high-availability-instance}
+An example of a PostgreSQL instance configured with replication for high availability.
+
+```yaml
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: ha-instance
+spec:
+  storageGB: 100
+  version: "15"
+  replicas: 3
+  backup:
+    enabled: true
+    schedule: "0 2 * * *"
+```
+</TabItem>
+
+</Tabs>
