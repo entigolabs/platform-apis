@@ -38,6 +38,22 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: ClusterRoleBinding
             metadata:
+              name: {{ $name }}-observer
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: cr-{{ $name }}-observer
+                gotemplating.fn.crossplane.io/ready: "True"
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: zone-tenancy-c-read
+            subjects:
+            - kind: Group
+              name: observer
+              apiGroup: rbac.authorization.k8s.io
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: ClusterRoleBinding
+            metadata:
               name: {{ $name }}-maintainer
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: cr-{{ $name }}-maintainer
@@ -493,12 +509,32 @@ spec:
                   name: {{ $namespace.name }}
                 {{ end }}
               roles:
-                - name: {{ $name }}
-                  description: "{{ $name }} permissions"
-                  policies:
-                  - p, proj:{{ $name }}:{{ $name }}, applications, *, {{ $name }}/*, allow
-                  groups:
-                  - {{ $name }}
+              - description: Maintainer permissions
+                groups:
+                {{- range $envConfig.resource.data.appProject.maintainerGroups }}
+                - {{ . }}
+                {{- end }}
+                name: maintainer
+                policies:
+                - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
+              - description: Observer permissions
+                groups:
+                {{- range $envConfig.resource.data.appProject.observerGroups }}
+                - {{ . }}
+                {{- end }}
+                name: observer
+                policies:
+                - p, proj:{{ $name }}:observer, applications, get, {{ $name }}/*, allow
+              - description: Contributor permissions
+                groups:
+                {{- range .observed.composite.resource.spec.appProject.contributorGroups }}
+                - {{ . }}
+                {{- end }}
+                name: contributor
+                policies:
+                - p, proj:{{ $name }}:contributor, applications, sync, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, applications, get, {{ $name }}/*, allow
     - step: detect-readiness
       functionRef:
         name: function-auto-ready

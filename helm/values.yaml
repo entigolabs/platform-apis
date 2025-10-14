@@ -32,6 +32,9 @@ zone:
   environmentConfig:
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
+    appProject:
+      maintainerGroups: []
+      observerGroups: []
 
 webaccess:
   install: true

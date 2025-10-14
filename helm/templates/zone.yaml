@@ -59,7 +59,7 @@ rules:
     resources: ["appprojects"]
     verbs: ["*"]
   - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["rolebindings", "clusterroles"]
+    resources: ["rolebindings", "clusterroles", "clusterrolebindings"]
     verbs: ["*"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
@@ -102,6 +102,9 @@ metadata:
 data:
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
+  appProject:
+    maintainerGroups: {{ .Values.zone.environmentConfig.appProject.maintainerGroups }}
+    observerGroups: {{ .Values.zone.environmentConfig.appProject.observerGroups }}
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
