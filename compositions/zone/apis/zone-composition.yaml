@@ -487,10 +487,10 @@ spec:
         kind: Input
         rules:
           - sequence:
-            - clusterrole-.*
+            - cr-.*
             - namespace-.*
             - netpol-.*
-            - rolebinding-.*
+            - rb-.*
             - launchtemplate-.*
             - role-.*
             - nodepool-.*
