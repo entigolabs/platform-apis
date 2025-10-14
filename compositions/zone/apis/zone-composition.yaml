@@ -425,7 +425,7 @@ spec:
               zoneEnvironment:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
-                name: platform-apis-zone
+                matchName: platform-apis-zone
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
             ---
