@@ -10,4 +10,4 @@ spec:
   pipeline:
     - step: repository
       functionRef:
-        name: platform-apis-repository-fn
+        name: platform-apis-artifact-fn

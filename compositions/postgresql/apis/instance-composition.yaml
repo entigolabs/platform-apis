@@ -10,7 +10,7 @@ spec:
   pipeline:
     - step: postgresql
       functionRef:
-        name: platform-apis-postgresql-fn
+        name: platform-apis-database-fn
 
 
 

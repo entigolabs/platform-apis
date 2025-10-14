@@ -59,15 +59,22 @@ type Validatable interface {
 	Validate() error
 }
 
-func GetEnvironment(key string, resources []resource.Required, obj Validatable) error {
+func GetEnvironment(key string, required map[string][]resource.Required, obj Validatable) error {
+	if err := getEnvironment(required[key], obj); err != nil {
+		return fmt.Errorf("cannot get environment config %s: %w", key, err)
+	}
+	return nil
+}
+
+func getEnvironment(resources []resource.Required, obj Validatable) error {
 	if len(resources) == 0 {
-		return fmt.Errorf("environment config with key '%s' not found", key)
+		return errors.New("resources not found")
 	}
 	result := make(map[string]interface{})
 	for _, r := range resources {
 		data, found, err := unstructured.NestedMap(r.Resource.Object, "data")
 		if err != nil {
-			return fmt.Errorf("cannot get environment config data with key '%s': %w", key, err)
+			return err
 		}
 		if found {
 			if err := mergo.Map(&result, data, mergo.WithAppendSlice); err != nil {
@@ -76,10 +83,10 @@ func GetEnvironment(key string, resources []resource.Required, obj Validatable) 
 		}
 	}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(result, obj); err != nil {
-		return fmt.Errorf("cannot convert required resource %s: %w", key, err)
+		return err
 	}
 	if err := obj.Validate(); err != nil {
-		return fmt.Errorf("invalid environment config with key '%s': %w", key, err)
+		return err
 	}
 	return nil
 }

@@ -1,10 +1,10 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: platform-apis-artifact
+  name: platform-apis-database
 data:
   awsProvider: crossplane-aws
-  awsRegion: eu-north-1
   dataKMSKey: data
-# scanOnPush: bool
-# imageTagMutability: string
+  configKMSKey: config
+  vpc: vpc
+  subnetGroup: database
