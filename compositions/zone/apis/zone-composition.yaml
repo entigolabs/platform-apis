@@ -510,26 +510,38 @@ spec:
                 {{ end }}
               roles:
               - description: Maintainer permissions
+                {{- if $envConfig.resource.data.appProject.maintainerGroups }}
                 groups:
                 {{- range $envConfig.resource.data.appProject.maintainerGroups }}
                 - {{ . }}
+                  {{- end }}
+                {{- else }}
+                groups: []
                 {{- end }}
                 name: maintainer
                 policies:
                 - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
               - description: Observer permissions
+                {{- if $envConfig.resource.data.appProject.observerGroups }}
                 groups:
                 {{- range $envConfig.resource.data.appProject.observerGroups }}
                 - {{ . }}
+                {{- end }}
+                {{- else }}
+                groups: []
                 {{- end }}
                 name: observer
                 policies:
                 - p, proj:{{ $name }}:observer, applications, get, {{ $name }}/*, allow
               - description: Contributor permissions
+                {{- if .observed.composite.resource.spec.appProject.contributorGroups }}
                 groups:
                 {{- range .observed.composite.resource.spec.appProject.contributorGroups }}
                 - {{ . }}
+                {{- end }}
+                {{- else }}
+                groups: []
                 {{- end }}
                 name: contributor
                 policies:
