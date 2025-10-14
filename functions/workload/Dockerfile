@@ -3,9 +3,9 @@ FROM --platform=${BUILDPLATFORM} golang:1.24-alpine AS build
 WORKDIR /fn
 
 COPY common common
-COPY database database
+COPY workload workload
 
-WORKDIR /fn/database
+WORKDIR /fn/workload
 
 ENV CGO_ENABLED=0
 

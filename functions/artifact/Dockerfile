@@ -3,9 +3,9 @@ FROM --platform=${BUILDPLATFORM} golang:1.24-alpine AS build
 WORKDIR /fn
 
 COPY common common
-COPY repository repository
+COPY artifact artifact
 
-WORKDIR /fn/repository
+WORKDIR /fn/artifact
 
 ENV CGO_ENABLED=0
 
