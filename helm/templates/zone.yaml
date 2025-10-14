@@ -42,6 +42,73 @@ rules:
 - apiGroups: ["eks.aws.upbound.io"]
   resources: ["nodegroups"]
   verbs: ["get", "watch", "list"]
+{{- if .Values.zone.clusterrolebinding.maintainerGroups }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zone-tenancy-maintainer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zone-tenancy-c-maintainer
+subjects:
+{{- range .Values.zone.clusterrolebinding.maintainerGroups }}
+- kind: Group
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zone-tenancy-maintainer-c-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zone-tenancy-c-read
+subjects:
+{{- range .Values.zone.clusterrolebinding.maintainerGroups }}
+- kind: Group
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+
+{{- if .Values.zone.clusterrolebinding.observerGroups }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zone-tenancy-observer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zone-tenancy-c-read
+subjects:
+{{- range .Values.zone.clusterrolebinding.observerGroups }}
+- kind: Group
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+{{- if .Values.zone.clusterrolebinding.contributorGroups }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zone-tenancy-contributor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zone-tenancy-c-read
+subjects:
+{{- range .Values.zone.clusterrolebinding.contributorGroups }}
+- kind: Group
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
 
 
 ---
@@ -59,7 +126,7 @@ rules:
     resources: ["appprojects"]
     verbs: ["*"]
   - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["rolebindings", "clusterroles", "clusterrolebindings"]
+    resources: ["rolebindings"]
     verbs: ["*"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]

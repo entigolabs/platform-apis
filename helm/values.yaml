@@ -35,6 +35,10 @@ zone:
     appProject:
       maintainerGroups: []
       observerGroups: []
+  clusterrolebinding:
+    maintainerGroups: ["maintainer"]
+    observerGroups: ["observer"]
+    contributorGroups: ["contributor"]
 
 webaccess:
   install: true
