@@ -23,7 +23,7 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: ClusterRole
             metadata:
-              name: {{ $name }}
+              name: {{ $name }}-contributor
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: clusterrole-{{ $name }}
                 gotemplating.fn.crossplane.io/ready: "True"
@@ -31,6 +31,18 @@ spec:
             - apiGroups: ["*"]
               resources: ["*"]
               verbs: ["*"]
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: ClusterRole
+            metadata:
+              name: {{ $name }}-observer
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: clusterrole-{{ $name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            rules:
+            - apiGroups: ["*"]
+              resources: ["*"]
+              verbs: ["get", "watch", "list"]
             # Namespace must be created first
             {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
             ---
@@ -98,10 +110,44 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: ClusterRole
-              name: {{ $name }}
+              name: {{ $name }}-contributor
             subjects:
             - kind: Group
-              name: {{ $name }}-contributors
+              name: contributor
+              apiGroup: rbac.authorization.k8s.io
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: RoleBinding
+            metadata:
+              name: maintainer
+              namespace: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rolebinding-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: {{ $name }}-contributor
+            subjects:
+            - kind: Group
+              name: maintainer
+              apiGroup: rbac.authorization.k8s.io
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: RoleBinding
+            metadata:
+              name: observer
+              namespace: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rolebinding-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: {{ $name }}-observer
+            subjects:
+            - kind: Group
+              name: observer
               apiGroup: rbac.authorization.k8s.io
             ---
             {{- $poolName := "default" }}
