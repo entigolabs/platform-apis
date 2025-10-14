@@ -19,31 +19,54 @@ spec:
         inline:
           template: |
             {{- $name := .observed.composite.resource.metadata.name -}}
-            ---
             apiVersion: rbac.authorization.k8s.io/v1
-            kind: ClusterRole
+            kind: ClusterRoleBinding
             metadata:
               name: {{ $name }}-contributor
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: cr-contributor-{{ $name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: cr-{{ $name }}-contributor
                 gotemplating.fn.crossplane.io/ready: "True"
-            rules:
-            - apiGroups: ["*"]
-              resources: ["*"]
-              verbs: ["*"]
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: zone-tenancy-c-read
+            subjects:
+            - kind: Group
+              name: contributor
+              apiGroup: rbac.authorization.k8s.io
             ---
             apiVersion: rbac.authorization.k8s.io/v1
-            kind: ClusterRole
+            kind: ClusterRoleBinding
             metadata:
-              name: {{ $name }}-observer
+              name: {{ $name }}-maintainer
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: cr-observer-{{ $name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: cr-{{ $name }}-maintainer
                 gotemplating.fn.crossplane.io/ready: "True"
-            rules:
-            - apiGroups: ["*"]
-              resources: ["*"]
-              verbs: ["get", "watch", "list"]
-            # Namespace must be created first
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: zone-tenancy-c-maintainer
+            subjects:
+            - kind: Group
+              name: maintainer
+              apiGroup: rbac.authorization.k8s.io
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: ClusterRoleBinding
+            metadata:
+              name: {{ $name }}-maintainer-r
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: cr-{{ $name }}-maintainer-r
+                gotemplating.fn.crossplane.io/ready: "True"
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: zone-tenancy-c-read
+            subjects:
+            - kind: Group
+              name: maintainer
+              apiGroup: rbac.authorization.k8s.io
+
             {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
             ---
             apiVersion: v1
@@ -110,7 +133,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: ClusterRole
-              name: {{ $name }}-contributor
+              name: zone-tenancy-all
             subjects:
             - kind: Group
               name: contributor
@@ -127,7 +150,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: ClusterRole
-              name: {{ $name }}-contributor
+              name: zone-tenancy-all
             subjects:
             - kind: Group
               name: maintainer
@@ -144,7 +167,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: ClusterRole
-              name: {{ $name }}-observer
+              name: zone-tenancy-read
             subjects:
             - kind: Group
               name: observer
