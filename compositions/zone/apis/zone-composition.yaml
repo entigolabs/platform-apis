@@ -25,7 +25,7 @@ spec:
             metadata:
               name: {{ $name }}-contributor
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: clusterrole-{{ $name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: cr-contributor-{{ $name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             rules:
             - apiGroups: ["*"]
@@ -37,7 +37,7 @@ spec:
             metadata:
               name: {{ $name }}-observer
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: clusterrole-{{ $name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: cr-observer-{{ $name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             rules:
             - apiGroups: ["*"]
@@ -105,7 +105,7 @@ spec:
               name: contributor
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rolebinding-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-contributor-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
@@ -122,7 +122,7 @@ spec:
               name: maintainer
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rolebinding-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-maintainer-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
@@ -139,7 +139,7 @@ spec:
               name: observer
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rolebinding-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-observer-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
