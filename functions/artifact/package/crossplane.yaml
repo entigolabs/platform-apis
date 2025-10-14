@@ -2,5 +2,5 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Function
 metadata:
-  name: platform-apis-repository-fn
+  name: platform-apis-artifact-fn
 spec: {}
