@@ -491,7 +491,6 @@ spec:
                 policies:
                 - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
-                - p, proj:{{ $name }}:maintainer, clusters, get, *, allow
               - description: Observer permissions
                 {{- $observerGroups := list -}}
                 {{- if hasKey $envConfig.resource.data.appProject "observerGroups" -}}
@@ -521,7 +520,6 @@ spec:
                 policies:
                 - p, proj:{{ $name }}:contributor, applications, sync, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:contributor, applications, get, {{ $name }}/*, allow
-                - p, proj:{{ $name }}:contributor, clusters, get, *, allow
     - step: detect-readiness
       functionRef:
         name: function-auto-ready

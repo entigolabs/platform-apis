@@ -196,7 +196,6 @@ spec:
     policies:
     - p, proj:zone:maintainer, applications, *, zone/*, allow
     - p, proj:zone:maintainer, repositories, *, zone/*, allow
-    - p, proj:zone:maintainer, clusters, get, *, allow
   - description: Observer permissions
     {{- $observerGroups := list -}}
     {{- if hasKey .Values.zone.environmentConfig.appProject "observerGroups" -}}
