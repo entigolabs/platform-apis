@@ -452,8 +452,13 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: platform-apis-zone
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             ---
             apiVersion: argoproj.io/v1alpha1
             kind: AppProject
@@ -470,6 +475,8 @@ spec:
               - namespace: {{ $namespace.name }}
                 server: https://kubernetes.default.svc
               {{ end }}
+              sourceRepos:
+              - {{ $vpc.resource.status.atProvider.ownerId }}.dkr.ecr.{{ $vpc.resource.status.atProvider.region }}.amazonaws.com
               sourceNamespaces:
               {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
               - {{ $namespace.name }}
