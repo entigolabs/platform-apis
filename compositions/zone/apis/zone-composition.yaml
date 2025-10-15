@@ -447,7 +447,10 @@ spec:
                 {{ end }}
               roles:
               - description: Maintainer permissions
-                {{- $maintainerGroups := default list (index $envConfig.resource.data.appProject "maintainerGroups") -}}
+                {{- $maintainerGroups := list -}}
+                {{- if hasKey $envConfig.resource.data.appProject "maintainerGroups" -}}
+                  {{- $maintainerGroups = $envConfig.resource.data.appProject.maintainerGroups -}}
+                {{- end }}
                 {{- if $maintainerGroups }}
                 groups:
                 {{- range $maintainerGroups }}
@@ -461,7 +464,10 @@ spec:
                 - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
               - description: Observer permissions
-                {{- $observerGroups := default list (index $envConfig.resource.data.appProject "observerGroups") -}}
+                {{- $observerGroups := list -}}
+                {{- if hasKey $envConfig.resource.data.appProject "observerGroups" -}}
+                  {{- $observerGroups = $envConfig.resource.data.appProject.observerGroups -}}
+                {{- end }}
                 {{- if $observerGroups }}
                 groups:
                 {{- range $observerGroups }}
