@@ -107,7 +107,7 @@ rules:
     resources: ["appprojects"]
     verbs: ["*"]
   - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["rolebindings"]
+    resources: ["rolebindings", "roles"]
     verbs: ["*"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
