@@ -470,6 +470,10 @@ spec:
               - namespace: {{ $namespace.name }}
                 server: https://kubernetes.default.svc
               {{ end }}
+              sourceNamespaces:
+              {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
+              - {{ $namespace.name }}
+              {{ end }}
               clusterResourceBlacklist:
               - group: '*'
                 kind: '*'
