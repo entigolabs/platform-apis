@@ -194,9 +194,9 @@ spec:
     {{- end }}
     name: maintainer
     policies:
-    - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
-    - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
-    - p, proj:{{ $name }}:maintainer, clusters, get, *, allow
+    - p, proj:zone:maintainer, applications, *, zone/*, allow
+    - p, proj:zone:maintainer, repositories, *, zone/*, allow
+    - p, proj:zone:maintainer, clusters, get, *, allow
   - description: Observer permissions
     {{- $observerGroups := list -}}
     {{- if hasKey .Values.zone.environmentConfig.appProject "observerGroups" -}}
@@ -212,6 +212,6 @@ spec:
     {{- end }}
     name: observer
     policies:
-    - p, proj:{{ $name }}:observer, applications, get, {{ $name }}/*, allow
+    - p, proj:zone:observer, applications, get, zone/*, allow
 
 {{- end }}
