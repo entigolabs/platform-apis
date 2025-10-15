@@ -495,6 +495,9 @@ spec:
                 policies:
                 - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:maintainer, applicationsets, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:maintainer, logs, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:maintainer, exec, *, {{ $name }}/*, allow
               - description: Observer permissions
                 {{- $observerGroups := list -}}
                 {{- if hasKey $envConfig.resource.data.appProject "observerGroups" -}}
@@ -511,6 +514,7 @@ spec:
                 name: observer
                 policies:
                 - p, proj:{{ $name }}:observer, applications, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:observer, applicationsets, get, {{ $name }}/*, allow
               - description: Contributor permissions
                 {{- if .observed.composite.resource.spec.appProject.contributorGroups }}
                 groups:
@@ -524,6 +528,8 @@ spec:
                 policies:
                 - p, proj:{{ $name }}:contributor, applications, sync, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:contributor, applications, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, applicationsets, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, logs, *, {{ $name }}/*, allow
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
