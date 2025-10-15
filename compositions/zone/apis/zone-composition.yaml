@@ -79,6 +79,7 @@ spec:
             kind: Role
             metadata:
               name: zone-tenancy-all
+              namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: role-zone-tenancy-all-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
@@ -91,6 +92,7 @@ spec:
             kind: Role
             metadata:
               name: zone-tenancy-read
+              namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: role-zone-tenancy-read-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
