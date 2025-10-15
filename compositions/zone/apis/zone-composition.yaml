@@ -469,7 +469,6 @@ spec:
                 {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
                 - namespace: {{ $namespace.name }}
                   server: https://kubernetes.default.svc
-                  name: {{ $namespace.name }}
                 {{ end }}
               roles:
               - description: Maintainer permissions
