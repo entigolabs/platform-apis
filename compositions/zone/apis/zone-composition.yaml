@@ -76,6 +76,30 @@ spec:
                   port: 443
             ---
             apiVersion: rbac.authorization.k8s.io/v1
+            kind: Role
+            metadata:
+              name: zone-tenancy-all
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: role-zone-tenancy-all-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            rules:
+            - apiGroups: ["*"]
+              resources: ["*"]
+              verbs: ["*"]
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: Role
+            metadata:
+              name: zone-tenancy-read
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: role-zone-tenancy-read-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            rules:
+            - apiGroups: ["*"]
+              resources: ["*"]
+              verbs: ["get", "watch", "list"]
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
             metadata:
               name: contributor
@@ -85,7 +109,7 @@ spec:
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
-              kind: ClusterRole
+              kind: Role
               name: zone-tenancy-all
             subjects:
             - kind: Group
@@ -102,7 +126,7 @@ spec:
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
-              kind: ClusterRole
+              kind: Role
               name: zone-tenancy-all
             subjects:
             - kind: Group
@@ -119,7 +143,7 @@ spec:
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
-              kind: ClusterRole
+              kind: Role
               name: zone-tenancy-read
             subjects:
             - kind: Group
@@ -505,6 +529,7 @@ spec:
           - sequence:
             - namespace-.*
             - netpol-.*
+            - role-.*
             - rb-.*
             - launchtemplate-.*
             - role-.*
