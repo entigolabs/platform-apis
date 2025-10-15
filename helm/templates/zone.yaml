@@ -161,4 +161,57 @@ metadata:
 spec:
   package: {{ .Values.zone.package.image }}:{{ .Values.zone.package.tag }}
   skipDependencyResolution: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: zone
+  namespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
+spec:
+  description: "Project with maintainer access for creating zones"
+  destinations:
+    - namespace: "*"
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: tenancy.entigo.com
+    kind: Zone
+  namespaceResourceBlacklist:
+  - group: '*'
+    kind: '*'
+  roles:
+  - description: Maintainer permissions
+    {{- $maintainerGroups := list -}}
+    {{- if hasKey .Values.zone.environmentConfig.appProject "maintainerGroups" -}}
+      {{- $maintainerGroups = .Values.zone.environmentConfig.appProject.maintainerGroups -}}
+    {{- end }}
+    {{- if $maintainerGroups }}
+    groups:
+    {{- range $maintainerGroups }}
+    - {{ . }}
+      {{- end }}
+    {{- else }}
+    groups: []
+    {{- end }}
+    name: maintainer
+    policies:
+    - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
+    - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
+    - p, proj:{{ $name }}:maintainer, clusters, get, *, allow
+  - description: Observer permissions
+    {{- $observerGroups := list -}}
+    {{- if hasKey .Values.zone.environmentConfig.appProject "observerGroups" -}}
+      {{- $observerGroups = .Values.zone.environmentConfig.appProject.observerGroups -}}
+    {{- end }}
+    {{- if $observerGroups }}
+    groups:
+    {{- range $observerGroups }}
+    - {{ . }}
+    {{- end }}
+    {{- else }}
+    groups: []
+    {{- end }}
+    name: observer
+    policies:
+    - p, proj:{{ $name }}:observer, applications, get, {{ $name }}/*, allow
+
 {{- end }}

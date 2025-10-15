@@ -466,10 +466,13 @@ spec:
             spec:
               description: {{ "Security zone for isolated team deployment" }}
               destinations:
-                {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
-                - namespace: {{ $namespace.name }}
-                  server: https://kubernetes.default.svc
-                {{ end }}
+              {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
+              - namespace: {{ $namespace.name }}
+                server: https://kubernetes.default.svc
+              {{ end }}
+              clusterResourceBlacklist:
+              - group: '*'
+                kind: '*'
               roles:
               - description: Maintainer permissions
                 {{- $maintainerGroups := list -}}
