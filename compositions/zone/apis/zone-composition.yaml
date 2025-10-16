@@ -486,11 +486,11 @@ spec:
               clusterResourceWhitelist:
               - group: '*'
                 kind: '*'
-              {{- else }}
+              {{ else }}
               clusterResourceBlacklist:
               - group: '*'
                 kind: '*'
-              {{- end }}
+              {{ end }}
               clusterResourceBlacklist:
               - group: '*'
                 kind: '*'
