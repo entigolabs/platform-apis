@@ -459,6 +459,7 @@ spec:
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $clusterPermissions := .observed.composite.resource.spec.clusterPermissions -}}
             ---
             apiVersion: argoproj.io/v1alpha1
             kind: AppProject
@@ -481,9 +482,15 @@ spec:
               {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
               - {{ $namespace.name }}
               {{ end }}
+              {{- if $clusterWidePermissions }}
+              clusterResourceWhitelist:
+              - group: '*'
+                kind: '*'
+              {{- else }}
               clusterResourceBlacklist:
               - group: '*'
                 kind: '*'
+              {{- end }}
               roles:
               - description: Maintainer permissions
                 {{- $maintainerGroups := list -}}
