@@ -1,0 +1,48 @@
+{{- if .Values.webaccess.install }}
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-networking
+data:
+  istioGateway: {{ .Values.networking.environmentConfig.istioGateway }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-networking-fn
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers: []
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-networking-fn
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ .Values.networking.function.image }}:{{ .Values.networking.function.tag }}
+  runtimeConfigRef:
+    name: platform-apis-networking-fn
+{{- end }}

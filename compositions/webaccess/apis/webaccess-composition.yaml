@@ -10,4 +10,4 @@ spec:
   pipeline:
     - step: web-access
       functionRef:
-        name: developer-portal-function
+        name: platform-apis-networking-fn

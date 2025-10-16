@@ -60,8 +60,8 @@ jobs:
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
-          POSTGRESQL_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-postgresql-fn/versions" \
+          DATABASE_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-database-fn/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
@@ -70,8 +70,8 @@ jobs:
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
-          REPOSITORY_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-repository-fn/versions" \
+          ARTIFACT_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-artifact-fn/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
@@ -84,14 +84,24 @@ jobs:
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-webapp/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
+          
+          CRONJOB_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-cronjob/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
+            | head -n 1)
+          
+          WORKLOAD_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-workload-fn/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
+            | head -n 1)
 
           WEBACCESS_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-webaccess/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
-
-          CRONJOB_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-cronjob/versions" \
+          
+          NETWORKING_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-networking-fn/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
@@ -100,8 +110,8 @@ jobs:
             echo "Failed to fetch postgresql tag"
             exit 1
           fi
-          if [ -z "$POSTGRESQL_FN_TAG" ] || [ "$POSTGRESQL_FN_TAG" = "null" ]; then
-            echo "Failed to fetch postgresql-fn tag"
+          if [ -z "$DATABASE_FN_TAG" ] || [ "$DATABASE_FN_TAG" = "null" ]; then
+            echo "Failed to fetch database-fn tag"
             exit 1
           fi
 
@@ -109,8 +119,8 @@ jobs:
             echo "Failed to fetch repository tag"
             exit 1
           fi
-          if [ -z "$REPOSITORY_FN_TAG" ] || [ "$REPOSITORY_FN_TAG" = "null" ]; then
-            echo "Failed to fetch repository-fn tag"
+          if [ -z "$ARTIFACT_FN_TAG" ] || [ "$ARTIFACT_FN_TAG" = "null" ]; then
+            echo "Failed to fetch artifact-fn tag"
             exit 1
           fi
 
@@ -123,26 +133,35 @@ jobs:
             echo "Failed to fetch webapp tag"
             exit 1
           fi
+          if [ -z "$CRONJOB_TAG" ] || [ "$CRONJOB_TAG" = "null" ]; then
+            echo "Failed to fetch cronjob tag"
+            exit 1
+          fi
+          if [ -z "$WORKLOAD_FN_TAG" ] || [ "$WORKLOAD_FN_TAG" = "null" ]; then
+            echo "Failed to fetch workload-fn tag"
+            exit 1
+          fi
 
           if [ -z "$WEBACCESS_TAG" ] || [ "$WEBACCESS_TAG" = "null" ]; then
             echo "Failed to fetch webaccess tag"
             exit 1
           fi
-
-          if [ -z "$CRONJOB_TAG" ] || [ "$CRONJOB_TAG" = "null" ]; then
-            echo "Failed to fetch cronjob tag"
+          if [ -z "$NETWORKING_FN_TAG" ] || [ "$NETWORKING_FN_TAG" = "null" ]; then
+            echo "Failed to fetch networking-fn tag"
             exit 1
           fi
 
           echo "Updating tags..."
           yq -i ".postgresql.package.tag = \"$POSTGRESQL_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".postgresql.function.tag = \"$POSTGRESQL_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".database.function.tag = \"$DATABASE_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".repository.package.tag = \"$REPOSITORY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".repository.function.tag = \"$REPOSITORY_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".artifact.function.tag = \"$ARTIFACT_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".zone.package.tag = \"$ZONE_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".webapp.package.tag = \"$WEBAPP_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".webaccess.package.tag = \"$WEBACCESS_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".cronjob.package.tag = \"$CRONJOB_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".workload.function.tag = \"$WORKLOAD_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".webaccess.package.tag = \"$WEBACCESS_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".networking.function.tag = \"$NETWORKING_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           echo "After update:"
           cat ${{ env.CHART_PATH }}/values.yaml
 

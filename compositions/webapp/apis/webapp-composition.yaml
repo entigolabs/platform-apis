@@ -10,4 +10,4 @@ spec:
   pipeline:
     - step: web-app
       functionRef:
-        name: developer-portal-function
+        name: platform-apis-workload-fn

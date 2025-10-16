@@ -1,0 +1,52 @@
+{{- if .Values.repository.install }}
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-artifact
+data:
+  awsProvider: {{ .Values.artifact.environmentConfig.awsProvider }}
+  awsRegion: {{ .Values.artifact.environmentConfig.awsRegion }}
+  dataKMSKey: {{ .Values.artifact.environmentConfig.dataKMSKey }}
+  scanOnPush: {{ .Values.artifact.environmentConfig.scanOnPush }}
+  imageTagMutability: {{ .Values.artifact.environmentConfig.imageTagMutability }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-artifact-fn
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers: []
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-artifact-fn
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ .Values.artifact.function.image }}:{{ .Values.artifact.function.tag }}
+  runtimeConfigRef:
+    name: platform-apis-artifact-fn
+{{- end }}

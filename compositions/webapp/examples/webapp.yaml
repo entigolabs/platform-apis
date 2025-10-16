@@ -1,0 +1,31 @@
+apiVersion: workload.entigo.com/v1alpha1
+kind: WebApp
+metadata:
+  name: new-web-app
+  namespace: default
+spec:
+  replicas: 1
+  restartPolicy: "Always"
+  containers:
+    - environment:
+        - name: NEW_ENV
+          secret: false
+          value: ENV_VALUE
+        - name: NEW_SECRET
+          secret: true
+          value: SECRET_VALUE
+      name: nginx
+      registry: 1234567890.dkr.ecr.eu-north-1.amazonaws.com
+      repository: nginx
+      tag: mainline-alpine
+      resources:
+        limits:
+          cpu: 0.25
+          ram: 128
+      services:
+        - name: http-tcp-80
+          port: 80
+          protocol: "TCP"
+        - name: http-tcp-443
+          port: 443
+          protocol: "TCP"

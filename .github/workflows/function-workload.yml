@@ -1,0 +1,27 @@
+name: Build Workload Function
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/workload/**'
+      - 'functions/common/base/**'
+  pull_request:
+    paths:
+      - 'functions/workload/**'
+      - 'functions/common/base/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version (e.g. v0.1.0)
+        required: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/builder-function.yml
+    with:
+      path: functions/workload
+      name: platform-apis-workload-fn
+      version: ${{ inputs.version }}
+    secrets: inherit
