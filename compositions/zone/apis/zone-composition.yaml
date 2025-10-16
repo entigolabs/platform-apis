@@ -459,7 +459,6 @@ spec:
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
-            {{- $clusterPermissions := .observed.composite.resource.spec.clusterPermissions -}}
             ---
             apiVersion: argoproj.io/v1alpha1
             kind: AppProject
