@@ -469,6 +469,9 @@ spec:
                 kind: '*'
               clusterResourceWhitelist: []
               {{ end }}
+              namespaceResourceBlacklist:
+              - group: '*.m.upbound.io'
+                kind: '*'
               roles:
               - description: Maintainer permissions
                 {{- $maintainerGroups := list -}}
