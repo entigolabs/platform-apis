@@ -33,7 +33,7 @@ const (
 		"kind": "Repository",
 		"metadata": {"name":"repository","namespace":"default"},
 		"spec": {
-            "repositoryPath": "example/path/",
+            "path": "example/path/",
 			"crossplane": {
 				"compositionRef": {
 					"name": "repositories.artifact.entigo.com"

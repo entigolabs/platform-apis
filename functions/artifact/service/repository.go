@@ -36,7 +36,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
-	if repository.Spec.RepositoryPath != "" || repository.Spec.RepositoryName != "" {
+	if repository.Spec.Path != "" || repository.Spec.Name != "" {
 		annotations["crossplane.io/external-name"] = getExternalRepoName(repository)
 	}
 	objects := make(map[string]runtime.Object)
@@ -80,10 +80,10 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 
 func getExternalRepoName(repository v1alpha1.Repository) string {
 	name := repository.Name
-	if repository.Spec.RepositoryName != "" {
-		name = repository.Spec.RepositoryName
+	if repository.Spec.Name != "" {
+		name = repository.Spec.Name
 	}
-	return path.Join(repository.Spec.RepositoryPath, name)
+	return path.Join(repository.Spec.Path, name)
 }
 
 func GetEnvironment(required map[string][]resource.Required) (apis.Environment, error) {

@@ -23,8 +23,12 @@ type Repository struct {
 }
 
 type RepositorySpec struct {
-	RepositoryName string `json:"repositoryName,omitempty"`
-	RepositoryPath string `json:"repositoryPath,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	Name string `json:"name,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	Path string `json:"path,omitempty"`
 }
 
 type RepositoryStatus struct {
