@@ -521,10 +521,17 @@ spec:
                 {{- end }}
                 name: contributor
                 policies:
-                - p, proj:{{ $name }}:contributor, applications, sync, {{ $name }}/*, allow
-                - p, proj:{{ $name }}:contributor, applications, get, {{ $name }}/*, allow
-                - p, proj:{{ $name }}:contributor, applicationsets, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, applications, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, repositories, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, applicationsets, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:contributor, logs, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, exec, *, {{ $name }}/*, allow
+              - name: cicd
+                policies:
+                - p, proj:{{ $name }}:cicd, applications, sync, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:cicd, applicationsets, sync, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:cicd, applications, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:cicd, applicationsets, get, {{ $name }}/*, allow
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
