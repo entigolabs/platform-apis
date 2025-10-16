@@ -1,25 +1,9 @@
 ---
-sidebar_position: 4
+sidebar_position: 3
 ---
-# Zones
+# Zone
 
-Zones are a fundamental building block of Entigo Platform's security architecture. It enables security isolation between different information assets and systems. Entigo Platform implements isolation at two distinct levels:
-
-- **Cloud provider level**: Separate AWS accounts or Google Cloud projects
-- **Platform instance level**: Zones within a single platform instance
-
-## Cloud Provider Level Isolation
-Cloud provider level isolation delivers the strongest security boundaries by leveraging native cloud constructs such as separate accounts, VPCs, and IAM boundaries. You can deploy Entigo Platform instances into different accounts to achieve robust isolation at the cloud provider level.
-However, this approach incurs significant costs. Each account requires its own infrastructure components:
-
-- Supporting network infrastructure, for example Transit Gateway attachments or NAT Gateways
-- Kubernetes cluster with necessary controllers
-
-These components typically cost $200-400 per month per account. For large organizations managing multiple data assets across lifecycle environments (development, testing, and production), cloud provider level isolation for every asset may become prohibitively expensive.
-
-## Platform Instance Level Isolation
-Zones provide isolated security segments within a single platform instance. This approach offers a cost-effective alternative when you need to separate data assets that share similar security requirements and controls, without the overhead of maintaining separate cloud accounts.
-By consolidating multiple zones onto a single platform instance, you reduce infrastructure redundancy while maintaining appropriate security boundaries for your workloads.
+Zones are a fundamental building block of Entigo Platform's security architecture. They enable security isolation between different information assets and systems within a [Workspace](workspace). Zones offer a cost-effective alternative to dedicated [Workspaces](workspace) when you need to separate data assets that share similar security requirements and controls. By consolidating multiple zones into a single [Workspace](workspace), you reduce infrastructure redundancy while maintaining appropriate security boundaries for your workloads.
 
 ## What is a Zone?
 A Zone is an opinionated abstraction that combines access management, compute resource orchestration, and policy enforcement to provide isolation between different data assets. Zones deliver two primary forms of isolation:

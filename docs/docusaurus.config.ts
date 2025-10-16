@@ -86,14 +86,14 @@ const config: Config = {
         {
           type: 'doc',
           docId: 'intro',
-          position: 'left',
+          position: 'right',
           label: 'Docs',
         },
         {
           type: 'doc',
           docId: 'intro',
           docsPluginId: 'api',
-          position: 'left',
+          position: 'right',
           label: 'API',
         },
         {
