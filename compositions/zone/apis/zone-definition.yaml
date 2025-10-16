@@ -19,6 +19,19 @@ spec:
             spec:
               type: object
               properties:
+                clusterPermissions:
+                  type: boolean
+                  default: false
+                  description: Enable cluster-level permissions for the zone
+                appProject:
+                  type: object
+                  properties:
+                    contributorGroups:
+                      type: array
+                      description: OIDC groups with full access to applications
+                      items:
+                        type: string
+                        minLength: 1
                 namespaces:
                   type: array
                   minItems: 1

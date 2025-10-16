@@ -19,19 +19,7 @@ spec:
         inline:
           template: |
             {{- $name := .observed.composite.resource.metadata.name -}}
-            ---
-            apiVersion: rbac.authorization.k8s.io/v1
-            kind: ClusterRole
-            metadata:
-              name: {{ $name }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: clusterrole-{{ $name }}
-                gotemplating.fn.crossplane.io/ready: "True"
-            rules:
-            - apiGroups: ["*"]
-              resources: ["*"]
-              verbs: ["*"]
-            # Namespace must be created first
+
             {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
             ---
             apiVersion: v1
@@ -56,36 +44,38 @@ spec:
               podSelector: {}
               policyTypes:
               - Ingress
-              - Egress
               ingress:
               # Allow all traffic from pods in the same zone
               - from:
                 - namespaceSelector:
                     matchLabels:
                       zone: {{ $name }}
-              egress:
-              # Allow all traffic to pods in the same zone
-              - to:
-                - namespaceSelector:
-                    matchLabels:
-                      zone: {{ $name }}
-              # Allow DNS (UDP and TCP on port 53) to kube-system
-              - to:
-                - namespaceSelector:
-                    matchLabels:
-                      kubernetes.io/metadata.name: kube-system
-                ports:
-                - protocol: UDP
-                  port: 53
-                - protocol: TCP
-                  port: 53
-              # Allow HTTPS egress to anywhere
-              - to:
-                - ipBlock:
-                    cidr: 0.0.0.0/0
-                ports:
-                - protocol: TCP
-                  port: 443
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: Role
+            metadata:
+              name: zone-tenancy-all
+              namespace: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-all-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            rules:
+            - apiGroups: ["*"]
+              resources: ["*"]
+              verbs: ["*"]
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: Role
+            metadata:
+              name: zone-tenancy-read
+              namespace: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-read-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            rules:
+            - apiGroups: ["*"]
+              resources: ["*"]
+              verbs: ["get", "watch", "list"]
             ---
             apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
@@ -93,15 +83,49 @@ spec:
               name: contributor
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rolebinding-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-contributor-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
-              kind: ClusterRole
-              name: {{ $name }}
+              kind: Role
+              name: zone-tenancy-all
             subjects:
             - kind: Group
-              name: {{ $name }}-contributors
+              name: contributor
+              apiGroup: rbac.authorization.k8s.io
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: RoleBinding
+            metadata:
+              name: maintainer
+              namespace: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-maintainer-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: Role
+              name: zone-tenancy-all
+            subjects:
+            - kind: Group
+              name: maintainer
+              apiGroup: rbac.authorization.k8s.io
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: RoleBinding
+            metadata:
+              name: observer
+              namespace: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-observer-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: Role
+              name: zone-tenancy-read
+            subjects:
+            - kind: Group
+              name: observer
               apiGroup: rbac.authorization.k8s.io
             ---
             {{- $poolName := "default" }}
@@ -403,9 +427,15 @@ spec:
               zoneEnvironment:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
-                name: platform-apis-zone
+                matchName: platform-apis-zone
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $clusterPermissions := .observed.composite.resource.spec.clusterPermissions }}
             ---
             apiVersion: argoproj.io/v1alpha1
             kind: AppProject
@@ -418,18 +448,83 @@ spec:
             spec:
               description: {{ "Security zone for isolated team deployment" }}
               destinations:
-                {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
-                - namespace: {{ $namespace.name }}
-                  server: https://kubernetes.default.svc
-                  name: {{ $namespace.name }}
-                {{ end }}
+              {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
+              - namespace: {{ $namespace.name }}
+                server: https://kubernetes.default.svc
+              {{ end }}
+              sourceRepos:
+              - {{ $vpc.resource.status.atProvider.ownerId }}.dkr.ecr.{{ $vpc.resource.status.atProvider.region }}.amazonaws.com
+              sourceNamespaces:
+              {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
+              - {{ $namespace.name }}
+              {{ end }}
+              {{- if $clusterPermissions }}
+              clusterResourceWhitelist:
+              - group: '*'
+                kind: '*'
+              clusterResourceBlacklist: []
+              {{ else }}
+              clusterResourceBlacklist:
+              - group: '*'
+                kind: '*'
+              clusterResourceWhitelist: []
+              {{ end }}
+              namespaceResourceBlacklist:
+              - group: '*.m.upbound.io'
+                kind: '*'
               roles:
-                - name: {{ $name }}
-                  description: "{{ $name }} permissions"
-                  policies:
-                  - p, proj:{{ $name }}:{{ $name }}, applications, *, {{ $name }}/*, allow
-                  groups:
-                  - {{ $name }}
+              - description: Maintainer permissions
+                {{- $maintainerGroups := list -}}
+                {{- if hasKey $envConfig.resource.data.appProject "maintainerGroups" -}}
+                  {{- $maintainerGroups = $envConfig.resource.data.appProject.maintainerGroups -}}
+                {{- end }}
+                {{- if $maintainerGroups }}
+                groups:
+                {{- range $maintainerGroups }}
+                - {{ . }}
+                  {{- end }}
+                {{- else }}
+                groups: []
+                {{- end }}
+                name: maintainer
+                policies:
+                - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:maintainer, applicationsets, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:maintainer, logs, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:maintainer, exec, *, {{ $name }}/*, allow
+              - description: Observer permissions
+                {{- $observerGroups := list -}}
+                {{- if hasKey $envConfig.resource.data.appProject "observerGroups" -}}
+                  {{- $observerGroups = $envConfig.resource.data.appProject.observerGroups -}}
+                {{- end }}
+                {{- if $observerGroups }}
+                groups:
+                {{- range $observerGroups }}
+                - {{ . }}
+                {{- end }}
+                {{- else }}
+                groups: []
+                {{- end }}
+                name: observer
+                policies:
+                - p, proj:{{ $name }}:observer, applications, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:observer, applicationsets, get, {{ $name }}/*, allow
+              - description: Contributor permissions
+                {{- if .observed.composite.resource.spec.appProject.contributorGroups }}
+                groups:
+                {{- range .observed.composite.resource.spec.appProject.contributorGroups }}
+                - {{ . }}
+                {{- end }}
+                {{- else }}
+                groups: []
+                {{- end }}
+                name: contributor
+                policies:
+                - p, proj:{{ $name }}:contributor, applications, sync, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, applications, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, applicationsets, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, logs, *, {{ $name }}/*, allow
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
@@ -441,10 +536,10 @@ spec:
         kind: Input
         rules:
           - sequence:
-            - clusterrole-.*
             - namespace-.*
             - netpol-.*
-            - rolebinding-.*
+            - rbacrole-.*
+            - rb-.*
             - launchtemplate-.*
             - role-.*
             - nodepool-.*

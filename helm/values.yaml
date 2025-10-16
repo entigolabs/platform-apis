@@ -40,6 +40,13 @@ zone:
   environmentConfig:
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
+    appProject:
+      maintainerGroups: []
+      observerGroups: []
+  clusterrolebinding:
+    maintainerGroups: ["maintainer"]
+    observerGroups: ["observer"]
+    contributorGroups: ["contributor"]
 
 networking:
   function:
