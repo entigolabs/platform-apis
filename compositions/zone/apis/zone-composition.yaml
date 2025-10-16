@@ -44,36 +44,12 @@ spec:
               podSelector: {}
               policyTypes:
               - Ingress
-              - Egress
               ingress:
               # Allow all traffic from pods in the same zone
               - from:
                 - namespaceSelector:
                     matchLabels:
                       zone: {{ $name }}
-              egress:
-              # Allow all traffic to pods in the same zone
-              - to:
-                - namespaceSelector:
-                    matchLabels:
-                      zone: {{ $name }}
-              # Allow DNS (UDP and TCP on port 53) to kube-system
-              - to:
-                - namespaceSelector:
-                    matchLabels:
-                      kubernetes.io/metadata.name: kube-system
-                ports:
-                - protocol: UDP
-                  port: 53
-                - protocol: TCP
-                  port: 53
-              # Allow HTTPS egress to anywhere
-              - to:
-                - ipBlock:
-                    cidr: 0.0.0.0/0
-                ports:
-                - protocol: TCP
-                  port: 443
             ---
             apiVersion: rbac.authorization.k8s.io/v1
             kind: Role
