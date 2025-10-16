@@ -18,7 +18,13 @@ import (
 type Repository struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              RepositorySpec   `json:"spec,omitempty"`
 	Status            RepositoryStatus `json:"status,omitempty"`
+}
+
+type RepositorySpec struct {
+	RepositoryName string `json:"repositoryName,omitempty"`
+	RepositoryPath string `json:"repositoryPath,omitempty"`
 }
 
 type RepositoryStatus struct {

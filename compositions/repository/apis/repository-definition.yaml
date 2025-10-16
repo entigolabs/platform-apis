@@ -16,6 +16,15 @@ spec:
         openAPIV3Schema:
           type: object
           properties:
+            spec:
+              type: object
+              properties:
+                repositoryName:
+                  type: string
+                  description: "Name of the repository, defaults to the name of the resource if not specified"
+                repositoryPath:
+                  type: string
+                  description: "Prefix path for the repository"
             status:
               type: object
               properties:

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"path"
 
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -31,7 +32,13 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		return nil, err
 	}
 	encryptionType := "KMS"
-
+	annotations := repository.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	if repository.Spec.RepositoryPath != "" || repository.Spec.RepositoryName != "" {
+		annotations["crossplane.io/external-name"] = getExternalRepoName(repository)
+	}
 	objects := make(map[string]runtime.Object)
 	repo := &v1beta1.Repository{
 		TypeMeta: metav1.TypeMeta{
@@ -46,6 +53,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 				base.ResourceLabel:     repository.Name,
 				base.ResourceKindLabel: apis.XRKindRepository,
 			},
+			Annotations: annotations,
 		},
 		Spec: v1beta1.RepositorySpec{
 			ForProvider: v1beta1.RepositoryParameters{
@@ -68,6 +76,14 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 	}
 	objects[repository.Name] = repo
 	return objects, nil
+}
+
+func getExternalRepoName(repository v1alpha1.Repository) string {
+	name := repository.Name
+	if repository.Spec.RepositoryName != "" {
+		name = repository.Spec.RepositoryName
+	}
+	return path.Join(repository.Spec.RepositoryPath, name)
 }
 
 func GetEnvironment(required map[string][]resource.Required) (apis.Environment, error) {
