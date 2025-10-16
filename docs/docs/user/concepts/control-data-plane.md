@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Control & Data Plane
 
-Think of control and data plane separation like air traffic control and aircraft. The control plane is like air traffic control—it coordinates workloads, assigns resources, and manages configurations. The data plane is like the aircraft themselves—they carry out the actual work of running your applications. Just as planes can continue flying and land safely if they temporarily lose contact with the tower, your workloads continue running even if the control plane is temporarily unavailable.
+Think of control and data plane separation like air traffic control and aircraft. The control plane is like air traffic control: it coordinates workloads, assigns resources, and manages configurations. The data plane is like the aircraft themselves: they carry out the actual work of running your applications. Just as planes can continue flying and land safely if they temporarily lose contact with the tower, your workloads continue running even if the control plane is temporarily unavailable.
 
 Entigo Platform is strongly influenced by this concept:
 

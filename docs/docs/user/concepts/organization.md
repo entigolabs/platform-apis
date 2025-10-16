@@ -13,7 +13,7 @@ Organizations form the foundation of Entigo Platform's multi-tenancy architectur
 
 **Policies**: Set rules and define platform default behaviors that align with your organization's needs and compliance requirements.
 
-**Workspace templating**: Simplify user experience and improve compliance with standardized [Workspaces](workspace) configurations that can be deployed consistently across your organization's [Workspaces](workspace).
+**Control Plane**: Central Workspace orchestration enables you to simplify user experience and improve compliance with standardized [workspace](workspace) configurations that can be deployed and operated consistently across your organization. The control plane provides centralized management for workspace provisioning, configuration updates, and policy enforcement.
 
 **Reporting**: Gain comprehensive visibility into platform operations and usage patterns. Reporting capabilities span areas such as FinOps and cost management, vulnerability compliance tracking, and much more, enabling data-driven decision-making across your organization.
 
