@@ -486,14 +486,13 @@ spec:
               clusterResourceWhitelist:
               - group: '*'
                 kind: '*'
+              clusterResourceBlacklist: []
               {{ else }}
               clusterResourceBlacklist:
               - group: '*'
                 kind: '*'
+              clusterResourceWhitelist: []
               {{ end }}
-              clusterResourceBlacklist:
-              - group: '*'
-                kind: '*'
               roles:
               - description: Maintainer permissions
                 {{- $maintainerGroups := list -}}
