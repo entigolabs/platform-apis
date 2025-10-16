@@ -482,6 +482,15 @@ spec:
               {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
               - {{ $namespace.name }}
               {{ end }}
+              {{- if $clusterPermissions }}
+              clusterResourceWhitelist:
+              - group: '*'
+                kind: '*'
+              {{- else }}
+              clusterResourceBlacklist:
+              - group: '*'
+                kind: '*'
+              {{- end }}
               clusterResourceBlacklist:
               - group: '*'
                 kind: '*'
