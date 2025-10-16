@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"path"
 
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -31,8 +32,21 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		return nil, err
 	}
 	encryptionType := "KMS"
-
+	annotations := repository.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	if repository.Spec.Path != "" || repository.Spec.Name != "" {
+		annotations["crossplane.io/external-name"] = getExternalRepoName(repository)
+	}
 	objects := make(map[string]runtime.Object)
+	region := kms.Status.AtProvider.Region
+	if region == nil {
+		region = kms.Spec.ForProvider.Region
+	}
+	if region == nil {
+		return nil, fmt.Errorf("KMS key %s must have a region", kms.Name)
+	}
 	repo := &v1beta1.Repository{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: apis.RepositoryApiVersion,
@@ -42,14 +56,14 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 			Name:      repository.Name,
 			Namespace: repository.Namespace,
 			Labels: map[string]string{
-				"region":               env.AWSRegion,
 				base.ResourceLabel:     repository.Name,
 				base.ResourceKindLabel: apis.XRKindRepository,
 			},
+			Annotations: annotations,
 		},
 		Spec: v1beta1.RepositorySpec{
 			ForProvider: v1beta1.RepositoryParameters{
-				Region:             &env.AWSRegion,
+				Region:             region,
 				ImageTagMutability: env.ImageTagMutability,
 				EncryptionConfiguration: []v1beta1.EncryptionConfigurationParameters{{
 					EncryptionType: &encryptionType,
@@ -68,6 +82,14 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 	}
 	objects[repository.Name] = repo
 	return objects, nil
+}
+
+func getExternalRepoName(repository v1alpha1.Repository) string {
+	name := repository.Name
+	if repository.Spec.Name != "" {
+		name = repository.Spec.Name
+	}
+	return path.Join(repository.Spec.Path, name)
 }
 
 func GetEnvironment(required map[string][]resource.Required) (apis.Environment, error) {

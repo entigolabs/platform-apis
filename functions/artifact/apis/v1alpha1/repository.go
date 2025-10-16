@@ -18,7 +18,17 @@ import (
 type Repository struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              RepositorySpec   `json:"spec,omitempty"`
 	Status            RepositoryStatus `json:"status,omitempty"`
+}
+
+type RepositorySpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	Name string `json:"name,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	Path string `json:"path,omitempty"`
 }
 
 type RepositoryStatus struct {
