@@ -11,7 +11,6 @@ var validImageTagMutability = base.NewSet("MUTABLE", "IMMUTABLE", "IMMUTABLE_WIT
 
 type Environment struct {
 	AWSProvider        string  `json:"awsProvider"`
-	AWSRegion          string  `json:"awsRegion"`
 	DataKMSKey         string  `json:"dataKMSKey"`
 	ScanOnPush         *bool   `json:"scanOnPush,omitempty"`
 	ImageTagMutability *string `json:"imageTagMutability,omitempty"`
@@ -20,9 +19,6 @@ type Environment struct {
 func (e Environment) Validate() error {
 	if e.AWSProvider == "" {
 		return errors.New("awsProvider is required")
-	}
-	if e.AWSRegion == "" {
-		return errors.New("awsRegion is required")
 	}
 	if e.DataKMSKey == "" {
 		return errors.New("dataKMSKey is required")

@@ -47,7 +47,6 @@ func TestArtifactFunction(t *testing.T) {
 	repoResource := resource.MustStructJSON(repoJson)
 	repoPathResource := resource.MustStructJSON(repoPathJson)
 	environmentData := map[string]interface{}{
-		"awsRegion":   "eu-north-1",
 		"awsProvider": "aws-provider",
 		"dataKMSKey":  "data",
 	}
@@ -80,7 +79,7 @@ func TestArtifactFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"repository": {Resource: resource.MustStructJSON(`
-{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","region":"eu-north-1"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
+{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
 							`)},
 						},
 					},
@@ -116,7 +115,7 @@ func TestArtifactFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"repository": {Resource: resource.MustStructJSON(`
-{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"annotations":{"crossplane.io/external-name":"example/path/repository"},"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","region":"eu-north-1"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
+{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"annotations":{"crossplane.io/external-name":"example/path/repository"},"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
 							`)},
 						},
 					},
@@ -152,7 +151,7 @@ func TestArtifactFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"repository": {Resource: resource.MustStructJSON(`
-{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","region":"eu-north-1"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"imageScanningConfiguration":{"scanOnPush":true},"imageTagMutability":"MUTABLE","region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
+{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"creationTimestamp":null,"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKeyRef":{"name":"data","namespace":"aws-provider"}}],"imageScanningConfiguration":{"scanOnPush":true},"imageTagMutability":"MUTABLE","region":"eu-north-1"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
 							`)},
 						},
 					},

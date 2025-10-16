@@ -59,6 +59,11 @@ func KMSKeyResource(name, namespace string) *fnv1.Resources {
 			"name":      name,
 			"namespace": namespace,
 		},
+		"spec": map[string]interface{}{
+			"forProvider": map[string]interface{}{
+				"region": "eu-north-1",
+			},
+		},
 	})
 	if err != nil {
 		panic(err)
