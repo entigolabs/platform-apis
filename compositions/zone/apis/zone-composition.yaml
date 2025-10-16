@@ -482,7 +482,7 @@ spec:
               {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
               - {{ $namespace.name }}
               {{ end }}
-              {{- if $clusterWidePermissions }}
+              {{- if $clusterPermissions }}
               clusterResourceWhitelist:
               - group: '*'
                 kind: '*'
