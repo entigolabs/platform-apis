@@ -8,7 +8,7 @@ A workspace is where your applications reside. Workspaces include functionality 
 
 ![](img/workspace.png)
 
-Workspaces are designed to be self-contained, with minimal external dependencies. To achieve this goal, each workspace includes all components necessary to continue operating and self-heal even if external services are unavailable or temporarily down:
+Workspaces are designed to be self-contained, with minimal external dependencies. To achieve this goal, each workspace includes all components necessary to continue operating and self-heal even if external services temporarily unavailable:
 
 - **AWS Account and IAM**: Provides strong isolation for resources and access management. All roles and privileges are defined within the workspace and cannot span multiple workspaces, even in the event of configuration errors.
 
