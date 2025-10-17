@@ -452,8 +452,14 @@ spec:
               - namespace: {{ $namespace.name }}
                 server: https://kubernetes.default.svc
               {{ end }}
+              {{- if $clusterPermissions }}
+              sourceRepos:
+              - '*'
+              {{ else }}
               sourceRepos:
               - {{ $vpc.resource.status.atProvider.ownerId }}.dkr.ecr.{{ $vpc.resource.status.atProvider.region }}.amazonaws.com
+              - {{ $vpc.resource.status.atProvider.ownerId }}.dkr.ecr.{{ $vpc.resource.status.atProvider.region }}.amazonaws.com/*
+              {{ end }}
               sourceNamespaces:
               {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
               - {{ $namespace.name }}
@@ -473,7 +479,8 @@ spec:
               - group: '*.m.upbound.io'
                 kind: '*'
               roles:
-              - description: Maintainer permissions
+              - name: maintainer
+                description: Maintainer permissions
                 {{- $maintainerGroups := list -}}
                 {{- if hasKey $envConfig.resource.data.appProject "maintainerGroups" -}}
                   {{- $maintainerGroups = $envConfig.resource.data.appProject.maintainerGroups -}}
@@ -486,14 +493,14 @@ spec:
                 {{- else }}
                 groups: []
                 {{- end }}
-                name: maintainer
                 policies:
                 - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, applicationsets, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, logs, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, exec, *, {{ $name }}/*, allow
-              - description: Observer permissions
+              - name: observer
+                description: Observer permissions
                 {{- $observerGroups := list -}}
                 {{- if hasKey $envConfig.resource.data.appProject "observerGroups" -}}
                   {{- $observerGroups = $envConfig.resource.data.appProject.observerGroups -}}
@@ -506,11 +513,11 @@ spec:
                 {{- else }}
                 groups: []
                 {{- end }}
-                name: observer
                 policies:
                 - p, proj:{{ $name }}:observer, applications, get, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:observer, applicationsets, get, {{ $name }}/*, allow
-              - description: Contributor permissions
+              - name: contributor
+                description: Contributor permissions
                 {{- if .observed.composite.resource.spec.appProject.contributorGroups }}
                 groups:
                 {{- range .observed.composite.resource.spec.appProject.contributorGroups }}
@@ -519,7 +526,6 @@ spec:
                 {{- else }}
                 groups: []
                 {{- end }}
-                name: contributor
                 policies:
                 - p, proj:{{ $name }}:contributor, applications, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:contributor, repositories, *, {{ $name }}/*, allow
@@ -527,6 +533,7 @@ spec:
                 - p, proj:{{ $name }}:contributor, logs, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:contributor, exec, *, {{ $name }}/*, allow
               - name: cicd
+                description: Use this role for your CI/CD pipelines
                 policies:
                 - p, proj:{{ $name }}:cicd, applications, sync, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:cicd, applicationsets, sync, {{ $name }}/*, allow
