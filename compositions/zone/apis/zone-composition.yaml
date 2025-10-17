@@ -38,7 +38,7 @@ spec:
               name: zone
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             spec:
               podSelector: {}
@@ -57,7 +57,7 @@ spec:
               name: zone-tenancy-all
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-all-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-all-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             rules:
             - apiGroups: ["*"]
@@ -70,7 +70,7 @@ spec:
               name: zone-tenancy-read
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-read-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-read-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             rules:
             - apiGroups: ["*"]
@@ -83,7 +83,7 @@ spec:
               name: contributor
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rb-contributor-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-contributor-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
@@ -100,7 +100,7 @@ spec:
               name: maintainer
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rb-maintainer-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-maintainer-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
@@ -117,7 +117,7 @@ spec:
               name: observer
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rb-observer-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-observer-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             roleRef:
               apiGroup: rbac.authorization.k8s.io
@@ -139,7 +139,7 @@ spec:
             metadata:
               name: {{ $name }}-{{ $namespace.name }}-add-nodeselector
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-mutate-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-mutate-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             spec:
               matchConstraints:
@@ -174,7 +174,7 @@ spec:
             metadata:
               name: {{ $name }}-{{ $namespace.name }}-validate-nodeselector
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-validate-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-validate-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
             spec:
               matchConstraints:
