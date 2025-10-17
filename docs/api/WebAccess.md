@@ -7,6 +7,11 @@ import TabItem from '@theme/TabItem';
 
 # WebAccess
 
+:::note Tiers
+This feature is available for the following tiers: Basic, Standard, Premium
+:::
+
+
 Packages:
 
 - [networking.entigo.com/v1alpha1](#networking.entigo.com/v1alpha1)

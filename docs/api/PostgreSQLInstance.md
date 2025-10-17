@@ -7,6 +7,11 @@ import TabItem from '@theme/TabItem';
 
 # PostgreSQLInstance
 
+:::note Tiers
+This feature is available for the following tiers: Standard, Premium
+:::
+
+
 Packages:
 
 - [database.entigo.com/v1alpha1](#database.entigo.com/v1alpha1)

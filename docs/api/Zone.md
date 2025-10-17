@@ -7,6 +7,11 @@ import TabItem from '@theme/TabItem';
 
 # Zone
 
+:::note Tiers
+This feature is available for the following tiers: Premium
+:::
+
+
 Packages:
 
 - [tenancy.entigo.com/v1alpha1](#tenancy.entigo.com/v1alpha1)
@@ -97,6 +102,22 @@ Resource Types:
           List of node pool configurations for cluster-autoscaler<br/>
         </td>
         <td>true</td>
+      </tr><tr>
+        <td><b><a href="#zonespecappproject">appProject</a></b></td>
+        <td>object</td>
+        <td>
+          <br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>clusterPermissions</b></td>
+        <td>boolean</td>
+        <td>
+          Enable cluster-level permissions for the zone<br/>
+          <br/>
+            <i>Default</i>: false<br/>
+        </td>
+        <td>false</td>
       </tr></tbody>
 </table>
 
@@ -206,6 +227,33 @@ Resource Types:
         <td>[]string</td>
         <td>
           Array of values for instance-type or availability-zone<br/>
+        </td>
+        <td>false</td>
+      </tr></tbody>
+</table>
+
+
+### Zone.spec.appProject
+<sup><sup>[↩ Parent](#zonespec)</sup></sup>
+
+
+
+
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Required</th>
+        </tr>
+    </thead>
+    <tbody><tr>
+        <td><b>contributorGroups</b></td>
+        <td>[]string</td>
+        <td>
+          OIDC groups with full access to applications<br/>
         </td>
         <td>false</td>
       </tr></tbody>
