@@ -234,7 +234,6 @@ spec:
                 kind: Subnet
                 matchLabels:
                   subnet-type: compute
-
             ---
             {{- $name := .observed.composite.resource.metadata.name -}}
 
@@ -244,7 +243,6 @@ spec:
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $computeSubnets := getExtraResources . "computeSubnets" }}
-
             apiVersion: iam.aws.upbound.io/v1beta1
             kind: Role
             metadata:
@@ -276,6 +274,22 @@ spec:
                   entigo.com/managed: "true"
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-{{ $name }}
+              name: {{ $name }}-ecr-proxy
+            spec:
+              forProvider:
+                policyArnRef:
+                  name: ecr-proxy
+                roleRef:
+                  name: {{ $name }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+
 
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
@@ -550,4 +564,5 @@ spec:
             - rb-.*
             - launchtemplate-.*
             - role-.*
+            - rpa-.*
             - nodepool-.*

@@ -23,6 +23,9 @@ rules:
 - apiGroups: ["eks.aws.upbound.io"]
   resources: ["nodegroups"]
   verbs: ["get", "watch", "list"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "watch", "list"]
 {{- if .Values.zone.clusterrolebinding.maintainerGroups }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
