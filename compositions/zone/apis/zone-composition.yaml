@@ -35,7 +35,7 @@ spec:
             apiVersion: networking.k8s.io/v1
             kind: NetworkPolicy
             metadata:
-              name: zone
+              name: {{ $namespace.name }}-zone
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $name }}-{{ $namespace.name }}
@@ -54,7 +54,7 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: Role
             metadata:
-              name: zone-tenancy-all
+              name: {{ $namespace.name }}-all
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-all-{{ $name }}-{{ $namespace.name }}
@@ -67,7 +67,7 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: Role
             metadata:
-              name: zone-tenancy-read
+              name: {{ $namespace.name }}-read
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-read-{{ $name }}-{{ $namespace.name }}
@@ -80,7 +80,7 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
             metadata:
-              name: contributor
+              name: {{ $namespace.name }}-contributor
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rb-contributor-{{ $name }}-{{ $namespace.name }}
@@ -97,7 +97,7 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
             metadata:
-              name: maintainer
+              name: {{ $namespace.name }}-maintainer
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rb-maintainer-{{ $name }}-{{ $namespace.name }}
@@ -114,7 +114,7 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
             metadata:
-              name: observer
+              name: {{ $namespace.name }}-observer
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rb-observer-{{ $name }}-{{ $namespace.name }}
