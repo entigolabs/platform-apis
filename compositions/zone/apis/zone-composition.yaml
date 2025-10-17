@@ -452,14 +452,8 @@ spec:
               - namespace: {{ $namespace.name }}
                 server: https://kubernetes.default.svc
               {{ end }}
-              {{- if $clusterPermissions }}
               sourceRepos:
               - '*'
-              {{ else }}
-              sourceRepos:
-              - {{ $vpc.resource.status.atProvider.ownerId }}.dkr.ecr.{{ $vpc.resource.status.atProvider.region }}.amazonaws.com
-              - {{ $vpc.resource.status.atProvider.ownerId }}.dkr.ecr.{{ $vpc.resource.status.atProvider.region }}.amazonaws.com/*
-              {{ end }}
               sourceNamespaces:
               {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
               - {{ $namespace.name }}
