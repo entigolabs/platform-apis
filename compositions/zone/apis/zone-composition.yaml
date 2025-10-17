@@ -265,10 +265,6 @@ spec:
                       }
                     ]
                   }
-                managedPolicyArns:
-                  - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
-                  - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-                  - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
                 tags:
                   Name: {{ .observed.composite.resource.metadata.name }}
                   entigo.com/managed: "true"
@@ -279,7 +275,49 @@ spec:
             kind: RolePolicyAttachment
             metadata:
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rpa-{{ $name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-wn-{{ $name }}
+              name: {{ $name }}-wn
+            spec:
+              forProvider:
+                policyArn: arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+                roleRef:
+                  name: {{ $name }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-ecr-ro-{{ $name }}
+              name: {{ $name }}-ecr-ro
+            spec:
+              forProvider:
+                policyArn: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+                roleRef:
+                  name: {{ $name }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-ssm-{{ $name }}
+              name: {{ $name }}-ssm
+            spec:
+              forProvider:
+                policyArn: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+                roleRef:
+                  name: {{ $name }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-ecr-proxy-{{ $name }}
               name: {{ $name }}-ecr-proxy
             spec:
               forProvider:
@@ -289,7 +327,6 @@ spec:
                   name: {{ $name }}
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
-
 
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
