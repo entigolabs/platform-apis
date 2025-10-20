@@ -36,7 +36,7 @@ awk -v tiers="$TIERS" '
     print $0
     print ""
     print ":::note Tiers"
-    print "This feature is available for the following tiers: " tiers
+    print "This feature is available for the following tiers: **" tiers "**."
     print ":::"
     print ""
     inserted=1

@@ -8,7 +8,7 @@ import TabItem from '@theme/TabItem';
 # Repository
 
 :::note Tiers
-This feature is available for the following tiers: Standard, Premium
+This feature is available for the following tiers: **Standard, Premium**.
 :::
 
 

@@ -8,7 +8,7 @@ import TabItem from '@theme/TabItem';
 # Zone
 
 :::note Tiers
-This feature is available for the following tiers: Premium
+This feature is available for the following tiers: **Premium**.
 :::
 
 

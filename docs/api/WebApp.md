@@ -8,7 +8,7 @@ import TabItem from '@theme/TabItem';
 # WebApp
 
 :::note Tiers
-This feature is available for the following tiers: Basic, Standard, Premium
+This feature is available for the following tiers: **Basic, Standard, Premium**.
 :::
 
 
