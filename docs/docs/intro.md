@@ -27,5 +27,4 @@ Entigo Platform builds on [Infralib](https://www.entigo.com/infralib) and extend
 
 ---
 
-
 *New to the platform? Start with [Getting Started](getting-started/intro) to deploy your first application, or explore [Core Concepts](#) to understand the platform's architecture.*
