@@ -16,6 +16,21 @@ spec:
         openAPIV3Schema:
           type: object
           properties:
+            spec:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: "Name of the repository, defaults to the name of the resource if not specified"
+                  x-kubernetes-validations:
+                    - message: Value is immutable
+                      rule: self == oldSelf
+                path:
+                  type: string
+                  description: "Prefix path for the repository"
+                  x-kubernetes-validations:
+                    - message: Value is immutable
+                      rule: self == oldSelf
             status:
               type: object
               properties:

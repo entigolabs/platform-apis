@@ -1,0 +1,19 @@
+{{- if .Values.repository.install }}
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-repository
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+  - repositories.ecr.aws.m.upbound.io
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-repository
+spec:
+  package: {{ .Values.repository.package.image }}:{{ .Values.repository.package.tag }}
+  skipDependencyResolution: true
+{{- end }}

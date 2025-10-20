@@ -1,13 +1,36 @@
+database:
+  function:
+    image: ghcr.io/entigolabs/platform-apis-database-fn
+    tag: v0.0.0
+  environmentConfig:
+    awsProvider: crossplane-aws
+    dataKMSKey: data
+    configKMSKey: config
+    vpc: vpc
+    subnetGroup: database
+
 postgresql:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-postgresql
     tag: v0.0.0
+
+artifact:
   function:
-    image: ghcr.io/entigolabs/platform-apis-postgresql-fn
+    image: ghcr.io/entigolabs/platform-apis-artifact-fn
     tag: v0.0.0
-    deploymentRuntimeConfig:
-      awsProvider: "crossplane-aws"
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    awsRegion: ""
+    dataKMSKey: data
+    scanOnPush: true
+    imageTagMutability: "MUTABLE"
+
+repository:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-repository
+    tag: v0.0.0
 
 zone:
   install: true
@@ -17,12 +40,35 @@ zone:
   environmentConfig:
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
+    appProject:
+      maintainerGroups: []
+      observerGroups: []
+  clusterrolebinding:
+    maintainerGroups: ["maintainer"]
+    observerGroups: ["observer"]
+    contributorGroups: ["contributor"]
+
+networking:
+  function:
+    image: ghcr.io/entigolabs/platform-apis-networking-fn
+    tag: v0.0.0
+  environmentConfig:
+    istioGateway: "istio-gateway/istio-gateway"
 
 webaccess:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-webaccess
     tag: v0.0.0
+
+workload:
+  function:
+    image: ghcr.io/entigolabs/platform-apis-workload-fn
+    tag: v0.0.0
+  environmentConfig:
+    cpuRequestMultiplier: 0.5
+    memoryRequestMultiplier: 0.8
+    imagePullSecrets: []
 
 webapp:
   install: true
@@ -35,15 +81,6 @@ cronjob:
   package:
     image: ghcr.io/entigolabs/platform-apis-cronjob
     tag: v0.0.0
-
-#Will be split later
-developer-portal-function:
-  install: true
-  function:
-    image: docker.io/entigolabs/developer-portal-function
-    tag: v0.0.0-20251008090721-c7815a3bc8fa
-    deploymentRuntimeConfig:
-      awsProvider: "crossplane-aws"
 
 providers: {}
 

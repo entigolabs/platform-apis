@@ -1,4 +1,98 @@
 {{- if .Values.zone.install }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zone-tenancy-c-maintainer
+rules:
+- apiGroups: ["tenancy.entigo.com"]
+  resources: ["zones"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zone-tenancy-c-read
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["tenancy.entigo.com"]
+  resources: ["zones"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["eks.aws.upbound.io"]
+  resources: ["nodegroups"]
+  verbs: ["get", "watch", "list"]
+{{- if .Values.zone.clusterrolebinding.maintainerGroups }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zone-tenancy-maintainer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zone-tenancy-c-maintainer
+subjects:
+{{- range .Values.zone.clusterrolebinding.maintainerGroups }}
+- kind: Group
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zone-tenancy-maintainer-c-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zone-tenancy-c-read
+subjects:
+{{- range .Values.zone.clusterrolebinding.maintainerGroups }}
+- kind: Group
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+
+{{- if .Values.zone.clusterrolebinding.observerGroups }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zone-tenancy-observer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zone-tenancy-c-read
+subjects:
+{{- range .Values.zone.clusterrolebinding.observerGroups }}
+- kind: Group
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+{{- if .Values.zone.clusterrolebinding.contributorGroups }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zone-tenancy-contributor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zone-tenancy-c-read
+subjects:
+{{- range .Values.zone.clusterrolebinding.contributorGroups }}
+- kind: Group
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+
+
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -13,7 +107,7 @@ rules:
     resources: ["appprojects"]
     verbs: ["*"]
   - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["rolebindings", "clusterroles"]
+    resources: ["rolebindings", "roles"]
     verbs: ["*"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
@@ -27,7 +121,7 @@ rules:
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
 metadata:
-  name: zone-resource-dependencies
+  name: platform-apis-zone
   annotations:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
@@ -56,6 +150,9 @@ metadata:
 data:
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
+  appProject:
+    maintainerGroups: {{ .Values.zone.environmentConfig.appProject.maintainerGroups }}
+    observerGroups: {{ .Values.zone.environmentConfig.appProject.observerGroups }}
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
@@ -64,4 +161,56 @@ metadata:
 spec:
   package: {{ .Values.zone.package.image }}:{{ .Values.zone.package.tag }}
   skipDependencyResolution: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: zone
+  namespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
+spec:
+  description: "Project with maintainer access for creating zones"
+  destinations:
+    - namespace: "*"
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: tenancy.entigo.com
+    kind: Zone
+  namespaceResourceBlacklist:
+  - group: '*'
+    kind: '*'
+  roles:
+  - description: Maintainer permissions
+    {{- $maintainerGroups := list -}}
+    {{- if hasKey .Values.zone.environmentConfig.appProject "maintainerGroups" -}}
+      {{- $maintainerGroups = .Values.zone.environmentConfig.appProject.maintainerGroups -}}
+    {{- end }}
+    {{- if $maintainerGroups }}
+    groups:
+    {{- range $maintainerGroups }}
+    - {{ . }}
+      {{- end }}
+    {{- else }}
+    groups: []
+    {{- end }}
+    name: maintainer
+    policies:
+    - p, proj:zone:maintainer, applications, *, zone/*, allow
+    - p, proj:zone:maintainer, repositories, *, zone/*, allow
+  - description: Observer permissions
+    {{- $observerGroups := list -}}
+    {{- if hasKey .Values.zone.environmentConfig.appProject "observerGroups" -}}
+      {{- $observerGroups = .Values.zone.environmentConfig.appProject.observerGroups -}}
+    {{- end }}
+    {{- if $observerGroups }}
+    groups:
+    {{- range $observerGroups }}
+    - {{ . }}
+    {{- end }}
+    {{- else }}
+    groups: []
+    {{- end }}
+    name: observer
+    policies:
+    - p, proj:zone:observer, applications, get, zone/*, allow
+
 {{- end }}

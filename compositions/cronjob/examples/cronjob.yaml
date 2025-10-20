@@ -1,0 +1,51 @@
+apiVersion: workload.entigo.com/v1alpha1
+kind: CronJob
+metadata:
+  name: new-cron-job
+  namespace: default
+spec:
+  crossplane:
+    compositionRef:
+      name: cronjobs.workload.entigo.com
+  restartPolicy: OnFailure
+  concurrencyPolicy: Allow
+  schedule: "* * */1 * *"
+  initContainers:
+    - environment:
+        - name: NEW_ENV
+          secret: false
+          value: ENV_VALUE
+        - name: NEW_SECRET
+          secret: true
+          value: SECRET_VALUE
+      name: init-busybox
+      registry: docker.io
+      repository: busybox
+      tag: latest
+      resources:
+        limits:
+          cpu: 0.25
+          ram: 128
+  containers:
+    - environment:
+        - name: NEW_ENV
+          secret: false
+          value: ENV_VALUE
+        - name: NEW_SECRET
+          secret: true
+          value: SECRET_VALUE
+      name: busybox
+      registry: docker.io
+      repository: busybox
+      tag: latest
+      resources:
+        limits:
+          cpu: 0.25
+          ram: 128
+      services:
+        - name: http-tcp-80
+          port: 80
+          protocol: "TCP"
+        - name: http-tcp-443
+          port: 443
+          protocol: "TCP"

@@ -1,0 +1,25 @@
+apiVersion: networking.entigo.com/v1alpha1
+kind: WebAccess
+metadata:
+  name: new-web-access
+  namespace: default
+spec:
+  crossplane:
+    compositionRef:
+      name: webaccesses.networking.entigo.com
+  domain: "example.com"
+  aliases:
+    - "alias1.com"
+    - "alias2.com"
+  paths:
+    - path: "/api/v1"
+      host: "service1"
+      namespace: "test"
+      port: 80
+      pathType: "Prefix"
+      targetPath: "/v1"
+    - path: "/api/v2"
+      host: "service2"
+      port: 443
+      pathType: "Exact"
+      targetPath: "/v2"

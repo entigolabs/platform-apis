@@ -10,7 +10,7 @@ spec:
   pipeline:
     - step: postgresql
       functionRef:
-        name: entigo-fn-postgresql
+        name: platform-apis-database-fn
 
 
 

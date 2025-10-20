@@ -1,0 +1,50 @@
+{{- if or .Values.webapp.install .Values.cronjob.install }}
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-workload
+data:
+  cpuRequestMultiplier: {{ .Values.workload.environmentConfig.cpuRequestMultiplier }}
+  MemoryRequestMultiplier: {{ .Values.workload.environmentConfig.memoryRequestMultiplier }}
+  imagePullSecrets: {{ .Values.workload.environmentConfig.imagePullSecrets }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-workload-fn
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers: []
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-workload-fn
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ .Values.workload.function.image }}:{{ .Values.workload.function.tag }}
+  runtimeConfigRef:
+    name: platform-apis-workload-fn
+{{- end }}
