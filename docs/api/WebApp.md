@@ -7,6 +7,11 @@ import TabItem from '@theme/TabItem';
 
 # WebApp
 
+:::note Tiers
+This feature is available for the following tiers: **Basic, Standard, Premium**.
+:::
+
+
 Packages:
 
 - [workload.entigo.com/v1alpha1](#workload.entigo.com/v1alpha1)
