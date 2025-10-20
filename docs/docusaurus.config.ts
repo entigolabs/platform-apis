@@ -69,7 +69,7 @@ const config: Config = {
   
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/docs-share-preview.png',
     metadata: [
       {name: 'edition', content: 'saas,open-source'},
     ],    
@@ -86,14 +86,14 @@ const config: Config = {
         {
           type: 'doc',
           docId: 'intro',
-          position: 'left',
+          position: 'right',
           label: 'Docs',
         },
         {
           type: 'doc',
           docId: 'intro',
           docsPluginId: 'api',
-          position: 'left',
+          position: 'right',
           label: 'API',
         },
         {

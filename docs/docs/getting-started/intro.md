@@ -1,7 +1,4 @@
----
----
-
-# Use the platform
+# Getting started with Entigo Platform
 
 - Getting started
     - Connect to the cluster
