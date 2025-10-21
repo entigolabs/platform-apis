@@ -10,10 +10,11 @@ import (
 var validImageTagMutability = base.NewSet("MUTABLE", "IMMUTABLE", "IMMUTABLE_WITH_EXCLUSION", "MUTABLE_WITH_EXCLUSION")
 
 type Environment struct {
-	AWSProvider        string  `json:"awsProvider"`
-	DataKMSKey         string  `json:"dataKMSKey"`
-	ScanOnPush         *bool   `json:"scanOnPush,omitempty"`
-	ImageTagMutability *string `json:"imageTagMutability,omitempty"`
+	AWSProvider        string             `json:"awsProvider"`
+	DataKMSKey         string             `json:"dataKMSKey"`
+	ScanOnPush         *bool              `json:"scanOnPush,omitempty"`
+	ImageTagMutability *string            `json:"imageTagMutability,omitempty"`
+	Tags               map[string]*string `json:"tags,omitempty"`
 }
 
 func (e Environment) Validate() error {

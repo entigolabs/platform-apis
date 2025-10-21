@@ -8,3 +8,5 @@ data:
   configKMSKey: config
   vpc: vpc
   subnetGroup: database
+# tags:
+#   environment: dev

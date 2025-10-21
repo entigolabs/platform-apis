@@ -69,6 +69,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 					EncryptionType: &encryptionType,
 					KMSKeyRef:      &xpv2v1.NamespacedReference{Name: kms.Name, Namespace: kms.Namespace},
 				}},
+				Tags: env.Tags,
 			},
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference: &xpv2.ProviderConfigReference{Name: env.AWSProvider, Kind: "ClusterProviderConfig"},

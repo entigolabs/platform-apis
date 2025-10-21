@@ -31,7 +31,7 @@ type pgInstanceGenerator struct {
 	// Inputs
 	pgInstance v1alpha1.PostgreSQLInstance
 	observed   map[resource.Name]resource.ObservedComposed
-	provider   string
+	env        apis.Environment
 	hash       string
 	// Dependencies
 	vpc          ec2mv1beta1.VPC
@@ -97,7 +97,7 @@ func newPgInstanceGenerator(
 	g := &pgInstanceGenerator{
 		pgInstance:   pgInstance,
 		observed:     observed,
-		provider:     env.AWSProvider,
+		env:          env,
 		hash:         base.GenerateFNVHash(pgInstance.UID),
 		vpc:          vpc,
 		kmsDataKey:   kmsDataKey,
@@ -191,7 +191,7 @@ func (g *pgInstanceGenerator) buildSecurityGroup() map[string]runtime.Object {
 		ObjectMeta: metav1.ObjectMeta{Name: sgName, Namespace: g.pgInstance.Namespace},
 		Spec: ec2mv1beta1.SecurityGroupSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
-				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.provider, Kind: "ClusterProviderConfig"},
+				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
 			},
 			ForProvider: ec2mv1beta1.SecurityGroupParameters_2{
 				Region:      region,
@@ -213,7 +213,7 @@ func (g *pgInstanceGenerator) buildSecurityGroup() map[string]runtime.Object {
 		ObjectMeta: metav1.ObjectMeta{Name: ingressName, Namespace: g.pgInstance.Namespace},
 		Spec: ec2mv1beta1.SecurityGroupRuleSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
-				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.provider, Kind: "ClusterProviderConfig"},
+				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
 			},
 			ForProvider: ec2mv1beta1.SecurityGroupRuleParameters_2{
 				Region:             region,
@@ -238,7 +238,7 @@ func (g *pgInstanceGenerator) buildSecurityGroup() map[string]runtime.Object {
 		ObjectMeta: metav1.ObjectMeta{Name: egressName, Namespace: g.pgInstance.Namespace},
 		Spec: ec2mv1beta1.SecurityGroupRuleSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
-				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.provider, Kind: "ClusterProviderConfig"},
+				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
 			},
 			ForProvider: ec2mv1beta1.SecurityGroupRuleParameters_2{
 				Region:             region,
@@ -274,7 +274,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 		ObjectMeta: metav1.ObjectMeta{Name: rdsInstanceName, Namespace: g.pgInstance.Namespace},
 		Spec: rdsmv1beta1.InstanceSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
-				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.provider, Kind: "ClusterProviderConfig"},
+				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
 			},
 			ForProvider: rdsmv1beta1.InstanceParameters{
 				AllocatedStorage:            &g.pgInstance.Spec.AllocatedStorage,
@@ -301,6 +301,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 				StorageEncrypted:            &storageEncrypted,
 				Username:                    &masterUsername,
 				VPCSecurityGroupIDRefs:      vpcSecurityGroupIDRef,
+				Tags:                        g.env.Tags,
 			},
 		},
 	}
