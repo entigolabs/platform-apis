@@ -205,8 +205,7 @@ spec:
                   object.spec.nodeSelector["eks.amazonaws.com/nodegroup"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $name }}-{{ $pool.name }}"{{ end }}]
                 message: "Pod nodeSelector must use a valid nodeSelector label value for eks.amazonaws.com/nodegroup. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $name }}-{{ $pool.name }}{{ end }}"
             {{ end }}
-
-    - step: create-node-pools
+    - step: create-launch-template
       functionRef:
         name: function-go-templating
       input:
@@ -238,6 +237,102 @@ spec:
               awsProviderConfig:
                 apiVersion: aws.upbound.io/v1beta1
                 kind: ProviderConfig
+            ---
+            {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
+            {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
+            {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
+
+            {{ range $index, $pool := .observed.composite.resource.spec.pools }}
+            ---
+            apiVersion: ec2.aws.upbound.io/v1beta1
+            kind: LaunchTemplate
+            metadata:
+              name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: launchtemplate-{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+            spec:
+              deletionPolicy: Delete
+              forProvider:
+                name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                userData: ""
+                description: "{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}"
+                region: {{ $vpc.resource.status.atProvider.region }}
+                disableApiStop: false
+                disableApiTermination: false
+                updateDefaultVersion: true
+                metadataOptions:
+                - httpEndpoint: enabled
+                  httpProtocolIpv6: ""
+                  httpPutResponseHopLimit: 1
+                  httpTokens: required
+                  instanceMetadataTags: ""
+                vpcSecurityGroupIdRefs:
+                - name: {{ $nodeSecurityGroup.resource.metadata.name }}
+                tags:
+                  tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+                tagSpecifications:
+                - resourceType: instance
+                  tags:
+                    Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                    {{- range $key, $value := $envConfig.resource.data.tags }}
+                    {{ $key }}: {{ $value | quote }}
+                    {{- end }}
+                - resourceType: volume
+                  tags:
+                    Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-root
+                    {{- range $key, $value := $envConfig.resource.data.tags }}
+                    {{ $key }}: {{ $value | quote }}
+                    {{- end }}
+              initProvider:
+                blockDeviceMappings:
+                - deviceName: /dev/xvda
+                  ebs:
+                  - deleteOnTermination: "true"
+                    volumeSize: 50
+                    throughput: 0
+                    volumeInitializationRate: 0
+                    snapshotId: ""
+                    iops: 0
+                    volumeType: gp3
+                    encrypted: "true"
+                    kmsKeyId: {{ $kmsAlias.resource.status.atProvider.arn }}
+                  noDevice: ""
+                  virtualName: ""
+              managementPolicies:
+              - "*"
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+            {{ end }}
+    - step: create-node-pools
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            # Get required resources
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              zoneEnvironment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-zone
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
+              awsProviderConfig:
+                apiVersion: aws.upbound.io/v1beta1
+                kind: ProviderConfig
               eks:
                 apiVersion: eks.aws.upbound.io/v1beta1
                 kind: Cluster
@@ -251,8 +346,6 @@ spec:
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
-            {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
-            {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $computeSubnets := getExtraResources . "computeSubnets" }}
@@ -350,69 +443,6 @@ spec:
 
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
-            apiVersion: ec2.aws.upbound.io/v1beta1
-            kind: LaunchTemplate
-            metadata:
-              name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: launchtemplate-{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-            spec:
-              deletionPolicy: Delete
-              forProvider:
-                name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                userData: ""
-                description: "{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}"
-                region: {{ $vpc.resource.status.atProvider.region }}
-                disableApiStop: false
-                disableApiTermination: false
-                updateDefaultVersion: true
-                metadataOptions:
-                - httpEndpoint: enabled
-                  httpProtocolIpv6: ""
-                  httpPutResponseHopLimit: 1
-                  httpTokens: required
-                  instanceMetadataTags: ""
-                vpcSecurityGroupIdRefs:
-                - name: {{ $nodeSecurityGroup.resource.metadata.name }}
-                tags:
-                  tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-                  {{- range $key, $value := $envConfig.resource.data.tags }}
-                  {{ $key }}: {{ $value | quote }}
-                  {{- end }}
-                tagSpecifications:
-                - resourceType: instance
-                  tags:
-                    Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                    {{- range $key, $value := $envConfig.resource.data.tags }}
-                    {{ $key }}: {{ $value | quote }}
-                    {{- end }}
-                - resourceType: volume
-                  tags:
-                    Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-root
-                    {{- range $key, $value := $envConfig.resource.data.tags }}
-                    {{ $key }}: {{ $value | quote }}
-                    {{- end }}
-              initProvider:
-                blockDeviceMappings:
-                - deviceName: /dev/xvda
-                  ebs:
-                  - deleteOnTermination: "true"
-                    volumeSize: 50
-                    throughput: 0
-                    volumeInitializationRate: 0
-                    snapshotId: ""
-                    iops: 0
-                    volumeType: gp3
-                    encrypted: "true"
-                    kmsKeyId: {{ $kmsAlias.resource.status.atProvider.arn }}
-                  noDevice: ""
-                  virtualName: ""
-              managementPolicies:
-              - "*"
-              providerConfigRef:
-                name: {{ $awsProviderConfig.resource.metadata.name }}
-            ---
             {{- $launchTemplate := (dict) }}
             {{- range $computedResources := .observed.resources }}
               {{- if and (eq $computedResources.resource.kind "LaunchTemplate") (eq $computedResources.resource.metadata.name (printf "%s-%s" $.observed.composite.resource.metadata.name $pool.name)) }}
@@ -439,7 +469,15 @@ spec:
               forProvider:
                 launchTemplate:
                 - name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                  version: "$Default"
+                  {{- if and $launchTemplate (hasKey $launchTemplate "resource") }}
+                  {{- if hasKey $launchTemplate.resource.status.atProvider "latestVersion" }}
+                  version: "{{ $launchTemplate.resource.status.atProvider.latestVersion }}"
+                  {{- else }}
+                  version: "1"
+                  {{- end }}
+                  {{- else }}
+                  version: "2"
+                  {{- end }}
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
                 region: {{ $vpc.resource.status.atProvider.region }}
