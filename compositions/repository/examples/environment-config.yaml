@@ -6,5 +6,7 @@ data:
   awsProvider: crossplane-aws
   awsRegion: eu-north-1
   dataKMSKey: data
+# tags:
+#   environment: dev
 # scanOnPush: bool
 # imageTagMutability: string
