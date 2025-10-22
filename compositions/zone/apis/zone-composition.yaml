@@ -342,6 +342,11 @@ spec:
                 kind: Subnet
                 matchLabels:
                   subnet-type: compute
+              launchTemplates:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: LaunchTemplate
+                matchLabels:
+                  tenancy.entigo.com/zone: {{ .observed.composite.resource.metadata.name }}
             ---
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
@@ -349,6 +354,7 @@ spec:
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $computeSubnets := getExtraResources . "computeSubnets" }}
+            {{- $launchTemplates := getExtraResources . "launchTemplates" }}
             apiVersion: iam.aws.upbound.io/v1beta1
             kind: Role
             metadata:
@@ -444,9 +450,9 @@ spec:
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
             {{- $launchTemplate := (dict) }}
-            {{- range $computedResources := .observed.resources }}
-              {{- if and (eq $computedResources.resource.kind "LaunchTemplate") (eq $computedResources.resource.metadata.name (printf "%s-%s" $.observed.composite.resource.metadata.name $pool.name)) }}
-                {{- $launchTemplate = $computedResources }}
+            {{- range $launchTemplates }}
+              {{- if eq .resource.metadata.name (printf "%s-%s" $.observed.composite.resource.metadata.name $pool.name) }}
+                {{- $launchTemplate = . }}
               {{- end }}
             {{- end }}
             {{- $instanceTypes := list }}
