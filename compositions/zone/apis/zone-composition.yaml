@@ -413,7 +413,7 @@ spec:
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
             ---
-            {{- $launchTemplate := "" }}
+            {{- $launchTemplate := (dict) }}
             {{- range $computedResources := .observed.resources }}
               {{- if and (eq $computedResources.resource.kind "LaunchTemplate") (eq $computedResources.resource.metadata.name (printf "%s-%s" $.observed.composite.resource.metadata.name $pool.name)) }}
                 {{- $launchTemplate = $computedResources }}
@@ -439,12 +439,15 @@ spec:
               forProvider:
                 launchTemplate:
                 - name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                  {{- if $launchTemplate.resource.status.atProvider.latestVersion }}
+                  {{- if and $launchTemplate (hasKey $launchTemplate "resource") }}
+                  {{- if hasKey $launchTemplate.resource.status.atProvider "latestVersion" }}
                   version: "{{ $launchTemplate.resource.status.atProvider.latestVersion }}"
                   {{- else }}
                   version: "1"
                   {{- end }}
-
+                  {{- else }}
+                  version: "1"
+                  {{- end }}
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
                 region: {{ $vpc.resource.status.atProvider.region }}
