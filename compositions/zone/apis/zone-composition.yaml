@@ -419,7 +419,7 @@ spec:
                 {{- $instanceTypes = .values }}
               {{- end }}
             {{- end }}
-            {{- $instanceTypesHash := $instanceTypes | join "-" | sha256sum | trunc 8 }}-{{ $instanceTypesHash }}
+            {{- $instanceTypesHash := $instanceTypes | join "-" | sha256sum | trunc 8 }}
             apiVersion: eks.aws.upbound.io/v1beta1
             kind: NodeGroup
             metadata:
