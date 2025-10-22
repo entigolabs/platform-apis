@@ -480,11 +480,7 @@ spec:
                   {{- if and $launchTemplate (hasKey $launchTemplate "resource") }}
                   {{- if hasKey $launchTemplate.resource.status.atProvider "latestVersion" }}
                   version: "{{ $launchTemplate.resource.status.atProvider.latestVersion }}"
-                  {{- else }}
-                  version: "1"
                   {{- end }}
-                  {{- else }}
-                  version: "2"
                   {{- end }}
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
