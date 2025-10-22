@@ -430,7 +430,7 @@ spec:
             kind: NodeGroup
             metadata:
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: nodepool-{{ $pool.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: nodepool-{{ $pool.name }}-{{ $instanceTypesHash }}
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-{{ $instanceTypesHash }}
             spec:
