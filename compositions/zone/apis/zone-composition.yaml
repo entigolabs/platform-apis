@@ -172,7 +172,7 @@ spec:
                       JSONPatch{
                         op: "add",
                         path: "/spec/nodeSelector",
-                        value: {"tenancy.entigo.com/zone": "{{ $name }}-{{ $poolName }}"}
+                        value: {"tenancy.entigo.com/zone-pool": "{{ $name }}-{{ $poolName }}"}
                       }
                     ] : []
 
@@ -201,9 +201,9 @@ spec:
               validations:
               - expression: |
                   has(object.spec.nodeSelector) &&
-                  "tenancy.entigo.com/zone" in object.spec.nodeSelector &&
-                  object.spec.nodeSelector["tenancy.entigo.com/zone"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $name }}-{{ $pool.name }}"{{ end }}]
-                message: "Pod nodeSelector must use a valid nodeSelector label value for tenancy.entigo.com/zone. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $name }}-{{ $pool.name }}{{ end }}"
+                  "tenancy.entigo.com/zone-pool" in object.spec.nodeSelector &&
+                  object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $name }}-{{ $pool.name }}"{{ end }}]
+                message: "Pod nodeSelector must use a valid nodeSelector label value for tenancy.entigo.com/zone-pool. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $name }}-{{ $pool.name }}{{ end }}"
             {{ end }}
     - step: create-launch-template
       functionRef:
@@ -255,6 +255,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: launchtemplate-{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                tenancy.entigo.com/zone-pool: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
             spec:
               deletionPolicy: Delete
               forProvider:
@@ -275,6 +276,7 @@ spec:
                 - name: {{ $nodeSecurityGroup.resource.metadata.name }}
                 tags:
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                  tenancy.entigo.com/zone-pool: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -282,12 +284,16 @@ spec:
                 - resourceType: instance
                   tags:
                     Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                    tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                    tenancy.entigo.com/zone-pool: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
                     {{- range $key, $value := $envConfig.resource.data.tags }}
                     {{ $key }}: {{ $value | quote }}
                     {{- end }}
                 - resourceType: volume
                   tags:
                     Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-root
+                    tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                    tenancy.entigo.com/zone-pool: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
                     {{- range $key, $value := $envConfig.resource.data.tags }}
                     {{ $key }}: {{ $value | quote }}
                     {{- end }}
@@ -470,6 +476,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: nodepool-{{ $pool.name }}-{{ $instanceTypesHash }}
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                tenancy.entigo.com/zone-pool: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-{{ $instanceTypesHash }}
             spec:
               managementPolicies: ["*"]
@@ -515,10 +522,12 @@ spec:
 
                 labels:
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                  tenancy.entigo.com/zone-pool: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
                 nodeRoleArnRef:
                   name: {{ $name }}
                 tags:
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                  tenancy.entigo.com/zone-pool: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
