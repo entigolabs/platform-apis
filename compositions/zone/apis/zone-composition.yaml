@@ -270,8 +270,7 @@ spec:
                     ]
                   }
                 tags:
-                  Name: {{ .observed.composite.resource.metadata.name }}
-                  entigo.com/managed: "true"
+                  tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
                   {{- range $key, $value := $envConfig.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -360,6 +359,11 @@ spec:
                   instanceMetadataTags: ""
                 vpcSecurityGroupIdRefs:
                 - name: {{ $nodeSecurityGroup.resource.metadata.name }}
+                tags:
+                  tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                  {{- range $key, $value := $envConfig.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
               initProvider:
                 updateDefaultVersion: true
                 tagSpecifications:
@@ -438,10 +442,10 @@ spec:
                 nodeRoleArnRef:
                   name: {{ $name }}
                 tags:
-                  Name: eks-managed-node-{{ $pool.name }}
-                  Environment: Production
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-
+                  {{- range $key, $value := $envConfig.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
                 {{- $capacityType := "ON_DEMAND" }}
                 {{- $minSize := 1 }}
                 {{- $maxSize := -1 }}
