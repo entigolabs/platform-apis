@@ -1,0 +1,11 @@
+CronJob: [Standard, Premium]
+
+PostgreSQLInstance: [Standard, Premium]
+
+Repository: [Standard, Premium]
+
+WebAccess: [Basic, Standard, Premium] 
+
+WebApp: [Basic, Standard, Premium]
+
+Zone: [Premium]
