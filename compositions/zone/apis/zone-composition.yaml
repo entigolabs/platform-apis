@@ -439,15 +439,7 @@ spec:
               forProvider:
                 launchTemplate:
                 - name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                  {{- if and $launchTemplate (hasKey $launchTemplate "resource") }}
-                  {{- if hasKey $launchTemplate.resource.status.atProvider "latestVersion" }}
-                  version: "{{ $launchTemplate.resource.status.atProvider.latestVersion }}"
-                  {{- else }}
-                  version: "1"
-                  {{- end }}
-                  {{- else }}
-                  version: "2"
-                  {{- end }}
+                  version: "$Default"
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
                 region: {{ $vpc.resource.status.atProvider.region }}
