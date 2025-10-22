@@ -220,5 +220,95 @@ spec:
     name: observer
     policies:
     - p, proj:zone:observer, applications, get, zone/*, allow
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno-zone-access
+rules:
+- apiGroups: ["tenancy.entigo.com"]
+  resources: ["zones"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kyverno-zone-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kyverno-zone-access
+subjects:
+- kind: ServiceAccount
+  name: kyverno-admission-controller
+  namespace: kyverno
+- kind: ServiceAccount
+  name: kyverno-background-controller
+  namespace: kyverno
+- kind: ServiceAccount
+  name: kyverno-reports-controller
+  namespace: kyverno
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-namespace-ownership
+spec:
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["tenancy.entigo.com"]
+      apiVersions: ["v1alpha1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["zones"]
+  variables:
+  - name: existingNamespaces
+    expression: |
+      resource.List("v1", "namespaces", "")
+  - name: zoneLabel
+    expression: |
+      "tenancy.entigo.com/zone"
+  validations:
+  - expression: |
+      object.spec.namespaces.all(requestedNs,
+        !dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          has(existingNs.metadata.labels) &&
+          variables.zoneLabel in existingNs.metadata.labels &&
+          existingNs.metadata.labels[variables.zoneLabel] != object.metadata.name
+        ) &&
+        !dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          (!has(existingNs.metadata.labels) || !(variables.zoneLabel in existingNs.metadata.labels))
+        )
+      )
+    messageExpression: |
+      "Cannot manage namespace(s): " +
+      object.spec.namespaces.filter(requestedNs,
+        dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          has(existingNs.metadata.labels) &&
+          variables.zoneLabel in existingNs.metadata.labels &&
+          existingNs.metadata.labels[variables.zoneLabel] != object.metadata.name
+        ) ||
+        dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          (!has(existingNs.metadata.labels) || !(variables.zoneLabel in existingNs.metadata.labels))
+        )
+      ).map(requestedNs,
+        requestedNs.name + " - " +
+        (dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          has(existingNs.metadata.labels) &&
+          variables.zoneLabel in existingNs.metadata.labels
+        ) ?
+          "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels[variables.zoneLabel]
+          : "no zone label - must be labeled manually first")
+      ).join(", ")
 
 {{- end }}

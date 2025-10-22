@@ -27,7 +27,7 @@ spec:
             metadata:
               name: {{ $namespace.name }}
               labels:
-                zone: {{ $name }}
+                tenancy.entigo.com/zone: {{ $name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
@@ -51,7 +51,7 @@ spec:
               - from:
                 - namespaceSelector:
                     matchLabels:
-                      zone: {{ $name }}
+                      tenancy.entigo.com/zone: {{ $name }}
             ---
             apiVersion: rbac.authorization.k8s.io/v1
             kind: Role
@@ -172,7 +172,7 @@ spec:
                       JSONPatch{
                         op: "add",
                         path: "/spec/nodeSelector",
-                        value: {"eks.amazonaws.com/nodegroup": "{{ $name }}-{{ $poolName }}"}
+                        value: {"tenancy.entigo.com/zone": "{{ $name }}-{{ $poolName }}"}
                       }
                     ] : []
 
@@ -201,9 +201,9 @@ spec:
               validations:
               - expression: |
                   has(object.spec.nodeSelector) &&
-                  "eks.amazonaws.com/nodegroup" in object.spec.nodeSelector &&
-                  object.spec.nodeSelector["eks.amazonaws.com/nodegroup"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $name }}-{{ $pool.name }}"{{ end }}]
-                message: "Pod nodeSelector must use a valid nodeSelector label value for eks.amazonaws.com/nodegroup. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $name }}-{{ $pool.name }}{{ end }}"
+                  "tenancy.entigo.com/zone" in object.spec.nodeSelector &&
+                  object.spec.nodeSelector["tenancy.entigo.com/zone"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $name }}-{{ $pool.name }}"{{ end }}]
+                message: "Pod nodeSelector must use a valid nodeSelector label value for tenancy.entigo.com/zone. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $name }}-{{ $pool.name }}{{ end }}"
             {{ end }}
     - step: create-launch-template
       functionRef:
@@ -251,7 +251,7 @@ spec:
             metadata:
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
               labels:
-                zone: {{ $.observed.composite.resource.metadata.name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: launchtemplate-{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
@@ -348,7 +348,7 @@ spec:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: LaunchTemplate
                 matchLabels:
-                  zone: {{ .observed.composite.resource.metadata.name }}
+                  tenancy.entigo.com/zone: {{ .observed.composite.resource.metadata.name }}
             ---
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
@@ -514,8 +514,7 @@ spec:
                   {{- end }}
 
                 labels:
-                  zone: {{ $.observed.composite.resource.metadata.name }}
-                  nodegroup-type: managed
+                  tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
                 nodeRoleArnRef:
                   name: {{ $name }}
                 tags:
