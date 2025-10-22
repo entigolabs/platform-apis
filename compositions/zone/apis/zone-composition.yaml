@@ -426,7 +426,7 @@ spec:
               forProvider:
                 launchTemplate:
                 - name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                  version: "1"
+                  version: "$Latest"
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
                 region: {{ $vpc.resource.status.atProvider.region }}
@@ -459,7 +459,7 @@ spec:
                   {{- end }}
 
                 labels:
-                  environment: production
+                  zone: {{ $.observed.composite.resource.metadata.name }}
                   nodegroup-type: managed
                 nodeRoleArnRef:
                   name: {{ $name }}
@@ -488,8 +488,7 @@ spec:
                 capacityType: {{ $capacityType }}
 
                 scalingConfig:
-                - desiredSize: {{ $minSize }}
-                  maxSize: {{ $maxSize }}
+                - maxSize: {{ $maxSize }}
                   minSize: {{ $minSize }}
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
