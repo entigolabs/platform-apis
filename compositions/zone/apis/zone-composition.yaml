@@ -271,7 +271,7 @@ spec:
                   }
                 tags:
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-                  {{- range $key, $value := $envConfig.data.tags }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
               providerConfigRef:
@@ -361,7 +361,7 @@ spec:
                 - name: {{ $nodeSecurityGroup.resource.metadata.name }}
                 tags:
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-                  {{- range $key, $value := $envConfig.data.tags }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
               initProvider:
@@ -443,7 +443,7 @@ spec:
                   name: {{ $name }}
                 tags:
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-                  {{- range $key, $value := $envConfig.data.tags }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
                 {{- $capacityType := "ON_DEMAND" }}
