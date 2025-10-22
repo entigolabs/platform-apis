@@ -250,6 +250,8 @@ spec:
             kind: LaunchTemplate
             metadata:
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+              labels:
+                zone: {{ $.observed.composite.resource.metadata.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: launchtemplate-{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
@@ -346,7 +348,7 @@ spec:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: LaunchTemplate
                 matchLabels:
-                  tenancy.entigo.com/zone: {{ .observed.composite.resource.metadata.name }}
+                  zone: {{ .observed.composite.resource.metadata.name }}
             ---
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
