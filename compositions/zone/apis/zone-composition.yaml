@@ -366,6 +366,7 @@ spec:
                 region: {{ $vpc.resource.status.atProvider.region }}
                 disableApiStop: false
                 disableApiTermination: false
+                defaultVersion: "$Latest"
                 metadataOptions:
                 - httpEndpoint: enabled
                   httpProtocolIpv6: ""
@@ -379,8 +380,6 @@ spec:
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
-              initProvider:
-                updateDefaultVersion: true
                 tagSpecifications:
                 - resourceType: instance
                   tags:
@@ -394,6 +393,8 @@ spec:
                     {{- range $key, $value := $envConfig.resource.data.tags }}
                     {{ $key }}: {{ $value | quote }}
                     {{- end }}
+              initProvider:
+                updateDefaultVersion: true
                 blockDeviceMappings:
                 - deviceName: /dev/xvda
                   ebs:
