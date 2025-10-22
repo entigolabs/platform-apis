@@ -446,7 +446,7 @@ spec:
                   version: "1"
                   {{- end }}
                   {{- else }}
-                  version: "1"
+                  version: "2"
                   {{- end }}
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
