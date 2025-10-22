@@ -270,18 +270,21 @@ spec:
   - name: existingNamespaces
     expression: |
       resource.List("v1", "namespaces", "")
+  - name: zoneLabel
+    expression: |
+      "tenancy.entigo.com/zone"
   validations:
   - expression: |
       object.spec.namespaces.all(requestedNs,
         !dyn(variables.existingNamespaces.items).exists(existingNs,
           existingNs.metadata.name == requestedNs.name &&
           has(existingNs.metadata.labels) &&
-          has(existingNs.metadata.labels.zone) &&
-          existingNs.metadata.labels.zone != object.metadata.name
+          variables.zoneLabel in existingNs.metadata.labels &&
+          existingNs.metadata.labels[variables.zoneLabel] != object.metadata.name
         ) &&
         !dyn(variables.existingNamespaces.items).exists(existingNs,
           existingNs.metadata.name == requestedNs.name &&
-          (!has(existingNs.metadata.labels) || !has(existingNs.metadata.labels.zone))
+          (!has(existingNs.metadata.labels) || !(variables.zoneLabel in existingNs.metadata.labels))
         )
       )
     messageExpression: |
@@ -290,21 +293,21 @@ spec:
         dyn(variables.existingNamespaces.items).exists(existingNs,
           existingNs.metadata.name == requestedNs.name &&
           has(existingNs.metadata.labels) &&
-          has(existingNs.metadata.labels.zone) &&
-          existingNs.metadata.labels.zone != object.metadata.name
+          variables.zoneLabel in existingNs.metadata.labels &&
+          existingNs.metadata.labels[variables.zoneLabel] != object.metadata.name
         ) ||
         dyn(variables.existingNamespaces.items).exists(existingNs,
           existingNs.metadata.name == requestedNs.name &&
-          (!has(existingNs.metadata.labels) || !has(existingNs.metadata.labels.zone))
+          (!has(existingNs.metadata.labels) || !(variables.zoneLabel in existingNs.metadata.labels))
         )
       ).map(requestedNs,
         requestedNs.name + " - " +
         (dyn(variables.existingNamespaces.items).exists(existingNs,
           existingNs.metadata.name == requestedNs.name &&
           has(existingNs.metadata.labels) &&
-          has(existingNs.metadata.labels.zone)
+          variables.zoneLabel in existingNs.metadata.labels
         ) ?
-          "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels.zone
+          "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels[variables.zoneLabel]
           : "no zone label - must be labeled manually first")
       ).join(", ")
 
