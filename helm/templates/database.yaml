@@ -9,6 +9,11 @@ data:
   configKMSKey: {{ .Values.database.environmentConfig.configKMSKey }}
   vpc: {{ .Values.database.environmentConfig.vpc }}
   subnetGroup: {{ .Values.database.environmentConfig.subnetGroup }}
+  {{- if .Values.database.environmentConfig.tags }}
+  tags: {{- toYaml .Values.database.environmentConfig.tags | nindent 4 }}
+  {{- else }}
+  tags: {}
+  {{- end }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: DeploymentRuntimeConfig

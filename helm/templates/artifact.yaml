@@ -9,6 +9,11 @@ data:
   dataKMSKey: {{ .Values.artifact.environmentConfig.dataKMSKey }}
   scanOnPush: {{ .Values.artifact.environmentConfig.scanOnPush }}
   imageTagMutability: {{ .Values.artifact.environmentConfig.imageTagMutability }}
+  {{- if .Values.artifact.environmentConfig.tags }}
+  tags: {{- toYaml .Values.artifact.environmentConfig.tags | nindent 4 }}
+  {{- else }}
+  tags: {}
+  {{- end }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: DeploymentRuntimeConfig

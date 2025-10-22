@@ -23,6 +23,9 @@ rules:
 - apiGroups: ["eks.aws.upbound.io"]
   resources: ["nodegroups"]
   verbs: ["get", "watch", "list"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "watch", "list"]
 {{- if .Values.zone.clusterrolebinding.maintainerGroups }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -153,6 +156,11 @@ data:
   appProject:
     maintainerGroups: {{ .Values.zone.environmentConfig.appProject.maintainerGroups }}
     observerGroups: {{ .Values.zone.environmentConfig.appProject.observerGroups }}
+  {{- if .Values.zone.environmentConfig.tags }}
+  tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}
+  {{- else }}
+  tags: {}
+  {{- end }}
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration

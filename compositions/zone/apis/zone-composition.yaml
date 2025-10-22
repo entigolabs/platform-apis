@@ -31,15 +31,17 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             ---
             apiVersion: networking.k8s.io/v1
             kind: NetworkPolicy
             metadata:
-              name: zone
+              name: {{ $namespace.name }}-zone
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               podSelector: {}
               policyTypes:
@@ -54,11 +56,12 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: Role
             metadata:
-              name: zone-tenancy-all
+              name: {{ $namespace.name }}-all
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-all-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-all-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             rules:
             - apiGroups: ["*"]
               resources: ["*"]
@@ -67,11 +70,12 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: Role
             metadata:
-              name: zone-tenancy-read
+              name: {{ $namespace.name }}-read
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-read-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-read-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             rules:
             - apiGroups: ["*"]
               resources: ["*"]
@@ -80,11 +84,12 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
             metadata:
-              name: contributor
+              name: {{ $namespace.name }}-contributor
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rb-contributor-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-contributor-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
@@ -97,11 +102,12 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
             metadata:
-              name: maintainer
+              name: {{ $namespace.name }}-maintainer
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rb-maintainer-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-maintainer-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
@@ -114,11 +120,12 @@ spec:
             apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
             metadata:
-              name: observer
+              name: {{ $namespace.name }}-observer
               namespace: {{ $namespace.name }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: rb-observer-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: rb-observer-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
@@ -139,8 +146,9 @@ spec:
             metadata:
               name: {{ $name }}-{{ $namespace.name }}-add-nodeselector
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-mutate-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-mutate-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               matchConstraints:
                 namespaceSelector:
@@ -174,8 +182,9 @@ spec:
             metadata:
               name: {{ $name }}-{{ $namespace.name }}-validate-nodeselector
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-validate-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-validate-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               matchConstraints:
                 namespaceSelector:
@@ -196,8 +205,7 @@ spec:
                   object.spec.nodeSelector["eks.amazonaws.com/nodegroup"] in [{{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}"{{ $name }}-{{ $pool.name }}"{{ end }}]
                 message: "Pod nodeSelector must use a valid nodeSelector label value for eks.amazonaws.com/nodegroup. Valid pools: {{ range $i, $pool := $.observed.composite.resource.spec.pools }}{{ if $i }}, {{ end }}{{ $name }}-{{ $pool.name }}{{ end }}"
             {{ end }}
-
-    - step: create-node-pools
+    - step: create-launch-template
       functionRef:
         name: function-go-templating
       input:
@@ -210,6 +218,10 @@ spec:
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
+              zoneEnvironment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-zone
               vpc:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: VPC
@@ -225,57 +237,12 @@ spec:
               awsProviderConfig:
                 apiVersion: aws.upbound.io/v1beta1
                 kind: ProviderConfig
-              eks:
-                apiVersion: eks.aws.upbound.io/v1beta1
-                kind: Cluster
-                matchName: eks
-              computeSubnets:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: Subnet
-                matchLabels:
-                  subnet-type: compute
-
             ---
-            {{- $name := .observed.composite.resource.metadata.name -}}
-
+            {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
             {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
             {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
-            {{- $eks := mustFirst (getExtraResources . "eks") }}
-            {{- $computeSubnets := getExtraResources . "computeSubnets" }}
-
-            apiVersion: iam.aws.upbound.io/v1beta1
-            kind: Role
-            metadata:
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: role-{{ $name }}
-              name: {{ $name }}
-            spec:
-              managementPolicies: ["*"]
-              forProvider:
-                assumeRolePolicy: |
-                  {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                      {
-                        "Effect": "Allow",
-                        "Principal": {
-                          "Service": "ec2.amazonaws.com"
-                        },
-                        "Action": "sts:AssumeRole"
-                      }
-                    ]
-                  }
-                managedPolicyArns:
-                  - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
-                  - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-                  - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-                tags:
-                  Name: {{ .observed.composite.resource.metadata.name }}
-                  entigo.com/managed: "true"
-              providerConfigRef:
-                name: {{ $awsProviderConfig.resource.metadata.name }}
 
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
@@ -283,8 +250,11 @@ spec:
             kind: LaunchTemplate
             metadata:
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+              labels:
+                zone: {{ $.observed.composite.resource.metadata.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: launchtemplate-{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               deletionPolicy: Delete
               forProvider:
@@ -294,6 +264,7 @@ spec:
                 region: {{ $vpc.resource.status.atProvider.region }}
                 disableApiStop: false
                 disableApiTermination: false
+                updateDefaultVersion: true
                 metadataOptions:
                 - httpEndpoint: enabled
                   httpProtocolIpv6: ""
@@ -302,15 +273,25 @@ spec:
                   instanceMetadataTags: ""
                 vpcSecurityGroupIdRefs:
                 - name: {{ $nodeSecurityGroup.resource.metadata.name }}
-              initProvider:
-                updateDefaultVersion: true
+                tags:
+                  tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
                 tagSpecifications:
                 - resourceType: instance
                   tags:
                     Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                    {{- range $key, $value := $envConfig.resource.data.tags }}
+                    {{ $key }}: {{ $value | quote }}
+                    {{- end }}
                 - resourceType: volume
                   tags:
                     Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-root
+                    {{- range $key, $value := $envConfig.resource.data.tags }}
+                    {{ $key }}: {{ $value | quote }}
+                    {{- end }}
+              initProvider:
                 blockDeviceMappings:
                 - deviceName: /dev/xvda
                   ebs:
@@ -329,20 +310,178 @@ spec:
               - "*"
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
+            {{ end }}
+    - step: create-node-pools
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            # Get required resources
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              zoneEnvironment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-zone
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
+              awsProviderConfig:
+                apiVersion: aws.upbound.io/v1beta1
+                kind: ProviderConfig
+              eks:
+                apiVersion: eks.aws.upbound.io/v1beta1
+                kind: Cluster
+                matchName: eks
+              computeSubnets:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: Subnet
+                matchLabels:
+                  subnet-type: compute
+              launchTemplates:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: LaunchTemplate
+                matchLabels:
+                  zone: {{ .observed.composite.resource.metadata.name }}
             ---
+            {{- $name := .observed.composite.resource.metadata.name -}}
+            {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
+            {{- $eks := mustFirst (getExtraResources . "eks") }}
+            {{- $computeSubnets := getExtraResources . "computeSubnets" }}
+            {{- $launchTemplates := getExtraResources . "launchTemplates" }}
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: Role
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: role-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+              name: {{ $name }}
+            spec:
+              managementPolicies: ["*"]
+              forProvider:
+                assumeRolePolicy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Principal": {
+                          "Service": "ec2.amazonaws.com"
+                        },
+                        "Action": "sts:AssumeRole"
+                      }
+                    ]
+                  }
+                tags:
+                  tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-wn-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+              name: {{ $name }}-wn
+            spec:
+              forProvider:
+                policyArn: arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+                roleRef:
+                  name: {{ $name }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-ecr-ro-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+              name: {{ $name }}-ecr-ro
+            spec:
+              forProvider:
+                policyArn: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+                roleRef:
+                  name: {{ $name }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-ssm-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+              name: {{ $name }}-ssm
+            spec:
+              forProvider:
+                policyArn: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+                roleRef:
+                  name: {{ $name }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rpa-ecr-proxy-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+              name: {{ $name }}-ecr-proxy
+            spec:
+              forProvider:
+                policyArnRef:
+                  name: ecr-proxy
+                roleRef:
+                  name: {{ $name }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
+
+            {{ range $index, $pool := .observed.composite.resource.spec.pools }}
+            ---
+            {{- $launchTemplate := (dict) }}
+            {{- range $launchTemplates }}
+              {{- if eq .resource.metadata.name (printf "%s-%s" $.observed.composite.resource.metadata.name $pool.name) }}
+                {{- $launchTemplate = . }}
+              {{- end }}
+            {{- end }}
+            {{- $instanceTypes := list }}
+            {{- range $pool.requirements }}
+              {{- if eq .key "instance-type" }}
+                {{- $instanceTypes = .values }}
+              {{- end }}
+            {{- end }}
+            {{- $instanceTypesHash := $instanceTypes | join "-" | sha256sum | trunc 8 }}
             apiVersion: eks.aws.upbound.io/v1beta1
             kind: NodeGroup
             metadata:
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: nodepool-{{ $pool.name }}
-              name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                gotemplating.fn.crossplane.io/composition-resource-name: nodepool-{{ $pool.name }}-{{ $instanceTypesHash }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+              name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-{{ $instanceTypesHash }}
             spec:
               managementPolicies: ["*"]
               initProvider: {}
               forProvider:
                 launchTemplate:
                 - name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                  version: "1"
+                  {{- if and $launchTemplate (hasKey $launchTemplate "resource") }}
+                  {{- if hasKey $launchTemplate.resource.status.atProvider "latestVersion" }}
+                  version: "{{ $launchTemplate.resource.status.atProvider.latestVersion }}"
+                  {{- end }}
+                  {{- end }}
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
                 region: {{ $vpc.resource.status.atProvider.region }}
@@ -375,15 +514,15 @@ spec:
                   {{- end }}
 
                 labels:
-                  environment: production
+                  zone: {{ $.observed.composite.resource.metadata.name }}
                   nodegroup-type: managed
                 nodeRoleArnRef:
                   name: {{ $name }}
                 tags:
-                  Name: eks-managed-node-{{ $pool.name }}
-                  Environment: Production
                   tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
                 {{- $capacityType := "ON_DEMAND" }}
                 {{- $minSize := 1 }}
                 {{- $maxSize := -1 }}
@@ -404,9 +543,11 @@ spec:
                 capacityType: {{ $capacityType }}
 
                 scalingConfig:
-                - desiredSize: {{ $minSize }}
-                  maxSize: {{ $maxSize }}
+                - maxSize: {{ $maxSize }}
                   minSize: {{ $minSize }}
+              initProvider:
+                scalingConfig:
+                - desiredSize: {{ $minSize }}
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
             {{ end }}
@@ -445,6 +586,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: appproject-{{ $name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               description: {{ "Security zone for isolated team deployment" }}
               destinations:
@@ -453,7 +595,7 @@ spec:
                 server: https://kubernetes.default.svc
               {{ end }}
               sourceRepos:
-              - {{ $vpc.resource.status.atProvider.ownerId }}.dkr.ecr.{{ $vpc.resource.status.atProvider.region }}.amazonaws.com
+              - '*'
               sourceNamespaces:
               {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
               - {{ $namespace.name }}
@@ -473,7 +615,8 @@ spec:
               - group: '*.m.upbound.io'
                 kind: '*'
               roles:
-              - description: Maintainer permissions
+              - name: maintainer
+                description: Maintainer permissions
                 {{- $maintainerGroups := list -}}
                 {{- if hasKey $envConfig.resource.data.appProject "maintainerGroups" -}}
                   {{- $maintainerGroups = $envConfig.resource.data.appProject.maintainerGroups -}}
@@ -486,14 +629,14 @@ spec:
                 {{- else }}
                 groups: []
                 {{- end }}
-                name: maintainer
                 policies:
                 - p, proj:{{ $name }}:maintainer, applications, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, repositories, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, applicationsets, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, logs, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:maintainer, exec, *, {{ $name }}/*, allow
-              - description: Observer permissions
+              - name: observer
+                description: Observer permissions
                 {{- $observerGroups := list -}}
                 {{- if hasKey $envConfig.resource.data.appProject "observerGroups" -}}
                   {{- $observerGroups = $envConfig.resource.data.appProject.observerGroups -}}
@@ -506,11 +649,11 @@ spec:
                 {{- else }}
                 groups: []
                 {{- end }}
-                name: observer
                 policies:
                 - p, proj:{{ $name }}:observer, applications, get, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:observer, applicationsets, get, {{ $name }}/*, allow
-              - description: Contributor permissions
+              - name: contributor
+                description: Contributor permissions
                 {{- if .observed.composite.resource.spec.appProject.contributorGroups }}
                 groups:
                 {{- range .observed.composite.resource.spec.appProject.contributorGroups }}
@@ -519,12 +662,19 @@ spec:
                 {{- else }}
                 groups: []
                 {{- end }}
-                name: contributor
                 policies:
-                - p, proj:{{ $name }}:contributor, applications, sync, {{ $name }}/*, allow
-                - p, proj:{{ $name }}:contributor, applications, get, {{ $name }}/*, allow
-                - p, proj:{{ $name }}:contributor, applicationsets, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, applications, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, repositories, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, applicationsets, *, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:contributor, logs, *, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:contributor, exec, *, {{ $name }}/*, allow
+              - name: cicd
+                description: Use this role for your CI/CD pipelines
+                policies:
+                - p, proj:{{ $name }}:cicd, applications, sync, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:cicd, applicationsets, sync, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:cicd, applications, get, {{ $name }}/*, allow
+                - p, proj:{{ $name }}:cicd, applicationsets, get, {{ $name }}/*, allow
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
@@ -542,4 +692,5 @@ spec:
             - rb-.*
             - launchtemplate-.*
             - role-.*
+            - rpa-.*
             - nodepool-.*
