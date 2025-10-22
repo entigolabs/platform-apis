@@ -31,6 +31,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             ---
             apiVersion: networking.k8s.io/v1
             kind: NetworkPolicy
@@ -40,6 +41,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               podSelector: {}
               policyTypes:
@@ -59,6 +61,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-all-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             rules:
             - apiGroups: ["*"]
               resources: ["*"]
@@ -72,6 +75,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rbacrole-read-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             rules:
             - apiGroups: ["*"]
               resources: ["*"]
@@ -85,6 +89,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rb-contributor-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
@@ -102,6 +107,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rb-maintainer-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
@@ -119,6 +125,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rb-observer-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
@@ -141,6 +148,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: kyverno-mutate-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               matchConstraints:
                 namespaceSelector:
@@ -176,6 +184,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: kyverno-validate-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               matchConstraints:
                 namespaceSelector:
@@ -252,6 +261,7 @@ spec:
             metadata:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: role-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
               name: {{ $name }}
             spec:
               managementPolicies: ["*"]
@@ -282,6 +292,7 @@ spec:
             metadata:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rpa-wn-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
               name: {{ $name }}-wn
             spec:
               forProvider:
@@ -296,6 +307,7 @@ spec:
             metadata:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rpa-ecr-ro-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
               name: {{ $name }}-ecr-ro
             spec:
               forProvider:
@@ -310,6 +322,7 @@ spec:
             metadata:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rpa-ssm-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
               name: {{ $name }}-ssm
             spec:
               forProvider:
@@ -324,6 +337,7 @@ spec:
             metadata:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: rpa-ecr-proxy-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
               name: {{ $name }}-ecr-proxy
             spec:
               forProvider:
@@ -342,6 +356,7 @@ spec:
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: launchtemplate-{{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               deletionPolicy: Delete
               forProvider:
@@ -370,9 +385,15 @@ spec:
                 - resourceType: instance
                   tags:
                     Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+                    {{- range $key, $value := $envConfig.resource.data.tags }}
+                    {{ $key }}: {{ $value | quote }}
+                    {{- end }}
                 - resourceType: volume
                   tags:
                     Name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-root
+                    {{- range $key, $value := $envConfig.resource.data.tags }}
+                    {{ $key }}: {{ $value | quote }}
+                    {{- end }}
                 blockDeviceMappings:
                 - deviceName: /dev/xvda
                   ebs:
@@ -397,6 +418,7 @@ spec:
             metadata:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: nodepool-{{ $pool.name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
               name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
             spec:
               managementPolicies: ["*"]
@@ -507,6 +529,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: appproject-{{ $name }}
                 gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               description: {{ "Security zone for isolated team deployment" }}
               destinations:
