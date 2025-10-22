@@ -413,13 +413,20 @@ spec:
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
             ---
+            {{- $instanceTypes := list }}
+            {{- range $pool.requirements }}
+              {{- if eq .key "instance-type" }}
+                {{- $instanceTypes = .values }}
+              {{- end }}
+            {{- end }}
+            {{- $instanceTypesHash := $instanceTypes | join "-" | sha256sum | trunc 8 }}-{{ $instanceTypesHash }}
             apiVersion: eks.aws.upbound.io/v1beta1
             kind: NodeGroup
             metadata:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: nodepool-{{ $pool.name }}
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-              name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
+              name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}-{{ $instanceTypesHash }}
             spec:
               managementPolicies: ["*"]
               initProvider: {}
