@@ -366,7 +366,7 @@ spec:
                 region: {{ $vpc.resource.status.atProvider.region }}
                 disableApiStop: false
                 disableApiTermination: false
-                defaultVersion: "$Latest"
+                updateDefaultVersion: true
                 metadataOptions:
                 - httpEndpoint: enabled
                   httpProtocolIpv6: ""
@@ -394,7 +394,6 @@ spec:
                     {{ $key }}: {{ $value | quote }}
                     {{- end }}
               initProvider:
-                updateDefaultVersion: true
                 blockDeviceMappings:
                 - deviceName: /dev/xvda
                   ebs:
