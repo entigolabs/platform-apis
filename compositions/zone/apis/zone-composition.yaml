@@ -433,7 +433,7 @@ spec:
               forProvider:
                 launchTemplate:
                 - name: {{ $.observed.composite.resource.metadata.name }}-{{ $pool.name }}
-                  version: "$Latest"
+                  version: "1"
                 clusterNameRef:
                   name: {{ $eks.resource.metadata.name }}
                 region: {{ $vpc.resource.status.atProvider.region }}
