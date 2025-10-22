@@ -210,6 +210,10 @@ spec:
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
+              zoneEnvironment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-zone
               vpc:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: VPC
@@ -236,7 +240,7 @@ spec:
                   subnet-type: compute
             ---
             {{- $name := .observed.composite.resource.metadata.name -}}
-
+            {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
             {{- $nodeSecurityGroup := mustFirst (getExtraResources . "nodeSecurityGroup") }}
@@ -268,6 +272,9 @@ spec:
                 tags:
                   Name: {{ .observed.composite.resource.metadata.name }}
                   entigo.com/managed: "true"
+                  {{- range $key, $value := $envConfig.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
             ---

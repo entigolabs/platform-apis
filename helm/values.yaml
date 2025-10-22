@@ -43,10 +43,12 @@ zone:
     appProject:
       maintainerGroups: []
       observerGroups: []
+    tags: {}
   clusterrolebinding:
     maintainerGroups: ["maintainer"]
     observerGroups: ["observer"]
     contributorGroups: ["contributor"]
+
 
 networking:
   function:
