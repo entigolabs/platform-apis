@@ -14,8 +14,8 @@ require (
 	github.com/entigolabs/function-base v0.0.0-00010101000000-000000000000
 	github.com/google/go-cmp v0.7.0 // indirect
 	google.golang.org/protobuf v1.36.6
-	istio.io/api v1.24.6
-	istio.io/client-go v1.24.6
+	istio.io/api v1.27.3
+	istio.io/client-go v1.27.3
 	k8s.io/apiextensions-apiserver v0.33.2 // indirect
 	k8s.io/apimachinery v0.33.2
 )
