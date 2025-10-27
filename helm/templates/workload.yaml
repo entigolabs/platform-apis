@@ -5,7 +5,7 @@ metadata:
   name: platform-apis-workload
 data:
   cpuRequestMultiplier: {{ .Values.workload.environmentConfig.cpuRequestMultiplier }}
-  MemoryRequestMultiplier: {{ .Values.workload.environmentConfig.memoryRequestMultiplier }}
+  memoryRequestMultiplier: {{ .Values.workload.environmentConfig.memoryRequestMultiplier }}
   imagePullSecrets: {{ .Values.workload.environmentConfig.imagePullSecrets }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1
