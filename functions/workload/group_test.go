@@ -6,6 +6,7 @@ import (
 
 	"github.com/crossplane/function-sdk-go/resource"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/response"
@@ -83,6 +84,7 @@ const (
 
 func TestWorkloadFunction(t *testing.T) {
 	webAppResource := resource.MustStructJSON(webAppJson)
+	webAppResourceNoService := getWebAppWithoutService(t)
 	cronJobResource := resource.MustStructJSON(cronJobJson)
 	environmentData := map[string]interface{}{
 		"cpuRequestMultiplier":    float32(0.5),
@@ -116,6 +118,44 @@ func TestWorkloadFunction(t *testing.T) {
 							"web-app-service": {Resource: resource.MustStructJSON(`
 {"apiVersion":"v1","kind":"Service","metadata":{"creationTimestamp":null,"name":"web-app-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"web-app"}},"status":{"loadBalancer":{}}}
 							`)},
+							"web-app-nginx-secret": {Resource: resource.MustStructJSON(`
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
+							`)},
+							"web-app-init-busybox-secret": {Resource: resource.MustStructJSON(`
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-init-busybox-secret","namespace":"test"},"type":"Opaque"}
+							`)},
+							"web-app": {Resource: resource.MustStructJSON(`
+{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"creationTimestamp":null,"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"},"name":"web-app","namespace":"test"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"web-app"}},"strategy":{},"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-nginx-secret"}}],"image":"docker.io/nginx:latest","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/","port":"http-tcp-80"},"periodSeconds":10,"successThreshold":1,"terminationGracePeriodSeconds":30,"timeoutSeconds":1},"name":"nginx","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}]}}},"status":{}}
+							`)},
+						},
+					},
+					Requirements: &fnv1.Requirements{
+						Resources: map[string]*fnv1.ResourceSelector{
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+						},
+					},
+				},
+			},
+		},
+		"CreateWebAppObjectsWithoutService": {
+			Reason: "The Function should create webapp objects",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{
+							Resource: webAppResourceNoService,
+						},
+					},
+					RequiredResources: map[string]*fnv1.Resources{
+						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+					},
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
 							"web-app-nginx-secret": {Resource: resource.MustStructJSON(`
 {"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
 							`)},
@@ -264,4 +304,22 @@ func TestWorkloadFunction(t *testing.T) {
 		return &GroupImpl{}
 	}
 	test.RunFunctionCases(t, newService, cases)
+}
+
+func getWebAppWithoutService(t *testing.T) *structpb.Struct {
+	webAppResource := resource.MustStructJSON(webAppJson)
+	spec := webAppResource.Fields["spec"].GetStructValue()
+	if spec == nil {
+		t.Fatal("webApp json spec is nil")
+	}
+	containers := spec.Fields["containers"].GetListValue()
+	if containers == nil {
+		t.Fatal("webApp json spec containers is nil")
+	}
+	for _, c := range containers.Values {
+		if containerStruct := c.GetStructValue(); containerStruct != nil {
+			delete(containerStruct.Fields, "services")
+		}
+	}
+	return webAppResource
 }

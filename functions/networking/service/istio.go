@@ -8,13 +8,13 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
-	networkingv1alpha3 "istio.io/api/networking/v1alpha3"
-	networkingv1beta1 "istio.io/api/networking/v1beta1"
+	networkingv1 "istio.io/api/networking/v1"
 	"istio.io/client-go/pkg/apis/networking/v1alpha3"
-	"istio.io/client-go/pkg/apis/networking/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+const apiVersion = "networking.istio.io/v1"
 
 // TODO Ingress type from where? Can tenants have only 1 ingress per type?
 // TODO use domain as a unique name suffix?
@@ -43,10 +43,10 @@ func getServiceEntries(webAccess v1alpha1.WebAccess) map[string]runtime.Object {
 	entries := make(map[string]runtime.Object)
 	for host, paths := range getHostPaths(webAccess) {
 		name := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", webAccess.Name, host))
-		entries[name] = &v1beta1.ServiceEntry{
+		entries[name] = &v1alpha3.ServiceEntry{
 			TypeMeta: v1.TypeMeta{
 				Kind:       "ServiceEntry",
-				APIVersion: "networking.istio.io/v1beta1",
+				APIVersion: apiVersion,
 			},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      name,
@@ -58,21 +58,21 @@ func getServiceEntries(webAccess v1alpha1.WebAccess) map[string]runtime.Object {
 	return entries
 }
 
-func getServiceEntrySpec(host string, paths []v1alpha1.Path) networkingv1beta1.ServiceEntry {
-	ports := make([]*networkingv1beta1.ServicePort, 0)
+func getServiceEntrySpec(host string, paths []v1alpha1.Path) networkingv1.ServiceEntry {
+	ports := make([]*networkingv1.ServicePort, 0)
 	for _, path := range paths {
 		ports = append(ports, getServicePort(path))
 	}
-	return networkingv1beta1.ServiceEntry{
+	return networkingv1.ServiceEntry{
 		Hosts:      []string{host},
 		Ports:      ports,
-		Resolution: networkingv1beta1.ServiceEntry_DNS,
-		Location:   networkingv1beta1.ServiceEntry_MESH_EXTERNAL,
+		Resolution: networkingv1.ServiceEntry_DNS,
+		Location:   networkingv1.ServiceEntry_MESH_EXTERNAL,
 	}
 }
 
-func getServicePort(path v1alpha1.Path) *networkingv1beta1.ServicePort {
-	return &networkingv1beta1.ServicePort{
+func getServicePort(path v1alpha1.Path) *networkingv1.ServicePort {
+	return &networkingv1.ServicePort{
 		Number:   path.Port,
 		Name:     fmt.Sprintf("HTTPS-%d", path.Port),
 		Protocol: "HTTPS",
@@ -86,13 +86,13 @@ func getDestinationRules(webAccess v1alpha1.WebAccess) map[string]runtime.Object
 		rules[name] = &v1alpha3.DestinationRule{
 			TypeMeta: v1.TypeMeta{
 				Kind:       "DestinationRule",
-				APIVersion: "networking.istio.io/v1alpha3",
+				APIVersion: apiVersion,
 			},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      name,
 				Namespace: webAccess.Namespace,
 			},
-			Spec: networkingv1alpha3.DestinationRule{
+			Spec: networkingv1.DestinationRule{
 				Host: host,
 			},
 		}
@@ -104,7 +104,7 @@ func getVirtualService(webAccess v1alpha1.WebAccess, gateway string) runtime.Obj
 	return &v1alpha3.VirtualService{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "VirtualService",
-			APIVersion: "networking.istio.io/v1alpha3",
+			APIVersion: apiVersion,
 		},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      webAccess.Name,
@@ -117,27 +117,27 @@ func getVirtualService(webAccess v1alpha1.WebAccess, gateway string) runtime.Obj
 	}
 }
 
-func getVirtualServiceSpec(spec v1alpha1.WebAccessSpec, gateway string) networkingv1alpha3.VirtualService {
+func getVirtualServiceSpec(spec v1alpha1.WebAccessSpec, gateway string) networkingv1.VirtualService {
 	hosts := getHosts(spec)
 	hosts = append(hosts, spec.Domain)
 	hosts = append(hosts, spec.Aliases...)
-	return networkingv1alpha3.VirtualService{
+	return networkingv1.VirtualService{
 		Hosts:    hosts,
 		Http:     getVirtualServiceHttp(spec),
 		Gateways: []string{gateway}, // TODO Gateways by type?
 	}
 }
 
-func getVirtualServiceHttp(spec v1alpha1.WebAccessSpec) []*networkingv1alpha3.HTTPRoute {
-	routes := make([]*networkingv1alpha3.HTTPRoute, 0)
+func getVirtualServiceHttp(spec v1alpha1.WebAccessSpec) []*networkingv1.HTTPRoute {
+	routes := make([]*networkingv1.HTTPRoute, 0)
 	for _, path := range spec.Paths {
-		routes = append(routes, &networkingv1alpha3.HTTPRoute{
-			Match: []*networkingv1alpha3.HTTPMatchRequest{{Uri: getVirtualServiceHttpMatchUri(path)}},
-			Route: []*networkingv1alpha3.HTTPRouteDestination{
+		routes = append(routes, &networkingv1.HTTPRoute{
+			Match: []*networkingv1.HTTPMatchRequest{{Uri: getVirtualServiceHttpMatchUri(path)}},
+			Route: []*networkingv1.HTTPRouteDestination{
 				{
-					Destination: &networkingv1alpha3.Destination{
+					Destination: &networkingv1.Destination{
 						Host: path.Host,
-						Port: &networkingv1alpha3.PortSelector{Number: path.Port},
+						Port: &networkingv1.PortSelector{Number: path.Port},
 					},
 				},
 			},
@@ -147,25 +147,25 @@ func getVirtualServiceHttp(spec v1alpha1.WebAccessSpec) []*networkingv1alpha3.HT
 	return routes
 }
 
-func getVirtualServiceHttpMatchUri(path v1alpha1.Path) *networkingv1alpha3.StringMatch {
-	uri := &networkingv1alpha3.StringMatch{}
+func getVirtualServiceHttpMatchUri(path v1alpha1.Path) *networkingv1.StringMatch {
+	uri := &networkingv1.StringMatch{}
 	if path.PathType == "Exact" {
-		uri.MatchType = &networkingv1alpha3.StringMatch_Exact{
+		uri.MatchType = &networkingv1.StringMatch_Exact{
 			Exact: path.Path,
 		}
 	} else {
-		uri.MatchType = &networkingv1alpha3.StringMatch_Prefix{
+		uri.MatchType = &networkingv1.StringMatch_Prefix{
 			Prefix: path.Path,
 		}
 	}
 	return uri
 }
 
-func getVirtualServiceRewrite(path v1alpha1.Path) *networkingv1alpha3.HTTPRewrite {
+func getVirtualServiceRewrite(path v1alpha1.Path) *networkingv1.HTTPRewrite {
 	if path.TargetPath == "" {
 		return nil
 	}
-	return &networkingv1alpha3.HTTPRewrite{
+	return &networkingv1.HTTPRewrite{
 		Uri:       path.TargetPath,
 		Authority: path.Host,
 	}
