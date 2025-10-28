@@ -1,6 +1,6 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: platform-apis-workload
+  name: platform-apis-networking
 data:
   istioGateway: istio-gateway/istio-gateway
