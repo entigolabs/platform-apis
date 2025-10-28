@@ -1,4 +1,15 @@
 {{- if .Values.webaccess.install }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+  name: platform-apis-webaccess
+rules:
+  - apiGroups: ["networking.istio.io"]
+    resources: ["destinationrules", "serviceentries", "virtualservices"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
