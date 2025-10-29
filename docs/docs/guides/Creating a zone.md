@@ -103,3 +103,7 @@ Refer to ArgoCD [documentation](https://argo-cd.readthedocs.io/en/stable/getting
 `Applications` -> `example-zone`
 
 Click `Refresh` and `Sync`
+
+### 5. Result
+
+![](img/example-zone.png)
