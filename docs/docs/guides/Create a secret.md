@@ -48,6 +48,8 @@ Verify secret exists in AWS Secrets Manager.
 
 ![](img/example-secret-3.png)
 
+![](img/example-secret-4.png)
+
 ### 1.2 Create a secret in AWS CLI
 
 ```bash
@@ -94,7 +96,7 @@ example-secret   Opaque   1      10m
 
 External Secret and Secret in ArgoCD
 
-![](img/example-secret-4.png)
+![](img/example-secret-5.png)
 
 ## 3. Mount a secret to a container as environment variables
 
@@ -127,4 +129,4 @@ spec:
 
 ## 4. Result
 
-![](img/example-secret-5.png)
+![](img/example-secret-6.png)
