@@ -30,9 +30,9 @@ EXAMPLE_PASSWORD=verySecret123
 
 Select `Other type of secret`
 
-Fill `Key/value pairs` and choose config `Encryption key`.
+Fill `Key/value pairs` and choose `Encryption key`.
 
-It is recommended to use `kms/data` key created by the Infralib KMS module.
+It is recommended to use `kms/config` key created by the Infralib KMS module.
 
 Click `Next`
 
