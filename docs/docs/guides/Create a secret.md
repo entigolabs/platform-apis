@@ -48,6 +48,8 @@ Verify secret exists in AWS Secrets Manager.
 
 ![](img/example-secret-3.png)
 
+Existing secrets can be viewed and edited in AWS Console.
+
 ![](img/example-secret-4.png)
 
 ### 1.2 Create a secret in AWS CLI
