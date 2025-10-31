@@ -66,7 +66,7 @@ Create an External Secret manifest and deploy it to the cluster. It is a good pr
 By default, ClusterSecretStore is created by the Infralib external-secrets module.
 
 ```yaml
-# Example External Secret manifest
+# Example ExternalSecret manifest
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -101,6 +101,7 @@ External Secret and Secret in ArgoCD
 ## 3. Mount a secret to a container as environment variables
 
 ```yaml
+# Example Deployment manifest
 apiVersion: apps/v1
 kind: Deployment
 metadata:
