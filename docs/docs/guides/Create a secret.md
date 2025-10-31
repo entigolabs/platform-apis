@@ -14,7 +14,11 @@ For more information about External Secrets, see [External Secrets User Guide](h
 
 For more information about Secrets in Kubernetes, see [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/).
 
-## Create a secret in AWS Secrets Manager using AWS Console
+## 1. Create a secret in AWS Secrets Manager
+
+Secrets can be created using AWS Console or AWS CLI.
+
+### 1.1 Create a secret in AWS Console
 
 ```
 # Example secret data
@@ -44,7 +48,7 @@ Verify secret exists in AWS Secrets Manager.
 
 ![](img/example-secret-3.png)
 
-## Create a secret in AWS Secrets Manager using AWS CLI
+### 1.2 Create a secret in AWS CLI
 
 ```bash
 aws secretsmanager create-secret \
@@ -53,9 +57,9 @@ aws secretsmanager create-secret \
  --kms-key-id alias/dev-net-kms/data
 ```
 
-## Access a secret in a Kubernetes cluster with External Secrets
+## 2. Access a secret in a Kubernetes cluster with External Secrets
 
-Create an External Secret manifest. It is a good practice to include it in the application's Helm chart.
+Create an External Secret manifest and deploy it to the cluster. It is a good practice to include it in the application's Helm chart.
 
 ```yaml
 # Example External Secret manifest
@@ -74,11 +78,11 @@ spec:
     kind: ClusterSecretStore
     name: external-secrets
   target:
-    name: example-secret # Kubernetes secret to create
+    name: example-secret # Kubernetes Secret to create
     creationPolicy: Owner
 ```
 
-Secret created by External Secrets in Kubernetes
+Kubernetes Secret created by External Secrets in Kubernetes
 
 ```
 $ kubectl get secret
@@ -88,9 +92,9 @@ example-secret   Opaque   1      10d
 
 External Secret and Secret in ArgoCD
 
-TODO
+TODO: Add picture of ArgoCD showing External Secret and Secret
 
-### Mounting a secret to a container
+## 3. Mount a secret to a container as environment variables
 
 ```yaml
 apiVersion: apps/v1
@@ -119,6 +123,6 @@ spec:
                 name: example-secret
 ```
 
-### 5. Result
+## 4. Result
 
-TODO
+TODO: Add picture of ArgoCD terminal showing env variables in container
