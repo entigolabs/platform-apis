@@ -63,12 +63,23 @@ aws secretsmanager create-secret \
 
 ## 2. Access a secret in a Kubernetes cluster with External Secrets
 
+Secrets can be accessed in Kubernetes via [ClusterSecretStore](https://external-secrets.io/latest/introduction/overview/#clustersecretstore) and [SecretStore](https://external-secrets.io/latest/introduction/overview/#secretstore).
+
+By default, a `ClusterSecretStore` is created by the Infralib external-secrets module.
+
+The list of available stores can be viewed with the following command:
+
+```bash
+# Example output
+$ kubectl get SecretStores,ClusterSecretStores --all-namespaces
+NAMESPACE   NAME                                                          AGE   STATUS   CAPABILITIES   READY
+            clustersecretstore.external-secrets.io/external-secrets       1h    Valid    ReadWrite      True
+```
+
 Create an External Secret manifest and deploy it to the cluster. It is a good practice to include it in the application's Helm chart.
 
-By default, ClusterSecretStore is created by the Infralib external-secrets module.
-
 ```yaml
-# Example ExternalSecret manifest
+# Example ExternalSecret manifest to access a secret using ClusterSecretStore
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
