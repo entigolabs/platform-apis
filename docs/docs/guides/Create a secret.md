@@ -6,7 +6,7 @@ sidebar_position: 1
 
 This is an example of how to create a secret in AWS Secrets Manager and access it in a Kubernetes cluster using External Secrets.
 
-It is a good practice to encrypt secrets using kms/data key which is created by the Infralib KMS module.
+It is a good practice to encrypt secrets using `kms/config` key which is created by the Infralib KMS module.
 
 For more information about AWS Secrets Manager, see [AWS Secrets Manager User Guide](https://docs.aws.amazon.com/secretsmanager/latest/userguide/create_secret.html).
 
