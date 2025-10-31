@@ -61,6 +61,8 @@ aws secretsmanager create-secret \
 
 Create an External Secret manifest and deploy it to the cluster. It is a good practice to include it in the application's Helm chart.
 
+By default, ClusterSecretStore is created by the Infralib external-secrets module.
+
 ```yaml
 # Example External Secret manifest
 apiVersion: external-secrets.io/v1
