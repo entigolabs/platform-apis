@@ -53,8 +53,8 @@ Verify secret exists in AWS Secrets Manager.
 ```bash
 aws secretsmanager create-secret \
  --name example-secret \
- --secret-string '{"username":"admin","password":"verySecret123"}' \
- --kms-key-id alias/dev-net-kms/data
+ --secret-string '{"EXAMPLE_USERNAME":"admin","EXAMPLE_PASSWORD":"verySecret123"}' \
+ --kms-key-id alias/dev-net-kms/config
 ```
 
 ## 2. Access a secret in a Kubernetes cluster with External Secrets
@@ -87,12 +87,12 @@ Kubernetes Secret created by External Secrets in Kubernetes
 ```
 $ kubectl get secret
 NAME             TYPE     DATA   AGE
-example-secret   Opaque   1      10d
+example-secret   Opaque   1      10m
 ```
 
 External Secret and Secret in ArgoCD
 
-TODO: Add picture of ArgoCD showing External Secret and Secret
+![](img/example-secret-4.png)
 
 ## 3. Mount a secret to a container as environment variables
 
@@ -125,4 +125,4 @@ spec:
 
 ## 4. Result
 
-TODO: Add picture of ArgoCD terminal showing env variables in container
+![](img/example-secret-5.png)
