@@ -15,7 +15,7 @@ metadata:
   name: zone-tenancy-c-read
 rules:
 - apiGroups: [""]
-  resources: ["namespaces"]
+  resources: ["namespaces", "nodes"]
   verbs: ["get", "watch", "list"]
 - apiGroups: ["tenancy.entigo.com"]
   resources: ["zones"]
