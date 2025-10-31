@@ -22,8 +22,8 @@ Secrets can be created using AWS Console or AWS CLI.
 
 ```
 # Example secret data
-username=admin
-password=verySecret123
+EXAMPLE_USERNAME=admin
+EXAMPLE_PASSWORD=verySecret123
 ```
 
 `Secrets Manager` -> `Store a new secret`
