@@ -1,5 +1,5 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
@@ -19,6 +19,7 @@ const config: Config = {
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
+  trailingSlash: false,
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -42,7 +43,7 @@ const config: Config = {
       {
         docs: {
           path: 'docs',
-          routeBasePath: 'docs',          
+          routeBasePath: 'docs',
           sidebarPath: './sidebars.ts',
           editUrl:
             'https://github.com/entigolabs/platform-apis/docs',
@@ -66,13 +67,13 @@ const config: Config = {
     // Custom plugin to inject PostHog runtime config
     './src/plugins/posthog-runtime-config.ts',
   ],
-  
+
   themeConfig: {
     // Replace with your project's social card
     image: 'img/docs-share-preview.png',
     metadata: [
-      {name: 'edition', content: 'saas,open-source'},
-    ],    
+      { name: 'edition', content: 'saas,open-source' },
+    ],
     colorMode: {
       respectPrefersColorScheme: true,
     },
@@ -116,7 +117,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Entigo.`,
+      copyright: `Copyright © ${ new Date().getFullYear() } Entigo.`,
     },
     prism: {
       theme: prismThemes.github,
