@@ -70,7 +70,7 @@ data:
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: bucket
+  name: buckets.storage.entigo.com
 spec:
   compositeTypeRef:
     apiVersion: storage.entigo.com/v1alpha1
@@ -95,7 +95,7 @@ spec:
                 kind: EnvironmentConfig
                 matchName: platform-apis-storage
               kmsAlias:
-                apiVersion: kms.aws.m.upbound.io/v1beta1
+                apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: data
             ---
@@ -241,9 +241,9 @@ spec:
               - versioning
               - ownership-controls
 ---
-apiVersion: storage.entigo.com/v1alpha1
-kind: Bucket
-metadata:
-  name: taivotestbucket123
-spec:
-  parameters: {}
+# apiVersion: storage.entigo.com/v1alpha1
+# kind: Bucket
+# metadata:
+#   name: taivotestbucket123
+# spec:
+#   parameters: {}
