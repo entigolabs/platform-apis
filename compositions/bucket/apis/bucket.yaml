@@ -98,9 +98,13 @@ spec:
                 apiVersion: kms.aws.m.upbound.io/v1beta1
                 kind: Alias
                 matchName: data
+              awsProviderConfig:
+                apiVersion: aws.upbound.io/v1beta1
+                kind: ProviderConfig
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
+            {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
             {{- $enableVersioning := false }}
@@ -135,7 +139,7 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
             spec:
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: {{ $awsProviderConfig.resource.metadata.name }}
               forProvider:
                 region: {{ $region }}
 
@@ -149,7 +153,7 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: public-access-block
             spec:
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: {{ $awsProviderConfig.resource.metadata.name }}
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -170,7 +174,7 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: encryption
             spec:
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: {{ $awsProviderConfig.resource.metadata.name }}
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -193,7 +197,7 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: versioning
             spec:
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: {{ $awsProviderConfig.resource.metadata.name }}
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -212,13 +216,29 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: ownership-controls
             spec:
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: {{ $awsProviderConfig.resource.metadata.name }}
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
                 region: {{ $region }}
                 rule:
                   objectOwnership: {{ if $enableAcl }}ObjectWriter{{ else }}BucketOwnerEnforced{{ end }}
+    - step: detect-readiness
+      functionRef:
+        name: function-auto-ready
+    - step: sequence-creation
+      functionRef:
+        name: function-sequencer
+      input:
+        apiVersion: sequencer.fn.crossplane.io/v1beta1
+        kind: Input
+        rules:
+          - sequence:
+              - bucket
+              - public-access-block
+              - encryption
+              - versioning
+              - ownership-controls
 ---
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
