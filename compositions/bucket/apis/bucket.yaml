@@ -61,6 +61,8 @@ spec:
     - policies.iam.aws.m.upbound.io
     - userpolicyattachments.iam.aws.m.upbound.io
     - accesskeys.iam.aws.m.upbound.io
+    - secrets.secretsmanager.aws.m.upbound.io
+    - secretversions.secretsmanager.aws.m.upbound.io
 ---
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
@@ -311,26 +313,65 @@ spec:
               writeConnectionSecretToRef:
                 name: {{ $bucketName }}
 
+            ---
+            # AWS Secrets Manager Secret
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
+            kind: Secret
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                name: {{ $bucketName }}
+                region: {{ $region }}
+                description: IAM credentials for S3 bucket {{ $bucketName }}
+
+            ---
+            # AWS Secrets Manager Secret Version
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
+            kind: SecretVersion
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-version
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                secretIdRef:
+                  name: {{ $bucketName }}
+                secretStringSecretRef:
+                  name: {{ $bucketName }}
+                  key: username
+
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
-    - step: sequence-creation
-      functionRef:
-        name: function-sequencer
-      input:
-        apiVersion: sequencer.fn.crossplane.io/v1beta1
-        kind: Input
-        rules:
-          - sequence:
-              - bucket
-              - public-access-block
-              - encryption
-              - versioning
-              - ownership-controls
-              - iam-user
-              - iam-policy
-              - iam-user-policy-attachment
-              - iam-access-key
+    # - step: sequence-creation
+    #   functionRef:
+    #     name: function-sequencer
+    #   input:
+    #     apiVersion: sequencer.fn.crossplane.io/v1beta1
+    #     kind: Input
+    #     rules:
+    #       - sequence:
+    #           - bucket
+    #           - public-access-block
+    #           - encryption
+    #           - versioning
+    #           - ownership-controls
+    #           - iam-user
+    #           - iam-policy
+    #           - iam-user-policy-attachment
+    #           - iam-access-key
+    #           - secrets-manager-secret
+    #           - secrets-manager-version
 ---
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
