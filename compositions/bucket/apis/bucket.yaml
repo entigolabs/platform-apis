@@ -161,7 +161,6 @@ spec:
                 restrictPublicBuckets: {{ not $publicAccess }}
                 region: {{ $region }}
 
-            {{- if $kmsKeyId }}
             ---
             # Bucket Server Side Encryption Configuration
             apiVersion: s3.aws.m.upbound.io/v1beta1
@@ -179,13 +178,17 @@ spec:
                   name: {{ $bucketName }}
                 region: {{ $region }}
                 rule:
+            {{- if $kmsKeyId }}
                   - applyServerSideEncryptionByDefault:
                       sseAlgorithm: aws:kms
                       kmsMasterKeyId: {{ $kmsKeyId }}
-                    bucketKeyEnabled: {{ $bucketKeyEnabled }}
+                    bucketKeyEnabled: true
+            {{- else }}
+                  - applyServerSideEncryptionByDefault:
+                      sseAlgorithm: aws:kms
+                    bucketKeyEnabled: true
             {{- end }}
 
-            {{- if $enableVersioning }}
             ---
             # Bucket Versioning
             apiVersion: s3.aws.m.upbound.io/v1beta1
@@ -203,8 +206,7 @@ spec:
                   name: {{ $bucketName }}
                 region: {{ $region }}
                 versioningConfiguration:
-                  - status: Enabled
-            {{- end }}
+                  status: {{ if $enableVersioning }}Enabled{{ else }}Suspended{{ end }}
 
             ---
             # Bucket Ownership Controls - Disable ACLs by default
