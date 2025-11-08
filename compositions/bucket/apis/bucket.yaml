@@ -98,13 +98,9 @@ spec:
                 apiVersion: kms.aws.m.upbound.io/v1beta1
                 kind: Alias
                 matchName: data
-              awsProviderConfig:
-                apiVersion: aws.upbound.io/v1beta1
-                kind: ProviderConfig
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
-            {{- $awsProviderConfig := mustFirst (getExtraResources . "awsProviderConfig") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
             {{- $enableVersioning := false }}
@@ -139,7 +135,8 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
             spec:
               providerConfigRef:
-                name: {{ $awsProviderConfig.resource.metadata.name }}
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
               forProvider:
                 region: {{ $region }}
 
@@ -153,7 +150,8 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: public-access-block
             spec:
               providerConfigRef:
-                name: {{ $awsProviderConfig.resource.metadata.name }}
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -174,7 +172,8 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: encryption
             spec:
               providerConfigRef:
-                name: {{ $awsProviderConfig.resource.metadata.name }}
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -197,7 +196,8 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: versioning
             spec:
               providerConfigRef:
-                name: {{ $awsProviderConfig.resource.metadata.name }}
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -216,7 +216,8 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: ownership-controls
             spec:
               providerConfigRef:
-                name: {{ $awsProviderConfig.resource.metadata.name }}
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
