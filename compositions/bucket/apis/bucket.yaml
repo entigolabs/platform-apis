@@ -241,9 +241,9 @@ spec:
               - versioning
               - ownership-controls
 ---
-# apiVersion: storage.entigo.com/v1alpha1
-# kind: Bucket
-# metadata:
-#   name: taivotestbucket123
-# spec:
-#   parameters: {}
+apiVersion: storage.entigo.com/v1alpha1
+kind: Bucket
+metadata:
+  name: taivotestbucket123
+spec:
+  parameters: {}
