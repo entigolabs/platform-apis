@@ -95,7 +95,7 @@ spec:
                 kind: EnvironmentConfig
                 matchName: platform-apis-storage
               kmsAlias:
-                apiVersion: kms.aws.upbound.io/v1beta1
+                apiVersion: kms.aws.m.upbound.io/v1beta1
                 kind: Alias
                 matchName: data
             ---
@@ -177,8 +177,8 @@ spec:
                 region: {{ $region }}
                 rule:
                   - applyServerSideEncryptionByDefault:
-                      - sseAlgorithm: aws:kms
-                        kmsMasterKeyId: {{ $kmsKeyId }}
+                      sseAlgorithm: aws:kms
+                      kmsMasterKeyId: {{ $kmsKeyId }}
                     bucketKeyEnabled: {{ $bucketKeyEnabled }}
             {{- end }}
 
@@ -218,7 +218,7 @@ spec:
                   name: {{ $bucketName }}
                 region: {{ $region }}
                 rule:
-                  - objectOwnership: {{ if $enableAcl }}ObjectWriter{{ else }}BucketOwnerEnforced{{ end }}
+                  objectOwnership: {{ if $enableAcl }}ObjectWriter{{ else }}BucketOwnerEnforced{{ end }}
 ---
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
