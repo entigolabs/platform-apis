@@ -44,6 +44,20 @@ spec:
                       type: boolean
                       default: true
 ---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-bucket
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+    - buckets.s3.aws.m.upbound.io
+    - bucketpublicaccessblocks.s3.aws.m.upbound.io
+    - bucketserversideencryptionconfigurations.s3.aws.m.upbound.io
+    - bucketversionings.s3.aws.m.upbound.io
+    - bucketownershipcontrols.s3.aws.m.upbound.io
+---
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
@@ -89,7 +103,6 @@ spec:
             {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
-            {{- $namespace := .observed.composite.resource.metadata.namespace }}
             {{- $enableVersioning := false }}
             {{- $publicAccess := false }}
             {{- $kmsKeyId := "" }}
@@ -114,11 +127,10 @@ spec:
 
             ---
             # Main S3 Bucket
-            apiVersion: s3.aws.upbound.io/v1beta1
+            apiVersion: s3.aws.m.upbound.io/v1beta1
             kind: Bucket
             metadata:
               name: {{ $bucketName }}
-              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
             spec:
@@ -129,11 +141,10 @@ spec:
 
             ---
             # Bucket Public Access Block - Private by default
-            apiVersion: s3.aws.upbound.io/v1beta1
+            apiVersion: s3.aws.m.upbound.io/v1beta1
             kind: BucketPublicAccessBlock
             metadata:
               name: {{ $bucketName }}
-              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: public-access-block
             spec:
@@ -151,11 +162,10 @@ spec:
             {{- if $kmsKeyId }}
             ---
             # Bucket Server Side Encryption Configuration
-            apiVersion: s3.aws.upbound.io/v1beta1
+            apiVersion: s3.aws.m.upbound.io/v1beta1
             kind: BucketServerSideEncryptionConfiguration
             metadata:
               name: {{ $bucketName }}
-              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: encryption
             spec:
@@ -175,11 +185,10 @@ spec:
             {{- if $enableVersioning }}
             ---
             # Bucket Versioning
-            apiVersion: s3.aws.upbound.io/v1beta1
+            apiVersion: s3.aws.m.upbound.io/v1beta1
             kind: BucketVersioning
             metadata:
               name: {{ $bucketName }}
-              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: versioning
             spec:
@@ -195,11 +204,10 @@ spec:
 
             ---
             # Bucket Ownership Controls - Disable ACLs by default
-            apiVersion: s3.aws.upbound.io/v1beta1
+            apiVersion: s3.aws.m.upbound.io/v1beta1
             kind: BucketOwnershipControls
             metadata:
               name: {{ $bucketName }}
-              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: ownership-controls
             spec:
