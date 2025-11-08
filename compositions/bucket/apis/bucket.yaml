@@ -10,7 +10,6 @@ spec:
     plural: buckets
     shortNames:
       - s3
-      - s3buckets
   versions:
     - name: v1alpha1
       served: true
@@ -57,24 +56,13 @@ data:
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: s3-bucket
+  name: bucket
 spec:
   compositeTypeRef:
     apiVersion: storage.entigo.com/v1alpha1
     kind: Bucket
   mode: Pipeline
   pipeline:
-    - step: load-environment
-      functionRef:
-        name: function-environment-configs
-      input:
-        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
-        kind: Input
-        spec:
-          environmentConfigs:
-            - type: Reference
-              ref:
-                name: platform-apis-storage
     - step: render-bucket-resources
       functionRef:
         name: function-go-templating
@@ -84,6 +72,22 @@ spec:
         source: Inline
         inline:
           template: |
+            # Get required resources
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-storage
+              kmsAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: data
+            ---
+            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $kmsAlias := mustFirst (getExtraResources . "kmsAlias") }}
+
             {{- $bucketName := .observed.composite.resource.metadata.name }}
             {{- $namespace := .observed.composite.resource.metadata.namespace }}
             {{- $enableVersioning := false }}
@@ -91,27 +95,21 @@ spec:
             {{- $kmsKeyId := "" }}
             {{- $enableAcl := false }}
             {{- $bucketKeyEnabled := true }}
-            {{- $region := "eu-north-1" }}
 
+            {{- /* Get config from environment */ -}}
+            {{- $region := index $envConfig.resource.data "awsRegion" }}
+            {{- $providerConfigRef := index $envConfig.resource.data "awsProvider" }}
+            {{- $kmsKeyId = $kmsAlias.resource.status.atProvider.targetKeyArn }}
+
+            {{- /* Apply user parameters */ -}}
             {{- if .observed.composite.resource.spec.parameters }}
             {{- $enableVersioning = default false .observed.composite.resource.spec.parameters.enableVersioning }}
             {{- $publicAccess = default false .observed.composite.resource.spec.parameters.publicAccess }}
-            {{- $kmsKeyId = default "" .observed.composite.resource.spec.parameters.kmsKeyId }}
+            {{- if .observed.composite.resource.spec.parameters.kmsKeyId }}
+            {{- $kmsKeyId = .observed.composite.resource.spec.parameters.kmsKeyId }}
+            {{- end }}
             {{- $enableAcl = default false .observed.composite.resource.spec.parameters.enableAcl }}
             {{- $bucketKeyEnabled = default true .observed.composite.resource.spec.parameters.bucketKeyEnabled }}
-            {{- end }}
-
-            {{- /* Get region and KMS key from environment config */ -}}
-            {{- if .context }}
-            {{- if index .context "apiextensions.crossplane.io/environment" }}
-            {{- $env := index .context "apiextensions.crossplane.io/environment" }}
-            {{- if index $env "region" }}
-            {{- $region = index $env "region" }}
-            {{- end }}
-            {{- if and (not $kmsKeyId) (index $env "kmsKeyId") }}
-            {{- $kmsKeyId = index $env "kmsKeyId" }}
-            {{- end }}
-            {{- end }}
             {{- end }}
 
             ---
@@ -124,6 +122,8 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
             spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
               forProvider:
                 region: {{ $region }}
 
@@ -137,6 +137,8 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: public-access-block
             spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -157,6 +159,8 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: encryption
             spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -179,6 +183,8 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: versioning
             spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
@@ -197,9 +203,18 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: ownership-controls
             spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
                 region: {{ $region }}
                 rule:
                   - objectOwnership: {{ if $enableAcl }}ObjectWriter{{ else }}BucketOwnerEnforced{{ end }}
+---
+apiVersion: storage.entigo.com/v1alpha1
+kind: Bucket
+metadata:
+  name: taivotestbucket123
+spec:
+  parameters: {}
