@@ -57,13 +57,24 @@ data:
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: bucket
+  name: s3-bucket
 spec:
   compositeTypeRef:
     apiVersion: storage.entigo.com/v1alpha1
     kind: Bucket
   mode: Pipeline
   pipeline:
+    - step: load-environment
+      functionRef:
+        name: function-environment-configs
+      input:
+        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          environmentConfigs:
+            - type: Reference
+              ref:
+                name: platform-apis-storage
     - step: render-bucket-resources
       functionRef:
         name: function-go-templating
