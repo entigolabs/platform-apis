@@ -1,0 +1,28 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: entigo-bucket-composition
+  annotations:
+    # Set the annotations defining the maintainer, source, license, and description of your Configuration
+    meta.crossplane.io/maintainer: Taivo Pikkmets <taivo.pikkmets@entigo.com>
+    meta.crossplane.io/source: github.com/entigolabs/platform-apis
+    # Set the license of your Configuration
+    meta.crossplane.io/license: AGPL
+    meta.crossplane.io/description: |
+      Manage AWS S3 bucket through Kubernetes.
+    meta.crossplane.io/readme: |
+      ...
+spec:
+  crossplane:
+    version: ">=v2.0.0"
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/function-go-templating
+      version: ">=v0.11.0"
+    - provider: xpkg.upbound.io/upbound/provider-aws-iam
+      version: ">=v2.0.2"
+    - provider: xpkg.upbound.io/upbound/provider-aws-ec2
+      version: ">=v2.0.2"
+    - provider: xpkg.upbound.io/upbound/provider-aws-eks
+      version: ">=v2.0.2"
+    - provider: xpkg.upbound.io/upbound/provider-aws-s3
+      version: ">=v2.0.2"
