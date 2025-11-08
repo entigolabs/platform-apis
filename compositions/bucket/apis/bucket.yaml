@@ -97,8 +97,8 @@ spec:
             {{- $bucketKeyEnabled := true }}
 
             {{- /* Get config from environment */ -}}
-            {{- $region := index $envConfig.resource.data "awsRegion" }}
-            {{- $providerConfigRef := index $envConfig.resource.data "awsProvider" }}
+            {{- $region := $envConfig.resource.data.awsRegion }}
+            {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $kmsKeyId = $kmsAlias.resource.status.atProvider.targetKeyArn }}
 
             {{- /* Apply user parameters */ -}}
