@@ -57,6 +57,10 @@ spec:
     - bucketserversideencryptionconfigurations.s3.aws.m.upbound.io
     - bucketversionings.s3.aws.m.upbound.io
     - bucketownershipcontrols.s3.aws.m.upbound.io
+    - users.iam.aws.m.upbound.io
+    - policies.iam.aws.m.upbound.io
+    - userpolicyattachments.iam.aws.m.upbound.io
+    - accesskeys.iam.aws.m.upbound.io
 ---
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
@@ -226,6 +230,87 @@ spec:
                 region: {{ $region }}
                 rule:
                   objectOwnership: {{ if $enableAcl }}ObjectWriter{{ else }}BucketOwnerEnforced{{ end }}
+
+            ---
+            # IAM User for bucket access
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: User
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-user
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                tags:
+                  bucket: {{ $bucketName }}
+
+            ---
+            # IAM Policy for full bucket access
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: Policy
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-policy
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                policy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": "s3:*",
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucketName }}",
+                          "arn:aws:s3:::{{ $bucketName }}/*"
+                        ]
+                      }
+                    ]
+                  }
+
+            ---
+            # Attach policy to user
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: UserPolicyAttachment
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-user-policy-attachment
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                policyArnRef:
+                  name: {{ $bucketName }}
+                userRef:
+                  name: {{ $bucketName }}
+
+            ---
+            # IAM Access Key for user
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: AccessKey
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-access-key
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                userRef:
+                  name: {{ $bucketName }}
+              writeConnectionSecretToRef:
+                name: {{ $bucketName }}
+
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
@@ -242,6 +327,10 @@ spec:
               - encryption
               - versioning
               - ownership-controls
+              - iam-user
+              - iam-policy
+              - iam-user-policy-attachment
+              - iam-access-key
 ---
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
