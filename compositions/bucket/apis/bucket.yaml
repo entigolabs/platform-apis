@@ -368,6 +368,6 @@ spec:
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
 metadata:
-  name: taivotestbucket123r32
+  name: taivotestbucket
 spec:
   parameters: {}
