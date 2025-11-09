@@ -133,7 +133,22 @@ spec:
                 description: IAM credentials for S3 bucket {{ $bucketName }}
 
             ---
-            # AWS Secrets Manager Secret Version
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ $bucketName }}-combined
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: combined-secret
+            type: Opaque
+            stringData:
+              secret.json: |
+                {
+                  "AWS_ACCESS_KEY_ID": "EXAMPLE_AWS_ACCESS_KEY_ID",
+                  "AWS_SECRET_ACCESS_KEY": "EXAMPLE_AWS_SECRET_ACCESS_KEY"
+                }
+                
+            ---
+            # AWS Secrets Manager SecretVersion referencing the combined secret
             apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretVersion
             metadata:
@@ -149,8 +164,8 @@ spec:
                 secretIdRef:
                   name: {{ $bucketName }}
                 secretStringSecretRef:
-                  name: {{ $bucketName }}
-                  key: password
+                  name: {{ $bucketName }}-combined
+                  key: secret.json
 
     - step: detect-readiness
       functionRef:
