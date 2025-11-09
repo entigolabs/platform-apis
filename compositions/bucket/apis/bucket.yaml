@@ -23,7 +23,25 @@ spec:
               properties:
                 parameters:
                   type: object
-                  properties: {}
+                  properties:
+                    enableVersioning:
+                      description: Enable versioning for the S3 bucket
+                      type: boolean
+                      default: false
+                    publicAccess:
+                      description: Allow public access to the bucket
+                      type: boolean
+                      default: false
+                    kmsDataKeyId:
+                      description: KMS key ID for bucket encryption
+                      type: string
+                    kmsConfigKeyId:
+                      description: KMS key ID for IAM credentials secret encryption
+                      type: string
+                    enableAcl:
+                      description: Enable ACLs for the bucket
+                      type: boolean
+                      default: false
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
@@ -33,7 +51,14 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   activate:
+    - buckets.s3.aws.m.upbound.io
+    - bucketpublicaccessblocks.s3.aws.m.upbound.io
+    - bucketserversideencryptionconfigurations.s3.aws.m.upbound.io
+    - bucketversionings.s3.aws.m.upbound.io
+    - bucketownershipcontrols.s3.aws.m.upbound.io
     - users.iam.aws.m.upbound.io
+    - policies.iam.aws.m.upbound.io
+    - userpolicyattachments.iam.aws.m.upbound.io
     - accesskeys.iam.aws.m.upbound.io
     - secrets.secretsmanager.aws.m.upbound.io
     - secretversions.secretsmanager.aws.m.upbound.io
@@ -45,6 +70,8 @@ metadata:
 data:
   awsProvider: crossplane-aws
   awsRegion: eu-north-1
+  dataKMSKey: data
+  configKMSKey: config
 ---
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
@@ -73,14 +100,147 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: platform-apis-storage
+              kmsDataAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: data
+              kmsConfigAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: config
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $kmsDataAlias := mustFirst (getExtraResources . "kmsDataAlias") }}
+            {{- $kmsConfigAlias := mustFirst (getExtraResources . "kmsConfigAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
+            {{- $enableVersioning := false }}
+            {{- $publicAccess := false }}
+            {{- $kmsDataKeyId := "" }}
+            {{- $kmsConfigKeyId := "" }}
+            {{- $enableAcl := false }}
 
             {{- /* Get config from environment */ -}}
             {{- $region := $envConfig.resource.data.awsRegion }}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
+            {{- $kmsDataKeyId = $kmsDataAlias.resource.status.atProvider.targetKeyArn }}
+            {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
+
+            {{- /* Apply user parameters */ -}}
+            {{- if .observed.composite.resource.spec.parameters }}
+            {{- $enableVersioning = default false .observed.composite.resource.spec.parameters.enableVersioning }}
+            {{- $publicAccess = default false .observed.composite.resource.spec.parameters.publicAccess }}
+            {{- if .observed.composite.resource.spec.parameters.kmsDataKeyId }}
+            {{- $kmsDataKeyId = .observed.composite.resource.spec.parameters.kmsDataKeyId }}
+            {{- end }}
+            {{- if .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
+            {{- $kmsConfigKeyId = .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
+            {{- end }}
+            {{- $enableAcl = default false .observed.composite.resource.spec.parameters.enableAcl }}
+            {{- end }}
+
+            ---
+            # Main S3 Bucket
+            apiVersion: s3.aws.m.upbound.io/v1beta1
+            kind: Bucket
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+
+            ---
+            # Bucket Public Access Block - Private by default
+            apiVersion: s3.aws.m.upbound.io/v1beta1
+            kind: BucketPublicAccessBlock
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: public-access-block
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                bucketRef:
+                  name: {{ $bucketName }}
+                blockPublicAcls: {{ not $publicAccess }}
+                blockPublicPolicy: {{ not $publicAccess }}
+                ignorePublicAcls: {{ not $publicAccess }}
+                restrictPublicBuckets: {{ not $publicAccess }}
+                region: {{ $region }}
+
+            ---
+            # Bucket Server Side Encryption Configuration
+            apiVersion: s3.aws.m.upbound.io/v1beta1
+            kind: BucketServerSideEncryptionConfiguration
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: encryption
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                bucketRef:
+                  name: {{ $bucketName }}
+                region: {{ $region }}
+                rule:
+            {{- if $kmsDataKeyId }}
+                  - applyServerSideEncryptionByDefault:
+                      sseAlgorithm: aws:kms
+                      kmsMasterKeyId: {{ $kmsDataKeyId }}
+                    bucketKeyEnabled: true
+            {{- else }}
+                  - applyServerSideEncryptionByDefault:
+                      sseAlgorithm: aws:kms
+                    bucketKeyEnabled: true
+            {{- end }}
+
+            ---
+            # Bucket Versioning
+            apiVersion: s3.aws.m.upbound.io/v1beta1
+            kind: BucketVersioning
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: versioning
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                bucketRef:
+                  name: {{ $bucketName }}
+                region: {{ $region }}
+                versioningConfiguration:
+                  status: {{ if $enableVersioning }}Enabled{{ else }}Suspended{{ end }}
+
+            ---
+            # Bucket Ownership Controls - Disable ACLs by default
+            apiVersion: s3.aws.m.upbound.io/v1beta1
+            kind: BucketOwnershipControls
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: ownership-controls
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                bucketRef:
+                  name: {{ $bucketName }}
+                region: {{ $region }}
+                rule:
+                  objectOwnership: {{ if $enableAcl }}ObjectWriter{{ else }}BucketOwnerEnforced{{ end }}
+
             ---
             # IAM User for bucket access
             apiVersion: iam.aws.m.upbound.io/v1beta1
@@ -96,6 +256,52 @@ spec:
               forProvider:
                 tags:
                   bucket: {{ $bucketName }}
+
+            ---
+            # IAM Policy for full bucket access
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: Policy
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-policy
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                policy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": "s3:*",
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucketName }}",
+                          "arn:aws:s3:::{{ $bucketName }}/*"
+                        ]
+                      }
+                    ]
+                  }
+
+            ---
+            # Attach policy to user
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: UserPolicyAttachment
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-user-policy-attachment
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                policyArnRef:
+                  name: {{ $bucketName }}
+                userRef:
+                  name: {{ $bucketName }}
 
             ---
             # IAM Access Key for user
@@ -116,21 +322,6 @@ spec:
                 name: {{ $bucketName }}
 
             ---
-            apiVersion: v1
-            kind: Secret
-            metadata:
-              name: {{ $bucketName }}-combined
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: combined-secret
-            type: Opaque
-            stringData:
-              secret.json: |
-                {
-                  "AWS_ACCESS_KEY_ID": "EXAMPLE_AWS_ACCESS_KEY_ID",
-                  "AWS_SECRET_ACCESS_KEY": "EXAMPLE_AWS_SECRET_ACCESS_KEY"
-                }
-                
-            ---
             # AWS Secrets Manager Secret
             apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: Secret
@@ -146,9 +337,12 @@ spec:
                 name: {{ $bucketName }}
                 region: {{ $region }}
                 description: IAM credentials for S3 bucket {{ $bucketName }}
+                {{- if $kmsConfigKeyId }}
+                kmsKeyId: {{ $kmsConfigKeyId }}
+                {{- end }}
 
             ---
-            # AWS Secrets Manager SecretVersion referencing the combined secret
+            # AWS Secrets Manager Secret Version
             apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretVersion
             metadata:
@@ -164,8 +358,8 @@ spec:
                 secretIdRef:
                   name: {{ $bucketName }}
                 secretStringSecretRef:
-                  name: {{ $bucketName }}-combined
-                  key: secret.json
+                  name: {{ $bucketName }}
+                  key: password
 
     - step: detect-readiness
       functionRef:
@@ -174,6 +368,6 @@ spec:
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
 metadata:
-  name: taivotestbucketuser123
+  name: taivotestbucket123r32
 spec:
   parameters: {}
