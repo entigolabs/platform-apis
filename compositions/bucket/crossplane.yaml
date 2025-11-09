@@ -26,3 +26,7 @@ spec:
       version: ">=v2.0.2"
     - provider: xpkg.upbound.io/upbound/provider-aws-s3
       version: ">=v2.0.2"
+    - provider: xpkg.upbound.io/upbound/provider-aws-secretsmanager
+      version: ">=v2.0.2"
+    - provider: xpkg.upbound.io/upbound/provider-aws-kms
+      version: ">=v2.0.2"
