@@ -353,25 +353,6 @@ spec:
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
-    # - step: sequence-creation
-    #   functionRef:
-    #     name: function-sequencer
-    #   input:
-    #     apiVersion: sequencer.fn.crossplane.io/v1beta1
-    #     kind: Input
-    #     rules:
-    #       - sequence:
-    #           - bucket
-    #           - public-access-block
-    #           - encryption
-    #           - versioning
-    #           - ownership-controls
-    #           - iam-user
-    #           - iam-policy
-    #           - iam-user-policy-attachment
-    #           - iam-access-key
-    #           - secrets-manager-secret
-    #           - secrets-manager-version
 ---
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
