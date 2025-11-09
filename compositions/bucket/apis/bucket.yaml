@@ -36,16 +36,12 @@ spec:
                       description: KMS key ID for bucket encryption
                       type: string
                     kmsConfigKeyId:
-                      description: KMS key ID for bucket encryption
+                      description: KMS key ID for IAM credentials secret encryption
                       type: string
                     enableAcl:
                       description: Enable ACLs for the bucket
                       type: boolean
                       default: false
-                    bucketKeyEnabled:
-                      description: Enable bucket keys for KMS encryption
-                      type: boolean
-                      default: true
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
@@ -123,7 +119,6 @@ spec:
             {{- $kmsDataKeyId := "" }}
             {{- $kmsConfigKeyId := "" }}
             {{- $enableAcl := false }}
-            {{- $bucketKeyEnabled := true }}
 
             {{- /* Get config from environment */ -}}
             {{- $region := $envConfig.resource.data.awsRegion }}
@@ -142,7 +137,6 @@ spec:
             {{- $kmsConfigKeyId = .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
             {{- end }}
             {{- $enableAcl = default false .observed.composite.resource.spec.parameters.enableAcl }}
-            {{- $bucketKeyEnabled = default true .observed.composite.resource.spec.parameters.bucketKeyEnabled }}
             {{- end }}
 
             ---
