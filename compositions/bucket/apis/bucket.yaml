@@ -147,6 +147,7 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
+                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -249,6 +250,7 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: iam-user
+                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -265,6 +267,7 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: iam-policy
+                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -311,6 +314,7 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: iam-access-key
+                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -329,6 +333,7 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
+                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
