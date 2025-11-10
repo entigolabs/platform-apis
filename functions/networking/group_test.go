@@ -54,19 +54,19 @@ func TestWebAccessFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"web-access-service1-test-svc-cluster-local": {Resource: resource.MustStructJSON(`
-{"apiVersion":"networking.istio.io/v1","kind":"ServiceEntry","metadata":{"creationTimestamp":null,"name":"web-access-service1-test-svc-cluster-local","namespace":"test"},"spec":{"hosts":["service1.test.svc.cluster.local"],"ports":[{"name":"HTTPS-80","number":80,"protocol":"HTTPS"}],"resolution":"DNS"},"status":{}}
+{"apiVersion":"networking.istio.io/v1","kind":"ServiceEntry","metadata":{"name":"web-access-service1-test-svc-cluster-local","namespace":"test"},"spec":{"hosts":["service1.test.svc.cluster.local"],"ports":[{"name":"HTTPS-80","number":80,"protocol":"HTTPS"}],"resolution":"DNS"},"status":{}}
 							`)},
 							"web-access-service2-test-svc-cluster-local": {Resource: resource.MustStructJSON(`
-{"apiVersion":"networking.istio.io/v1","kind":"ServiceEntry","metadata":{"creationTimestamp":null,"name":"web-access-service2-test-svc-cluster-local","namespace":"test"},"spec":{"hosts":["service2.test.svc.cluster.local"],"ports":[{"name":"HTTPS-443","number":443,"protocol":"HTTPS"}],"resolution":"DNS"},"status":{}}
+{"apiVersion":"networking.istio.io/v1","kind":"ServiceEntry","metadata":{"name":"web-access-service2-test-svc-cluster-local","namespace":"test"},"spec":{"hosts":["service2.test.svc.cluster.local"],"ports":[{"name":"HTTPS-443","number":443,"protocol":"HTTPS"}],"resolution":"DNS"},"status":{}}
 							`)},
 							"web-access-service1-test-svc-cluster-local-dr": {Resource: resource.MustStructJSON(`
-{"apiVersion":"networking.istio.io/v1","kind":"DestinationRule","metadata":{"creationTimestamp":null,"name":"web-access-service1-test-svc-cluster-local-dr","namespace":"test"},"spec":{"host":"service1.test.svc.cluster.local"},"status":{}}
+{"apiVersion":"networking.istio.io/v1","kind":"DestinationRule","metadata":{"name":"web-access-service1-test-svc-cluster-local-dr","namespace":"test"},"spec":{"host":"service1.test.svc.cluster.local"},"status":{}}
 							`)},
 							"web-access-service2-test-svc-cluster-local-dr": {Resource: resource.MustStructJSON(`
-{"apiVersion":"networking.istio.io/v1","kind":"DestinationRule","metadata":{"creationTimestamp":null,"name":"web-access-service2-test-svc-cluster-local-dr","namespace":"test"},"spec":{"host":"service2.test.svc.cluster.local"},"status":{}}
+{"apiVersion":"networking.istio.io/v1","kind":"DestinationRule","metadata":{"name":"web-access-service2-test-svc-cluster-local-dr","namespace":"test"},"spec":{"host":"service2.test.svc.cluster.local"},"status":{}}
 							`)},
 							"web-access": {Resource: resource.MustStructJSON(`
-{"apiVersion":"networking.istio.io/v1","kind":"VirtualService","metadata":{"creationTimestamp":null,"labels":{"version":"master"},"name":"web-access","namespace":"test"},"spec":{"gateways":["generic-gw-int"],"hosts":["service1","service2","example.com","alias1.com","alias2.com"],"http":[{"match":[{"uri":{"prefix":"/api/v1"}}],"rewrite":{"authority":"service1","uri":"/v1"},"route":[{"destination":{"host":"service1","port":{"number":80}}}]},{"match":[{"uri":{"exact":"/api/v2"}}],"rewrite":{"authority":"service2","uri":"/v2"},"route":[{"destination":{"host":"service2","port":{"number":443}}}]}]},"status":{}}
+{"apiVersion":"networking.istio.io/v1","kind":"VirtualService","metadata":{"labels":{"version":"master"},"name":"web-access","namespace":"test"},"spec":{"gateways":["generic-gw-int"],"hosts":["service1","service2","example.com","alias1.com","alias2.com"],"http":[{"match":[{"uri":{"prefix":"/api/v1"}}],"rewrite":{"authority":"service1","uri":"/v1"},"route":[{"destination":{"host":"service1","port":{"number":80}}}]},{"match":[{"uri":{"exact":"/api/v2"}}],"rewrite":{"authority":"service2","uri":"/v2"},"route":[{"destination":{"host":"service2","port":{"number":443}}}]}]},"status":{}}
 							`)},
 						},
 					},

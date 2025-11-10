@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
@@ -37,6 +36,21 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 
 func (g *GroupImpl) generatePostgreSQL(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
 	return service.GeneratePgInstanceObjects(*obj.(*v1alpha1.PostgreSQLInstance), required, observed)
+}
+
+func (g *GroupImpl) GetSequence(compositeResource *composite.Unstructured) []base.Step {
+	switch compositeResource.GetKind() {
+	case apis.XRKindPostgreSQL:
+		setHash := base.GenerateFNVHash(compositeResource.GetUID())
+		sg := service.GetSGName(compositeResource.GetName(), setHash)
+		sgIngress := service.GetSGIngressName(compositeResource.GetName(), setHash)
+		sgEgress := service.GetSGEgressName(compositeResource.GetName(), setHash)
+		rdsInstance := service.GetRDSInstanceName(compositeResource.GetName(), setHash)
+		es := service.GetESName(compositeResource.GetName(), setHash)
+		return base.NewSequence([]string{sg, sgIngress, sgEgress}, []string{rdsInstance}, []string{es})
+	default:
+		return nil
+	}
 }
 
 func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Ready {
@@ -116,21 +130,4 @@ func getDBInstanceStatus(observed *composed.Unstructured) (map[string]interface{
 	postgreSQLStatus := service.GetPostgreSQLStatusFromDbInstance(dbInstance)
 
 	return runtime.DefaultUnstructuredConverter.ToUnstructured(&postgreSQLStatus)
-}
-
-func (g *GroupImpl) AddStatusConditions(compositeResource *composite.Unstructured, observed map[resource.Name]resource.ObservedComposed) {
-	if compositeResource.GetKind() == apis.XRKindPostgreSQL {
-		var esIsReady bool
-		for _, obs := range observed {
-			if obs.Resource.GetAPIVersion() == "external-secrets.io/v1" && obs.Resource.GetKind() == "ExternalSecret" {
-				esIsReady = base.GetCrossplaneReadyStatus(obs.Resource) == resource.ReadyTrue
-				break
-			}
-		}
-		if esIsReady {
-			base.SetConditions(compositeResource, xpv1.Available())
-		} else {
-			base.SetConditions(compositeResource, xpv1.Creating())
-		}
-	}
 }

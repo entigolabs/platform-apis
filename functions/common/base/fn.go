@@ -131,7 +131,13 @@ func (f *Function) addRequiredResources(rsp *fnv1.RunFunctionResponse, composite
 	return nil
 }
 
-func (f *Function) addDesiredComposedResources(rsp *fnv1.RunFunctionResponse, compositeResource *resource.Composite, requiredResources map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed, desired map[resource.Name]*resource.DesiredComposed) error {
+func (f *Function) addDesiredComposedResources(
+	rsp *fnv1.RunFunctionResponse,
+	compositeResource *resource.Composite,
+	requiredResources map[string][]resource.Required,
+	observed map[resource.Name]resource.ObservedComposed,
+	desired map[resource.Name]*resource.DesiredComposed,
+) error {
 	handler, ok := f.groupService.GetResourceHandlers()[compositeResource.Resource.GetKind()]
 	if !ok {
 		return fmt.Errorf("no resource handler found for kind %s", compositeResource.Resource.GetKind())
@@ -140,17 +146,58 @@ func (f *Function) addDesiredComposedResources(rsp *fnv1.RunFunctionResponse, co
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(compositeResource.Resource.Object, object); err != nil {
 		return err
 	}
-
-	objs, err := handler.Generate(object, requiredResources, observed)
+	allGeneratedObjects, err := handler.Generate(object, requiredResources, observed)
 	if err != nil {
 		return err
 	}
-	for name, object := range objs {
-		if err := f.addDesiredResource(desired, name, object, observed); err != nil {
-			return fmt.Errorf("cannot add desired resource %s: %w", name, err)
+	processedNames, err := f.addDesiredSequenceResources(compositeResource, observed, desired, allGeneratedObjects)
+	if err != nil {
+		return err
+	}
+	for name, obj := range allGeneratedObjects {
+		if processedNames[name] {
+			continue
+		}
+		if err := f.addDesiredResource(desired, name, obj, observed); err != nil {
+			return fmt.Errorf("cannot add non-sequenced desired resource %s: %w", name, err)
 		}
 	}
 	return response.SetDesiredComposedResources(rsp, desired)
+}
+
+func (f *Function) addDesiredSequenceResources(
+	compositeResource *resource.Composite,
+	observed map[resource.Name]resource.ObservedComposed,
+	desired map[resource.Name]*resource.DesiredComposed,
+	allGeneratedObjects map[string]runtime.Object,
+) (Set[string], error) {
+	processedNames := NewSet[string]()
+	previousStepIsReady := true
+
+	for _, step := range f.groupService.GetSequence(compositeResource.Resource) {
+		currentStepAllReady := true
+		for _, name := range step.Objects {
+			obj, ok := allGeneratedObjects[name]
+			if !ok {
+				f.log.Info("Skipping sequence object not in generated objects", "name", name)
+				continue
+			}
+			processedNames[name] = true
+			_, existsInObserved := observed[resource.Name(name)]
+			if !existsInObserved && !previousStepIsReady {
+				currentStepAllReady = false
+				continue
+			}
+			if err := f.addDesiredResource(desired, name, obj, observed); err != nil {
+				return nil, fmt.Errorf("cannot add desired resource %s: %w", name, err)
+			}
+			if desired[resource.Name(name)].Ready != resource.ReadyTrue {
+				currentStepAllReady = false
+			}
+		}
+		previousStepIsReady = currentStepAllReady
+	}
+	return processedNames, nil
 }
 
 func (f *Function) addDesiredResource(desired map[resource.Name]*resource.DesiredComposed, name string, obj runtime.Object, observed map[resource.Name]resource.ObservedComposed) error {
@@ -186,8 +233,6 @@ func (f *Function) addStatus(rsp *fnv1.RunFunctionResponse, compositeResource *r
 	if err != nil {
 		return fmt.Errorf("cannot get composite resource status: %w", err)
 	}
-
-	f.groupService.AddStatusConditions(compositeResource.Resource, observed)
 
 	if len(extraStatus) == 0 {
 		return nil

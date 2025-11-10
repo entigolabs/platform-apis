@@ -34,6 +34,10 @@ func (g *GroupImpl) generateWebAccess(obj runtime.Object, required map[string][]
 	return service.GenerateIstioObjects(*obj.(*v1alpha1.WebAccess), required)
 }
 
+func (g *GroupImpl) GetSequence(_ *composite.Unstructured) []base.Step {
+	return nil
+}
+
 func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {
 	return ""
 }
@@ -51,8 +55,4 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 
 func (g *GroupImpl) GetObservedStatus(_ *composed.Unstructured) (map[string]interface{}, error) {
 	return nil, nil
-}
-
-func (g *GroupImpl) AddStatusConditions(_ *composite.Unstructured, _ map[resource.Name]resource.ObservedComposed) {
-	// No-op
 }

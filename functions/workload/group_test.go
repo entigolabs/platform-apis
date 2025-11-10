@@ -116,16 +116,16 @@ func TestWorkloadFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"web-app-service": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","kind":"Service","metadata":{"creationTimestamp":null,"name":"web-app-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"web-app"}},"status":{"loadBalancer":{}}}
+{"apiVersion":"v1","kind":"Service","metadata":{"name":"web-app-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"web-app"}},"status":{"loadBalancer":{}}}
 							`)},
 							"web-app-nginx-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"web-app-init-busybox-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-init-busybox-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"web-app-init-busybox-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"web-app": {Resource: resource.MustStructJSON(`
-{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"creationTimestamp":null,"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"},"name":"web-app","namespace":"test"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"web-app"}},"strategy":{},"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-nginx-secret"}}],"image":"docker.io/nginx:latest","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/","port":"http-tcp-80"},"periodSeconds":10,"successThreshold":1,"terminationGracePeriodSeconds":30,"timeoutSeconds":1},"name":"nginx","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}]}}},"status":{}}
+{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"},"name":"web-app","namespace":"test"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"web-app"}},"strategy":{},"template":{"metadata":{"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-nginx-secret"}}],"image":"docker.io/nginx:latest","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/","port":"http-tcp-80"},"periodSeconds":10,"successThreshold":1,"terminationGracePeriodSeconds":30,"timeoutSeconds":1},"name":"nginx","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}]}}},"status":{}}
 							`)},
 						},
 					},
@@ -157,13 +157,13 @@ func TestWorkloadFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"web-app-nginx-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"web-app-init-busybox-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-init-busybox-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"web-app-init-busybox-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"web-app": {Resource: resource.MustStructJSON(`
-{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"creationTimestamp":null,"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"},"name":"web-app","namespace":"test"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"web-app"}},"strategy":{},"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-nginx-secret"}}],"image":"docker.io/nginx:latest","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/","port":"http-tcp-80"},"periodSeconds":10,"successThreshold":1,"terminationGracePeriodSeconds":30,"timeoutSeconds":1},"name":"nginx","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}]}}},"status":{}}
+{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"},"name":"web-app","namespace":"test"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"web-app"}},"strategy":{},"template":{"metadata":{"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-nginx-secret"}}],"image":"docker.io/nginx:latest","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/","port":"http-tcp-80"},"periodSeconds":10,"successThreshold":1,"terminationGracePeriodSeconds":30,"timeoutSeconds":1},"name":"nginx","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}]}}},"status":{}}
 							`)},
 						},
 					},
@@ -195,16 +195,16 @@ func TestWorkloadFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"web-app-service": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","kind":"Service","metadata":{"creationTimestamp":null,"name":"web-app-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"web-app"}},"status":{"loadBalancer":{}}}
+{"apiVersion":"v1","kind":"Service","metadata":{"name":"web-app-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"web-app"}},"status":{"loadBalancer":{}}}
 							`)},
 							"web-app-nginx-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"web-app-init-busybox-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"web-app-init-busybox-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"web-app-init-busybox-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"web-app": {Resource: resource.MustStructJSON(`
-{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"creationTimestamp":null,"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"},"name":"web-app","namespace":"test"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"web-app"}},"strategy":{},"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-nginx-secret"}}],"image":"docker.io/nginx:latest","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/","port":"http-tcp-80"},"periodSeconds":10,"successThreshold":1,"terminationGracePeriodSeconds":30,"timeoutSeconds":1},"name":"nginx","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"imagePullSecrets":[{"name":"regcred"}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}]}}},"status":{}}
+{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"},"name":"web-app","namespace":"test"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"web-app"}},"strategy":{},"template":{"metadata":{"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-nginx-secret"}}],"image":"docker.io/nginx:latest","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/","port":"http-tcp-80"},"periodSeconds":10,"successThreshold":1,"terminationGracePeriodSeconds":30,"timeoutSeconds":1},"name":"nginx","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"imagePullSecrets":[{"name":"regcred"}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}]}}},"status":{}}
 							`)},
 						},
 					},
@@ -236,16 +236,16 @@ func TestWorkloadFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"cron-job-service": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","kind":"Service","metadata":{"creationTimestamp":null,"name":"cron-job-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"cron-job"}},"status":{"loadBalancer":{}}}
+{"apiVersion":"v1","kind":"Service","metadata":{"name":"cron-job-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"cron-job"}},"status":{"loadBalancer":{}}}
 							`)},
 							"cron-job-busybox-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"cron-job-busybox-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"cron-job-busybox-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"cron-job-init-busybox-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"cron-job-init-busybox-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"cron-job-init-busybox-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"cron-job": {Resource: resource.MustStructJSON(`
-{"apiVersion":"batch/v1","kind":"CronJob","metadata":{"creationTimestamp":null,"labels":{"app":"cron-job","entigo.com/resource":"cron-job","entigo.com/resource-kind":"CronJob"},"name":"cron-job","namespace":"test"},"spec":{"concurrencyPolicy":"Allow","jobTemplate":{"metadata":{"creationTimestamp":null},"spec":{"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"cron-job","entigo.com/resource":"cron-job","entigo.com/resource-kind":"CronJob"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"cron-job-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"cron-job-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"restartPolicy":"OnFailure"}}}},"schedule":"* * */1 * *"},"status":{}}
+{"apiVersion":"batch/v1","kind":"CronJob","metadata":{"labels":{"app":"cron-job","entigo.com/resource":"cron-job","entigo.com/resource-kind":"CronJob"},"name":"cron-job","namespace":"test"},"spec":{"concurrencyPolicy":"Allow","jobTemplate":{"metadata":{},"spec":{"template":{"metadata":{"labels":{"app":"cron-job","entigo.com/resource":"cron-job","entigo.com/resource-kind":"CronJob"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"cron-job-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"cron-job-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"restartPolicy":"OnFailure"}}}},"schedule":"* * */1 * *"},"status":{}}
 							`)},
 						},
 					},
@@ -277,16 +277,16 @@ func TestWorkloadFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"cron-job-service": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","kind":"Service","metadata":{"creationTimestamp":null,"name":"cron-job-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"cron-job"}},"status":{"loadBalancer":{}}}
+{"apiVersion":"v1","kind":"Service","metadata":{"name":"cron-job-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"cron-job"}},"status":{"loadBalancer":{}}}
 							`)},
 							"cron-job-busybox-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"cron-job-busybox-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"cron-job-busybox-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"cron-job-init-busybox-secret": {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"creationTimestamp":null,"name":"cron-job-init-busybox-secret","namespace":"test"},"type":"Opaque"}
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"name":"cron-job-init-busybox-secret","namespace":"test"},"type":"Opaque"}
 							`)},
 							"cron-job": {Resource: resource.MustStructJSON(`
-{"apiVersion":"batch/v1","kind":"CronJob","metadata":{"creationTimestamp":null,"labels":{"app":"cron-job","entigo.com/resource":"cron-job","entigo.com/resource-kind":"CronJob"},"name":"cron-job","namespace":"test"},"spec":{"concurrencyPolicy":"Allow","jobTemplate":{"metadata":{"creationTimestamp":null},"spec":{"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"cron-job","entigo.com/resource":"cron-job","entigo.com/resource-kind":"CronJob"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"cron-job-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"imagePullSecrets":[{"name":"regcred"}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"cron-job-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"restartPolicy":"OnFailure"}}}},"schedule":"* * */1 * *"},"status":{}}
+{"apiVersion":"batch/v1","kind":"CronJob","metadata":{"labels":{"app":"cron-job","entigo.com/resource":"cron-job","entigo.com/resource-kind":"CronJob"},"name":"cron-job","namespace":"test"},"spec":{"concurrencyPolicy":"Allow","jobTemplate":{"metadata":{},"spec":{"template":{"metadata":{"labels":{"app":"cron-job","entigo.com/resource":"cron-job","entigo.com/resource-kind":"CronJob"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"cron-job-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"imagePullSecrets":[{"name":"regcred"}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"cron-job-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"restartPolicy":"OnFailure"}}}},"schedule":"* * */1 * *"},"status":{}}
 							`)},
 						},
 					},

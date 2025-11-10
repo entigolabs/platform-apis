@@ -7,17 +7,11 @@ import (
 	"strings"
 
 	"dario.cat/mergo"
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
-	"github.com/crossplane/function-sdk-go/resource/composite"
-	"github.com/go-logr/zapr"
 	"github.com/mozillazg/go-unidecode"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -147,10 +141,6 @@ func GenerateEligibleKubernetesName(original string, limit int) string {
 	return processed
 }
 
-func IsResourceReady(observed *composed.Unstructured) bool {
-	return GetCrossplaneReadyStatus(observed) == resource.ReadyTrue
-}
-
 func GetCrossplaneReadyStatus(observed *composed.Unstructured) resource.Ready {
 	conditions, found, err := unstructured.NestedSlice(observed.Object, "status", "conditions")
 	if err != nil || !found {
@@ -181,23 +171,4 @@ func defaultCrossplaneReadyStatus(observed *composed.Unstructured) resource.Read
 		return resource.ReadyFalse
 	}
 	return resource.ReadyTrue
-}
-
-// Copied from github.com/crossplane/function-sdk-go to make it compatible with crossplane-runtime v2
-func SetConditions(xr *composite.Unstructured, conditions ...xpv1.Condition) {
-	conditioned := xpv1.ConditionedStatus{}
-	_ = fieldpath.Pave(xr.Object).GetValueInto("status", &conditioned)
-	conditioned.SetConditions(conditions...)
-	_ = fieldpath.Pave(xr.Object).SetValue("status.conditions", conditioned.Conditions)
-}
-
-// Copied from github.com/crossplane/function-sdk-go to make it compatible with crossplane-runtime v2
-func NewLogger(debug bool) (logging.Logger, error) {
-	o := []zap.Option{zap.AddCallerSkip(1)}
-	if debug {
-		zl, err := zap.NewDevelopment(o...)
-		return logging.NewLogrLogger(zapr.NewLogger(zl)), errors.Wrap(err, "cannot create development zap logger")
-	}
-	zl, err := zap.NewProduction(o...)
-	return logging.NewLogrLogger(zapr.NewLogger(zl)), errors.Wrap(err, "cannot create production zap logger")
 }
