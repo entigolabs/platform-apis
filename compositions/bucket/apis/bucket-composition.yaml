@@ -47,7 +47,7 @@ spec:
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $region := $kmsDataAlias.resource.status.atProvider.targetKeyArn }}
+            {{- $region := $kmsDataAlias.resource.status.atProvider.region }}
             {{- $kmsDataKeyId = $kmsDataAlias.resource.status.atProvider.targetKeyArn }}
             {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
 
@@ -344,8 +344,8 @@ spec:
             {{- $kmsConfigKeyId := "" }}
 
             {{- /* Get config from environment */ -}}
-            {{- $region := $envConfig.resource.data.awsRegion }}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
+            {{- $region := $kmsConfigAlias.resource.status.atProvider.region }}
             {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
 
             {{- /* Apply user parameters */ -}}
