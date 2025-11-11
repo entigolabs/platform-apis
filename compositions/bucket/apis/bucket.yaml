@@ -370,10 +370,10 @@ spec:
             targetSecret = {
                 apiVersion = "v1"
                 kind = "Secret"
-                metadata.name = bucketName + "-credentials"
+                metadata.name = bucketName + "-bucket-credentials"
                 metadata.namespace = namespace
                 metadata.annotations = {
-                    "krm.kcl.dev/composition-resource-name" = "secret-credentials"
+                    "krm.kcl.dev/composition-resource-name" = "bucket-credentials"
                     "krm.kcl.dev/ready" = "True"
                 }
                 type = "Opaque"
@@ -407,43 +407,27 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: platform-apis-storage
-              kmsDataAlias:
-                apiVersion: kms.aws.upbound.io/v1beta1
-                kind: Alias
-                matchName: data
               kmsConfigAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: config
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
-            {{- $kmsDataAlias := mustFirst (getExtraResources . "kmsDataAlias") }}
             {{- $kmsConfigAlias := mustFirst (getExtraResources . "kmsConfigAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
-            {{- $enableVersioning := false }}
-            {{- $publicAccess := false }}
-            {{- $kmsDataKeyId := "" }}
             {{- $kmsConfigKeyId := "" }}
-            {{- $enableAcl := false }}
 
             {{- /* Get config from environment */ -}}
             {{- $region := $envConfig.resource.data.awsRegion }}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $kmsDataKeyId = $kmsDataAlias.resource.status.atProvider.targetKeyArn }}
             {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
 
             {{- /* Apply user parameters */ -}}
             {{- if .observed.composite.resource.spec.parameters }}
-            {{- $enableVersioning = default false .observed.composite.resource.spec.parameters.enableVersioning }}
-            {{- $publicAccess = default false .observed.composite.resource.spec.parameters.publicAccess }}
-            {{- if .observed.composite.resource.spec.parameters.kmsDataKeyId }}
-            {{- $kmsDataKeyId = .observed.composite.resource.spec.parameters.kmsDataKeyId }}
-            {{- end }}
             {{- if .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
             {{- $kmsConfigKeyId = .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
             {{- end }}
-            {{- $enableAcl = default false .observed.composite.resource.spec.parameters.enableAcl }}
             {{- end }}
 
             ---
@@ -462,7 +446,7 @@ spec:
               forProvider:
                 name: {{ $bucketName }}
                 region: {{ $region }}
-                description: IAM credentials for S3 bucket {{ $bucketName }}
+                description: Credentials for bucket {{ $bucketName }}
                 {{- if $kmsConfigKeyId }}
                 kmsKeyId: {{ $kmsConfigKeyId }}
                 {{- end }}
@@ -482,7 +466,7 @@ spec:
                 secretIdRef:
                   name: {{ $bucketName }}
                 secretStringSecretRef:
-                  name: {{ $bucketName }}-credentials
+                  name: {{ $bucketName }}-bucket-credentials
                   key: credentials.json
 
     - step: detect-readiness
@@ -492,13 +476,13 @@ spec:
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
 metadata:
-  name: taivotestbucket-kana
+  name: taivotestbucket-kana111132
 spec:
   parameters: {}
 ---
 apiVersion: storage.entigo.com/v1alpha1
 kind: Bucket
 metadata:
-  name: taivotestbucket-muna
+  name: taivotestbucket-muna111132
 spec:
   parameters: {}
