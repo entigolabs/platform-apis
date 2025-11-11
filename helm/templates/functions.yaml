@@ -34,6 +34,18 @@ spec:
   package: {{ (index .Values.functions "function-sequencer").image }}:{{ (index .Values.functions "function-sequencer").tag }}
 {{- end }}
 
+{{- if (index .Values.functions "function-kcl").install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-kcl
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ (index .Values.functions "function-kcl").image }}:{{ (index .Values.functions "function-kcl").tag }}
+{{- end }}
+
 {{- range .Values.extraFunctions }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1

@@ -43,26 +43,6 @@ spec:
                       type: boolean
                       default: false
 ---
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: ManagedResourceActivationPolicy
-metadata:
-  name: platform-apis-bucket
-  annotations:
-    argocd.argoproj.io/sync-wave: "-5"
-spec:
-  activate:
-    - buckets.s3.aws.m.upbound.io
-    - bucketpublicaccessblocks.s3.aws.m.upbound.io
-    - bucketserversideencryptionconfigurations.s3.aws.m.upbound.io
-    - bucketversionings.s3.aws.m.upbound.io
-    - bucketownershipcontrols.s3.aws.m.upbound.io
-    - users.iam.aws.m.upbound.io
-    - policies.iam.aws.m.upbound.io
-    - userpolicyattachments.iam.aws.m.upbound.io
-    - accesskeys.iam.aws.m.upbound.io
-    - secrets.secretsmanager.aws.m.upbound.io
-    - secretversions.secretsmanager.aws.m.upbound.io
----
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
@@ -472,17 +452,3 @@ spec:
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
----
-apiVersion: storage.entigo.com/v1alpha1
-kind: Bucket
-metadata:
-  name: taivotestbucket-kana111132
-spec:
-  parameters: {}
----
-apiVersion: storage.entigo.com/v1alpha1
-kind: Bucket
-metadata:
-  name: taivotestbucket-muna111132
-spec:
-  parameters: {}
