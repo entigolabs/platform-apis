@@ -1,0 +1,19 @@
+name: Build bucket Composition
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "compositions/bucket/**"
+  pull_request:
+    paths:
+      - "compositions/bucket/**"
+
+jobs:
+  build:
+    uses: ./.github/workflows/builder-composition.yml
+    with:
+      path: compositions/bucket
+      name: platform-apis-bucket
+    secrets: inherit
