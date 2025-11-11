@@ -154,6 +154,8 @@ spec:
                 kind: ClusterProviderConfig
               forProvider:
                 region: {{ $region }}
+              writeConnectionSecretToRef:
+                name: {{ $bucketName }}-bucket
 
             ---
             # Bucket Public Access Block - Private by default
@@ -314,7 +316,6 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: iam-access-key
-                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -323,48 +324,7 @@ spec:
                 userRef:
                   name: {{ $bucketName }}
               writeConnectionSecretToRef:
-                name: {{ $bucketName }}
-
-            ---
-            # AWS Secrets Manager Secret
-            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
-            kind: Secret
-            metadata:
-              name: {{ $bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
-                crossplane.io/external-name: {{ $bucketName }}
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
-                name: {{ $bucketName }}
-                region: {{ $region }}
-                description: IAM credentials for S3 bucket {{ $bucketName }}
-                {{- if $kmsConfigKeyId }}
-                kmsKeyId: {{ $kmsConfigKeyId }}
-                {{- end }}
-
-            ---
-            # AWS Secrets Manager Secret Version
-            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
-            kind: SecretVersion
-            metadata:
-              name: {{ $bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-version
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
-                region: {{ $region }}
-                secretIdRef:
-                  name: {{ $bucketName }}
-                secretStringSecretRef:
-                  name: {{ $bucketName }}
-                  key: password
+                name: {{ $bucketName }}-access-key
 
     - step: detect-readiness
       functionRef:
