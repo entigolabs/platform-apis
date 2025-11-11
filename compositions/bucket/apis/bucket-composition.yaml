@@ -46,8 +46,8 @@ spec:
             {{- $enableAcl := false }}
 
             {{- /* Get config from environment */ -}}
-            {{- $region := $envConfig.resource.data.awsRegion }}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
+            {{- $region := $kmsDataAlias.resource.status.atProvider.targetKeyArn }}
             {{- $kmsDataKeyId = $kmsDataAlias.resource.status.atProvider.targetKeyArn }}
             {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
 

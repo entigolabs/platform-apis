@@ -1,0 +1,14 @@
+apiVersion: storage.entigo.com/v1alpha1
+kind: Bucket
+metadata:
+  name: example-bucket
+spec:
+  parameters: {}
+# ---
+# apiVersion: storage.entigo.com/v1alpha1
+# kind: Bucket
+# metadata:
+#   name: example-bucket
+# spec:
+#   parameters:
+#     enableVersioning: true
