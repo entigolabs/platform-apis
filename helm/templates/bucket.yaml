@@ -20,4 +20,21 @@ spec:
     - secrets.secretsmanager.aws.m.upbound.io
     - secretversions.secretsmanager.aws.m.upbound.io
 
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-storage
+data:
+  awsProvider: {{ .Values.storage.environmentConfig.awsProvider }}
+  awsRegion: {{ .Values.storage.environmentConfig.awsRegion }}
+  dataKMSKey: {{ .Values.storage.environmentConfig.dataKMSKey }}
+  configKMSKey: {{ .Values.storage.environmentConfig.configKMSKey }}
+  {{- if .Values.storage.environmentConfig.tags }}
+  tags: {{- toYaml .Values.storage.environmentConfig.tags | nindent 4 }}
+  {{- else }}
+  tags: {}
+  {{- end }}
+
 {{- end }}
+

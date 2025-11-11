@@ -34,6 +34,20 @@ repository:
     image: ghcr.io/entigolabs/platform-apis-repository
     tag: v0.0.0
 
+storage:
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    awsRegion: ""
+    dataKMSKey: data
+    configKMSKey: config
+    tags: {}
+
+bucket:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-bucket
+    tag: v0.0.0
+
 zone:
   install: true
   package:
