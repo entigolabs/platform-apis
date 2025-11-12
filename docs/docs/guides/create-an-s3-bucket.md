@@ -171,7 +171,8 @@ AWS Secrets Manager secret with IAM credentials and bucket information
 
 ### 3.3 Secrets mounted to a container
 
-```yaml
+```bash
+# Example 1 and Example 2
 $ env
 AWS_ACCESS_KEY_ID=AKIAXXXXXXXXXXXXXXX
 AWS_SECRET_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -180,7 +181,8 @@ BUCKET_NAME=example-bucket
 BUCKET_REGION=eu-north-1
 ```
 
-```
+```bash
+# Example 3
 $ cat /etc/credentials/credentials.json
 {"AWS_ACCESS_KEY_ID": "AKIAXXXXXXXXXXXXXXX", "AWS_SECRET_ACCESS_KEY": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "BUCKET_REGION": "eu-north-1", "BUCKET_ARN": "arn:aws:s3:::example-bucket", "BUCKET_NAME": "example-bucket"}
 ```
