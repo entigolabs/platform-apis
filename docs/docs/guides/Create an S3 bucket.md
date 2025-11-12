@@ -12,8 +12,6 @@ Create an S3Bucket manifest and deploy it to the cluster. It is a good practice 
 
 AWS IAM user, role and policy are automatically created with the S3Bucket.
 
-IAM credentials and bucket information are stored in a Kubernetes secret and AWS Secrets Manager secret `<S3Bucket-name>-credentials`
-
 ```yaml
 # Example S3Bucket manifest
 apiVersion: storage.entigo.com/v1alpha1
@@ -35,6 +33,8 @@ spec:
 ```
 
 ## 2. Mount S3Bucket credentials to a container
+
+IAM credentials and bucket information are stored in a Kubernetes secret and AWS Secrets Manager secret `<S3Bucket-name>-credentials`
 
 For more information about Secrets in Kubernetes, see [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/).
 
