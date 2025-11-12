@@ -33,6 +33,21 @@ spec:
             secretKeyRef:
               name: example-bucket-credentials
               key: AWS_SECRET_ACCESS_KEY
+        - name: BUCKET_REGION
+          valueFrom:
+            secretKeyRef:
+              name: example-bucket-credentials
+              key: BUCKET_REGION
+        - name: BUCKET_NAME
+          valueFrom:
+            secretKeyRef:
+              name: example-bucket-credentials
+              key: BUCKET_NAME
+        - name: BUCKET_ARN
+          valueFrom:
+            secretKeyRef:
+              name: example-bucket-credentials
+              key: BUCKET_ARN
 ---
 apiVersion: v1
 kind: Pod
