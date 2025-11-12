@@ -17,7 +17,6 @@ spec:
         source: Inline
         inline:
           template: |
-            # Get required resources
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
