@@ -361,13 +361,13 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
-                crossplane.io/external-name: {{ $bucketName }}
+                crossplane.io/external-name: {{ $bucketName }}-credentials
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
                 kind: ClusterProviderConfig
               forProvider:
-                name: {{ $bucketName }}
+                name: {{ $bucketName }}-credentials
                 region: {{ $region }}
                 description: Credentials for bucket {{ $bucketName }}
                 {{- if $kmsConfigKeyArn }}
@@ -391,7 +391,7 @@ spec:
               forProvider:
                 region: {{ $region }}
                 secretIdRef:
-                  name: {{ $bucketName }}
+                  name: {{ $bucketName }}-credentials
                 secretStringSecretRef:
                   name: {{ $bucketName }}-credentials
                   key: credentials.json
