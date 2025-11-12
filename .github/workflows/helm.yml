@@ -80,8 +80,8 @@ jobs:
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
-          BUCKET_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-bucket/versions" \
+          S3BUCKET_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-s3bucket/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
@@ -134,8 +134,8 @@ jobs:
             exit 1
           fi
 
-          if [ -z "$BUCKET_TAG" ] || [ "$BUCKET_TAG" = "null" ]; then
-            echo "Failed to fetch bucket tag"
+          if [ -z "$S3BUCKET_TAG" ] || [ "$S3BUCKET_TAG" = "null" ]; then
+            echo "Failed to fetch s3bucket tag"
             exit 1
           fi
 
@@ -167,7 +167,7 @@ jobs:
           yq -i ".repository.package.tag = \"$REPOSITORY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".artifact.function.tag = \"$ARTIFACT_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".zone.package.tag = \"$ZONE_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".bucket.package.tag = \"$BUCKET_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".s3bucket.package.tag = \"$S3BUCKET_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".webapp.package.tag = \"$WEBAPP_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".cronjob.package.tag = \"$CRONJOB_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".workload.function.tag = \"$WORKLOAD_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
