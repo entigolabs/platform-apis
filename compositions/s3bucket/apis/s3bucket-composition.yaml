@@ -299,6 +299,11 @@ spec:
                 }
                 type = "Opaque"
                 stringData = {
+                    AWS_ACCESS_KEY_ID = base64.decode(accessKeySecret.data.username)
+                    AWS_SECRET_ACCESS_KEY = base64.decode(accessKeySecret.data.password)
+                    BUCKET_REGION = base64.decode(bucketSecret.data.region)
+                    BUCKET_ARN = base64.decode(bucketSecret.data.arn)
+                    BUCKET_NAME = base64.decode(bucketSecret.data.id)
                     "credentials.json" = json.encode({
                         AWS_ACCESS_KEY_ID = base64.decode(accessKeySecret.data.username)
                         AWS_SECRET_ACCESS_KEY = base64.decode(accessKeySecret.data.password)
