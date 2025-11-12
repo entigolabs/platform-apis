@@ -120,6 +120,8 @@ spec:
 
 ## 3. Result
 
+### 3.1 S3Bucket
+
 S3Bucket created in Kubernetes
 
 ```yaml
@@ -131,6 +133,8 @@ example-bucket       True     True    s3buckets.storage.entigo.com   1h27m
 S3 bucket created in AWS
 
 ![](img/example-s3bucket-1.png)
+
+### 3.2 Secrets with IAM credentials and bucket information
 
 Kubernetes secret with IAM credentials and bucket information
 
@@ -164,3 +168,19 @@ data:
 AWS Secrets Manager secret with IAM credentials and bucket information
 
 ![](img/example-s3bucket-2.png)
+
+### 3.3 Secrets mounted to a container
+
+```yaml
+$ env
+AWS_ACCESS_KEY_ID=AKIAXXXXXXXXXXXXXXX
+AWS_SECRET_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+BUCKET_ARN=arn:aws:s3:::example-bucket
+BUCKET_NAME=example-bucket
+BUCKET_REGION=eu-north-1
+```
+
+```
+$ cat /etc/credentials/credentials.json
+{"AWS_ACCESS_KEY_ID": "AKIAXXXXXXXXXXXXXXX", "AWS_SECRET_ACCESS_KEY": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "BUCKET_REGION": "eu-north-1", "BUCKET_ARN": "arn:aws:s3:::example-bucket", "BUCKET_NAME": "example-bucket"}
+```

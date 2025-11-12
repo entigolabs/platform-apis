@@ -1,3 +1,4 @@
+# Example 1
 apiVersion: v1
 kind: Pod
 metadata:
@@ -11,7 +12,9 @@ spec:
       envFrom:
         - secretRef:
             name: example-bucket-credentials
+
 ---
+# Example 2
 apiVersion: v1
 kind: Pod
 metadata:
@@ -48,7 +51,9 @@ spec:
             secretKeyRef:
               name: example-bucket-credentials
               key: BUCKET_ARN
+
 ---
+# Example 3
 apiVersion: v1
 kind: Pod
 metadata:
