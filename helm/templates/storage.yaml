@@ -1,4 +1,4 @@
-{{- if .Values.storage.install }}
+{{- if .Values.s3bucket.install }}
 
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
@@ -6,7 +6,6 @@ metadata:
   name: platform-apis-storage
 data:
   awsProvider: {{ .Values.storage.environmentConfig.awsProvider }}
-  awsRegion: {{ .Values.storage.environmentConfig.awsRegion }}
   dataKMSKey: {{ .Values.storage.environmentConfig.dataKMSKey }}
   configKMSKey: {{ .Values.storage.environmentConfig.configKMSKey }}
   {{- if .Values.storage.environmentConfig.tags }}
