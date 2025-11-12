@@ -1,9 +1,9 @@
-{{- if .Values.bucket.install }}
+{{- if .Values.s3bucket.install }}
 
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
 metadata:
-  name: platform-apis-bucket
+  name: platform-apis-s3bucket
   annotations:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
@@ -24,9 +24,9 @@ spec:
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: platform-apis-bucket
+  name: platform-apis-s3bucket
 spec:
-  package: {{ .Values.bucket.package.image }}:{{ .Values.bucket.package.tag }}
+  package: {{ .Values.s3bucket.package.image }}:{{ .Values.s3bucket.package.tag }}
   skipDependencyResolution: true
 
 {{- end }}

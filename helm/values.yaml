@@ -42,7 +42,7 @@ storage:
     configKMSKey: config
     tags: {}
 
-bucket:
+s3bucket:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-bucket
