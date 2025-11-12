@@ -25,6 +25,10 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: platform-apis-storage
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
               kmsDataAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
@@ -35,6 +39,7 @@ spec:
                 matchName: config
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $kmsDataAlias := mustFirst (getExtraResources . "kmsDataAlias") }}
             {{- $kmsConfigAlias := mustFirst (getExtraResources . "kmsConfigAlias") }}
 
@@ -47,7 +52,7 @@ spec:
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $region := $kmsDataAlias.resource.status.atProvider.region }}
+            {{- $region := $vpc.resource.status.atProvider.region }}
             {{- $kmsDataKeyId = $kmsDataAlias.resource.status.atProvider.targetKeyArn }}
             {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
 
@@ -295,10 +300,10 @@ spec:
             targetSecret = {
                 apiVersion = "v1"
                 kind = "Secret"
-                metadata.name = bucketName + "-bucket-credentials"
+                metadata.name = bucketName + "-credentials"
                 metadata.namespace = namespace
                 metadata.annotations = {
-                    "krm.kcl.dev/composition-resource-name" = "bucket-credentials"
+                    "krm.kcl.dev/composition-resource-name" = "credentials"
                     "krm.kcl.dev/ready" = "True"
                 }
                 type = "Opaque"
@@ -306,9 +311,9 @@ spec:
                     "credentials.json" = json.encode({
                         AWS_ACCESS_KEY_ID = base64.decode(accessKeySecret.data.username)
                         AWS_SECRET_ACCESS_KEY = base64.decode(accessKeySecret.data.password)
-                        REGION = base64.decode(bucketSecret.data.region)
-                        ARN = base64.decode(bucketSecret.data.arn)
-                        NAME = base64.decode(bucketSecret.data.id)
+                        BUCKET_REGION = base64.decode(bucketSecret.data.region)
+                        BUCKET_ARN = base64.decode(bucketSecret.data.arn)
+                        BUCKET_NAME = base64.decode(bucketSecret.data.id)
                     })
                 }
             } if accessKeySecret and bucketSecret else None
@@ -332,12 +337,17 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: platform-apis-storage
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
               kmsConfigAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: config
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $kmsConfigAlias := mustFirst (getExtraResources . "kmsConfigAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
@@ -345,7 +355,7 @@ spec:
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $region := $kmsConfigAlias.resource.status.atProvider.region }}
+            {{- $region := $vpc.resource.status.atProvider.region }}
             {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
 
             {{- /* Apply user parameters */ -}}
@@ -391,7 +401,7 @@ spec:
                 secretIdRef:
                   name: {{ $bucketName }}
                 secretStringSecretRef:
-                  name: {{ $bucketName }}-bucket-credentials
+                  name: {{ $bucketName }}-credentials
                   key: credentials.json
 
     - step: detect-readiness

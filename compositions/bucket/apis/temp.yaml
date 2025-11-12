@@ -1,0 +1,52 @@
+# apiVersion: apiextensions.crossplane.io/v1alpha1
+# kind: ManagedResourceActivationPolicy
+# metadata:
+#   name: platform-apis-bucket
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "-5"
+# spec:
+#   activate:
+#     - buckets.s3.aws.m.upbound.io
+#     - bucketpublicaccessblocks.s3.aws.m.upbound.io
+#     - bucketserversideencryptionconfigurations.s3.aws.m.upbound.io
+#     - bucketversionings.s3.aws.m.upbound.io
+#     - bucketownershipcontrols.s3.aws.m.upbound.io
+#     - users.iam.aws.m.upbound.io
+#     - policies.iam.aws.m.upbound.io
+#     - userpolicyattachments.iam.aws.m.upbound.io
+#     - accesskeys.iam.aws.m.upbound.io
+#     - secrets.secretsmanager.aws.m.upbound.io
+#     - secretversions.secretsmanager.aws.m.upbound.io
+# ---
+# apiVersion: apiextensions.crossplane.io/v1beta1
+# kind: EnvironmentConfig
+# metadata:
+#   name: platform-apis-storage
+# data:
+#   awsProvider: crossplane-aws
+#   dataKMSKey: data
+#   configKMSKey: config
+#   tags:
+#     - key: kana
+#       value: muna
+# ---
+# apiVersion: pkg.crossplane.io/v1beta1
+# kind: Function
+# metadata:
+#   name: function-kcl
+# spec:
+#   package: xpkg.upbound.io/crossplane-contrib/function-kcl:v0.11.6
+# ---
+# apiVersion: storage.entigo.com/v1alpha1
+# kind: Bucket
+# metadata:
+#   name: example-bucket-taivotest1
+# spec:
+#   parameters: {}
+# ---
+# apiVersion: storage.entigo.com/v1alpha1
+# kind: Bucket
+# metadata:
+#   name: example-bucket-taivotest2
+# spec:
+#   parameters: {}
