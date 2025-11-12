@@ -28,6 +28,10 @@ spec:
                       description: Enable versioning for the S3 bucket
                       type: boolean
                       default: false
+                    enableVersioning:
+                      description: Enable versioning for the S3 bucket
+                      type: boolean
+                      default: false
                     publicAccess:
                       description: Allow public access to the bucket
                       type: boolean

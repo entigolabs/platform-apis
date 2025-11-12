@@ -1,4 +1,4 @@
-{{- if .Values.repository.install }}
+{{- if .Values.storage.install }}
 
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
