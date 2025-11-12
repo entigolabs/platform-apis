@@ -80,7 +80,7 @@ jobs:
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
-          S3_BUCKET_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          S3BUCKET_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-s3bucket/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
