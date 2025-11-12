@@ -4,6 +4,7 @@ metadata:
   name: platform-apis-storage
 data:
   awsProvider: crossplane-aws
-  awsRegion: eu-north-1
   dataKMSKey: data
   configKMSKey: config
+  tags:
+    foo: bar

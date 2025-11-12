@@ -1,11 +1,11 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: buckets.storage.entigo.com
+  name: s3buckets.storage.entigo.com
 spec:
   compositeTypeRef:
     apiVersion: storage.entigo.com/v1alpha1
-    kind: Bucket
+    kind: S3Bucket
   mode: Pipeline
   pipeline:
     - step: render-bucket-resources
@@ -29,44 +29,26 @@ spec:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: VPC
                 matchName: vpc
-              kmsDataAlias:
+              kmsDataKeyAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: data
-              kmsConfigAlias:
-                apiVersion: kms.aws.upbound.io/v1beta1
-                kind: Alias
-                matchName: config
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
-            {{- $kmsDataAlias := mustFirst (getExtraResources . "kmsDataAlias") }}
-            {{- $kmsConfigAlias := mustFirst (getExtraResources . "kmsConfigAlias") }}
+            {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
             {{- $enableVersioning := false }}
-            {{- $publicAccess := false }}
-            {{- $kmsDataKeyId := "" }}
-            {{- $kmsConfigKeyId := "" }}
-            {{- $enableAcl := false }}
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $region := $vpc.resource.status.atProvider.region }}
-            {{- $kmsDataKeyId = $kmsDataAlias.resource.status.atProvider.targetKeyArn }}
-            {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
+            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.arn }}
 
             {{- /* Apply user parameters */ -}}
             {{- if .observed.composite.resource.spec.parameters }}
             {{- $enableVersioning = default false .observed.composite.resource.spec.parameters.enableVersioning }}
-            {{- $publicAccess = default false .observed.composite.resource.spec.parameters.publicAccess }}
-            {{- if .observed.composite.resource.spec.parameters.kmsDataKeyId }}
-            {{- $kmsDataKeyId = .observed.composite.resource.spec.parameters.kmsDataKeyId }}
-            {{- end }}
-            {{- if .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
-            {{- $kmsConfigKeyId = .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
-            {{- end }}
-            {{- $enableAcl = default false .observed.composite.resource.spec.parameters.enableAcl }}
             {{- end }}
 
             ---
@@ -84,6 +66,10 @@ spec:
                 kind: ClusterProviderConfig
               forProvider:
                 region: {{ $region }}
+                tags:
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
               writeConnectionSecretToRef:
                 name: {{ $bucketName }}-bucket
 
@@ -102,10 +88,10 @@ spec:
               forProvider:
                 bucketRef:
                   name: {{ $bucketName }}
-                blockPublicAcls: {{ not $publicAccess }}
-                blockPublicPolicy: {{ not $publicAccess }}
-                ignorePublicAcls: {{ not $publicAccess }}
-                restrictPublicBuckets: {{ not $publicAccess }}
+                blockPublicAcls: true
+                blockPublicPolicy: true
+                ignorePublicAcls: true
+                restrictPublicBuckets: true
                 region: {{ $region }}
 
             ---
@@ -125,10 +111,10 @@ spec:
                   name: {{ $bucketName }}
                 region: {{ $region }}
                 rule:
-            {{- if $kmsDataKeyId }}
+            {{- if $kmsDataKeyArn }}
                   - applyServerSideEncryptionByDefault:
                       sseAlgorithm: aws:kms
-                      kmsMasterKeyId: {{ $kmsDataKeyId }}
+                      kmsMasterKeyId: {{ $kmsDataKeyArn }}
                     bucketKeyEnabled: true
             {{- else }}
                   - applyServerSideEncryptionByDefault:
@@ -172,7 +158,7 @@ spec:
                   name: {{ $bucketName }}
                 region: {{ $region }}
                 rule:
-                  objectOwnership: {{ if $enableAcl }}ObjectWriter{{ else }}BucketOwnerEnforced{{ end }}
+                  objectOwnership: BucketOwnerEnforced
 
             ---
             # IAM User for bucket access
@@ -189,7 +175,9 @@ spec:
                 kind: ClusterProviderConfig
               forProvider:
                 tags:
-                  bucket: {{ $bucketName }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
 
             ---
             # IAM Policy for full bucket access
@@ -219,6 +207,10 @@ spec:
                       }
                     ]
                   }
+                tags:
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
 
             ---
             # Attach policy to user
@@ -341,29 +333,21 @@ spec:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: VPC
                 matchName: vpc
-              kmsConfigAlias:
+              kmsConfigKeyAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: config
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
-            {{- $kmsConfigAlias := mustFirst (getExtraResources . "kmsConfigAlias") }}
+            {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
-            {{- $kmsConfigKeyId := "" }}
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $region := $vpc.resource.status.atProvider.region }}
-            {{- $kmsConfigKeyId = $kmsConfigAlias.resource.status.atProvider.targetKeyArn }}
-
-            {{- /* Apply user parameters */ -}}
-            {{- if .observed.composite.resource.spec.parameters }}
-            {{- if .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
-            {{- $kmsConfigKeyId = .observed.composite.resource.spec.parameters.kmsConfigKeyId }}
-            {{- end }}
-            {{- end }}
+            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.arn }}
 
             ---
             # AWS Secrets Manager Secret
@@ -382,9 +366,13 @@ spec:
                 name: {{ $bucketName }}
                 region: {{ $region }}
                 description: Credentials for bucket {{ $bucketName }}
-                {{- if $kmsConfigKeyId }}
-                kmsKeyId: {{ $kmsConfigKeyId }}
+                {{- if $kmsConfigKeyArn }}
+                kmsKeyId: {{ $kmsConfigKeyArn }}
                 {{- end }}
+                tags:
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
             ---
             apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretVersion

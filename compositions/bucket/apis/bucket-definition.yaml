@@ -1,13 +1,13 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: buckets.storage.entigo.com
+  name: s3buckets.storage.entigo.com
 spec:
   scope: Namespaced
   group: storage.entigo.com
   names:
-    kind: Bucket
-    plural: buckets
+    kind: S3Bucket
+    plural: s3buckets
     shortNames:
       - s3
   versions:
@@ -26,23 +26,5 @@ spec:
                   properties:
                     enableVersioning:
                       description: Enable versioning for the S3 bucket
-                      type: boolean
-                      default: false
-                    enableVersioning:
-                      description: Enable versioning for the S3 bucket
-                      type: boolean
-                      default: false
-                    publicAccess:
-                      description: Allow public access to the bucket
-                      type: boolean
-                      default: false
-                    kmsDataKeyId:
-                      description: KMS key ID for bucket encryption
-                      type: string
-                    kmsConfigKeyId:
-                      description: KMS key ID for IAM credentials secret encryption
-                      type: string
-                    enableAcl:
-                      description: Enable ACLs for the bucket
                       type: boolean
                       default: false
