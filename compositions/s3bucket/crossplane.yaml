@@ -1,7 +1,7 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: entigo-bucket-composition
+  name: entigo-s3bucket-composition
   annotations:
     # Set the annotations defining the maintainer, source, license, and description of your Configuration
     meta.crossplane.io/maintainer: Taivo Pikkmets <taivo.pikkmets@entigo.com>
