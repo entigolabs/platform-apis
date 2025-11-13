@@ -358,7 +358,7 @@ spec:
             apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: Secret
             metadata:
-              name: {{ $bucketName }}
+              name: {{ $bucketName }}-credentials
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
                 crossplane.io/external-name: {{ $bucketName }}-credentials
@@ -381,7 +381,7 @@ spec:
             apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretVersion
             metadata:
-              name: {{ $bucketName }}
+              name: {{ $bucketName }}-credentials
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-version
             spec:
