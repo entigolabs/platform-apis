@@ -1,7 +1,7 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: entigo-redis-composition
+  name: entigo-valkey-composition
   annotations:
     # Set the annotations defining the maintainer, source, license, and description of your Configuration
     meta.crossplane.io/maintainer: Taivo Pikkmets <taivo.pikkmets@entigo.com>
@@ -9,7 +9,7 @@ metadata:
     # Set the license of your Configuration
     meta.crossplane.io/license: AGPL
     meta.crossplane.io/description: |
-      Manage Redis instances through Kubernetes.
+      Manage Valkey instances through Kubernetes.
     meta.crossplane.io/readme: |
       ...
 spec:

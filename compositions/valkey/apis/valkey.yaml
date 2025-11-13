@@ -1,15 +1,44 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-database
+data:
+  awsProvider: crossplane-aws
+  dataKMSKey: data
+  configKMSKey: config
+  subnetGroup: database
+  elasticacheSubnetGroup: elasticache
+  tags:
+    foo: bar
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-valkey
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+    - replicationgroups.elasticache.aws.m.upbound.io
+    - parametergroups.elasticache.aws.m.upbound.io
+    - subnetgroups.elasticache.aws.m.upbound.io
+    - secrets.secretsmanager.aws.m.upbound.io
+    - secretversions.secretsmanager.aws.m.upbound.io
+---
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: redisinstances.database.entigo.com
+  name: valkeyinstances.database.entigo.com
 spec:
   scope: Namespaced
   group: database.entigo.com
   names:
-    kind: RedisInstance
-    plural: redisinstances
+    kind: ValkeyInstance
+    plural: valkeyinstances
     shortNames:
-      - redis
+      - vk
+      - valkey
+      - valkeys
   versions:
     - name: v1alpha1
       served: true
@@ -21,15 +50,6 @@ spec:
             spec:
               type: object
               properties:
-                engine:
-                  type: string
-                  description: |
-                    Cache engine type. Valkey is recommended as the default open-source Redis-compatible engine.
-                    For engine compatibility, see: https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/supported-engine-versions.html
-                  enum:
-                    - redis
-                    - valkey
-                  default: valkey
                 engineVersion:
                   type: string
                   description: |
@@ -137,11 +157,11 @@ spec:
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: redisinstances.database.entigo.com
+  name: valkeyinstances.database.entigo.com
 spec:
   compositeTypeRef:
     apiVersion: database.entigo.com/v1alpha1
-    kind: RedisInstance
+    kind: ValkeyInstance
   mode: Pipeline
   pipeline:
     - step: render-resources
@@ -160,34 +180,37 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: platform-apis-database
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
               kmsDataKeyAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: data
+              kmsConfigKeyAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: config
+
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
+            {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
 
             {{- $name := .observed.composite.resource.metadata.name }}
             {{- $namespace := .observed.composite.resource.metadata.namespace }}
-            {{- $params := .observed.composite.resource.spec.parameters }}
+            {{- $spec := .observed.composite.resource.spec }}
 
-            # Get config from environment
+            {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $region := $envConfig.resource.data.region }}
-            {{- $subnetGroupName := $envConfig.resource.data.cacheSubnetGroupName }}
-            {{- $securityGroupIds := $envConfig.resource.data.cacheSecurityGroupIds }}
-            {{- $kmsKeyId := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
-
-            # Apply user parameters with defaults
-            {{- $engine := default "valkey" $params.engine }}
-            {{- $engineVersion := default "8.2" $params.engineVersion }}
-            {{- $nodeType := default "cache.t4g.micro" $params.nodeType }}
-            {{- $port := default 6379 $params.port }}
-            {{- $numCacheClusters := default 2 $params.numCacheClusters }}
-
+            {{- $region := $vpc.resource.status.atProvider.region }}
+            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.arn }}
+            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.arn }}
+            {{- $subnetGroupName := $vpc.resource.status.atProvider.name }}
             ---
-            apiVersion: elasticache.aws.m.upbound.io/v1beta2
+            apiVersion: elasticache.aws.m.upbound.io/v1beta1
             kind: ReplicationGroup
             metadata:
               annotations:
@@ -199,32 +222,37 @@ spec:
                 name: {{ $providerConfigRef }}
               forProvider:
                 region: {{ $region }}
-                description: "Valkey/Redis instance {{ $name }}"
-                engine: {{ $engine }}
-                engineVersion: {{ $engineVersion | quote }}
-                nodeType: {{ $nodeType }}
-                port: {{ $port }}
-                numCacheClusters: {{ $numCacheClusters }}
+                engine: valkey
+                engineVersion: {{ $spec.engineVersion | quote }}
+                nodeType: {{ $spec.nodeType }}
+                numCacheClusters: {{ $spec.numCacheClusters }}
                 automaticFailoverEnabled: true
                 multiAzEnabled: true
                 applyImmediately: true
-                autoMinorVersionUpgrade: true
+                autoMinorVersionUpgrade: {{ $spec.autoMinorVersionUpgrade }}
                 atRestEncryptionEnabled: true
                 transitEncryptionEnabled: true
-                kmsKeyId: {{ $kmsKeyId }}
-                subnetGroupName: {{ $subnetGroupName }}
-                securityGroupIds:
-                {{- range $securityGroupIds }}
-                  - {{ . | quote }}
+                kmsKeyId: {{ $kmsDataKeyArn }}
+                maintenanceWindow: {{ $spec.maintenanceWindow }}
+                snapshotWindow: {{ $spec.snapshotWindow }}
+                snapshotRetentionLimit: {{ $spec.snapshotRetentionLimit }}
+                {{- if $spec.parameterGroupName }}
+                parameterGroupName: {{ $spec.parameterGroupName }}
                 {{- end }}
+                subnetGroupName: {{ $subnetGroupName }}
                 tags:
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
               writeConnectionSecretToRef:
                 name: {{ $name }}
-                namespace: {{ $namespace }}
 
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
+---
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
+metadata:
+  name: example-valkey
+spec: {}

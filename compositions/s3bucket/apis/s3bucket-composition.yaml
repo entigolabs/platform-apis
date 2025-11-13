@@ -46,8 +46,8 @@ spec:
             {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.arn }}
 
             {{- /* Apply user parameters */ -}}
-            {{- if .observed.composite.resource.spec.parameters }}
-            {{- $enableVersioning = default false .observed.composite.resource.spec.parameters.enableVersioning }}
+            {{- if .observed.composite.resource.spec }}
+            {{- $enableVersioning = default false .observed.composite.resource.spec.enableVersioning }}
             {{- end }}
 
             ---
