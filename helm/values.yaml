@@ -34,6 +34,20 @@ repository:
     image: ghcr.io/entigolabs/platform-apis-repository
     tag: v0.0.0
 
+storage:
+  install: true
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    dataKMSKey: data
+    configKMSKey: config
+    tags: {}
+
+s3bucket:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-s3bucket
+    tag: v0.0.0
+
 zone:
   install: true
   package:
@@ -50,7 +64,6 @@ zone:
     maintainerGroups: ["maintainer"]
     observerGroups: ["observer"]
     contributorGroups: ["contributor"]
-
 
 networking:
   function:
@@ -89,19 +102,22 @@ cronjob:
 providers: {}
 
 functions:
- function-go-templating:
-   install: true
-   image: xpkg.upbound.io/crossplane-contrib/function-go-templating
-   tag: v0.11.0
- function-auto-ready:
-   install: true
-   image: xpkg.upbound.io/crossplane-contrib/function-auto-ready
-   tag: v0.5.0
- function-sequencer:
-   install: true
-   image: xpkg.upbound.io/crossplane-contrib/function-sequencer
-   tag: v0.3.0
-
+  function-go-templating:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-go-templating
+    tag: v0.11.0
+  function-auto-ready:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+    tag: v0.5.0
+  function-sequencer:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-sequencer
+    tag: v0.3.0
+  function-kcl:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-kcl
+    tag: v0.11.6
 
 extraFunctions: []
 #  - name: function-foo

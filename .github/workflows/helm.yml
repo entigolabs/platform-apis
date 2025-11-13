@@ -2,12 +2,12 @@ name: Helm Chart CI/CD
 on:
   push:
     paths:
-      - 'helm/**'
+      - "helm/**"
     branches:
       - main
   pull_request:
     paths:
-      - 'helm/**'
+      - "helm/**"
     branches:
       - main
   workflow_dispatch:
@@ -80,16 +80,21 @@ jobs:
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
+          S3BUCKET_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-s3bucket/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
+            | head -n 1)
+
           WEBAPP_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-webapp/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
-          
+
           CRONJOB_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-cronjob/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
-          
+
           WORKLOAD_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-workload-fn/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
@@ -99,7 +104,7 @@ jobs:
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-webaccess/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
-          
+
           NETWORKING_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-networking-fn/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
@@ -126,6 +131,11 @@ jobs:
 
           if [ -z "$ZONE_TAG" ] || [ "$ZONE_TAG" = "null" ]; then
             echo "Failed to fetch zone tag"
+            exit 1
+          fi
+
+          if [ -z "$S3BUCKET_TAG" ] || [ "$S3BUCKET_TAG" = "null" ]; then
+            echo "Failed to fetch s3bucket tag"
             exit 1
           fi
 
@@ -157,6 +167,7 @@ jobs:
           yq -i ".repository.package.tag = \"$REPOSITORY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".artifact.function.tag = \"$ARTIFACT_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".zone.package.tag = \"$ZONE_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".s3bucket.package.tag = \"$S3BUCKET_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".webapp.package.tag = \"$WEBAPP_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".cronjob.package.tag = \"$CRONJOB_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".workload.function.tag = \"$WORKLOAD_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml

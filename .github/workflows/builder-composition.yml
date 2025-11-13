@@ -30,7 +30,7 @@ jobs:
           
       - name: Build & Publish Package
         working-directory: ${{ inputs.path }}
-        run: |
+        run: | 
           crossplane xpkg build \
             --package-root=. \
             --package-file=${{ inputs.name }}.xpkg 
