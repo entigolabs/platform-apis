@@ -23,6 +23,11 @@ spec:
             spec:
               type: object
               properties:
+                deletionProtection:
+                  type: boolean
+                  description: |
+                    Deletion protection for the ElastiCache replication group.
+                  default: true
                 engineVersion:
                   type: string
                   description: |
@@ -219,6 +224,7 @@ spec:
                 autoGenerateAuthToken: true
                 authTokenUpdateStrategy: "SET"
                 kmsKeyId: {{ $kmsDataKeyArn }}
+                finalSnapshotIdentifier: {{ $name }}-final-snapshot
                 maintenanceWindow: {{ $spec.maintenanceWindow }}
                 snapshotWindow: {{ $spec.snapshotWindow }}
                 snapshotRetentionLimit: {{ $spec.snapshotRetentionLimit }}
@@ -282,7 +288,7 @@ spec:
                     PORT = base64.decode(connectionSecret.data.port)
                     PRIMARY_ENDPOINT = base64.decode(connectionSecret.data.primary_endpoint_address)
                     READER_ENDPOINT = base64.decode(connectionSecret.data.reader_endpoint_address)
-                    credentials = json.encode({
+                    "credentials.json" = json.encode({
                         AUTH_TOKEN = base64.decode(connectionSecret.data["attribute.auth_token"])
                         PORT = base64.decode(connectionSecret.data.port)
                         PRIMARY_ENDPOINT = base64.decode(connectionSecret.data.primary_endpoint_address)
@@ -338,13 +344,13 @@ spec:
               name: {{ $name }}-credentials
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
-                crossplane.io/external-name: {{ $name }}
+                crossplane.io/external-name: {{ $name }}-credentials
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
                 kind: ClusterProviderConfig
               forProvider:
-                name: {{ $name }}
+                name: {{ $name }}-credentials
                 region: {{ $region }}
                 description: Valkey connection credentials for {{ $name }}
                 kmsKeyId: {{ $kmsConfigKeyArn }}
@@ -371,8 +377,7 @@ spec:
                   name: {{ $name }}-credentials
                 secretStringSecretRef:
                   name: {{ $name }}-credentials
-                  namespace: {{ $namespace }}
-                  key: credentials
+                  key: credentials.json
 
     - step: detect-readiness
       functionRef:
@@ -382,5 +387,5 @@ spec:
 apiVersion: database.entigo.com/v1alpha1
 kind: ValkeyInstance
 metadata:
-  name: example-valkey-v2
+  name: example-valkey-v7
 spec: {}
