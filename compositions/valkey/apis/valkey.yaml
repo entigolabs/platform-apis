@@ -220,9 +220,11 @@ spec:
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
               forProvider:
                 region: {{ $region }}
                 engine: valkey
+                description: {{ $name }}
                 engineVersion: {{ $spec.engineVersion | quote }}
                 nodeType: {{ $spec.nodeType }}
                 numCacheClusters: {{ $spec.numCacheClusters }}
