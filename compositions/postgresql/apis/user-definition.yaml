@@ -1,0 +1,51 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: postgresqlusers.databases.entigo.com
+spec:
+  scope: Cluster
+  group: databases.entigo.com
+  names:
+    kind: PostgreSQLUser
+    plural: postgresqlusers
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              instanceRef:
+                type: object
+                properties:
+                  name:
+                    description: Name of the database instance the db should be created in
+                    type: string
+                  namespace:
+                    description: Namespace where the PostgreSQLInstance resides
+                    type: string
+                required:
+                  - name
+              login:
+                type: boolean
+                description: Enable user login. Default true.
+                default: true
+              createDb:
+                type: boolean
+                description: Allow user to create new databases. Defaul false.
+                default: false
+              createRole:
+                type: boolean
+                description: Allow user to create new users. Default false.
+                default: false
+              inherit: 
+                type: boolean
+                description: Inherit privileges from granted roles. Default true. 
+                default: true
+            required:
+              - instanceRef
+

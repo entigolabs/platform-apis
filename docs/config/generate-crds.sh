@@ -6,6 +6,8 @@ mkdir crds
 
 cp ../../compositions/cronjob/apis/cronjob-definition.yaml crds/
 cp ../../compositions/postgresql/apis/instance-definition.yaml crds/
+cp ../../compositions/postgresql/apis/user-definition.yaml crds/
+cp ../../compositions/postgresql/apis/database-definition.yaml crds/
 cp ../../compositions/repository/apis/repository-definition.yaml crds/
 cp ../../compositions/webaccess/apis/webaccess-definition.yaml crds/
 cp ../../compositions/webapp/apis/webapp-definition.yaml crds/
