@@ -10,16 +10,16 @@ spec: {}
 apiVersion: database.entigo.com/v1alpha1
 kind: ValkeyInstance
 metadata:
-  name: example-valkey
+  name: example-valkey-no-deletion-protection
 spec:
   deletionProtection: false
 
 ---
-# Example ValkeyInstance with custom parameters
+# Example ValkeyInstance with custom settings
 apiVersion: database.entigo.com/v1alpha1
 kind: ValkeyInstance
 metadata:
-  name: example-valkey
+  name: example-valkey-with-custom-settings
 spec:
   deletionProtection: true
   engineVersion: "8.2"
