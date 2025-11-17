@@ -2,6 +2,10 @@ CronJob: [Standard, Premium]
 
 PostgreSQLInstance: [Standard, Premium]
 
+PostgreSQLUser: [Enterprise]
+
+PostgreSQLDatabase: [Enterprise]
+
 Repository: [Standard, Premium]
 
 WebAccess: [Basic, Standard, Premium]

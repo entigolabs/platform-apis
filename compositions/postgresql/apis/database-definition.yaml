@@ -1,13 +1,13 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: postgresqldatabases.databases.entigo.com
+  name: pgdatabases.database.entigo.com
 spec:
-  scope: Cluster
-  group: databases.entigo.com
+  scope: Namespace
+  group: database.entigo.com
   names:
     kind: PostgreSQLDatabase
-    plural: postgresqldatabases
+    plural: pgdatabases
   versions:
   - name: v1alpha1
     served: true

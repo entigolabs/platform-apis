@@ -1,13 +1,13 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: postgresqlusers.databases.entigo.com
+  name: pgusers.database.entigo.com
 spec:
   scope: Cluster
-  group: databases.entigo.com
+  group: database.entigo.com
   names:
     kind: PostgreSQLUser
-    plural: postgresqlusers
+    plural: pgusers
   versions:
   - name: v1alpha1
     served: true
