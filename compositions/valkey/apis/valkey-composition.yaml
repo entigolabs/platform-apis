@@ -302,10 +302,3 @@ spec:
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
-
----
-apiVersion: database.entigo.com/v1alpha1
-kind: ValkeyInstance
-metadata:
-  name: example-valkey-v8
-spec: {}
