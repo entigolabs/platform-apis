@@ -184,6 +184,10 @@ spec:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: VPC
                 matchName: vpc
+              elasticacheSubnetGroup:
+                apiVersion: elasticache.aws.upbound.io/v1beta1
+                kind: SubnetGroup
+                matchName: elasticache
               kmsDataKeyAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
@@ -196,6 +200,7 @@ spec:
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $elasticacheSubnetGroup := mustFirst (getExtraResources . "elasticacheSubnetGroup") }}
             {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
             {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
 
@@ -205,10 +210,11 @@ spec:
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
+            {{- $subnetGroupName := $elasticacheSubnetGroup.resource.status.atProvider.id }}
             {{- $region := $vpc.resource.status.atProvider.region }}
             {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.arn }}
             {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.arn }}
-            {{- $subnetGroupName := $vpc.resource.status.atProvider.name }}
+
             ---
             apiVersion: elasticache.aws.m.upbound.io/v1beta1
             kind: ReplicationGroup
@@ -241,7 +247,7 @@ spec:
                 {{- if $spec.parameterGroupName }}
                 parameterGroupName: {{ $spec.parameterGroupName }}
                 {{- end }}
-                subnetGroupName: {{ $subnetGroupName }}
+                subnetGroupName: {{ $subnetGroupName | quote }}
                 tags:
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
