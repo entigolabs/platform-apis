@@ -27,6 +27,6 @@ spec:
   numCacheClusters: 3
   autoMinorVersionUpgrade: true
   maintenanceWindow: "mon:00:00-mon:03:00"
-  snapshotWindow: "00:00-03:00"
+  snapshotWindow: "05:00-06:00"
   snapshotRetentionLimit: 10
   parameterGroupName: "default.valkey8"
