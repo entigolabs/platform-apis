@@ -126,9 +126,7 @@ spec:
               forProvider:
                 region: {{ $region }}
                 description: Security group for Valkey {{ $name }}
-                vpcIdRef:
-                  name: vpc
-                  namespace: {{ $providerConfigRef }}
+                vpcId: {{ $vpc.resource.status.atProvider.id }}
                 tags:
                   Name: sg-{{ $name }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
