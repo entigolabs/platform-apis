@@ -229,8 +229,8 @@ spec:
                 automaticFailoverEnabled: true
                 multiAzEnabled: true
                 applyImmediately: true
-                autoMinorVersionUpgrade: {{ $spec.autoMinorVersionUpgrade }}
-                atRestEncryptionEnabled: true
+                autoMinorVersionUpgrade: {{ $spec.autoMinorVersionUpgrade | quote }}
+                atRestEncryptionEnabled: "true"
                 transitEncryptionEnabled: true
                 kmsKeyId: {{ $kmsDataKeyArn }}
                 maintenanceWindow: {{ $spec.maintenanceWindow }}
