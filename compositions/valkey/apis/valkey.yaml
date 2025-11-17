@@ -1,3 +1,30 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: valkey-deletion-protection
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["database.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["valkeyinstances"]
+  validations:
+    - expression: "!has(oldObject.spec.deletionProtection) || oldObject.spec.deletionProtection != true"
+      message: "ValkeyInstance is protected from deletion. Set spec.deletionProtection to false before deleting."
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: valkey-deletion-protection-binding
+spec:
+  policyName: valkey-deletion-protection
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector: {}
+---
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
@@ -387,5 +414,5 @@ spec:
 apiVersion: database.entigo.com/v1alpha1
 kind: ValkeyInstance
 metadata:
-  name: example-valkey-v7
+  name: example-valkey-v8
 spec: {}
