@@ -40,6 +40,11 @@ spec:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: config
+              computeSubnets:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: Subnet
+                matchLabels:
+                  subnet-type: compute
 
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
@@ -47,6 +52,7 @@ spec:
             {{- $elasticacheSubnetGroup := mustFirst (getExtraResources . "elasticacheSubnetGroup") }}
             {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
             {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
+            {{- $computeSubnets := getExtraResources . "computeSubnets" }}
 
             {{- $name := .observed.composite.resource.metadata.name }}
             {{- $namespace := .observed.composite.resource.metadata.namespace }}
@@ -104,6 +110,56 @@ spec:
                   {{- end }}
               writeConnectionSecretToRef:
                 name: {{ $name }}
+
+            ---
+            # Security Group
+            apiVersion: ec2.aws.m.upbound.io/v1beta1
+            kind: SecurityGroup
+            metadata:
+              name: sg-{{ $name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: security-group
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                description: Security group for Valkey {{ $name }}
+                vpcIdRef:
+                  name: vpc
+                  namespace: {{ $providerConfigRef }}
+                tags:
+                  Name: sg-{{ $name }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+
+            {{- range $idx, $subnet := $computeSubnets }}
+            ---
+            # Security Group Ingress Rule - {{ $subnet.resource.metadata.name }}
+            apiVersion: ec2.aws.m.upbound.io/v1beta1
+            kind: SecurityGroupRule
+            metadata:
+              name: {{ $name }}-ingress-{{ $subnet.resource.metadata.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: sg-ingress-{{ $subnet.resource.metadata.name }}
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                type: ingress
+                securityGroupIdRef:
+                  name: sg-{{ $name }}
+                protocol: tcp
+                fromPort: 6379
+                toPort: 6379
+                cidrBlocks:
+                  - {{ $subnet.resource.status.atProvider.cidrBlock }}
+                description: Allow Valkey access from {{ $subnet.resource.metadata.name }}
+            {{- end }}
 
     - step: prepare-credentials
       functionRef:
