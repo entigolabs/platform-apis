@@ -185,8 +185,27 @@ spec:
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $subnetGroupName := $elasticacheSubnetGroup.resource.status.atProvider.id }}
             {{- $region := $vpc.resource.status.atProvider.region }}
-            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.arn }}
-            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.arn }}
+            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
+            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.targetKeyArn }}
+
+            ---
+            {{- $existingSecret := getComposedResource . "auth-token" }}
+            {{- $authToken := "" }}
+            {{- if $existingSecret }}
+              {{- $authToken = index $existingSecret.resource.data "auth-token" | default "" }}
+            {{- end }}
+            {{- if eq $authToken "" }}
+              {{- $authToken = randAlphaNum 32 }}
+            {{- end }}
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ $name }}-auth-token
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: auth-token
+            type: Opaque
+            data:
+              auth-token: {{ $authToken | b64enc }}
 
             ---
             apiVersion: elasticache.aws.m.upbound.io/v1beta1
@@ -213,6 +232,10 @@ spec:
                 autoMinorVersionUpgrade: {{ $spec.autoMinorVersionUpgrade | quote }}
                 atRestEncryptionEnabled: "true"
                 transitEncryptionEnabled: true
+                authTokenSecretRef:
+                  key: auth-token
+                  name: {{ $name }}-auth-token
+                authTokenUpdateStrategy: "SET"
                 kmsKeyId: {{ $kmsDataKeyArn }}
                 maintenanceWindow: {{ $spec.maintenanceWindow }}
                 snapshotWindow: {{ $spec.snapshotWindow }}
