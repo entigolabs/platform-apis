@@ -1,0 +1,32 @@
+# Example ValkeyInstance
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
+metadata:
+  name: example-valkey
+spec: {}
+
+---
+# Example ValkeyInstance with deletion protection disabled
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
+metadata:
+  name: example-valkey
+spec:
+  deletionProtection: false
+
+---
+# Example ValkeyInstance with custom parameters
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
+metadata:
+  name: example-valkey
+spec:
+  deletionProtection: true
+  engineVersion: "8.2"
+  nodeType: "cache.t4g.small"
+  numCacheClusters: 3
+  autoMinorVersionUpgrade: true
+  maintenanceWindow: "mon:00:00-mon:03:00"
+  snapshotWindow: "00:00-03:00"
+  snapshotRetentionLimit: 10
+  parameterGroupName: "default.valkey8"
