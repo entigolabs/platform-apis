@@ -694,11 +694,11 @@ spec:
         kind: Input
         rules:
           - sequence:
-              - namespace-.*
-              - netpol-.*
-              - rbacrole-.*
-              - rb-.*
-              - launchtemplate-.*
-              - role-.*
-              - rpa-.*
-              - nodepool-.*
+            - namespace-.*
+            - netpol-.*
+            - rbacrole-.*
+            - rb-.*
+            - launchtemplate-.*
+            - role-.*
+            - rpa-.*
+            - nodepool-.*
