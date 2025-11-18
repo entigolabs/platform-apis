@@ -2,13 +2,11 @@ apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
   name: example-bucket
-spec:
-  parameters: {}
+spec: {}
 ---
 apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
   name: example-bucket
 spec:
-  parameters:
-    enableVersioning: true
+  enableVersioning: true

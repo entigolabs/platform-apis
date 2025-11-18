@@ -18,8 +18,7 @@ apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
   name: example-bucket
-spec:
-  parameters: {}
+spec: {}
 
 ---
 # Example S3Bucket manifest with versioning enabled
@@ -28,8 +27,7 @@ kind: S3Bucket
 metadata:
   name: example-bucket-with-versioning
 spec:
-  parameters:
-    enableVersioning: true
+  enableVersioning: true
 ```
 
 ## 2. Mount S3Bucket credentials to a container

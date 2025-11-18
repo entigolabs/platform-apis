@@ -21,10 +21,7 @@ spec:
             spec:
               type: object
               properties:
-                parameters:
-                  type: object
-                  properties:
-                    enableVersioning:
-                      description: Enable versioning for the S3 bucket
-                      type: boolean
-                      default: false
+                enableVersioning:
+                  description: Enable versioning for the S3 bucket
+                  type: boolean
+                  default: false
