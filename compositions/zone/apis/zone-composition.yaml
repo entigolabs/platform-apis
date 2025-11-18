@@ -93,7 +93,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
-              name: zone-tenancy-all
+              name: {{ $namespace.name }}-all
             subjects:
             - kind: Group
               name: contributor
@@ -111,7 +111,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
-              name: zone-tenancy-all
+              name: {{ $namespace.name }}-all
             subjects:
             - kind: Group
               name: maintainer
@@ -129,7 +129,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
-              name: zone-tenancy-read
+              name: {{ $namespace.name }}-read
             subjects:
             - kind: Group
               name: observer
