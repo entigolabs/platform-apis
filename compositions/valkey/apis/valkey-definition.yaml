@@ -34,11 +34,11 @@ spec:
                     Cache engine version. ElastiCache automatically uses the latest patch version.
                     For supported versions, see: https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/supported-engine-versions.html
                   default: "8.2"
-                nodeType:
+                instanceType:
                   type: string
                   description: |
-                    ElastiCache node type determines memory, compute, and network capacity.
-                    For a list of available node types, see: https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/CacheNodes.SupportedTypes.html
+                    ElastiCache instance type determines memory, compute, and network capacity.
+                    For a list of available instance types, see: https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/CacheNodes.SupportedTypes.html
                   default: cache.t4g.small
                 numCacheClusters:
                   type: integer
@@ -82,16 +82,10 @@ spec:
                     If not specified, the default parameter group for the engine version is used.
               required:
                 - engineVersion
-                - nodeType
+                - instanceType
             status:
               type: object
               properties:
-                arn:
-                  type: string
-                  description: ARN of the replication group
-                automaticFailoverEnabled:
-                  type: boolean
-                  description: Indicates automatic failover is enabled
                 primaryEndpoint:
                   type: object
                   description: Primary endpoint for the replication group
@@ -103,31 +97,5 @@ spec:
                   required:
                     - address
                     - port
-                readerEndpoint:
-                  type: object
-                  description: Reader endpoint for the replication group
-                  properties:
-                    address:
-                      type: string
-                    port:
-                      type: number
-                  required:
-                    - address
-                    - port
-                status:
-                  type: string
-                  description: Current state of the replication group
-                snapshotWindow:
-                  type: string
-                  description: Daily time range for snapshots
-                snapshotRetentionLimit:
-                  type: integer
-                  description: Number of days snapshots are retained
-                maintenanceWindow:
-                  type: string
-                  description: Weekly maintenance window
-                engineVersion:
-                  type: string
-                  description: Current engine version
           required:
             - spec

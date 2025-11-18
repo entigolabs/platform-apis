@@ -23,7 +23,7 @@ metadata:
 spec:
   deletionProtection: true
   engineVersion: "8.2"
-  nodeType: "cache.t4g.small"
+  instanceType: "cache.t4g.small"
   numCacheClusters: 3
   autoMinorVersionUpgrade: true
   maintenanceWindow: "mon:00:00-mon:03:00"

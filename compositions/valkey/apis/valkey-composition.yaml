@@ -82,7 +82,7 @@ spec:
                 engine: valkey
                 description: {{ $name }}
                 engineVersion: {{ $spec.engineVersion | quote }}
-                nodeType: {{ $spec.nodeType }}
+                nodeType: {{ $spec.instanceType }}
                 numCacheClusters: {{ $spec.numCacheClusters }}
                 automaticFailoverEnabled: true
                 multiAzEnabled: true
