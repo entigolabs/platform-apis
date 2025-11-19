@@ -1,0 +1,13 @@
+# Example 1
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis
+spec:
+  containers:
+    - name: redis
+      image: redis:alpine
+      command: ["sleep", "infinity"]
+      envFrom:
+        - secretRef:
+            name: example-valkey-credentials

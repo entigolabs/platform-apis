@@ -104,6 +104,8 @@ spec:
                 parameterGroupName: {{ $spec.parameterGroupName }}
                 {{- end }}
                 subnetGroupName: {{ $subnetGroupName | quote }}
+                securityGroupIdRefs:
+                  - name: {{ $name }}
                 tags:
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
@@ -116,7 +118,7 @@ spec:
             apiVersion: ec2.aws.m.upbound.io/v1beta1
             kind: SecurityGroup
             metadata:
-              name: sg-{{ $name }}
+              name: {{ $name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: security-group
             spec:
@@ -128,7 +130,7 @@ spec:
                 description: Security group for Valkey {{ $name }}
                 vpcId: {{ $vpc.resource.status.atProvider.id }}
                 tags:
-                  Name: sg-{{ $name }}
+                  Name: {{ $name }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -150,7 +152,7 @@ spec:
                 region: {{ $region }}
                 type: ingress
                 securityGroupIdRef:
-                  name: sg-{{ $name }}
+                  name: {{ $name }}
                 protocol: tcp
                 fromPort: 6379
                 toPort: 6379
