@@ -44,9 +44,9 @@ spec:
                   type: integer
                   description: |
                     Number of cache clusters in the replication group (1 primary + replicas).
-                    Minimum 2 required for automatic failover. Maximum 6 (1 primary + 5 replicas).
+                    Minimum 2 required (1 primary + 1 replica). Maximum 6 (1 primary + 5 replicas).
                   default: 2
-                  minimum: 1
+                  minimum: 2
                   maximum: 6
                 autoMinorVersionUpgrade:
                   type: boolean
