@@ -1,0 +1,99 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: msk-observed
+spec:
+  compositeTypeRef:
+    apiVersion: kafka.entigo.com/v1alpha1
+    kind: MSK
+  mode: Pipeline
+  pipeline:
+  - step: observe-msk
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          {{- $namespace := .observed.composite.resource.spec.namespace -}}
+          {{- $arn := .observed.composite.resource.spec.clusterARN -}}
+          {{- $parts := splitList "/" $arn -}}
+          {{- $clusterName := index $parts 1 -}}
+          {{- $parts := splitList ":" $arn -}}
+          {{- $region := index $parts 3 -}}
+          ---
+          apiVersion: kafka.aws.upbound.io/v1beta3
+          kind: Cluster
+          metadata:
+            namespace: {{ $namespace }}
+            annotations:
+              {{ setResourceNameAnnotation "msk-cluster" }}
+              crossplane.io/external-name: {{ $arn }}
+          spec:
+            managementPolicies: ["Observe"]
+            forProvider:
+              region: {{ $region }}
+            providerConfigRef:
+              name: crossplane-aws
+          ---
+          {{- if .observed.resources }}
+          {{- $mskCluster := index .observed.resources "msk-cluster" }}
+          {{- if $mskCluster }}
+          {{- if $mskCluster.resource.status.atProvider.bootstrapBrokersSaslIam }}
+          {{- $brokers := splitList "," $mskCluster.resource.status.atProvider.bootstrapBrokersSaslIam }}
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: {{ $clusterName }}-observed-config
+            namespace: {{ $namespace }}
+            annotations:
+              {{ setResourceNameAnnotation "kafka-config-secret" }}
+              gotemplating.fn.crossplane.io/ready: "True"
+          type: Opaque
+          stringData:
+            credentials: |
+              {
+                "brokers": [
+                  {{- range $i, $broker := $brokers }}
+                  {{- if $i }},{{ end }}
+                  "{{ $broker }}"
+                  {{- end }}
+                ],
+                "sasl": {
+                  "mechanism": "AWS-MSK-IAM"
+                },
+                "tlsEnabled": true,
+                "skipTlsVerify": false
+              }
+          ---
+          apiVersion: kafka.crossplane.io/v1alpha1
+          kind: ProviderConfig
+          metadata:
+            name: {{ $clusterName }}-observed
+            annotations:
+              {{ setResourceNameAnnotation "kafka-provider-config" }}
+              gotemplating.fn.crossplane.io/ready: "True"
+          spec:
+            credentials:
+              source: Secret
+              secretRef:
+                name: {{ $clusterName }}-observed-config
+                namespace: {{ $namespace }}
+                key: credentials
+          ---
+          apiVersion: kafka.entigo.com/v1alpha1
+          kind: MSK
+          status:
+            brokers: {{ $mskCluster.resource.status.atProvider.bootstrapBrokersSaslIam | quote }}
+            arn: {{ $mskCluster.resource.status.atProvider.arn | quote }}
+            region: {{ $region | quote }}
+            providerConfig: {{ $clusterName }}-observed
+          {{- end }}
+          {{- end }}
+          {{- end }}
+  - step: auto-ready
+    functionRef:
+      name: function-auto-ready

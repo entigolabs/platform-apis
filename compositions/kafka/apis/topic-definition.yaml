@@ -1,0 +1,54 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xtopics.kafka.entigo.com
+spec:
+  group: kafka.entigo.com
+  names:
+    kind: XTopic
+    plural: xtopics
+  claimNames:
+    kind: Topic
+    plural: topics
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                partitions:
+                  type: integer
+                  default: 3
+                  description: "Number of partitions"
+                replicationFactor:
+                  type: integer
+                  default: 3
+                  description: "Replication factor"
+                config:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  description: "Topic-level configuration"
+                
+                acls:
+                  type: array
+                  description: "ACLs specific to this topic"
+                  items:
+                    type: object
+                    properties:
+                      principal:
+                        type: string
+                      operation:
+                        type: string
+                
+                clusterName:
+                  type: string
+                  description: "Name of the MSK cluster name"
+              
+              required:
+                - clusterName

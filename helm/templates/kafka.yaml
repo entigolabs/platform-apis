@@ -1,0 +1,30 @@
+{{- if .Values.kafka.install }}
+
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-kafka
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+    - cluster.kafka.aws.upbound.io
+    - topic.topic.kafka.crossplane.io
+    - accesscontrollist.acl.kafka.crossplane.io
+    - secret.secretsmanager.aws.upbound.io
+    - secretversion.secretsmanager.aws.upbound.io
+    - secretpolicy.secretsmanager.aws.upbound.io
+    - singlescramsecretassociation.kafka.aws.upbound.io
+
+
+
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-kafka
+spec:
+  package: {{ .Values.kafka.package.image }}:{{ .Values.kafka.package.tag }}
+  skipDependencyResolution: true
+
+{{- end }}

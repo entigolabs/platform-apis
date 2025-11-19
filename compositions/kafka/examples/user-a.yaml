@@ -1,0 +1,11 @@
+---
+apiVersion: kafka.entigo.com/v1alpha1
+kind: KafkaUser
+metadata:
+  name: user-a
+  namespace: default
+spec:
+  clusterName: test-crossplane-cluster
+  consumerGroups:
+    - alpha
+    - gamma

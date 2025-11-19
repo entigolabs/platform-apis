@@ -1,0 +1,40 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: msks.kafka.entigo.com
+spec:
+  defaultCompositionRef:
+    name: msk-observed
+  scope: Cluster
+  group: kafka.entigo.com
+  names:
+    kind: MSK
+    plural: msks
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              clusterARN:
+                type: string
+              namespace:
+                type: string
+            required:
+            - clusterARN
+          status:
+            type: object
+            properties:
+              brokers:
+                type: string
+              arn:
+                type: string
+              region:
+                type: string
+              providerConfig:
+                type: string
