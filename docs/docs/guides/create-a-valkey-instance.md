@@ -177,28 +177,31 @@ AWS Secrets Manager secret with connection information
 
 ```bash
 # Example 1 and Example 2
-$ env
-PRIMARY_ENDPOINT=master.example-valkey.abc123.eun1.cache.amazonaws.com
-READER_ENDPOINT=replica.example-valkey.abc123.eun1.cache.amazonaws.com
-AUTH_TOKEN=verysecretauthtoken
-PORT=6379
-
 $ kubectl get pod
 NAME    READY   STATUS    RESTARTS   AGE
 redis   1/1     Running   0          10m
 
 $ kubectl exec -it redis -- sh
+/ env
+PRIMARY_ENDPOINT=master.example-valkey.abc123.eun1.cache.amazonaws.com
+READER_ENDPOINT=replica.example-valkey.abc123.eun1.cache.amazonaws.com
+AUTH_TOKEN=verysecretauthtoken
+PORT=6379
+
 / export REDISCLI_AUTH="$AUTH_TOKEN"
+
 / redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" PING
 PONG
+
 / redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" SET testkey "hello"
 OK
+
 / redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" GET testkey
 "hello"
 ```
 
 ```bash
 # Example 3
-$ cat /etc/credentials/credentials.json
+/ cat /etc/credentials/credentials.json
 {"AUTH_TOKEN": "verysecretauthtoken", "PORT": "6379", "PRIMARY_ENDPOINT": "master.example-valkey.abc123.eun1.cache.amazonaws.com", "READER_ENDPOINT": "replica.example-valkey.abc123.eun1.cache.amazonaws.com"}
 ```
