@@ -2,37 +2,54 @@
 sidebar_position: 1
 ---
 
-# Create an S3 bucket
+# Create a Valkey Instance
 
-This is an example of how to create an S3 bucket.
+This is an example of how to create a Valkey instance.
 
-## 1. Create an S3Bucket manifest
+## 1. Create a ValkeyInstance manifest
 
-Create an S3Bucket manifest and deploy it to the cluster. It is a good practice to include it in the application's Helm chart.
+Create an ValkeyInstance manifest and deploy it to the cluster. It is a good practice to include it in the application's Helm chart.
 
-AWS IAM user, role and policy are automatically created with the S3Bucket.
+Security group and security group rules which allow access to the ValkeyInstance from pods are created automatically.
 
 ```yaml
-# Example S3Bucket manifest
-apiVersion: storage.entigo.com/v1alpha1
-kind: S3Bucket
+# Example ValkeyInstance
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
 metadata:
-  name: example-bucket
+  name: example-valkey
 spec: {}
 
 ---
-# Example S3Bucket manifest with versioning enabled
-apiVersion: storage.entigo.com/v1alpha1
-kind: S3Bucket
+# Example ValkeyInstance with deletion protection disabled
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
 metadata:
-  name: example-bucket-with-versioning
+  name: example-valkey-no-deletion-protection
 spec:
-  enableVersioning: true
+  deletionProtection: false
+
+---
+# Example ValkeyInstance with custom settings
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
+metadata:
+  name: example-valkey-with-custom-settings
+spec:
+  deletionProtection: true
+  engineVersion: '8.2'
+  instanceType: 'cache.t4g.small'
+  numCacheClusters: 3
+  autoMinorVersionUpgrade: true
+  maintenanceWindow: 'mon:00:00-mon:03:00'
+  snapshotWindow: '05:00-06:00'
+  snapshotRetentionLimit: 10
+  parameterGroupName: 'default.valkey8'
 ```
 
-## 2. Mount S3Bucket credentials to a container
+## 2. Mount ValkeyInstance credentials to a container
 
-IAM credentials and bucket information are stored in a Kubernetes secret and AWS Secrets Manager secret `<S3Bucket-name>-credentials`
+Connection information for ValkeyInstance is stored in a Kubernetes secret and AWS Secrets Manager secret `<ValkeyInstance-name>-credentials`
 
 For more information about Secrets in Kubernetes, see [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/).
 
@@ -41,68 +58,60 @@ For more information about Secrets in Kubernetes, see [Kubernetes documentation]
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: redis
 spec:
   containers:
-    - name: nginx
-      image: nginx:alpine
-      ports:
-        - containerPort: 80
+    - name: redis
+      image: redis:alpine
+      command: ['sleep', 'infinity']
       envFrom:
         - secretRef:
-            name: example-bucket-credentials
+            name: example-valkey-credentials
 
 ---
 # Example 2
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: redis
 spec:
   containers:
-    - name: nginx
-      image: nginx:alpine
-      ports:
-        - containerPort: 80
+    - name: redis
+      image: redis:alpine
+      command: ['sleep', 'infinity']
       env:
-        - name: AWS_ACCESS_KEY_ID
+        - name: PRIMARY_ENDPOINT
           valueFrom:
             secretKeyRef:
-              name: example-bucket-credentials
-              key: AWS_ACCESS_KEY_ID
-        - name: AWS_SECRET_ACCESS_KEY
+              name: example-valkey-credentials
+              key: PRIMARY_ENDPOINT
+        - name: READER_ENDPOINT
           valueFrom:
             secretKeyRef:
-              name: example-bucket-credentials
-              key: AWS_SECRET_ACCESS_KEY
-        - name: BUCKET_REGION
+              name: example-valkey-credentials
+              key: READER_ENDPOINT
+        - name: AUTH_TOKEN
           valueFrom:
             secretKeyRef:
-              name: example-bucket-credentials
-              key: BUCKET_REGION
-        - name: BUCKET_NAME
+              name: example-valkey-credentials
+              key: AUTH_TOKEN
+        - name: PORT
           valueFrom:
             secretKeyRef:
-              name: example-bucket-credentials
-              key: BUCKET_NAME
-        - name: BUCKET_ARN
-          valueFrom:
-            secretKeyRef:
-              name: example-bucket-credentials
-              key: BUCKET_ARN
+              name: example-valkey-credentials
+              key: PORT
 
 ---
 # Example 3
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: redis
 spec:
   containers:
-    - name: nginx
-      image: nginx:alpine
-      ports:
-        - containerPort: 80
+    - name: redis
+      image: redis:alpine
+      command: ['sleep', 'infinity']
       volumeMounts:
         - name: credentials
           mountPath: /etc/credentials
@@ -110,7 +119,7 @@ spec:
   volumes:
     - name: credentials
       secret:
-        secretName: example-bucket-credentials
+        secretName: example-valkey-credentials
         items:
           - key: credentials.json
             path: credentials.json
@@ -118,69 +127,78 @@ spec:
 
 ## 3. Result
 
-### 3.1 S3Bucket
+### 3.1 ValkeyInstance
 
-S3Bucket created in Kubernetes
+ValkeyInstance created in Kubernetes
 
 ```yaml
-$ kubectl get s3bucket
-NAME                 SYNCED   READY   COMPOSITION                    AGE
-example-bucket       True     True    s3buckets.storage.entigo.com   1h27m
+$ kubectl get valkey
+NAME             SYNCED   READY   COMPOSITION                           AGE
+example-valkey   True     True    valkeyinstances.database.entigo.com   20m29s
 ```
 
-S3 bucket created in AWS
+Valkey instance created in AWS
 
-![](img/example-s3bucket-1.png)
+![](img/example-valkey-1.png)
 
-### 3.2 Secrets with IAM credentials and bucket information
+### 3.2 Secret with connection information
 
-Kubernetes secret with IAM credentials and bucket information
+Kubernetes secret with connection information
 
 ```yaml
-$ kubectl get secret
-NAME                             TYPE                                DATA   AGE
-example-bucket-credentials       Opaque                              6      1h20m
+~ kubectl get secret
+NAME                         TYPE                                DATA   AGE
+example-valkey-credentials   Opaque                              5      22m
 ```
 
 ```yaml
-$ kubectl get secret example-bucket-credentials -o yaml
+$ kubectl get secret example-valkey-credentials -o yaml
 apiVersion: v1
 kind: Secret
 metadata:
   annotations:
     crossplane.io/composition-resource-name: credentials
-  labels:
-    crossplane.io/composite: example-bucket
-  name: example-bucket-credentials
+  name: example-valkey-credentials
   namespace: <namespace>
 type: Opaque
 data:
-  AWS_ACCESS_KEY_ID: <base64-encoded-access-key>
-  AWS_SECRET_ACCESS_KEY: <base64-encoded-secret-access-key>
-  BUCKET_ARN: <base64-encoded-bucket-arn>
-  BUCKET_NAME: <base64-encoded-bucket-name>
-  BUCKET_REGION: <base64-encoded-bucket-region>
+  PRIMARY_ENDPOINT: <base64-encoded-primary-endpoint>
+  READER_ENDPOINT: <base64-encoded-reader-endpoint>
+  AUTH_TOKEN: <base64-encoded-auth-token>
+  PORT: <base64-encoded-port>
   credentials.json: <base64-encoded-credentials>
 ```
 
-AWS Secrets Manager secret with IAM credentials and bucket information
+AWS Secrets Manager secret with connection information
 
-![](img/example-s3bucket-2.png)
+![](img/example-valkey-2.png)
 
 ### 3.3 Secrets mounted to a container
 
 ```bash
 # Example 1 and Example 2
 $ env
-AWS_ACCESS_KEY_ID=AKIAXXXXXXXXXXXXXXX
-AWS_SECRET_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-BUCKET_ARN=arn:aws:s3:::example-bucket
-BUCKET_NAME=example-bucket
-BUCKET_REGION=eu-north-1
+PRIMARY_ENDPOINT=master.example-valkey.abc123.eun1.cache.amazonaws.com
+READER_ENDPOINT=replica.example-valkey.abc123.eun1.cache.amazonaws.com
+AUTH_TOKEN=verysecretauthtoken
+PORT=6379
+
+$ kubectl get pod
+NAME    READY   STATUS    RESTARTS   AGE
+redis   1/1     Running   0          10m
+
+$ kubectl exec -it redis -- sh
+/ export REDISCLI_AUTH="$AUTH_TOKEN"
+/ redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" PING
+PONG
+/ redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" SET testkey "hello"
+OK
+/ redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" GET testkey
+"hello"
 ```
 
 ```bash
 # Example 3
 $ cat /etc/credentials/credentials.json
-{"AWS_ACCESS_KEY_ID": "AKIAXXXXXXXXXXXXXXX", "AWS_SECRET_ACCESS_KEY": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "BUCKET_REGION": "eu-north-1", "BUCKET_ARN": "arn:aws:s3:::example-bucket", "BUCKET_NAME": "example-bucket"}
+{"AUTH_TOKEN": "verysecretauthtoken", "PORT": "6379", "PRIMARY_ENDPOINT": "master.example-valkey.abc123.eun1.cache.amazonaws.com", "READER_ENDPOINT": "replica.example-valkey.abc123.eun1.cache.amazonaws.com"}
 ```

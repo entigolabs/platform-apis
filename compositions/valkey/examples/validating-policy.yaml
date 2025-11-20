@@ -1,7 +1,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
-  name: valkey-deletion-protection
+  name: platform-apis-valkey
 spec:
   failurePolicy: Fail
   matchConstraints:
@@ -18,9 +18,9 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
 metadata:
-  name: valkey-deletion-protection-binding
+  name: platform-apis-valkey
 spec:
-  policyName: valkey-deletion-protection
+  policyName: platform-apis-valkey
   validationActions: [Deny]
   matchResources:
     namespaceSelector: {}
