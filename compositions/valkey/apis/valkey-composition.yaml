@@ -72,8 +72,6 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: replication-group
                 crossplane.io/external-name: {{ $name }}
-              labels:
-                crossplane.io/composite: {{ $name }}
               name: {{ $name }}
             spec:
               providerConfigRef:
