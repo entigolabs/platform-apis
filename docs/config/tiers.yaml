@@ -2,6 +2,8 @@ CronJob: [Standard, Premium]
 
 PostgreSQLInstance: [Standard, Premium]
 
+ValkeyInstance: [Standard, Premium]
+
 Repository: [Standard, Premium]
 
 WebAccess: [Basic, Standard, Premium]

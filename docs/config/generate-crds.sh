@@ -11,6 +11,7 @@ cp ../../compositions/webaccess/apis/webaccess-definition.yaml crds/
 cp ../../compositions/webapp/apis/webapp-definition.yaml crds/
 cp ../../compositions/zone/apis/zone-definition.yaml crds/
 cp ../../compositions/s3bucket/apis/s3bucket-definition.yaml crds/
+cp ../../compositions/valkey/apis/valkey-definition.yaml crds/
 
 for i in `find crds/ -type f`; do 
 
