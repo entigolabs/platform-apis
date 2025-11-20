@@ -18,7 +18,6 @@ spec:
       source: Inline
       inline:
         template: |
-          {{- $namespace := .observed.composite.resource.spec.namespace -}}
           {{- $arn := .observed.composite.resource.spec.clusterARN -}}
           {{- $parts := splitList "/" $arn -}}
           {{- $clusterName := index $parts 1 -}}
@@ -28,7 +27,6 @@ spec:
           apiVersion: kafka.aws.upbound.io/v1beta3
           kind: Cluster
           metadata:
-            namespace: {{ $namespace }}
             annotations:
               {{ setResourceNameAnnotation "msk-cluster" }}
               crossplane.io/external-name: {{ $arn }}
@@ -48,7 +46,7 @@ spec:
           kind: Secret
           metadata:
             name: {{ $clusterName }}-observed-config
-            namespace: {{ $namespace }}
+            namespace: crossplane-kafka
             annotations:
               {{ setResourceNameAnnotation "kafka-config-secret" }}
               gotemplating.fn.crossplane.io/ready: "True"
@@ -81,7 +79,7 @@ spec:
               source: Secret
               secretRef:
                 name: {{ $clusterName }}-observed-config
-                namespace: {{ $namespace }}
+                namespace: crossplane-kafka
                 key: credentials
           ---
           apiVersion: kafka.entigo.com/v1alpha1

@@ -4,4 +4,3 @@ metadata:
   name: test-crossplane-cluster-observed
 spec:
   clusterARN: "" # MSK arn
-  namespace: default

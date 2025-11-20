@@ -23,8 +23,6 @@ spec:
             properties:
               clusterARN:
                 type: string
-              namespace:
-                type: string
             required:
             - clusterARN
           status:
