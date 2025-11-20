@@ -87,15 +87,7 @@ spec:
               type: object
               properties:
                 primaryEndpoint:
-                  type: object
-                  description: Primary endpoint for the replication group
-                  properties:
-                    address:
-                      type: string
-                    port:
-                      type: number
-                  required:
-                    - address
-                    - port
+                  type: string
+                  description: Valkey Instance primary endpoint
           required:
             - spec

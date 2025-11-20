@@ -161,6 +161,25 @@ spec:
                 description: Allow Valkey access from {{ $subnet.resource.metadata.name }}
             {{- end }}
 
+    - step: patch-status-fields
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: replication-group
+            patches:
+              - type: CombineToComposite
+                combine:
+                  variables:
+                    - fromFieldPath: status.atProvider.primaryEndpointAddress
+                    - fromFieldPath: status.atProvider.port
+                  strategy: string
+                  string:
+                    fmt: "%s:%.0f"
+                toFieldPath: status.primaryEndpoint
+
     - step: prepare-credentials
       functionRef:
         name: function-kcl
