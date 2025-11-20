@@ -8,12 +8,19 @@ database:
     configKMSKey: config
     vpc: vpc
     subnetGroup: database
+    elasticacheSubnetGroup: elasticache
     tags: {}
 
 postgresql:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-postgresql
+    tag: v0.0.0
+
+valkey:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-valkey
     tag: v0.0.0
 
 artifact:
