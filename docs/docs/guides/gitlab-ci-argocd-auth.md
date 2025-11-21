@@ -10,7 +10,7 @@ For more information about authentication in ArgoCD, see [ArgoCD documentation](
 
 ### 1.Requirements
 
-[Zone](https://docs.entigo.com/docs/guides/create-a-zone)
+Fully functional implementation of [Zone](https://docs.entigo.com/docs/guides/create-a-zone)
 
 ### 2. Create a JWT token in ArgoCD
 
