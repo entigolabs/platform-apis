@@ -20,6 +20,8 @@ require (
 	k8s.io/apimachinery v0.33.2
 )
 
+require github.com/crossplane-contrib/provider-sql v0.13.0
+
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
@@ -30,7 +32,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/crossplane/crossplane-runtime v1.20.0 // indirect
-	github.com/crossplane/upjet/v2 v2.0.0-20250804114937-4c6bfc216d3b // indirect
+	github.com/crossplane/upjet/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
