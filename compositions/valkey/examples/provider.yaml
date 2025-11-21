@@ -1,0 +1,10 @@
+
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: upbound-provider-aws-elasticache
+spec:
+  skipDependencyResolution: true
+  package: xpkg.upbound.io/upbound/provider-aws-elasticache:v2.2.0
+  runtimeConfigRef:
+    name: crossplane-aws

@@ -9,6 +9,7 @@ data:
   configKMSKey: {{ .Values.database.environmentConfig.configKMSKey }}
   vpc: {{ .Values.database.environmentConfig.vpc }}
   subnetGroup: {{ .Values.database.environmentConfig.subnetGroup }}
+  elasticacheSubnetGroup: {{ .Values.database.environmentConfig.elasticacheSubnetGroup }}
   {{- if .Values.database.environmentConfig.tags }}
   tags: {{- toYaml .Values.database.environmentConfig.tags | nindent 4 }}
   {{- else }}

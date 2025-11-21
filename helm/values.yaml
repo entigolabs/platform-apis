@@ -8,12 +8,19 @@ database:
     configKMSKey: config
     vpc: vpc
     subnetGroup: database
+    elasticacheSubnetGroup: elasticache
     tags: {}
 
 postgresql:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-postgresql
+    tag: v0.0.0
+
+valkey:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-valkey
     tag: v0.0.0
 
 artifact:
@@ -118,6 +125,10 @@ functions:
     install: true
     image: xpkg.upbound.io/crossplane-contrib/function-kcl
     tag: v0.11.6
+  function-patch-and-transform:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
+    tag: v0.9.1
 
 extraFunctions: []
 #  - name: function-foo
