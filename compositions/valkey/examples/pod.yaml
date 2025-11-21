@@ -11,3 +11,66 @@ spec:
       envFrom:
         - secretRef:
             name: example-valkey-credentials
+
+#
+# $ kubectl exec -it redis -- sh
+# / export REDISCLI_AUTH="$AUTH_TOKEN"
+# / redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" PING
+# / redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" SET testkey "hello"
+# / redis-cli --tls -h "$PRIMARY_ENDPOINT" -p "$PORT" GET testkey
+
+---
+# Example 2
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis
+spec:
+  containers:
+    - name: redis
+      image: redis:alpine
+      command: ["sleep", "infinity"]
+      env:
+        - name: PRIMARY_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: example-valkey-credentials
+              key: PRIMARY_ENDPOINT
+        - name: READER_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: example-valkey-credentials
+              key: READER_ENDPOINT
+        - name: AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: example-valkey-credentials
+              key: AUTH_TOKEN
+        - name: PORT
+          valueFrom:
+            secretKeyRef:
+              name: example-valkey-credentials
+              key: PORT
+
+---
+# Example 3
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis
+spec:
+  containers:
+    - name: redis
+      image: redis:alpine
+      command: ["sleep", "infinity"]
+      volumeMounts:
+        - name: credentials
+          mountPath: /etc/credentials
+          readOnly: true
+  volumes:
+    - name: credentials
+      secret:
+        secretName: example-valkey-credentials
+        items:
+          - key: credentials.json
+            path: credentials.json
