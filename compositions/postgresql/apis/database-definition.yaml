@@ -1,0 +1,41 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: postgresqldatabases.database.entigo.com
+spec:
+  scope: Namespaced
+  group: database.entigo.com
+  names:
+    kind: PostgreSQLDatabase
+    plural: postgresqldatabases
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          properties:
+            spec:
+              type: object
+              properties:
+                owner:
+                  description: Owner role name
+                  type: string
+                instanceRef:
+                  type: object
+                  properties:
+                    name:
+                      description: Name of the database instance the db should be created in
+                      type: string
+                  required:
+                    - name
+                extensions:
+                  description: List of PostgreSQL extensions to enable
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - postgis
+              required:
+                - owner
+                - instanceRef

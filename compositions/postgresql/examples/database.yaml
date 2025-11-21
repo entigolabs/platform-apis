@@ -1,0 +1,9 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLDatabase
+metadata:
+  name: database
+  namespace: namespace
+spec:
+  owner: owner
+  instanceRef:
+    name: pginstance

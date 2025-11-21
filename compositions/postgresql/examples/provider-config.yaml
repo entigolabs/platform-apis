@@ -1,0 +1,12 @@
+---
+apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: pginstance-provider-config
+  namespace: namespace
+spec:
+  credentials:
+    source: PostgreSQLConnectionSecret
+    connectionSecretRef:
+      name: pginstance-dbadmin
+  sslMode: require
