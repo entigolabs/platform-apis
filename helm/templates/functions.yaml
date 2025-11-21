@@ -46,6 +46,18 @@ spec:
   package: {{ (index .Values.functions "function-kcl").image }}:{{ (index .Values.functions "function-kcl").tag }}
 {{- end }}
 
+{{- if (index .Values.functions "function-patch-and-transform").install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ (index .Values.functions "function-patch-and-transform").image }}:{{ (index .Values.functions "function-patch-and-transform").tag }}
+{{- end }}
+
 {{- range .Values.extraFunctions }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1
