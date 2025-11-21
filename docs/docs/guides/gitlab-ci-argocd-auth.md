@@ -8,7 +8,7 @@ This is an example of how to create a JWT token in ArgoCD and use it in GitLab C
 
 For more information about authentication in ArgoCD, see [ArgoCD documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/security/#authentication).
 
-## 1.Requirements
+### 1.Requirements
 
 [Zone](https://docs.entigo.com/docs/guides/create-a-zone)
 
