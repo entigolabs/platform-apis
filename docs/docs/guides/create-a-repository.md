@@ -12,16 +12,6 @@ Create a Repository manifest and deploy it to the cluster.
 
 It is a good practice to manage Repositories using GitOps methodology, similar to how applications are deployed.
 
-By default, `metadata.name` is used as the repository external name and no path (prefix) is used.
-
-Repository name and path can be overridden using `spec.name` and `spec.path` fields
-
-Repository name is generated as follows:
-
-`<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.name>`
-
-`<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.path>/<spec.name>`
-
 ```yaml
 # Example Repository: <aws-account>.dkr.ecr.<aws-region>.amazonaws.com/example-repository
 apiVersion: artifact.entigo.com/v1alpha1
@@ -57,6 +47,25 @@ metadata:
   name: example-repository
 spec:
   name: example-repository-name-override
+```
+
+By default, `metadata.name` is used as the repository external name and no path (prefix) is used.
+
+Repository name and path can be overridden using `spec.name` and `spec.path` fields.
+
+Repository name is generated as follows:
+
+```yaml
+# If spec.name is not set
+<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<metadata.name>
+
+# If spec.name is set
+<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.name>
+
+# If spec.path is set
+<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.path>/<metadata.name>
+# or
+<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.path>/<spec.name>
 ```
 
 ## 2. Result
