@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"regexp"
 	"strings"
+	"time"
 
 	"dario.cat/mergo"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -18,8 +19,12 @@ import (
 )
 
 func GenerateFNVHash(uid types.UID) string {
+	return GenerateHash([]byte(uid))
+}
+
+func GenerateHash(bytes []byte) string {
 	hasher := fnv.New32a()
-	_, _ = hasher.Write([]byte(uid))
+	_, _ = hasher.Write(bytes)
 	return strings.ToLower(fmt.Sprintf("%x", hasher.Sum32()))
 }
 
@@ -93,6 +98,21 @@ func ExtractRequiredResource(requiredResources map[string][]resource.Required, k
 		return fmt.Errorf("cannot convert required resource %s: %w", key, err)
 	}
 	return nil
+}
+
+func ExtractResources[T runtime.Object](requiredResources map[string][]resource.Required, key string) ([]T, error) {
+	if requiredResources == nil {
+		return nil, errors.Errorf("%s not found in required resources", key)
+	}
+	var result []T
+	for _, req := range requiredResources[key] {
+		obj := new(T)
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(req.Resource.Object, obj); err != nil {
+			return nil, fmt.Errorf("cannot convert required resource %s: %w", key, err)
+		}
+		result = append(result, *obj)
+	}
+	return result, nil
 }
 
 func SetString(ptr *string, field *string) {
@@ -172,3 +192,17 @@ func defaultCrossplaneReadyStatus(observed *composed.Unstructured) resource.Read
 	}
 	return resource.ReadyTrue
 }
+
+// These helper functions should be deprecated with Go 1.26 changes to the `new` function.
+
+func StringPtr(s string) *string     { return &s }
+func BoolPtr(b bool) *bool           { return &b }
+func IntPtr(i int) *int              { return &i }
+func Float32Ptr(f float32) *float32  { return &f }
+func Float64Ptr(f float64) *float64  { return &f }
+func Int32Ptr(i int32) *int32        { return &i }
+func Int64Ptr(i int64) *int64        { return &i }
+func UintPtr(u uint) *uint           { return &u }
+func Uint32Ptr(u uint32) *uint32     { return &u }
+func Uint64Ptr(u uint64) *uint64     { return &u }
+func TimePtr(t time.Time) *time.Time { return &t }

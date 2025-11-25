@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"regexp"
 	"runtime/debug"
+	"strings"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -150,7 +152,7 @@ func (f *Function) addDesiredComposedResources(
 	if err != nil {
 		return err
 	}
-	processedNames, err := f.addDesiredSequenceResources(compositeResource, observed, desired, allGeneratedObjects)
+	processedNames, err := f.addDesiredSequenceResources(object, observed, desired, allGeneratedObjects)
 	if err != nil {
 		return err
 	}
@@ -166,7 +168,7 @@ func (f *Function) addDesiredComposedResources(
 }
 
 func (f *Function) addDesiredSequenceResources(
-	compositeResource *resource.Composite,
+	object runtime.Object,
 	observed map[resource.Name]resource.ObservedComposed,
 	desired map[resource.Name]*resource.DesiredComposed,
 	allGeneratedObjects map[string]runtime.Object,
@@ -174,9 +176,14 @@ func (f *Function) addDesiredSequenceResources(
 	processedNames := NewSet[string]()
 	previousStepIsReady := true
 
-	for _, step := range f.groupService.GetSequence(compositeResource.Resource) {
+	sequence := f.groupService.GetSequence(object)
+	for _, step := range sequence.Steps {
+		currentStepResources, err := getStepResourceNames(step, sequence.Regex, allGeneratedObjects)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get step resource names: %w", err)
+		}
 		currentStepAllReady := true
-		for _, name := range step.Objects {
+		for name := range currentStepResources {
 			obj, ok := allGeneratedObjects[name]
 			if !ok {
 				f.log.Info("Skipping sequence object not in generated objects", "name", name)
@@ -188,7 +195,7 @@ func (f *Function) addDesiredSequenceResources(
 				currentStepAllReady = false
 				continue
 			}
-			if err := f.addDesiredResource(desired, name, obj, observed); err != nil {
+			if err = f.addDesiredResource(desired, name, obj, observed); err != nil {
 				return nil, fmt.Errorf("cannot add desired resource %s: %w", name, err)
 			}
 			if desired[resource.Name(name)].Ready != resource.ReadyTrue {
@@ -198,6 +205,36 @@ func (f *Function) addDesiredSequenceResources(
 		previousStepIsReady = currentStepAllReady
 	}
 	return processedNames, nil
+}
+
+func getStepResourceNames(step Step, isRegex bool, allGeneratedObjects map[string]runtime.Object) (Set[string], error) {
+	currentStepResources := NewSet[string]()
+	for _, nameOrPattern := range step.Objects {
+		if !isRegex {
+			currentStepResources[nameOrPattern] = true
+			continue
+		}
+		regex, err := getPatternRegex(nameOrPattern)
+		if err != nil {
+			return nil, fmt.Errorf("cannot compile sequence regex %s: %w", regex, err)
+		}
+		for key := range allGeneratedObjects {
+			if regex.MatchString(key) {
+				currentStepResources[key] = true
+			}
+		}
+	}
+	return currentStepResources, nil
+}
+
+func getPatternRegex(pattern string) (*regexp.Regexp, error) {
+	if !strings.HasPrefix(pattern, "^") {
+		pattern = "^" + pattern
+	}
+	if !strings.HasSuffix(pattern, "$") {
+		pattern = pattern + "$"
+	}
+	return regexp.Compile(pattern)
 }
 
 func (f *Function) addDesiredResource(desired map[resource.Name]*resource.DesiredComposed, name string, obj runtime.Object, observed map[resource.Name]resource.ObservedComposed) error {

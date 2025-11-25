@@ -67,8 +67,8 @@ func addWorkloadSpecValues(workload v1alpha1.Workload, required map[string][]res
 	return nil
 }
 
-func (g *GroupImpl) GetSequence(_ *composite.Unstructured) []base.Step {
-	return nil
+func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
+	return base.Sequence{}
 }
 
 func GetEnvironment(required map[string][]resource.Required) (apis.Environment, error) {

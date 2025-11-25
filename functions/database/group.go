@@ -38,18 +38,19 @@ func (g *GroupImpl) generatePostgreSQL(obj runtime.Object, required map[string][
 	return service.GeneratePgInstanceObjects(*obj.(*v1alpha1.PostgreSQLInstance), required, observed)
 }
 
-func (g *GroupImpl) GetSequence(compositeResource *composite.Unstructured) []base.Step {
-	switch compositeResource.GetKind() {
+func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
+	switch object.GetObjectKind().GroupVersionKind().Kind {
 	case apis.XRKindPostgreSQL:
-		setHash := base.GenerateFNVHash(compositeResource.GetUID())
-		sg := service.GetSGName(compositeResource.GetName(), setHash)
-		sgIngress := service.GetSGIngressName(compositeResource.GetName(), setHash)
-		sgEgress := service.GetSGEgressName(compositeResource.GetName(), setHash)
-		rdsInstance := service.GetRDSInstanceName(compositeResource.GetName(), setHash)
-		es := service.GetESName(compositeResource.GetName(), setHash)
-		return base.NewSequence([]string{sg, sgIngress, sgEgress}, []string{rdsInstance}, []string{es})
+		instance := *object.(*v1alpha1.PostgreSQLInstance)
+		setHash := base.GenerateFNVHash(instance.GetUID())
+		sg := service.GetSGName(instance.GetName(), setHash)
+		sgIngress := service.GetSGIngressName(instance.GetName(), setHash)
+		sgEgress := service.GetSGEgressName(instance.GetName(), setHash)
+		rdsInstance := service.GetRDSInstanceName(instance.GetName(), setHash)
+		es := service.GetESName(instance.GetName(), setHash)
+		return base.NewSequence(false, []string{sg, sgIngress, sgEgress}, []string{rdsInstance}, []string{es})
 	default:
-		return nil
+		return base.Sequence{}
 	}
 }
 

@@ -34,8 +34,8 @@ func (g *GroupImpl) generateWebAccess(obj runtime.Object, required map[string][]
 	return service.GenerateIstioObjects(*obj.(*v1alpha1.WebAccess), required)
 }
 
-func (g *GroupImpl) GetSequence(_ *composite.Unstructured) []base.Step {
-	return nil
+func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
+	return base.Sequence{}
 }
 
 func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {

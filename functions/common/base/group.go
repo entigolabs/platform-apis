@@ -24,24 +24,31 @@ type ResourceHandler struct {
 	Generate    func(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error)
 }
 
+type Sequence struct {
+	Regex bool
+	Steps []Step
+}
+
 type Step struct {
 	Objects []string
 }
 
-func NewSequence(stepObjects ...[]string) []Step {
+// NewSequence creates a new Sequence from the provided step objects.
+// Regex patterns will be prefixed with ^ and suffixed with $
+func NewSequence(regex bool, stepObjects ...[]string) Sequence {
 	seq := make([]Step, 0, len(stepObjects))
 	for _, objects := range stepObjects {
 		if len(objects) > 0 {
 			seq = append(seq, Step{Objects: objects})
 		}
 	}
-	return seq
+	return Sequence{Steps: seq, Regex: regex}
 }
 
 type GroupService interface {
 	GetResourceHandlers() map[string]ResourceHandler
 	// GetSequence Objects not listed in the sequence are created during the first step.
-	GetSequence(compositeResource *composite.Unstructured) []Step
+	GetSequence(object runtime.Object) Sequence
 	GetReadyStatus(observed *composed.Unstructured) resource.Ready
 	GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error)
 	GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error)
