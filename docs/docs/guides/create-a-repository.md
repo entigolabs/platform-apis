@@ -14,7 +14,9 @@ It is a good practice to manage Repositories using GitOps methodology, similar t
 
 By default, `metadata.name` is used as the repository external name and no path (prefix) is used.
 
-Repository name and path can be overridden using `spec.name` and `spec.path` fields and generated as follows:
+Repository name and path can be overridden using `spec.name` and `spec.path` fields
+
+Repository name is generated as follows:
 
 `<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.name>`
 
