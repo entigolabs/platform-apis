@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Create a zone
+# Create a Zone
 
 This is an example of how to create a zone.
 
