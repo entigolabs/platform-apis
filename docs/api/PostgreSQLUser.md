@@ -11,10 +11,6 @@ import TabItem from '@theme/TabItem';
 This feature is available for the following tiers: **Standard, Premium**.
 :::
 
-:::note Prerequisites
-This feature requires PostgreSQLInstance applied first.
-:::
-
 
 Packages:
 

@@ -11,10 +11,6 @@ import TabItem from '@theme/TabItem';
 This feature is available for the following tiers: **Standard, Premium**.
 :::
 
-:::note Prerequisites
-This feature requires PostgreSQLInstance and PostgreSQLUser (owner role) applied first.
-:::
-
 
 Packages:
 
@@ -71,7 +67,7 @@ Resource Types:
         <td>
           <br/>
         </td>
-        <td>true</td>
+        <td>false</td>
       </tr></tbody>
 </table>
 
@@ -93,26 +89,25 @@ Resource Types:
         </tr>
     </thead>
     <tbody><tr>
-        <td><b>owner</b></td>
-        <td>string</td>
-        <td>
-          Owner role name
-        </td>
-        <td>true</td>
-      </tr><tr>
         <td><b><a href="#postgresqldatabasespecinstanceref">instanceRef</a></b></td>
         <td>object</td>
         <td>
-<br/>
+          <br/>
+        </td>
+        <td>true</td>
+      </tr><tr>
+        <td><b>owner</b></td>
+        <td>string</td>
+        <td>
+          Owner role name<br/>
         </td>
         <td>true</td>
       </tr><tr>
         <td><b>extensions</b></td>
-        <td>[]string</td>
+        <td>[]enum</td>
         <td>
-          List of PostgreSQL extensions to enable
-<br/>
-<br/>
+          List of PostgreSQL extensions to enable<br/>
+          <br/>
             <i>Enum</i>: postgis<br/>
         </td>
         <td>false</td>
@@ -121,7 +116,7 @@ Resource Types:
 
 
 ### PostgreSQLDatabase.spec.instanceRef
-<sup><sup>[↩ Parent](#postgresqldatabasestatus)</sup></sup>
+<sup><sup>[↩ Parent](#postgresqldatabasespec)</sup></sup>
 
 
 
@@ -140,8 +135,7 @@ Resource Types:
         <td><b>name</b></td>
         <td>string</td>
         <td>
-          Name of the database instance the database should be created in
-<br/>
+          Name of the database instance the db should be created in<br/>
         </td>
         <td>true</td>
       </tr></tbody>
