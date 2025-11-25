@@ -10,3 +10,17 @@ spec:
   instanceRef:
     name: basic-instance
 ```
+
+### Prerequisites
+The PostgreSQL User requires the following resource applied:
+
+#### PostgreSQLInstance
+```yaml
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: basic-instance
+spec:
+  storageGB: 20
+  version: "17.2"
+```

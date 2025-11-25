@@ -157,6 +157,33 @@ spec:
   instanceRef:
     name: basic-instance
 ```
+
+### Prerequisites {#example-prerequisites}
+The PostgreSQL Database requires the following resources applied:
+
+#### PostgreSQLInstance
+```yaml
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: basic-instance
+spec:
+  storageGB: 20
+  version: "17.2"
+```
+
+#### PostgreSQLUser (Owner Role)
+```yaml
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLUser
+metadata:
+  name: owner
+spec:
+  instanceRef:
+    name: basic-instance
+  createDb: true
+  createRole: true
+```
 </TabItem>
 
 </Tabs>
