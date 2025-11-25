@@ -1,8 +1,7 @@
 apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLUser
 metadata:
-  name: user
-  namespace: namespace
+  name: user-example
 spec:
   instanceRef:
-    name: pginstance
+    name: postgresql-example

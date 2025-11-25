@@ -1,8 +1,0 @@
-apiVersion: pkg.crossplane.io/v1
-kind: Provider
-metadata:
-  name: provider-sql
-spec:
-  package: index.docker.io/entigolabs/provider-sql:v0.13.0
-  packagePullSecrets:
-    - name: regcred
