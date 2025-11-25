@@ -8,7 +8,9 @@ This is an example of how to create a Repository.
 
 ## 1. Create a Repository manifest
 
-Create an Repository manifest and deploy it to the cluster. It is a good practice to manage Repositories using GitOps methodology, similar to how applications are deployed.
+Create a Repository manifest and deploy it to the cluster.
+
+It is a good practice to manage Repositories using GitOps methodology, similar to how applications are deployed.
 
 ```yaml
 # Example Repository: <aws-account>.dkr.ecr.<aws-region>.amazonaws.com/example-repository
