@@ -2,6 +2,10 @@ CronJob: [Standard, Premium]
 
 PostgreSQLInstance: [Standard, Premium]
 
+PostgreSQLDatabase: [Standard, Premium]
+
+PostgreSQLUser: [Standard, Premium]
+
 ValkeyInstance: [Standard, Premium]
 
 Repository: [Standard, Premium]

@@ -71,13 +71,6 @@ Resource Types:
         <td>
           <br/>
         </td>
-        <td>true</td>
-      </tr><tr>
-        <td><b><a href="#postgresqluserstatus">status</a></b></td>
-        <td>object</td>
-        <td>
-          <br/>
-        </td>
         <td>false</td>
       </tr></tbody>
 </table>
@@ -100,31 +93,18 @@ Resource Types:
         </tr>
     </thead>
     <tbody><tr>
-        <tr>
         <td><b><a href="#postgresqluserspecinstanceref">instanceRef</a></b></td>
         <td>object</td>
         <td>
-          Reference to the database instance the database should be created in
-<br/>
+          <br/>
         </td>
         <td>true</td>
-      </tr><tr>
-        <td><b>login</b></td>
-        <td>boolean</td>
-        <td>
-          Enable user login
-<br/>
-<br/>
-            <i>Default</i>: true<br/>
-        </td>
-        <td>false</td>
       </tr><tr>
         <td><b>createDb</b></td>
         <td>boolean</td>
         <td>
-          Allow user to create new databases
-<br/>
-<br/>
+          Allow user to create new databases. Default false.<br/>
+          <br/>
             <i>Default</i>: false<br/>
         </td>
         <td>false</td>
@@ -132,9 +112,8 @@ Resource Types:
         <td><b>createRole</b></td>
         <td>boolean</td>
         <td>
-          Allow user to create new users
-<br/>
-<br/>
+          Allow user to create new users. Default false.<br/>
+          <br/>
             <i>Default</i>: false<br/>
         </td>
         <td>false</td>
@@ -142,9 +121,17 @@ Resource Types:
         <td><b>inherit</b></td>
         <td>boolean</td>
         <td>
-          Inherit privileges from granted roles
-<br/>
-<br/>
+          Inherit privileges from granted roles. Default true.<br/>
+          <br/>
+            <i>Default</i>: true<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>login</b></td>
+        <td>boolean</td>
+        <td>
+          Enable user login. Default true.<br/>
+          <br/>
             <i>Default</i>: true<br/>
         </td>
         <td>false</td>
@@ -152,28 +139,8 @@ Resource Types:
 </table>
 
 
-### PostgreSQLUser.status
-<sup><sup>[↩ Parent](#postgresqluser)</sup></sup>
-
-
-
-
-
-<table>
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Description</th>
-            <th>Required</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
-
-
 ### PostgreSQLUser.spec.instanceRef
-<sup><sup>[↩ Parent](#postgresqluserstatus)</sup></sup>
+<sup><sup>[↩ Parent](#postgresqluserspec)</sup></sup>
 
 
 
@@ -192,8 +159,7 @@ Resource Types:
         <td><b>name</b></td>
         <td>string</td>
         <td>
-          Name of the database instance the database should be created in
-<br/>
+          Name of the database instance the db should be created in<br/>
         </td>
         <td>true</td>
       </tr></tbody>
@@ -203,7 +169,7 @@ Resource Types:
 
 <TabItem value="examples" label="Examples">
 ### Basic User {#example-basic-user}
-A minimal PostgreSQL user definition showing the required fields only.
+A minimal PostgreSQL User definition showing the required fields only.
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
@@ -212,7 +178,7 @@ metadata:
   name: basic-user
 spec:
   instanceRef:
-    name: postgresql-example
+    name: basic-instance
 ```
 </TabItem>
 

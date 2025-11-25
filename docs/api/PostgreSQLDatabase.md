@@ -72,13 +72,6 @@ Resource Types:
           <br/>
         </td>
         <td>true</td>
-      </tr><tr>
-        <td><b><a href="#postgresqldatabasestatus">status</a></b></td>
-        <td>object</td>
-        <td>
-          <br/>
-        </td>
-        <td>false</td>
       </tr></tbody>
 </table>
 
@@ -110,7 +103,6 @@ Resource Types:
         <td><b><a href="#postgresqldatabasespecinstanceref">instanceRef</a></b></td>
         <td>object</td>
         <td>
-          Reference to the database instance the database should be created in
 <br/>
         </td>
         <td>true</td>
@@ -125,26 +117,6 @@ Resource Types:
         </td>
         <td>false</td>
       </tr></tbody>
-</table>
-
-
-### PostgreSQLDatabase.status
-<sup><sup>[↩ Parent](#postgresqldatabase)</sup></sup>
-
-
-
-
-
-<table>
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Description</th>
-            <th>Required</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
 </table>
 
 
@@ -179,7 +151,7 @@ Resource Types:
 
 <TabItem value="examples" label="Examples">
 ### Basic Database {#example-basic-database}
-A minimal PostgreSQL database definition showing the required fields only.
+A minimal PostgreSQL Database definition showing the required fields only.
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
@@ -189,7 +161,7 @@ metadata:
 spec:
   owner: owner
   instanceRef:
-    name: postgresql-example
+    name: basic-instance
 ```
 </TabItem>
 
