@@ -49,6 +49,25 @@ spec:
   name: example-repository-name-override
 ```
 
+By default, `metadata.name` is used as the repository external name and no path (prefix) is used.
+
+Repository name and path can be overridden using `spec.name` and `spec.path` fields.
+
+Repository name is generated as follows:
+
+```yaml
+# If spec.name is not set
+<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<metadata.name>
+
+# If spec.name is set
+<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.name>
+
+# If spec.path is set
+<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.path>/<metadata.name>
+# or
+<aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<spec.path>/<spec.name>
+```
+
 ## 2. Result
 
 Repository created in Kubernetes
