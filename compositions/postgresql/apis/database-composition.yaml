@@ -1,0 +1,78 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: postgresqldatabases.database.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: database.entigo.com/v1alpha1
+    kind: PostgreSQLDatabase
+  mode: Pipeline
+  pipeline:
+  - step: grant-owner-to-dbadmin
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+          kind: Grant
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: grant-owner-to-dbadmin
+            name: {{ .observed.composite.resource.spec.owner }}-to-dbadmin-grant
+            namespace: {{ .observed.composite.resource.metadata.namespace }}
+          spec:
+            forProvider:
+              role: "dbadmin"
+              memberOfRef:
+                name: "{{ .observed.composite.resource.spec.owner }}"
+            providerConfigRef:
+              kind: ProviderConfig
+              name: {{ .observed.composite.resource.spec.instanceRef.name }}-provider-config
+  - step: database
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+          kind: Database
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: postgresql-database
+            name: {{ .observed.composite.resource.metadata.name }}
+            namespace: {{ .observed.composite.resource.metadata.namespace }}
+          spec:
+            forProvider:
+              owner: {{ .observed.composite.resource.spec.owner }}
+            providerConfigRef:
+              kind: ProviderConfig
+              name: {{ .observed.composite.resource.spec.instanceRef.name }}-provider-config
+          {{- range $index, $extension := .observed.composite.resource.spec.extensions }}
+          ---
+          apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+          kind: Extension
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: extension-{{ $extension }}-{{ $index }}
+            name: {{ $.observed.composite.resource.metadata.name }}-{{ $extension }}
+            namespace: {{ $.observed.composite.resource.metadata.namespace }}
+          spec:
+            forProvider:
+              extension: {{ $extension }}
+              database: {{ $.observed.composite.resource.metadata.name }}
+            providerConfigRef:
+              kind: ProviderConfig
+              name: {{ $.observed.composite.resource.spec.instanceRef.name }}-provider-config
+          {{- end }}
+  - step: automatically-detect-ready-composed-resources
+    functionRef:
+      name: function-auto-ready
