@@ -12,6 +12,8 @@ Create a Repository manifest and deploy it to the cluster.
 
 It is a good practice to manage Repositories using GitOps methodology, similar to how applications are deployed.
 
+By default, `metadata.name` is used as the repository name and no path (prefix) is used. Repository name and path can be overridden using `spec.name` and `spec.path` fields.
+
 ```yaml
 # Example Repository: <aws-account>.dkr.ecr.<aws-region>.amazonaws.com/example-repository
 apiVersion: artifact.entigo.com/v1alpha1
