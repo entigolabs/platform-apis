@@ -5,12 +5,13 @@ import (
 )
 
 type Environment struct {
-	AWSProvider  string             `json:"awsProvider"`
-	DataKMSKey   string             `json:"dataKMSKey"`
-	ConfigKMSKey string             `json:"configKMSKey"`
-	VPC          string             `json:"vpc"`
-	SubnetGroup  string             `json:"subnetGroup"`
-	Tags         map[string]*string `json:"tags,omitempty"`
+	AWSProvider          string             `json:"awsProvider"`
+	DataKMSKey           string             `json:"dataKMSKey"`
+	ConfigKMSKey         string             `json:"configKMSKey"`
+	VPC                  string             `json:"vpc"`
+	SubnetGroup          string             `json:"subnetGroup"`
+	EsClusterSecretStore string             `json:"esClusterSecretStore"`
+	Tags                 map[string]*string `json:"tags,omitempty"`
 }
 
 func (e Environment) Validate() error {
@@ -28,6 +29,9 @@ func (e Environment) Validate() error {
 	}
 	if e.SubnetGroup == "" {
 		return errors.New("subnetGroup is required")
+	}
+	if e.EsClusterSecretStore == "" {
+		return errors.New("esClusterSecretStore is required")
 	}
 	return nil
 }

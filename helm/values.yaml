@@ -9,6 +9,7 @@ database:
     vpc: vpc
     subnetGroup: database
     elasticacheSubnetGroup: elasticache
+    esClusterSecretStore: external-secrets
     tags: {}
 
 postgresql:
