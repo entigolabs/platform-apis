@@ -8,5 +8,6 @@ data:
   configKMSKey: config
   vpc: vpc
   subnetGroup: database
+  esClusterSecretStore: external-secrets
 # tags:
 #   environment: dev
