@@ -153,6 +153,7 @@ kind: EnvironmentConfig
 metadata:
   name: platform-apis-zone
 data:
+  granularEgress: {{ .Values.zone.environmentConfig.granularEgress }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
   appProject:

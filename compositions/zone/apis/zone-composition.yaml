@@ -18,8 +18,19 @@ spec:
         source: Inline
         inline:
           template: |
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              zoneEnvironment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-zone
             {{- $name := .observed.composite.resource.metadata.name -}}
-
+            {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
+            {{- $granularEgress := false }}
+            {{- if and $envConfig $envConfig.resource $envConfig.resource.data }}
+            {{- $granularEgress = index $envConfig.resource.data "granularEgress" | default false }}
+            {{- end }}
             {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
             ---
             apiVersion: v1
@@ -28,10 +39,29 @@ spec:
               name: {{ $namespace.name }}
               labels:
                 tenancy.entigo.com/zone: {{ $name }}
+                {{- if $granularEgress }}
+                istio-injection: enabled
+                {{- end }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+            ---
+            apiVersion: networking.istio.io/v1
+            kind: Sidecar
+            metadata:
+              name: {{ $namespace.name }}-egress
+              namespace: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: sidecar-{{ $name }}-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+            spec:
+              outboundTrafficPolicy:
+                mode: REGISTRY_ONLY  # Override global ALLOW_ANY for this namespace
+              egress:
+              - hosts:
+                - "*/*"
             ---
             apiVersion: networking.k8s.io/v1
             kind: NetworkPolicy
@@ -716,6 +746,7 @@ spec:
         rules:
           - sequence:
             - namespace-.*
+            - sidecar-.*
             - netpol-.*
             - rbacrole-.*
             - rb-.*
