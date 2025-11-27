@@ -131,7 +131,9 @@ spec:
   activate:
   - launchtemplates.ec2.aws.upbound.io
   - nodegroups.eks.aws.upbound.io
+  - accessentries.eks.aws.upbound.io
   - roles.iam.upbound.io
+
 # ---
 # apiVersion: rbac.authorization.k8s.io/v1
 # kind: ClusterRoleBinding
