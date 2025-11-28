@@ -51,7 +51,7 @@ spec:
 
 ### 1.2 Create PostgreSQLUser manifest
 
-Creating a **PostgreSQLUser** is **optional**.
+Creating a **PostgreSQLUser** is **Required** if creating a **PostgreSQLDatabase**. Otherwise, it is **optional**.
 
 Connection credentials for users created with **PostgreSQLUser** manifest are stored in a Kubernetes secret `<.spec.instanceRef.name>-<.metadata.name>`.
 
