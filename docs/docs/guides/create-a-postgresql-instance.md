@@ -4,11 +4,11 @@ sidebar_position: 1
 
 # Create a PostgreSQL Instance
 
-This is an example of how to create a PostgreSQL instance.
+This is an example of how to create a PostgreSQLInstance, PostgreSQLUser and PostgreSQLDatabase.
 
-## 1. Create a PostgreSQLInstance manifest
+## 1. Create Kubernetes manifests for PostgreSQLInstance, PostgreSQLUser and PostgreSQLDatabase
 
-Create an PostgreSQLInstance manifest and deploy it to the cluster. It is a good practice to include it in the application's Helm chart.
+Create manifests and deploy them to the cluster. It is a good practice to include it in the application's Helm chart.
 
 Security group and security group rules which allow access to the PostgreSQLInstance from pods are created automatically.
 
@@ -93,9 +93,9 @@ spec:
 
 ## 2. Mount connection credentials to a container
 
-Connection details for the master user `dbadmin` are stored in a Kubernetes secret `<.metadata.name>-dbadmin` and AWS Secrets Manager secret.
+Connection credentials for the master user `dbadmin` are stored in a Kubernetes secret `<.metadata.name>-dbadmin` and AWS Secrets Manager secret.
 
-Connection details for additional users created with `PostgreSQLUser` manifest are stored in a Kubernetes secret `<.spec.instanceRef.name>-<.metadata.name>`.
+Connection credentials for additional users created with `PostgreSQLUser` manifest are stored in a Kubernetes secret `<.spec.instanceRef.name>-<.metadata.name>`.
 
 For more information about Secrets in Kubernetes, see [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/).
 
@@ -159,9 +159,9 @@ PostgreSQLInstance instance created in AWS Console
 
 ![](img/example-postgresql-1.png)
 
-### 3.2 Secrets with connection details in Kubernetes and AWS Secrets Manager
+### 3.2 Secrets with connection credentials in Kubernetes and AWS Secrets Manager
 
-Kubernetes secrets with connection details
+Kubernetes secrets with connection credentials
 
 ```yaml
 $ kubectl get secret
@@ -196,7 +196,7 @@ data:
   password: <base64-encoded-password>
 ```
 
-AWS Secrets Manager secret with connection details for `dbadmin` user.
+AWS Secrets Manager secret with connection credentials for `dbadmin` user.
 
 ![](img/example-postgresql-2.png)
 
