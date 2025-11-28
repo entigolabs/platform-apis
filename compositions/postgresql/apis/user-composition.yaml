@@ -27,7 +27,7 @@ spec:
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
             writeConnectionSecretToRef:
-              name: {{ .observed.composite.resource.spec.instanceRef.name }}-{{ .observed.composite.resource.spec.owner }}
+              name: {{ .observed.composite.resource.spec.instanceRef.name }}-{{ .observed.composite.resource.metadata.name }}
             forProvider:
               privileges:
                 createDb: {{ .observed.composite.resource.spec.createDb }}

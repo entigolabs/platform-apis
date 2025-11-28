@@ -2,7 +2,7 @@
 A minimal PostgreSQL User definition showing the required fields only.
 
 ```yaml
-apiVersion: database.example.org/v1alpha1
+apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLUser
 metadata:
   name: basic-user
@@ -16,7 +16,7 @@ The PostgreSQL User requires the following resource applied:
 
 #### PostgreSQLInstance
 ```yaml
-apiVersion: database.example.org/v1alpha1
+apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLInstance
 metadata:
   name: basic-instance
