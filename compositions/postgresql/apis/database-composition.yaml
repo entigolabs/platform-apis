@@ -32,7 +32,7 @@ spec:
                 name: "{{ .observed.composite.resource.spec.owner }}"
             providerConfigRef:
               kind: ProviderConfig
-              name: {{ .observed.composite.resource.spec.instanceRef.name }}-provider-config
+              name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
   - step: database
     functionRef:
       name: function-go-templating
@@ -55,7 +55,7 @@ spec:
               owner: {{ .observed.composite.resource.spec.owner }}
             providerConfigRef:
               kind: ProviderConfig
-              name: {{ .observed.composite.resource.spec.instanceRef.name }}-provider-config
+              name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
           {{- range $index, $extension := .observed.composite.resource.spec.extensions }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
@@ -71,7 +71,7 @@ spec:
               database: {{ $.observed.composite.resource.metadata.name }}
             providerConfigRef:
               kind: ProviderConfig
-              name: {{ $.observed.composite.resource.spec.instanceRef.name }}-provider-config
+              name: {{ $.observed.composite.resource.spec.instanceRef.name }}-providerconfig
           {{- end }}
   - step: automatically-detect-ready-composed-resources
     functionRef:
