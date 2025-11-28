@@ -4,13 +4,19 @@ sidebar_position: 1
 
 # Create a PostgreSQL Instance
 
-This is an example of how to create a PostgreSQLInstance, PostgreSQLUser and PostgreSQLDatabase.
+This is an example of how to create a **PostgreSQLInstance**, **PostgreSQLUser** and **PostgreSQLDatabase**.
 
-## 1. Create Kubernetes manifests for PostgreSQLInstance, PostgreSQLUser and PostgreSQLDatabase
+## 1. Create Kubernetes manifests and deploy them to the cluster
 
-Create manifests and deploy them to the cluster. It is a good practice to include it in the application's Helm chart.
+Create manifests for the **PostgreSQLInstance**, **PostgreSQLUser** and **PostgreSQLDatabase** and deploy them to the cluster.
 
-Security group and security group rules which allow access to the PostgreSQLInstance from pods are created automatically.
+It is a good practice to include them in the application's Helm chart.
+
+### 1.1 Create a PostgreSQLInstance manifest
+
+Security group and security group rules to access the **PostgreSQLInstance** from pods are created automatically.
+
+Connection credentials for the master user `dbadmin` are stored in a Kubernetes secret `<.metadata.name>-dbadmin` and AWS Secrets Manager secret.
 
 ```yaml
 # Example PostgreSQLInstance
@@ -41,8 +47,17 @@ spec:
   allowMajorVersionUpgrade: false
   backupWindow: '05:00-05:00'
   maintenanceWindow: 'Mon:00:00-Mon:03:00'
+```
 
----
+### 1.2 Create PostgreSQLUser manifest
+
+Creating a **PostgreSQLUser** is **required** if creating a **PostgreSQLDatabase**. Otherwise, it is **optional**.
+
+Connection credentials for users created with **PostgreSQLUser** manifest are stored in a Kubernetes secret `<.spec.instanceRef.name>-<.metadata.name>`.
+
+To use the created user as `owner` for a **PostgreSQLDatabase**, the user must have `spec.createDb` and `spec.createRole` set to `true`.
+
+```yaml
 # Example PostgreSQLUser
 apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLUser
@@ -65,8 +80,15 @@ spec:
   createRole: true
   inherit: false
   login: true
+```
 
----
+### 1.3 Create PostgreSQLDatabase manifest
+
+Creating a **PostgreSQLDatabase** is **optional**.
+
+If an user created with **PostgreSQLUser** manifest is used as `spec.owner` for a **PostgreSQLDatabase**, the user must have `spec.createDb` and `spec.createRole` set to `true`.
+
+```yaml
 # Example PostgreSQLDatabase
 apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLDatabase
@@ -95,7 +117,7 @@ spec:
 
 Connection credentials for the master user `dbadmin` are stored in a Kubernetes secret `<.metadata.name>-dbadmin` and AWS Secrets Manager secret.
 
-Connection credentials for additional users created with `PostgreSQLUser` manifest are stored in a Kubernetes secret `<.spec.instanceRef.name>-<.metadata.name>`.
+Connection credentials for users created with **PostgreSQLUser** manifest are stored in a Kubernetes secret `<.spec.instanceRef.name>-<.metadata.name>`.
 
 For more information about Secrets in Kubernetes, see [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/).
 
@@ -139,7 +161,7 @@ spec:
 
 ### 3.1 PostgreSQLInstance, PostgreSQLUser and PostgreSQLDatabase
 
-PostgreSQLInstance, PostgreSQLUser and PostgreSQLDatabase created in Kubernetes
+**PostgreSQLInstance**, **PostgreSQLUser** and **PostgreSQLDatabase** created in Kubernetes
 
 ```yaml
 $ kubectl get pginstances.database.entigo.com
@@ -155,7 +177,7 @@ NAME               SYNCED   READY   COMPOSITION                               AG
 example-database   True     True    postgresqldatabases.database.entigo.com   16m
 ```
 
-PostgreSQLInstance instance created in AWS Console
+Amazon RDS PostgreSQL instance created in AWS Console
 
 ![](img/example-postgresql-1.png)
 
