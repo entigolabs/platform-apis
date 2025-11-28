@@ -43,6 +43,32 @@ spec:
   allowMajorVersionUpgrade: false
   backupWindow: '05:00-05:00'
   maintenanceWindow: 'Mon:00:00-Mon:03:00'
+
+---
+# Example PostgreSQLUser
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLUser
+metadata:
+  name: example-user
+spec:
+  instanceRef:
+    name: example-postgresql
+
+---
+# Example PostgreSQLUser with custom settings
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLUser
+metadata:
+  name: example-user
+spec:
+  instanceRef:
+    name: example-postgresql
+  createDb: false
+  createRole: false
+  inherit: false
+  login: true
+---
+# Example PostgreSQLDatabase
 ```
 
 ## 2. Mount PostgreSQLInstance credentials to a container
