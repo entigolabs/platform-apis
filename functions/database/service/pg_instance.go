@@ -163,15 +163,36 @@ func (g *pgInstanceGenerator) checkSecretConflict(required map[string][]resource
 		return nil
 	}
 	conflictingSecret := conflictingSecrets[0].Resource
-	annotations := conflictingSecret.GetAnnotations()
-	actualAnnotationValue, annotationFound := annotations["crossplane.io/composition-resource-name"]
+	expectedExternalSecretName := string(g.names.es)
 
-	if !annotationFound || actualAnnotationValue != string(g.names.es) {
+	ownerReferences, _, err := unstructured.NestedSlice(conflictingSecret.Object, "metadata", "ownerReferences")
+	if err != nil {
+		return fmt.Errorf("cannot read owner references from existing Secret '%s': %w", secretName, err)
+	}
+
+	isManagedByExpectedEs := false
+	for _, owner := range ownerReferences {
+		ownerMap, ok := owner.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		ownerKind, _, _ := unstructured.NestedString(ownerMap, "kind")
+		if ownerKind != "ExternalSecret" {
+			continue
+		}
+		ownerName, _, _ := unstructured.NestedString(ownerMap, "name")
+		if ownerName == expectedExternalSecretName {
+			isManagedByExpectedEs = true
+			break
+		}
+	}
+
+	if !isManagedByExpectedEs {
 		return fmt.Errorf(
 			"naming conflict: a Secret named '%s' already exists in namespace '%s' but is not managed by this PostgreSQLInstance's ExternalSecret ('%s')",
 			secretName,
 			g.pgInstance.Namespace,
-			string(g.names.es),
+			expectedExternalSecretName,
 		)
 	}
 	return nil
@@ -380,7 +401,7 @@ func (g *pgInstanceGenerator) buildExternalSecret(secretARN string, endpoint str
 						"username": "dbadmin",
 						"password": "{{ .password | toString }}",
 						"endpoint": endpoint,
-						"port":     fmt.Sprintf("%f", port),
+						"port":     fmt.Sprintf("%d", int(port)),
 					},
 				},
 			},

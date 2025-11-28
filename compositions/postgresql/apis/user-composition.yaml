@@ -36,7 +36,7 @@ spec:
                 inherit: {{ .observed.composite.resource.spec.inherit }}
             providerConfigRef:
               kind: ProviderConfig
-              name: {{ .observed.composite.resource.spec.instanceRef.name }}-provider-config
+              name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
   - step: automatically-detect-ready-composed-resources
     functionRef:
       name: function-auto-ready
