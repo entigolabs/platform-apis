@@ -12,7 +12,7 @@ Create an PostgreSQLInstance manifest and deploy it to the cluster. It is a good
 
 Security group and security group rules which allow access to the PostgreSQLInstance from pods are created automatically.
 
-Password and username are stored in AWS Secrets Manager secret and Kubernetes secret.
+Connection details are stored in a Kubernetes secret `<.metadata.name>-dbadmin` and AWS Secrets Manager secret.
 
 ```yaml
 # Example PostgreSQLInstance
