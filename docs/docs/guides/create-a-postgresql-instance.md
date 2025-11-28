@@ -47,7 +47,7 @@ spec:
 
 ## 2. Mount PostgreSQLInstance credentials to a container
 
-Connection information for the PostgreSQLInstance is stored in an AWS Secrets Manager secret and Kubernetes secret.
+Connection details are stored in a Kubernetes secret `<.metadata.name>-dbadmin` and AWS Secrets Manager secret.
 
 For more information about Secrets in Kubernetes, see [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/).
 
