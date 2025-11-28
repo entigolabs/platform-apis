@@ -370,7 +370,7 @@ func (g *pgInstanceGenerator) buildExternalSecret(secretARN string, endpoint str
 		Spec: esv1.ExternalSecretSpec{
 			RefreshInterval: &metav1.Duration{Duration: time.Minute * 15},
 			RefreshPolicy:   esv1.ExternalSecretRefreshPolicy("Periodic"),
-			SecretStoreRef:  esv1.SecretStoreRef{Name: "external-secrets", Kind: "ClusterSecretStore"},
+			SecretStoreRef:  esv1.SecretStoreRef{Name: g.env.EsClusterSecretStore, Kind: "ClusterSecretStore"},
 			Target: esv1.ExternalSecretTarget{
 				Name:           targetName,
 				CreationPolicy: esv1.ExternalSecretCreationPolicy("Owner"),

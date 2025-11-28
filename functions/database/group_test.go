@@ -114,11 +114,12 @@ func TestDatabaseFunction(t *testing.T) {
 	setHash := base.GenerateFNVHash(cr.Metadata.UID)
 
 	environmentData := map[string]interface{}{
-		"awsProvider":  "aws-provider",
-		"dataKMSKey":   "data",
-		"configKMSKey": "config",
-		"vpc":          "test-net-vpc",
-		"subnetGroup":  "test-net-vpc",
+		"awsProvider":          "aws-provider",
+		"dataKMSKey":           "data",
+		"configKMSKey":         "config",
+		"vpc":                  "test-net-vpc",
+		"subnetGroup":          "test-net-vpc",
+		"esClusterSecretStore": "external-secrets",
 	}
 	optEnvironmentData := map[string]interface{}{
 		"tags": map[string]interface{}{
