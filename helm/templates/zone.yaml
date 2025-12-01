@@ -118,7 +118,9 @@ rules:
   - apiGroups: ["policies.kyverno.io"]
     resources: ["mutatingpolicies", "validatingpolicies","mutatingpolicies/status", "validatingpolicies/status"]
     verbs: ["*"]
-
+  - apiGroups: ["networking.istio.io"]
+    resources: ["sidecars"]
+    verbs: ["*"]
 
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
