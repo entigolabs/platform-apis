@@ -66,6 +66,7 @@ spec:
               forProvider:
                 region: {{ $region }}
                 tags:
+                  Name: {{ $bucketName }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -174,6 +175,7 @@ spec:
                 kind: ClusterProviderConfig
               forProvider:
                 tags:
+                  Name: {{ $bucketName }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -207,6 +209,7 @@ spec:
                     ]
                   }
                 tags:
+                  Name: {{ $bucketName }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -374,6 +377,7 @@ spec:
                 kmsKeyId: {{ $kmsConfigKeyArn }}
                 {{- end }}
                 tags:
+                  Name: {{ $bucketName }}-credentials
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}

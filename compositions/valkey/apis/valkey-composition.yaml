@@ -107,6 +107,7 @@ spec:
                 securityGroupIdRefs:
                   - name: {{ $name }}
                 tags:
+                  Name: {{ $name }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -296,6 +297,7 @@ spec:
                 description: Valkey connection credentials for {{ $name }}
                 kmsKeyId: {{ $kmsConfigKeyArn }}
                 tags:
+                  Name: {{ $name }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
