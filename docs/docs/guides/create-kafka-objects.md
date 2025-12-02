@@ -69,6 +69,21 @@ spec:
     - gamma
 ```
 
+If `spec.acks.` is defined, the composition also creates topic ACL's for the created users.
+
+```yaml
+apiVersion: kafka.entigo.com/v1alpha1
+kind: KafkaUser
+metadata:
+  name: user-b
+  namespace: team-b
+spec:
+  clusterName: test-crossplane-cluster
+  acls:
+    - topic: topic-a
+      operation: Read
+```
+
 ## 3. Create a Kafka Topic (with topic acl's)
 
 Create an Kafka Topic manifest and deploy it to the cluster.
@@ -85,17 +100,11 @@ spec:
   replicationFactor: 1
   config:
     retention.ms: "604800012"
-  acls:
-    - principal: user-a
-      operation: Read
-    - principal: user-b
-      operation: Read
 ```
 
 This creates:
 
 * A Kafka Topic
-* ACL's for the defined users
 
 ## 3. Result
 
@@ -139,24 +148,30 @@ test-crossplane-cluster-user-a-version                       True     True      
 NAME              READY   SYNCED   EXTERNAL-NAME                                                                                                                                                                                            AGE
 user-a-alpha-cg   True    True     {"ResourceName":"alpha","ResourceType":"Group","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   18h
 user-a-gamma-cg   True    True     {"ResourceName":"gamma","ResourceType":"Group","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   18h
+topic-a-user-a-read   True    True     {"ResourceName":"topic-a","ResourceType":"Topic","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}     19h
+topic-a-user-b-read   True    True     {"ResourceName":"topic-a","ResourceType":"Topic","ResourcePrincipal":"User:user-b","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}     19h
 ```
 
 AWS Secrets Manager secret with IAM credentials, secret scram association and consumer group ACL's
-
-![](img/example-kafkauser-1.png)
 
 1. SM Secret
 2. SM Secret Version
 3. SM Secret Version password (taken from generated k8s Secret)
 4. SM Secret Policy
 
-![](img/example-kafkauser-2.png)
+![](img/example-kafkauser-1.png)
 
 Secret Scram association
 
-![](img/example-kafkauser-3.png)
+![](img/example-kafkauser-2.png)
 
 User Consumer Group ACL's
+
+![](img/example-kafkauser-3.png)
+
+User Topic ACL's
+
+![](img/example-kafkauser-4.png)
 
 ### 3.3 Kafka Topic
 
@@ -170,19 +185,8 @@ team-a      topic-a   True     True                        19h
 [root@ip-10-201-0-207 ~]# kubectl get topic.topic.kafka.crossplane.io
 NAME                                 READY   SYNCED   EXTERNAL-NAME                        AGE
 topic-a                              True    True     team-a                               19h
-
-[root@ip-10-201-0-207 ~]# kubectl get accesscontrollist.acl.kafka.crossplane.io
-NAME                  READY   SYNCED   EXTERNAL-NAME                                                                                                                                                                                                AGE
-topic-a-user-a-read   True    True     {"ResourceName":"topic-a","ResourceType":"Topic","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}     19h
-topic-a-user-b-read   True    True     {"ResourceName":"topic-a","ResourceType":"Topic","ResourcePrincipal":"User:user-b","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}     19h
 ```
 
 Kafka Topic objects in Kafka
 
 ![](img/example-kafkatopic-1.png)
-
-Kafka Topic in AKHQ
-
-![](img/example-kafkatopic-2.png)
-
-Kafka Topic ACL's for User in AKHQ

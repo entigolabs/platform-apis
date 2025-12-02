@@ -10,8 +10,3 @@ spec:
   replicationFactor: 1
   config:
     retention.ms: "604800012"
-  acls:
-    - principal: eventla-a
-      operation: Read
-    - principal: eventla-b
-      operation: Read

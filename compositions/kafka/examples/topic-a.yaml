@@ -9,6 +9,3 @@ spec:
   replicationFactor: 3
   config:
     retention.ms: '604800000'
-  acls:
-    - principal: user-a
-      operation: Read

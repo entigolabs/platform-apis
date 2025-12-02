@@ -9,3 +9,8 @@ spec:
   consumerGroups:
     - alpha
     - gamma
+  acls:
+    - topic: topic-a
+      operation: Read
+    - topic: topic-b
+      operation: Write
