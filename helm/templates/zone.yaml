@@ -118,7 +118,9 @@ rules:
   - apiGroups: ["policies.kyverno.io"]
     resources: ["mutatingpolicies", "validatingpolicies","mutatingpolicies/status", "validatingpolicies/status"]
     verbs: ["*"]
-
+  - apiGroups: ["networking.istio.io"]
+    resources: ["*"]
+    verbs: ["*"]
 
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -153,6 +155,7 @@ kind: EnvironmentConfig
 metadata:
   name: platform-apis-zone
 data:
+  granularEgress: {{ .Values.zone.environmentConfig.granularEgress }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
   appProject:

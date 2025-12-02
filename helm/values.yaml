@@ -62,6 +62,7 @@ zone:
     image: ghcr.io/entigolabs/platform-apis-zone
     tag: v0.0.0
   environmentConfig:
+    granularEgress: false
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
     appProject:
