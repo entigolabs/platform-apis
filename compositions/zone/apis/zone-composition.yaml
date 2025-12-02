@@ -756,12 +756,15 @@ spec:
         rules:
           - sequence:
             - namespace-.*
-            - sidecar-.*
             - netpol-.*
             - rbacrole-.*
             - rb-.*
+          - sequence:
             - launchtemplate-.*
             - role-.*
             - rpa-.*
             - ae-.*
             - nodepool-.*
+          - sequence:
+            - namespace-.*
+            - sidecar-.*
