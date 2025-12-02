@@ -43,7 +43,7 @@ spec:
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $region := $vpc.resource.status.atProvider.region }}
-            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.arn }}
+            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
 
             {{- /* Apply user parameters */ -}}
             {{- if .observed.composite.resource.spec }}
@@ -198,6 +198,21 @@ spec:
                   {
                     "Version": "2012-10-17",
                     "Statement": [
+                      {{- if $kmsDataKeyArn }}
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "kms:Encrypt",
+                          "kms:Decrypt",
+                          "kms:ReEncrypt*",
+                          "kms:GenerateDataKey*",
+                          "kms:DescribeKey"
+                        ],
+                        "Resource": [
+                          "{{ $kmsDataKeyArn }}"
+                        ]
+                      },
+                      {{- end }}
                       {
                         "Effect": "Allow",
                         "Action": "s3:*",
