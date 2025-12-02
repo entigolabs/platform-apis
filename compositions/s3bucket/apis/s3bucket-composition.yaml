@@ -28,6 +28,10 @@ spec:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: VPC
                 matchName: vpc
+              eks:
+                apiVersion: eks.aws.upbound.io/v1beta1
+                kind: Cluster
+                matchName: eks
               kmsDataKeyAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
@@ -35,14 +39,32 @@ spec:
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
+            {{- $namespace := .observed.composite.resource.metadata.namespace }}
             {{- $enableVersioning := false }}
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $region := $vpc.resource.status.atProvider.region }}
+
+            {{- $clusterOIDC := "" }}
+            {{- $id := $eks.resource.status.atProvider.identity }}
+            {{- if $id }}
+              {{- if gt (len $id) 0 }}
+                {{- $oidc := index (index $id 0).oidc 0 }}
+                {{- $clusterOIDC = trimPrefix "https://" $oidc.issuer }}
+              {{- end }}
+            {{- end }}
+
+            {{- $awsAccount := "" }}
+            {{- $arn := $eks.resource.status.atProvider.arn }}
+            {{- if $arn }}
+              {{- $awsAccount = index (splitList ":" $arn) 4 }}
+            {{- end }}
+
             {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
 
             {{- /* Apply user parameters */ -}}
@@ -264,6 +286,70 @@ spec:
                   name: {{ $bucketName }}
               writeConnectionSecretToRef:
                 name: {{ $bucketName }}-access-key
+
+            ---
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: Role
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-role
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                tags:
+                  Name: {{ $bucketName }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+                assumeRolePolicy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Principal": {
+                          "Federated": "arn:aws:iam::{{ $awsAccount }}:oidc-provider/{{ $clusterOIDC }}"
+                        },
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                        "Condition": {
+                          "StringEquals": {
+                            "{{ $clusterOIDC }}:aud": "sts.amazonaws.com",
+                            "{{ $clusterOIDC }}:sub": "system:serviceaccount:{{ $namespace }}:{{ $bucketName }}"
+                          }
+                        }
+                      }
+                    ]
+                  }
+
+            ---
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: role-policy-attachment
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                policyArn: arn:aws:iam::{{ $awsAccount }}:policy/{{ $bucketName }}
+                roleRef:
+                  name: {{ $bucketName }}
+
+            ---
+            apiVersion: v1
+            kind: ServiceAccount
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: service-account
+                gotemplating.fn.crossplane.io/ready: "True" 
+                eks.amazonaws.com/role-arn: arn:aws:iam::{{ $awsAccount }}:role/{{ $bucketName }}
+              name: {{ $bucketName }}
+              namespace: {{ $namespace }}
 
     - step: render-secrets
       functionRef:
