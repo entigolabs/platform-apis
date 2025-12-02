@@ -25,3 +25,11 @@ spec:
                   description: Enable versioning for the S3 bucket
                   type: boolean
                   default: false
+                createServiceAccount:
+                  description: Create Kubernetes ServiceAccount for IRSA
+                  type: boolean
+                  default: true
+                serviceAccountName:
+                  description: Kubernetes ServiceAccount name for IRSA.
+                  type: string
+                  default: ""
