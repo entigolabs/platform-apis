@@ -23,13 +23,19 @@ spec:
               properties:
                 clusterName:
                   type: string
-                namespace:
-                  type: string
                 consumerGroups:
                   type: array
                   items:
                     type: string
-
+                acls:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      topic:
+                        type: string
+                      operation:
+                        type: string
                 providerConfigRef:
                   type: string
                   default: crossplane-aws

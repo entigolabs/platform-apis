@@ -34,21 +34,8 @@ spec:
                   additionalProperties:
                     type: string
                   description: "Topic-level configuration"
-                
-                acls:
-                  type: array
-                  description: "ACLs specific to this topic"
-                  items:
-                    type: object
-                    properties:
-                      principal:
-                        type: string
-                      operation:
-                        type: string
-                
                 clusterName:
                   type: string
                   description: "Name of the MSK cluster name"
-              
               required:
                 - clusterName

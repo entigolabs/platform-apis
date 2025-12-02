@@ -247,21 +247,19 @@ spec:
         source: Inline
         inline:
           template: |
-            {{- if .observed.composite.resource.spec.consumerGroups }}
-            {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            ---
+            {{- if .observed.composite.resource.spec.consumerGroups -}}
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
               msk-observer:
                 apiVersion: kafka.entigo.com/v1alpha1
                 kind: MSK
-                matchName: {{ $clusterName }}-observed
+                matchName: {{ .observed.composite.resource.spec.clusterName }}-observed
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
             {{- if $mskObservers -}}
             {{- $mskObserver := mustFirst $mskObservers -}}
-            {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig }}
+            {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig -}}
+            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
             {{- range $index, $consumerGroup := .observed.composite.resource.spec.consumerGroups }}
             ---
             apiVersion: acl.kafka.crossplane.io/v1alpha1
@@ -278,6 +276,50 @@ spec:
                 resourcePrincipal: {{ printf "User:%s" $username | quote }}
                 resourceHost: "*"
                 resourceOperation: "Read"
+                resourcePermissionType: "Allow"
+              providerConfigRef:
+                name: {{ $kafkaProviderConfig }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+    - step: create-topic-acls
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- if .observed.composite.resource.spec.acls -}}
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              msk-observer:
+                apiVersion: kafka.entigo.com/v1alpha1
+                kind: MSK
+                matchName: {{ .observed.composite.resource.spec.clusterName }}-observed
+            {{- $mskObservers := getExtraResources . "msk-observer" -}}
+            {{- if $mskObservers -}}
+            {{- $mskObserver := mustFirst $mskObservers -}}
+            {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig -}}
+            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
+            {{- range $index, $acl := .observed.composite.resource.spec.acls }}
+            ---
+            apiVersion: acl.kafka.crossplane.io/v1alpha1
+            kind: AccessControlList
+            metadata:
+              name: {{ $acl.topic }}-{{ $username }}-{{ lower $acl.operation }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: acl-topic-{{ $acl.topic }}-{{ $username }}-{{ lower $acl.operation }}
+            spec:
+              forProvider:
+                resourceType: "Topic"
+                resourceName: {{ $acl.topic | quote }}
+                resourcePatternTypeFilter: "Literal"
+                resourcePrincipal: {{ printf "User:%s" $username | quote }}
+                resourceHost: "*"
+                resourceOperation: {{ $acl.operation | quote }}
                 resourcePermissionType: "Allow"
               providerConfigRef:
                 name: {{ $kafkaProviderConfig }}
@@ -302,4 +344,4 @@ spec:
             - secret-version-.*
             - secret-policy-.*
             - secret-scram-association-.*
-            - acl-cg-.*
+            - acl-.*
