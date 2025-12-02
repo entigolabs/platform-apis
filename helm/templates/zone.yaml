@@ -119,7 +119,7 @@ rules:
     resources: ["mutatingpolicies", "validatingpolicies","mutatingpolicies/status", "validatingpolicies/status"]
     verbs: ["*"]
   - apiGroups: ["networking.istio.io"]
-    resources: ["sidecars"]
+    resources: ["*"]
     verbs: ["*"]
 
 ---

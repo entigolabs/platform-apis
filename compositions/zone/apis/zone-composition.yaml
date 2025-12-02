@@ -46,6 +46,7 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+            {{- if $granularEgress }}
             ---
             apiVersion: networking.istio.io/v1
             kind: Sidecar
@@ -67,6 +68,7 @@ spec:
                 {{ end }}
                 - "istio-system/*"
                 - "kube-system/kube-dns.kube-system.svc.cluster.local"
+            {{- end }}
             ---
             apiVersion: networking.k8s.io/v1
             kind: NetworkPolicy
