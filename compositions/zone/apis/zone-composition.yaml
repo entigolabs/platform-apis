@@ -93,7 +93,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
-              name: zone-tenancy-all
+              name: {{ $namespace.name }}-all
             subjects:
             - kind: Group
               name: contributor
@@ -111,7 +111,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
-              name: zone-tenancy-all
+              name: {{ $namespace.name }}-all
             subjects:
             - kind: Group
               name: maintainer
@@ -129,7 +129,7 @@ spec:
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: Role
-              name: zone-tenancy-read
+              name: {{ $namespace.name }}-read
             subjects:
             - kind: Group
               name: observer
@@ -454,6 +454,24 @@ spec:
                   name: {{ $name }}
               providerConfigRef:
                 name: {{ $awsProviderConfig.resource.metadata.name }}
+            ---
+            apiVersion: eks.aws.upbound.io/v1beta1
+            kind: AccessEntry
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: ae-{{ $name }}
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+              name: {{ $name }}
+            spec:
+              forProvider:
+                clusterNameRef:
+                  name: {{ $eks.resource.metadata.name }}
+                principalArnFromRoleRef:
+                  name: {{ $name }}
+                type: EC2_LINUX
+                region: {{ $vpc.resource.status.atProvider.region }}
+              providerConfigRef:
+                name: {{ $awsProviderConfig.resource.metadata.name }}
 
             {{ range $index, $pool := .observed.composite.resource.spec.pools }}
             ---
@@ -496,7 +514,10 @@ spec:
                 - maxUnavailable: 1
                 {{ range $pool.requirements }}
                 {{ if eq .key "instance-type" }}
-                instanceTypes: {{ .values }}
+                instanceTypes:
+                {{ range .values }}
+                    - {{ . }}
+                {{ end }}
                 {{ end }}
                 {{ end }}
 
@@ -701,4 +722,5 @@ spec:
             - launchtemplate-.*
             - role-.*
             - rpa-.*
+            - ae-.*
             - nodepool-.*

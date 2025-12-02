@@ -6,8 +6,7 @@ data:
   awsProvider: crossplane-aws
   dataKMSKey: data
   configKMSKey: config
-  vpc: vpc
   subnetGroup: database
-  esClusterSecretStore: external-secrets
-# tags:
-#   environment: dev
+  elasticacheSubnetGroup: elasticache
+  tags:
+    foo: bar

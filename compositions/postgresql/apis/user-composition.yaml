@@ -1,0 +1,42 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: postgresqlusers.database.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: database.entigo.com/v1alpha1
+    kind: PostgreSQLUser
+  mode: Pipeline
+  pipeline:
+  - step: template
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+          kind: Role
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: role
+            name: {{ .observed.composite.resource.metadata.name }}
+            namespace: {{ .observed.composite.resource.metadata.namespace }}
+          spec:
+            writeConnectionSecretToRef:
+              name: {{ .observed.composite.resource.spec.instanceRef.name }}-{{ .observed.composite.resource.metadata.name }}
+            forProvider:
+              privileges:
+                createDb: {{ .observed.composite.resource.spec.createDb }}
+                login: {{ .observed.composite.resource.spec.login }}
+                createRole: {{ .observed.composite.resource.spec.createRole }}
+                inherit: {{ .observed.composite.resource.spec.inherit }}
+            providerConfigRef:
+              kind: ProviderConfig
+              name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
+  - step: automatically-detect-ready-composed-resources
+    functionRef:
+      name: function-auto-ready

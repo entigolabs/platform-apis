@@ -46,8 +46,8 @@ spec:
             {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.arn }}
 
             {{- /* Apply user parameters */ -}}
-            {{- if .observed.composite.resource.spec.parameters }}
-            {{- $enableVersioning = default false .observed.composite.resource.spec.parameters.enableVersioning }}
+            {{- if .observed.composite.resource.spec }}
+            {{- $enableVersioning = default false .observed.composite.resource.spec.enableVersioning }}
             {{- end }}
 
             ---
@@ -66,6 +66,7 @@ spec:
               forProvider:
                 region: {{ $region }}
                 tags:
+                  Name: {{ $bucketName }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -174,6 +175,7 @@ spec:
                 kind: ClusterProviderConfig
               forProvider:
                 tags:
+                  Name: {{ $bucketName }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -207,6 +209,7 @@ spec:
                     ]
                   }
                 tags:
+                  Name: {{ $bucketName }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -358,7 +361,7 @@ spec:
             apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: Secret
             metadata:
-              name: {{ $bucketName }}
+              name: {{ $bucketName }}-credentials
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
                 crossplane.io/external-name: {{ $bucketName }}-credentials
@@ -374,6 +377,7 @@ spec:
                 kmsKeyId: {{ $kmsConfigKeyArn }}
                 {{- end }}
                 tags:
+                  Name: {{ $bucketName }}-credentials
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
@@ -381,7 +385,7 @@ spec:
             apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretVersion
             metadata:
-              name: {{ $bucketName }}
+              name: {{ $bucketName }}-credentials
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-version
             spec:
