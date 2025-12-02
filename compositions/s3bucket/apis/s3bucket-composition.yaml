@@ -24,10 +24,6 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: platform-apis-storage
-              vpc:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: VPC
-                matchName: vpc
               eks:
                 apiVersion: eks.aws.upbound.io/v1beta1
                 kind: Cluster
@@ -38,7 +34,6 @@ spec:
                 matchName: data
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
-            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
 
@@ -48,7 +43,8 @@ spec:
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $region := $vpc.resource.status.atProvider.region }}
+            {{- $region := $eks.resource.status.atProvider.region }}
+            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
 
             {{- $clusterOIDC := "" }}
             {{- $id := $eks.resource.status.atProvider.identity }}
@@ -64,8 +60,6 @@ spec:
             {{- if $arn }}
               {{- $awsAccount = index (splitList ":" $arn) 4 }}
             {{- end }}
-
-            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
 
             {{- /* Apply user parameters */ -}}
             {{- if .observed.composite.resource.spec }}
