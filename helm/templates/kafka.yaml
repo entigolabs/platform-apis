@@ -1,4 +1,5 @@
 {{- if .Values.kafka.install }}
+---
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
@@ -11,7 +12,7 @@ data:
   tags: {}
   {{- end }}
 
-
+---
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
 metadata:
@@ -27,8 +28,6 @@ spec:
     - secretversion.secretsmanager.aws.upbound.io
     - secretpolicy.secretsmanager.aws.upbound.io
     - singlescramsecretassociation.kafka.aws.upbound.io
-
-
 
 ---
 apiVersion: pkg.crossplane.io/v1
