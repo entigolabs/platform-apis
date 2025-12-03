@@ -24,31 +24,46 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: platform-apis-storage
-              vpc:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: VPC
-                matchName: vpc
+              eks:
+                apiVersion: eks.aws.upbound.io/v1beta1
+                kind: Cluster
+                matchName: eks
               kmsDataKeyAlias:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: data
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
-            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
-            {{- $enableVersioning := false }}
+            {{- $namespace := .observed.composite.resource.metadata.namespace }}
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $region := $vpc.resource.status.atProvider.region }}
-            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.arn }}
+            {{- $region := $eks.resource.status.atProvider.region }}
+            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
+
+            {{- $clusterOIDC := "" }}
+            {{- $id := $eks.resource.status.atProvider.identity }}
+            {{- if $id }}
+              {{- if gt (len $id) 0 }}
+                {{- $oidc := index (index $id 0).oidc 0 }}
+                {{- $clusterOIDC = trimPrefix "https://" $oidc.issuer }}
+              {{- end }}
+            {{- end }}
+
+            {{- $awsAccount := "" }}
+            {{- $arn := $eks.resource.status.atProvider.arn }}
+            {{- if $arn }}
+              {{- $awsAccount = index (splitList ":" $arn) 4 }}
+            {{- end }}
 
             {{- /* Apply user parameters */ -}}
-            {{- if .observed.composite.resource.spec }}
-            {{- $enableVersioning = default false .observed.composite.resource.spec.enableVersioning }}
-            {{- end }}
+            {{- $enableVersioning := default false .observed.composite.resource.spec.enableVersioning }}
+            {{- $createServiceAccount := default false .observed.composite.resource.spec.createServiceAccount }}
+            {{- $serviceAccountName := default $bucketName .observed.composite.resource.spec.serviceAccountName }}
 
             ---
             # Main S3 Bucket
@@ -161,6 +176,55 @@ spec:
                   objectOwnership: BucketOwnerEnforced
 
             ---
+            # IAM Policy for bucket access for IAM User and IRSA
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: Policy
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-policy
+                crossplane.io/external-name: {{ $bucketName }}
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                policy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {{- if $kmsDataKeyArn }}
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "kms:Encrypt",
+                          "kms:Decrypt",
+                          "kms:ReEncrypt*",
+                          "kms:GenerateDataKey*",
+                          "kms:DescribeKey"
+                        ],
+                        "Resource": [
+                          "{{ $kmsDataKeyArn }}"
+                        ]
+                      },
+                      {{- end }}
+                      {
+                        "Effect": "Allow",
+                        "Action": "s3:*",
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucketName }}",
+                          "arn:aws:s3:::{{ $bucketName }}/*"
+                        ]
+                      }
+                    ]
+                  }
+                tags:
+                  Name: {{ $bucketName }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+
+            ---
             # IAM User for bucket access
             apiVersion: iam.aws.m.upbound.io/v1beta1
             kind: User
@@ -181,41 +245,7 @@ spec:
                   {{- end }}
 
             ---
-            # IAM Policy for full bucket access
-            apiVersion: iam.aws.m.upbound.io/v1beta1
-            kind: Policy
-            metadata:
-              name: {{ $bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: iam-policy
-                crossplane.io/external-name: {{ $bucketName }}
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
-                policy: |
-                  {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                      {
-                        "Effect": "Allow",
-                        "Action": "s3:*",
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucketName }}",
-                          "arn:aws:s3:::{{ $bucketName }}/*"
-                        ]
-                      }
-                    ]
-                  }
-                tags:
-                  Name: {{ $bucketName }}
-                  {{- range $key, $value := $envConfig.resource.data.tags }}
-                  {{ $key }}: {{ $value | quote }}
-                  {{- end }}
-
-            ---
-            # Attach policy to user
+            # UserPolicyAttachment for IAM User
             apiVersion: iam.aws.m.upbound.io/v1beta1
             kind: UserPolicyAttachment
             metadata:
@@ -233,7 +263,7 @@ spec:
                   name: {{ $bucketName }}
 
             ---
-            # IAM Access Key for user
+            # AccessKey for IAM User
             apiVersion: iam.aws.m.upbound.io/v1beta1
             kind: AccessKey
             metadata:
@@ -249,6 +279,75 @@ spec:
                   name: {{ $bucketName }}
               writeConnectionSecretToRef:
                 name: {{ $bucketName }}-access-key
+
+            ---
+            # IAM Role for IRSA
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: Role
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-role
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                tags:
+                  Name: {{ $bucketName }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+                assumeRolePolicy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Principal": {
+                          "Federated": "arn:aws:iam::{{ $awsAccount }}:oidc-provider/{{ $clusterOIDC }}"
+                        },
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                        "Condition": {
+                          "StringEquals": {
+                            "{{ $clusterOIDC }}:aud": "sts.amazonaws.com",
+                            "{{ $clusterOIDC }}:sub": "system:serviceaccount:{{ $namespace }}:{{ $serviceAccountName }}"
+                          }
+                        }
+                      }
+                    ]
+                  }
+
+            ---
+            # RolePolicyAttachment for IRSA
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: RolePolicyAttachment
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: role-policy-attachment
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                policyArn: arn:aws:iam::{{ $awsAccount }}:policy/{{ $bucketName }}
+                roleRef:
+                  name: {{ $bucketName }}
+
+            ---
+            {{- if $createServiceAccount }}
+            # ServiceAccount for IRSA
+            apiVersion: v1
+            kind: ServiceAccount
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: service-account
+                gotemplating.fn.crossplane.io/ready: "True" 
+                eks.amazonaws.com/role-arn: arn:aws:iam::{{ $awsAccount }}:role/{{ $bucketName }}
+              name: {{ $serviceAccountName }}
+              namespace: {{ $namespace }}
+            {{- end }}
 
     - step: render-secrets
       functionRef:

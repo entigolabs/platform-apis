@@ -2,29 +2,40 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: aws-cli
 spec:
+  serviceAccountName: example-bucket
   containers:
-    - name: nginx
-      image: nginx:alpine
-      ports:
-        - containerPort: 80
-      envFrom:
-        - secretRef:
-            name: example-bucket-credentials
+    - name: aws-cli
+      image: amazon/aws-cli:latest
+      command: ["sleep", "infinity"]
 
 ---
 # Example 2
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: aws-cli
 spec:
   containers:
-    - name: nginx
-      image: nginx:alpine
-      ports:
-        - containerPort: 80
+    - name: aws-cli
+      image: amazon/aws-cli:latest
+      command: ["sleep", "infinity"]
+      envFrom:
+        - secretRef:
+            name: example-bucket-credentials
+
+---
+# Example 3
+apiVersion: v1
+kind: Pod
+metadata:
+  name: aws-cli
+spec:
+  containers:
+    - name: aws-cli
+      image: amazon/aws-cli:latest
+      command: ["sleep", "infinity"]
       env:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
@@ -53,15 +64,16 @@ spec:
               key: BUCKET_ARN
 
 ---
-# Example 3
+# Example 4
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: aws-cli
 spec:
   containers:
-    - name: nginx
-      image: nginx:alpine
+    - name: aws-cli
+      image: amazon/aws-cli:latest
+      command: ["sleep", "infinity"]
       ports:
         - containerPort: 80
       volumeMounts:

@@ -10,3 +10,5 @@ metadata:
   name: example-bucket
 spec:
   enableVersioning: true
+  createServiceAccount: true
+  serviceAccountName: example-bucket
