@@ -16,7 +16,7 @@ Applications can use IAM AccessKey or [IRSA](https://docs.aws.amazon.com/eks/lat
 
 ```yaml
 # Example S3Bucket manifest.
-# This example creates an AWS IAM user and Kubernetes ServiceAccount `example-bucket` and configures required IAM permissions.
+# This example creates an AWS IAM user and Kubernetes ServiceAccount `example-bucket`.
 apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
@@ -25,19 +25,19 @@ spec: {}
 
 ---
 # Example S3Bucket manifest with versioning enabled and custom ServiceAccount name.
-# This example creates an AWS IAM user and a Kubernetes ServiceAccount `example-app-service-account` and configures required IAM permissions.
+# This example creates an AWS IAM user and a Kubernetes ServiceAccount `example-app-sa`.
 apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
   name: example-bucket
 spec:
   enableVersioning: true
-  serviceAccountName: example-app-service-account
+  serviceAccountName: example-app-sa
 
 ---
 # Example S3Bucket manifest with custom ServiceAccount name and existing ServiceAccount.
 # This example does not create a Kubernetes ServiceAccount.
-# Required IAM permissions will be granted to an existing ServiceAccount `example-app-already-existing-service-account`.
+# Required IAM permissions will be granted to an existing ServiceAccount `example-app-sa`.
 # The existing ServiceAccount must exist in the same namespace with the S3Bucket.
 # ServiceAccount annotation must be added manually: `eks.amazonaws.com/role-arn: arn:aws:iam::<aws-account-number>:role/<.metadata.name>`.
 apiVersion: storage.entigo.com/v1alpha1
@@ -46,7 +46,7 @@ metadata:
   name: example-bucket
 spec:
   createServiceAccount: false
-  serviceAccountName: example-app-already-existing-service-account
+  serviceAccountName: example-app-sa
 ---
 # This service account must already exist and is not created by the S3Bucket composition.
 apiVersion: v1
@@ -54,7 +54,7 @@ kind: ServiceAccount
 metadata:
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/example-bucket # This annotation must be added manually.
-  name: example-app-already-existing-service-account
+  name: example-app-sa
 ```
 
 ## 2. Mount S3Bucket credentials to a container
