@@ -35,7 +35,7 @@ spec:
   serviceAccountName: example-app-sa
 
 ---
-# Example S3Bucket manifest with custom ServiceAccount name and existing ServiceAccount.
+# Example S3Bucket manifest with an existing ServiceAccount.
 # This example does not create a Kubernetes ServiceAccount.
 # Required IAM permissions will be granted to an existing ServiceAccount `example-app-sa`.
 # The existing ServiceAccount must exist in the same namespace with the S3Bucket.
