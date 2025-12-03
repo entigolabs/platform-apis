@@ -344,7 +344,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: service-account
                 gotemplating.fn.crossplane.io/ready: "True" 
-                eks.amazonaws.com/role-arn: arn:aws:iam::{{ $awsAccount }}:role/{{ $serviceAccountName }}
+                eks.amazonaws.com/role-arn: arn:aws:iam::{{ $awsAccount }}:role/{{ $bucketName }}
               name: {{ $serviceAccountName }}
               namespace: {{ $namespace }}
             {{- end }}
