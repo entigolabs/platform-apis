@@ -30,6 +30,6 @@ spec:
                   type: boolean
                   default: true
                 serviceAccountName:
-                  description: Kubernetes ServiceAccount name for IRSA. Defaults to <.metadata.name>
+                  description: Kubernetes ServiceAccount name for IRSA. Defaults to metadata.name
                   type: string
                   default: ""

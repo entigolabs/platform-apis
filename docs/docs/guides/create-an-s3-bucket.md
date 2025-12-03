@@ -16,7 +16,7 @@ Applications can use IAM AccessKey or [IRSA](https://docs.aws.amazon.com/eks/lat
 
 ```yaml
 # Example S3Bucket manifest.
-# This example creates an AWS IAM user and Kubernetes ServiceAccount "example-bucket" and configures required IAM permissions.
+# This example creates an AWS IAM user and Kubernetes ServiceAccount `example-bucket` and configures required IAM permissions.
 apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
@@ -25,7 +25,7 @@ spec: {}
 
 ---
 # Example S3Bucket manifest with versioning enabled and custom ServiceAccount name.
-# This example creates an AWS IAM user and a Kubernetes ServiceAccount "example-app-service-account" and configures required IAM permissions.
+# This example creates an AWS IAM user and a Kubernetes ServiceAccount `example-app-service-account` and configures required IAM permissions.
 apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
@@ -37,9 +37,9 @@ spec:
 ---
 # Example S3Bucket manifest with custom ServiceAccount name and existing ServiceAccount.
 # This example does not create a Kubernetes ServiceAccount.
-# Required IAM permissions will be granted to an existing ServiceAccount "example-app-already-existing-service-account".
+# Required IAM permissions will be granted to an existing ServiceAccount `example-app-already-existing-service-account`.
 # The existing ServiceAccount must exist in the same namespace with the S3Bucket.
-# ServiceAccount annotation must be added manually: "eks.amazonaws.com/role-arn: arn:aws:iam::<aws-account-number>:role/<.metadata.name>".
+# ServiceAccount annotation must be added manually: `eks.amazonaws.com/role-arn: arn:aws:iam::<aws-account-number>:role/<.metadata.name>`.
 apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
