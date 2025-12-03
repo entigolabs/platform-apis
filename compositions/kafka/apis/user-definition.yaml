@@ -36,8 +36,5 @@ spec:
                         type: string
                       operation:
                         type: string
-                providerConfigRef:
-                  type: string
-                  default: crossplane-aws
               required:
                 - clusterName

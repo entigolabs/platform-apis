@@ -19,7 +19,6 @@ spec:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
             {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $providerConfig := .observed.composite.resource.spec.providerConfigRef -}}
             {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
             {{- $secretResourceName := printf "k8s-secret-%s" $username -}}
             {{- $observedSecret := getComposedResource . $secretResourceName -}}
@@ -52,6 +51,10 @@ spec:
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-kafka
               kms-key:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Key
@@ -59,7 +62,8 @@ spec:
               msk-observer:
                 apiVersion: kafka.entigo.com/v1alpha1
                 kind: MSK
-                matchName: {{ $clusterName }}-observed
+            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $kmskeys := getExtraResources . "kms-key" -}}
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
             {{- if and $kmskeys $mskObservers -}}
@@ -87,7 +91,7 @@ spec:
                   KafkaCluster: {{ $clusterName }}
                   KafkaUser: {{ $username }}
               providerConfigRef:
-                name: {{ $providerConfig }}
+                name: {{ $awsProviderConfigRef }}
             {{- end -}}
             {{- end -}}
     - step: create-secret-versions
@@ -101,17 +105,22 @@ spec:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
             {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $providerConfig := .observed.composite.resource.spec.providerConfigRef -}}
             {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-kafka
               msk-observer:
                 apiVersion: kafka.entigo.com/v1alpha1
                 kind: MSK
                 matchName: {{ $clusterName }}-observed
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
+            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider }}
             {{- if $mskObservers -}}
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $region := $mskObserver.resource.status.region }}
@@ -138,7 +147,7 @@ spec:
                   namespace: {{ $namespace }}
                   key: secretString
               providerConfigRef:
-                name: {{ $providerConfig }}
+                name: {{ $awsProviderConfigRef }}
             {{- end }}
 
     - step: create-secret-policies
@@ -152,17 +161,22 @@ spec:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
             {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $providerConfig := .observed.composite.resource.spec.providerConfigRef -}}
             {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-kafka
               msk-observer:
                 apiVersion: kafka.entigo.com/v1alpha1
                 kind: MSK
                 matchName: {{ $clusterName }}-observed
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
+            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider }}
             {{- if $mskObservers -}}
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $region := $mskObserver.resource.status.region }}
@@ -195,7 +209,7 @@ spec:
                     }]
                   }
               providerConfigRef:
-                name: {{ $providerConfig }}
+                name: {{ $awsProviderConfigRef }}
             {{- end }}
     - step: create-scram-association
       functionRef:
@@ -208,16 +222,21 @@ spec:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
             {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $providerConfig := .observed.composite.resource.spec.providerConfigRef -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-kafka
               msk-observer:
                 apiVersion: kafka.entigo.com/v1alpha1
                 kind: MSK
                 matchName: {{ $clusterName }}-observed
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
+            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider }}
             {{- if $mskObservers -}}
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $clusterArn := $mskObserver.resource.status.arn -}}
@@ -236,7 +255,7 @@ spec:
                 secretArnRef:
                   name: {{ $clusterName }}-{{ $username }}
               providerConfigRef:
-                name: {{ $providerConfig }}
+                name: {{ $awsProviderConfigRef }}
             {{- end }}
     - step: consumer-group-acls
       functionRef:

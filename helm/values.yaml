@@ -58,6 +58,9 @@ s3bucket:
 
 kafka:
   install: true
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    tags: {}
   package:
     image: ghcr.io/entigolabs/platform-apis-kafka
     tag: v0.0.0

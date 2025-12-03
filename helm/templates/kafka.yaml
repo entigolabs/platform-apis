@@ -1,4 +1,16 @@
 {{- if .Values.kafka.install }}
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-kafka
+data:
+  awsProvider: {{ .Values.kafka.environmentConfig.awsProvider }}
+  {{- if .Values.kafka.environmentConfig.tags }}
+  tags: {{- toYaml .Values.kafka.environmentConfig.tags | nindent 4 }}
+  {{- else }}
+  tags: {}
+  {{- end }}
+
 
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
