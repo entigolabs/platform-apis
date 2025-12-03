@@ -6,7 +6,7 @@ sidebar_position: 1
 
 This is an example of how to manage MSK Users, Topics and user ACL's via Crossplane.
 
-## 0. Prerequisites
+## 1. Prerequisites
 
 Have an existing MSK cluster (currently the CRD's do not create or manage the MSK cluster itself) with IAM authentication enabled.
 
@@ -14,14 +14,13 @@ Have Crossplane installed via Infralib (we are using an IRSA role created via th
 
 Have Crossplane observed objects turned on (need the KMS key created via Infralib to create SM secret).
 
-## 1. Create an Observed MSK cluster object
+## 2. Create an Observed MSK cluster object
 
 Create an Observed MSK manifest and deploy it to the cluster.
 
 This also creates a ProviderConfig in the background to be used for the Kafka provider that manages ACL's and Topics.
 
 ```yaml
-# Example Observed MSK object
 apiVersion: kafka.entigo.com/v1alpha1
 kind: MSK
 metadata:
@@ -30,12 +29,11 @@ spec:
   clusterARN: "arn:aws:kafka:{region}:{account}:cluster/{msk-cluster-name}/{uuid}"
 ```
 
-## 2. Create a Kafka User (with consumer group acl's)
+## 3. Create a Kafka User (with consumer group acl's)
 
 Create an Kafka User manifest and deploy it to the cluster.
 
 ```yaml
----
 apiVersion: kafka.entigo.com/v1alpha1
 kind: KafkaUser
 metadata:
@@ -83,7 +81,7 @@ spec:
       operation: Read
 ```
 
-## 3. Create a Kafka Topic (with topic acl's)
+## 4. Create a Kafka Topic (with topic acl's)
 
 Create an Kafka Topic manifest and deploy it to the cluster.
 
@@ -105,49 +103,49 @@ This creates:
 
 * A Kafka Topic
 
-## 3. Result
+## 5. Result
 
-### 3.1 Observed Kafka Cluster
+### 5.1 Observed Kafka Cluster
 
 Observed MSK created in Kubernetes
 
 ```yaml
-[~]# kubectl get msk
+$ kubectl get MSK.kafka.entigo.com
 NAME                               SYNCED   READY   COMPOSITION    AGE
 test-crossplane-cluster-observed   True     True    msk-observed   7d
 ```
 
-### 3.2 Kafka User
+### 5.2 Kafka User
 
 Kafka User objects created in Kubernetes
 
 ```yaml
-[~]# kubectl get KafkaUser
-NAME                          SYNCED   READY   CONNECTION-SECRET   AGE
-user-a                        True     True                        18h
+$ kubectl get KafkaUser.kafka.entigo.com
+NAME     SYNCED   READY   CONNECTION-SECRET   AGE
+user-a   True     True                        18h
 
-[~]# kubectl get secret
-NAME                                                      TYPE     DATA   AGE
-test-crossplane-cluster-user-a-k8s                        Opaque   1      18h
+$ kubectl get secret
+NAME                                 TYPE     DATA   AGE
+test-crossplane-cluster-user-a-k8s   Opaque   1      18h
 
 
-[~]# kubectl get secret.secretsmanager.aws.upbound.io
-NAME                                                  SYNCED   READY   EXTERNAL-NAME                                                                                    AGE
-test-crossplane-cluster-user-a                        True     True    arn:aws:secretsmanager:us-east-1:xxxxxxxxxxxx:secret:AmazonMSK_test-cluster-name-user-a-U0dDJe   18h
+$ kubectl get secret.secretsmanager.aws.upbound.io
+NAME                             SYNCED   READY   EXTERNAL-NAME                                                                                    AGE
+test-crossplane-cluster-user-a   True     True    arn:aws:secretsmanager:us-east-1:xxxxxxxxxxxx:secret:AmazonMSK_test-cluster-name-user-a-U0dDJe   18h
 
-[~]# kubectl get secretpolicy.secretsmanager.aws.upbound.io
-NAME                                                        SYNCED   READY   EXTERNAL-NAME                                                                                    AGE
-test-crossplane-cluster-user-a-policy                       True     True    arn:aws:secretsmanager:us-east-1:xxxxxxxxxxxx:secret:AmazonMSK_test-cluster-name-user-a-U0dDJe   18h
+$ kubectl get secretpolicy.secretsmanager.aws.upbound.io
+NAME                                    SYNCED   READY   EXTERNAL-NAME                                                                                    AGE
+test-crossplane-cluster-user-a-policy   True     True    arn:aws:secretsmanager:us-east-1:xxxxxxxxxxxx:secret:AmazonMSK_test-cluster-name-user-a-U0dDJe   18h
 
-[~]# kubectl get secretversion.secretsmanager.aws.upbound.io
-NAME                                                         SYNCED   READY   EXTERNAL-NAME   AGE
-test-crossplane-cluster-user-a-version                       True     True                    18h
+$ kubectl get secretversion.secretsmanager.aws.upbound.io
+NAME                                     SYNCED   READY   EXTERNAL-NAME   AGE
+test-crossplane-cluster-user-a-version   True     True                    18h
 
-[~]# kubectl get accesscontrollists
+$ kubectl get accesscontrollists
 NAME              READY   SYNCED   EXTERNAL-NAME                                                                                                                                                                                            AGE
-user-a-alpha-cg   True    True     {"ResourceName":"alpha","ResourceType":"Group","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   18h
-user-a-gamma-cg   True    True     {"ResourceName":"gamma","ResourceType":"Group","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   18h
-topic-a-user-a-read   True    True     {"ResourceName":"topic-a","ResourceType":"Topic","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}     19h
+user-a-alpha-cg       True    True     {"ResourceName":"alpha","ResourceType":"Group","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   18h
+user-a-gamma-cg       True    True     {"ResourceName":"gamma","ResourceType":"Group","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   18h
+topic-a-user-a-read   True    True     {"ResourceName":"topic-a","ResourceType":"Topic","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   19h
 ```
 
 AWS Secrets Manager secret with IAM credentials, secret scram association and consumer group ACL's
@@ -171,16 +169,16 @@ User Topic ACL's
 
 ![](img/example-kafkauser-4.png)
 
-### 3.3 Kafka Topic
+### 5.3 Kafka Topic
 
 Kafka Topic objects created in Kubernetes
 
 ```yaml
-[~]# kubectl get Topic -A
+$ kubectl get Topic.kafka.entigo.com -A
 NAMESPACE   NAME      SYNCED   READY   CONNECTION-SECRET   AGE
 team-a      topic-a   True     True                        19h
 
-[~]# kubectl get topic.topic.kafka.crossplane.io
+$ kubectl get topic.topic.kafka.crossplane.io
 NAME                                 READY   SYNCED   EXTERNAL-NAME                        AGE
 topic-a                              True    True     team-a                               19h
 ```
