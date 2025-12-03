@@ -59,8 +59,8 @@ If `spec.consumerGroups.` is defined, the composition also creates consumer grou
 apiVersion: kafka.entigo.com/v1alpha1
 kind: KafkaUser
 metadata:
-  name: user-b
-  namespace: team-b
+  name: user-a
+  namespace: default
 spec:
   clusterName: test-crossplane-cluster
   consumerGroups:
@@ -74,8 +74,8 @@ If `spec.acls.` is defined, the composition also creates topic ACL's for the cre
 apiVersion: kafka.entigo.com/v1alpha1
 kind: KafkaUser
 metadata:
-  name: user-b
-  namespace: team-b
+  name: user-a
+  namespace: default
 spec:
   clusterName: test-crossplane-cluster
   acls:
@@ -148,7 +148,6 @@ NAME              READY   SYNCED   EXTERNAL-NAME                                
 user-a-alpha-cg   True    True     {"ResourceName":"alpha","ResourceType":"Group","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   18h
 user-a-gamma-cg   True    True     {"ResourceName":"gamma","ResourceType":"Group","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}   18h
 topic-a-user-a-read   True    True     {"ResourceName":"topic-a","ResourceType":"Topic","ResourcePrincipal":"User:user-a","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}     19h
-topic-a-user-b-read   True    True     {"ResourceName":"topic-a","ResourceType":"Topic","ResourcePrincipal":"User:user-b","ResourceHost":"*","ResourceOperation":"Read","ResourcePermissionType":"Allow","ResourcePatternTypeFilter":"Literal"}     19h
 ```
 
 AWS Secrets Manager secret with IAM credentials, secret scram association and consumer group ACL's
