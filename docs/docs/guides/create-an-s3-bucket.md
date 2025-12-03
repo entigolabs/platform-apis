@@ -39,7 +39,7 @@ spec:
 # This example does not create a Kubernetes ServiceAccount.
 # Required IAM permissions will be granted to an existing ServiceAccount `example-app-already-existing-service-account`.
 # The existing ServiceAccount must exist in the same namespace with the S3Bucket.
-# ServiceAccount annotation must be added manually: `eks.amazonaws.com/role-arn: arn:aws:iam::<aws-account-number>:role/<.metadata.name>`.
+# ServiceAccount annotation must be added manually: `eks.amazonaws.com/role-arn: arn:aws:iam::<aws-account-number>:role/<metadata.name>`.
 apiVersion: storage.entigo.com/v1alpha1
 kind: S3Bucket
 metadata:
