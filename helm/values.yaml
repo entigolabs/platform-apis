@@ -57,7 +57,7 @@ s3bucket:
     tag: v0.0.0
 
 kafka:
-  install: true
+  install: false
   environmentConfig:
     awsProvider: "crossplane-aws"
     tags: {}
