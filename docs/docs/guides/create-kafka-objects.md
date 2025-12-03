@@ -180,7 +180,7 @@ Kafka Topic objects created in Kubernetes
 NAMESPACE   NAME      SYNCED   READY   CONNECTION-SECRET   AGE
 team-a      topic-a   True     True                        19h
 
-[root@ip-10-201-0-207 ~]# kubectl get topic.topic.kafka.crossplane.io
+[~]# kubectl get topic.topic.kafka.crossplane.io
 NAME                                 READY   SYNCED   EXTERNAL-NAME                        AGE
 topic-a                              True    True     team-a                               19h
 ```
