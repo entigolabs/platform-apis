@@ -28,7 +28,6 @@ metadata:
   name: test-crossplane-cluster
 spec:
   clusterARN: "arn:aws:kafka:{region}:{account}:cluster/{msk-cluster-name}/{uuid}"
-  namespace: default
 ```
 
 ## 2. Create a Kafka User (with consumer group acl's)
@@ -69,7 +68,7 @@ spec:
     - gamma
 ```
 
-If `spec.acks.` is defined, the composition also creates topic ACL's for the created users.
+If `spec.acls.` is defined, the composition also creates topic ACL's for the created users.
 
 ```yaml
 apiVersion: kafka.entigo.com/v1alpha1
