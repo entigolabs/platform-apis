@@ -151,6 +151,8 @@ jobs:
 
           if [ -z "$KAFKA_TAG" ] || [ "$KAFKA_TAG" = "null" ]; then
             echo "Failed to fetch kafka tag"
+            exit 1
+          fi
 
           if [ -z "$VALKEY_TAG" ] || [ "$VALKEY_TAG" = "null" ]; then
             echo "Failed to fetch valkey tag"
