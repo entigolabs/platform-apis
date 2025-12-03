@@ -26,7 +26,7 @@ kind: MSK
 metadata:
   name: test-crossplane-cluster
 spec:
-  clusterARN: "arn:aws:kafka:{region}:{account}:cluster/{msk-cluster-name}/{uuid}"
+  clusterARN: "arn:aws:kafka:<region>:<account>:cluster/<msk-cluster-name>/<uuid>"
 ```
 
 ## 3. Create a Kafka User (with consumer group acl's)
