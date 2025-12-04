@@ -85,6 +85,11 @@ jobs:
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
 
+          KAFKA_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-kafka/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
+            | head -n 1)
+            
           VALKEY_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-valkey/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
@@ -144,6 +149,11 @@ jobs:
             exit 1
           fi
 
+          if [ -z "$KAFKA_TAG" ] || [ "$KAFKA_TAG" = "null" ]; then
+            echo "Failed to fetch kafka tag"
+            exit 1
+          fi
+
           if [ -z "$VALKEY_TAG" ] || [ "$VALKEY_TAG" = "null" ]; then
             echo "Failed to fetch valkey tag"
             exit 1
@@ -178,6 +188,7 @@ jobs:
           yq -i ".artifact.function.tag = \"$ARTIFACT_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".zone.package.tag = \"$ZONE_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".s3bucket.package.tag = \"$S3BUCKET_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".kafka.package.tag = \"$KAFKA_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".valkey.package.tag = \"$VALKEY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".webapp.package.tag = \"$WEBAPP_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".cronjob.package.tag = \"$CRONJOB_TAG\"" ${{ env.CHART_PATH }}/values.yaml

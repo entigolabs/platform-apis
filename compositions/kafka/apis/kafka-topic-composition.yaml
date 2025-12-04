@@ -1,0 +1,60 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: kafka-topic
+spec:
+  compositeTypeRef:
+    apiVersion: kafka.entigo.com/v1alpha1
+    kind: XTopic
+  mode: Pipeline
+  pipeline:
+    - step: create-kafka-topics
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $topicName := .observed.composite.resource.spec.claimRef.name -}}
+            {{- $partitions := .observed.composite.resource.spec.partitions | default 3 -}}
+            {{- $replicationFactor := .observed.composite.resource.spec.replicationFactor | default 3 -}}
+            {{- $config := .observed.composite.resource.spec.config -}}
+            {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
+            ---
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              msk-observer:
+                apiVersion: kafka.entigo.com/v1alpha1
+                kind: MSK
+                matchName: {{ $clusterName }}-observed
+            {{- $mskObservers := getExtraResources . "msk-observer" -}}
+            {{- if $mskObservers -}}
+            {{- $mskObserver := mustFirst $mskObservers -}}
+            {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig }}
+            ---
+            apiVersion: topic.kafka.crossplane.io/v1alpha1
+            kind: Topic
+            metadata:
+              name: {{ $topicName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: topic-{{ $topicName }}
+            spec:
+              forProvider:
+                partitions: {{ $partitions }}
+                replicationFactor: {{ $replicationFactor }}
+                {{- if $config }}
+                config:
+                  {{- range $key, $value := $config }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+                {{- end }}
+              providerConfigRef:
+                name: {{ $kafkaProviderConfig }}
+            {{- end }}
+
+    - step: detect-readiness
+      functionRef:
+        name: function-auto-ready

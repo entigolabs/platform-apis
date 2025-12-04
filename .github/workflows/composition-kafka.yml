@@ -1,0 +1,19 @@
+name: Build Kafka Composition
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "compositions/kafka/**"
+  pull_request:
+    paths:
+      - "compositions/kafka/**"
+
+jobs:
+  build:
+    uses: ./.github/workflows/builder-composition.yml
+    with:
+      path: compositions/kafka
+      name: platform-apis-kafka
+    secrets: inherit

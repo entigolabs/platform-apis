@@ -17,3 +17,9 @@ WebApp: [Basic, Standard, Premium]
 Zone: [Premium]
 
 S3Bucket: [Basic, Standard, Premium]
+
+MSK: [Standard, Premium]
+
+XTopic: [Standard, Premium]
+
+XKafkaUser: [Standard, Premium]
