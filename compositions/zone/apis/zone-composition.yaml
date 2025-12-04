@@ -28,8 +28,10 @@ spec:
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
             {{- $granularEgress := false }}
+            {{- $granularEgressExclude := list }}
             {{- if and $envConfig $envConfig.resource $envConfig.resource.data }}
             {{- $granularEgress = index $envConfig.resource.data "granularEgress" | default false }}
+            {{- $granularEgressExclude = index $envConfig.resource.data "granularEgressExclude" | default list }}
             {{- end }}
             {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
             ---
@@ -39,14 +41,14 @@ spec:
               name: {{ $namespace.name }}
               labels:
                 tenancy.entigo.com/zone: {{ $name }}
-                {{- if $granularEgress }}
+                {{- if and $granularEgress (not (mustHas $name $granularEgressExclude)) }}
                 istio-injection: enabled
                 {{- end }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-            {{- if $granularEgress }}
+            {{- if and $granularEgress (not (mustHas $name $granularEgressExclude)) }}
             ---
             apiVersion: networking.istio.io/v1
             kind: Sidecar
