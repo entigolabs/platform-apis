@@ -37,6 +37,25 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
+          {{ range $i, $grantBlock := .observed.composite.resource.spec.grant }}
+            {{ range $roleName := $grantBlock.roles }}
+          ---
+          apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+          kind: Grant
+          metadata:
+            name: {{ $.observed.composite.resource.metadata.name }}-grant-{{ $roleName }}
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: grant-{{ $roleName }}
+          spec:
+            forProvider:
+              role: {{ $.observed.composite.resource.metadata.name }}
+              memberOf: {{ $roleName }}
+            providerConfigRef:
+              kind: ProviderConfig
+              name: {{ $.observed.composite.resource.spec.instanceRef.name }}-providerconfig
+            {{ end }}
+          {{ end }}
+
   - step: automatically-detect-ready-composed-resources
     functionRef:
       name: function-auto-ready
