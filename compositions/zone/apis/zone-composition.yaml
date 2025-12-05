@@ -41,14 +41,14 @@ spec:
               name: {{ $namespace.name }}
               labels:
                 tenancy.entigo.com/zone: {{ $name }}
-                {{- if and $granularEgress (not (mustHas $name $granularEgressExclude)) }}
+                {{- if $granularEgress }}
                 istio-injection: enabled
                 {{- end }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: namespace-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
-            {{- if and $granularEgress (not (mustHas $name $granularEgressExclude)) }}
+            {{- if $granularEgress }}
             ---
             apiVersion: networking.istio.io/v1
             kind: Sidecar
@@ -61,7 +61,7 @@ spec:
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               outboundTrafficPolicy:
-                mode: REGISTRY_ONLY  # Override global ALLOW_ANY for this namespace
+                mode: {{ if mustHas $name $granularEgressExclude }}ALLOW_ANY{{ else }}REGISTRY_ONLY{{ end }}
               egress:
               - hosts:
                 - "*/*.svc.cluster.local"
