@@ -28,8 +28,10 @@ spec:
             {{- $name := .observed.composite.resource.metadata.name -}}
             {{- $envConfig := mustFirst (getExtraResources . "zoneEnvironment") }}
             {{- $granularEgress := false }}
+            {{- $granularEgressExclude := list }}
             {{- if and $envConfig $envConfig.resource $envConfig.resource.data }}
             {{- $granularEgress = index $envConfig.resource.data "granularEgress" | default false }}
+            {{- $granularEgressExclude = index $envConfig.resource.data "granularEgressExclude" | default list }}
             {{- end }}
             {{ range $index, $namespace := .observed.composite.resource.spec.namespaces }}
             ---
@@ -59,7 +61,7 @@ spec:
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
               outboundTrafficPolicy:
-                mode: REGISTRY_ONLY  # Override global ALLOW_ANY for this namespace
+                mode: {{ if mustHas $name $granularEgressExclude }}ALLOW_ANY{{ else }}REGISTRY_ONLY{{ end }}
               egress:
               - hosts:
                 - "*/*.svc.cluster.local"
