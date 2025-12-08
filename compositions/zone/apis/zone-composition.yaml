@@ -201,7 +201,6 @@ spec:
                   apiVersions: ["v1"]
                   operations: ["CREATE"]
                   resources: ["pods"]
-
               mutations:
               - patchType: JSONPatch
                 jsonPatch:
@@ -741,6 +740,14 @@ spec:
                 - p, proj:{{ $name }}:contributor, exec, *, {{ $name }}/*, allow
               - name: cicd
                 description: Use this role for your CI/CD pipelines
+                {{- if $maintainerGroups }}
+                groups:
+                {{- range $maintainerGroups }}
+                - {{ . }}
+                  {{- end }}
+                {{- else }}
+                groups: []
+                {{- end }}
                 policies:
                 - p, proj:{{ $name }}:cicd, applications, sync, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:cicd, applicationsets, sync, {{ $name }}/*, allow
