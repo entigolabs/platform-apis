@@ -11,6 +11,20 @@ spec:
     name: basic-instance
 ```
 
+A PostgreSQL User definition  with role grant.
+```yaml
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLUser
+metadata:
+  name: user-example
+spec:
+  instanceRef:
+    name: postgresql-example
+  grant:
+    roles:
+    - example-role
+```
+
 ### Prerequisites
 The PostgreSQL User requires the following resource applied:
 
