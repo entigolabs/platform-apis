@@ -44,15 +44,13 @@ spec:
                 description: Inherit privileges from granted roles. Default true. 
                 default: true
               grant:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    roles:
-                      description: An array of role names to be granted.
-                      type: array
-                      items:
-                        type: string
+                type: object
+                properties:
+                  roles:
+                    description: An array of role names to be granted.
+                    type: array
+                    items:
+                      type: string
             required:
               - instanceRef
 

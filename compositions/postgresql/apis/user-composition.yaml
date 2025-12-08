@@ -37,15 +37,15 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
-          {{ range $i, $grantBlock := .observed.composite.resource.spec.grant }}
-            {{ range $roleName := $grantBlock.roles }}
+          {{ if .observed.composite.resource.spec.grant }}
+            {{ range $roleName := .observed.composite.resource.spec.grant.roles }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Grant
           metadata:
-            name: {{ $.observed.composite.resource.metadata.name }}-grant-{{ $roleName }}
+            name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
             annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: {{ $.observed.composite.resource.metadata.name }}-grant-{{ $roleName }}-{{ $.observed.composite.resource.spec.instanceRef.name }}-{{ $i }}
+              gotemplating.fn.crossplane.io/composition-resource-name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
           spec:
             forProvider:
               role: {{ $.observed.composite.resource.metadata.name }}

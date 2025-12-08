@@ -21,8 +21,8 @@ spec:
   instanceRef:
     name: postgresql-example
   grant:
-    - roles:
-      - example-role
+    roles:
+    - example-role
 ```
 
 ### Prerequisites
