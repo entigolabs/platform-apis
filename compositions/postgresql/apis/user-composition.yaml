@@ -45,7 +45,7 @@ spec:
           metadata:
             name: {{ $.observed.composite.resource.metadata.name }}-grant-{{ $roleName }}
             annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: grant-{{ $roleName }}
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $.observed.composite.resource.metadata.name }}-grant-{{ $roleName }}-{{ $i }}
           spec:
             forProvider:
               role: {{ $.observed.composite.resource.metadata.name }}
