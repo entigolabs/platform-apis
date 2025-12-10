@@ -70,9 +70,8 @@ func TestArtifactFunction(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						apis.RequiredRepositoryKey: {Items: []*fnv1.Resource{}},
-						base.EnvironmentKey:        test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-						apis.KMSDataKey:            test.KMSKeyResource(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+						apis.KMSDataKey:     test.KMSKeyResource(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 					},
 				},
 			},
@@ -88,9 +87,8 @@ func TestArtifactFunction(t *testing.T) {
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							apis.RequiredRepositoryKey: {Kind: apis.RepositoryKind, ApiVersion: apis.RepositoryApiVersion, Match: &fnv1.ResourceSelector_MatchName{MatchName: "repository"}},
-							base.EnvironmentKey:        base.RequiredEnvironmentConfig(environmentName),
-							apis.KMSDataKey:            base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							apis.KMSDataKey:     base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -106,9 +104,8 @@ func TestArtifactFunction(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						apis.RequiredRepositoryKey: {Items: []*fnv1.Resource{}},
-						base.EnvironmentKey:        test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-						apis.KMSDataKey:            test.KMSKeyResource(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+						apis.KMSDataKey:     test.KMSKeyResource(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 					},
 				},
 			},
@@ -124,9 +121,8 @@ func TestArtifactFunction(t *testing.T) {
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							apis.RequiredRepositoryKey: {Kind: apis.RepositoryKind, ApiVersion: apis.RepositoryApiVersion, Match: &fnv1.ResourceSelector_MatchName{MatchName: "repository"}},
-							base.EnvironmentKey:        base.RequiredEnvironmentConfig(environmentName),
-							apis.KMSDataKey:            base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							apis.KMSDataKey:     base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -142,9 +138,8 @@ func TestArtifactFunction(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						apis.RequiredRepositoryKey: {Items: []*fnv1.Resource{}},
-						base.EnvironmentKey:        test.EnvironmentConfigResourceWithData(environmentName, optEnvironmentData),
-						apis.KMSDataKey:            test.KMSKeyResource(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, optEnvironmentData),
+						apis.KMSDataKey:     test.KMSKeyResource(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 					},
 				},
 			},
@@ -160,9 +155,8 @@ func TestArtifactFunction(t *testing.T) {
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							apis.RequiredRepositoryKey: {Kind: apis.RepositoryKind, ApiVersion: apis.RepositoryApiVersion, Match: &fnv1.ResourceSelector_MatchName{MatchName: "repository"}},
-							base.EnvironmentKey:        base.RequiredEnvironmentConfig(environmentName),
-							apis.KMSDataKey:            base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							apis.KMSDataKey:     base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},

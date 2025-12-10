@@ -18,10 +18,6 @@ import (
 )
 
 func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required) (map[string]runtime.Object, error) {
-	if err := checkRepositoryConflict(repository, required); err != nil {
-		return nil, err
-	}
-
 	env, err := GetEnvironment(required)
 	if err != nil {
 		return nil, err
@@ -97,22 +93,4 @@ func GetEnvironment(required map[string][]resource.Required) (apis.Environment, 
 	var env apis.Environment
 	err := base.GetEnvironment(base.EnvironmentKey, required, &env)
 	return env, err
-}
-
-func checkRepositoryConflict(repository v1alpha1.Repository, required map[string][]resource.Required) error {
-	repositories := required[apis.RequiredRepositoryKey]
-	if len(repositories) == 0 {
-		return nil
-	}
-	conflictRepository := repositories[0].Resource
-	if conflictRepository.GetNamespace() != repository.GetNamespace() {
-		return fmt.Errorf("repository %s already exists in namespace %s", repository.Name, conflictRepository.GetNamespace())
-	}
-	annotations := conflictRepository.GetAnnotations()
-	actualAnnotationValue, annotationFound := annotations["crossplane.io/composition-resource-name"]
-
-	if !annotationFound || actualAnnotationValue != repository.GetName() {
-		return fmt.Errorf("repository %s object already exists", repository.GetName())
-	}
-	return nil
 }
