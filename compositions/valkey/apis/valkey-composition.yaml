@@ -208,6 +208,9 @@ spec:
           - name: security-group
             patches:
               - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.tags.Name
+                toFieldPath: status.securityGroup.name
+              - type: ToCompositeFieldPath
                 fromFieldPath: status.atProvider.description
                 toFieldPath: status.securityGroup.description
               - type: ToCompositeFieldPath
