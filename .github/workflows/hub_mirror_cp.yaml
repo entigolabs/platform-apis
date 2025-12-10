@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sync-providers-google:
+  sync-functions:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
