@@ -86,8 +86,23 @@ spec:
             status:
               type: object
               properties:
-                primaryEndpoint:
+                endpoint:
+                  type: object
+                  properties:
+                    address:
+                      type: string
+                    port:
+                      type: number
+                  required:
+                    - address
+                    - port
+                autoMinorVersionUpgrade:
+                  type: boolean
+                kmsKeyId:
                   type: string
-                  description: Valkey Instance primary endpoint
+                kmsKeyAlias:
+                  type: string
+                multiAZenabled:
+                  type: boolean
           required:
             - spec
