@@ -28,10 +28,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		return nil, err
 	}
 	encryptionType := "KMS"
-	annotations := repository.GetAnnotations()
-	if annotations == nil {
-		annotations = make(map[string]string)
-	}
+	annotations := make(map[string]string)
 	if repository.Spec.Path != "" || repository.Spec.Name != "" {
 		annotations["crossplane.io/external-name"] = getExternalRepoName(repository)
 	}
