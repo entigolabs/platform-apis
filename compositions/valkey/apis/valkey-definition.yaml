@@ -104,5 +104,38 @@ spec:
                   type: string
                 multiAZenabled:
                   type: boolean
+                securityGroup:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    id:
+                      type: string
+                    arn:
+                      type: string
+                    rules:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          cidrBlocks:
+                            type: array
+                            items:
+                              type: string
+                          description:
+                            type: string
+                          fromPort:
+                            type: integer
+                          toPort:
+                            type: integer
+                          protocol:
+                            type: string
+                          type:
+                            type: string
+                          self:
+                            type: boolean
+
           required:
             - spec
