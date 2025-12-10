@@ -29,10 +29,10 @@ The Infralib-Operator configures/creates Infralib Agent Modules on Module Templa
 When time to configure/create Module, the Infralib-Operator searches for Module Templates in mentioned above locations.
 
 - If a template with the same name exists in a parent scope (e.g., Organization or Entigo), the local template acts as a patch.
-- If no matching name is found upstream, the local template is treated as a new resource definition.
+- If no matching name is found upstream, the local template is treated as a new definition.
 
 # 3. Creating and Patching Templates.
-Module Templates are managed via standard Kubernetes manifests. The system 'chooses' between creating a new module and patching an existing one based on the `metadata.name`.
+Module Templates are managed via standard Kubernetes manifests. The system 'chooses' between creating a new Module Template and patching an existing one based on the `metadata.name`.
 
 ## 3.1. Patching Strategy
 To modify the behavior of a default module (e.g., `eks` or `argocd`), create a Module Template in your workspace with the **exact same name** as the target module.
@@ -40,8 +40,8 @@ To modify the behavior of a default module (e.g., `eks` or `argocd`), create a M
 - **Merge Behavior:** You only need to define the fields you wish to override in the spec.
 - **Inheritance:** Fields not specified in your local template will inherit values from the upstream (Organization or Entigo) template.
 
-## 3.2. Creating New Modules
-To introduce a custom module that does not exist in the standard library, create a Module Template with a unique name.
+## 3.2. Creating New Module Templates
+To introduce a custom module template that does not exist in the standard library, create a Module Template with a unique name.
 
 # 4. Standard Library (Predefined Templates)
 The following modules are currently available in the Entigo workspace:
@@ -106,4 +106,4 @@ spec:
 ```
 
 # 6. Deployment
-Once the ModuleTemplate resource is applied, it will be automatically detected by the Infralib-Operator. The configuration will take effect during the next infrastructure deployment cycle (Infralib Agent job execution)
+Once the ModuleTemplate resource is applied, it will be automatically detected by the Infralib-Operator. The configuration will take effect during the next infrastructure deployment cycle (Infralib Agent Run Job execution)
