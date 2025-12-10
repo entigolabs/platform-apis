@@ -40,7 +40,7 @@ func (f *Function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 			response.Fatal(rsp, fmt.Errorf("panic: %v", r))
 		}
 	}()
-	f.log.Info("Running function", "tag", req.GetMeta().GetTag())
+	f.log.Debug("Running function", "tag", req.GetMeta().GetTag())
 
 	rsp = response.To(req, response.DefaultTTL)
 
@@ -89,7 +89,7 @@ func (f *Function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 		return rsp, nil
 	}
 
-	f.log.Info("Successfully composed resources", "kind", compositeResource.Resource.GetKind(), "count", len(desired))
+	f.log.Debug("Successfully composed resources", "kind", compositeResource.Resource.GetKind(), "count", len(desired))
 	return rsp, nil
 }
 
