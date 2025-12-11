@@ -30,7 +30,15 @@ spec:
                         values:
                           - 'true'
                   weight: 90
-          containers: []
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 1m
+                memory: 6Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
           tolerations:
             - effect: NoSchedule
               key: tools
