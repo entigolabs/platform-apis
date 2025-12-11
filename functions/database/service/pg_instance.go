@@ -230,10 +230,6 @@ func (g *pgInstanceGenerator) generateNames() {
 	g.names.pc = resource.Name(GetPCName(g.pgInstance.Name))
 }
 
-func (g *pgInstanceGenerator) isReady(name resource.Name) bool {
-	return g.readinessMap[name]
-}
-
 func (g *pgInstanceGenerator) buildSecurityGroup() map[string]runtime.Object {
 	groups := make(map[string]runtime.Object)
 	sgName := string(g.names.sg)
