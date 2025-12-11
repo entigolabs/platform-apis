@@ -55,14 +55,16 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 			Annotations: annotations,
 		},
 		Spec: v1beta1.RepositorySpec{
-			ForProvider: v1beta1.RepositoryParameters{
-				Region:             region,
-				ImageTagMutability: env.ImageTagMutability,
-				EncryptionConfiguration: []v1beta1.EncryptionConfigurationParameters{{
+			InitProvider: v1beta1.RepositoryInitParameters{
+				EncryptionConfiguration: []v1beta1.EncryptionConfigurationInitParameters{{
 					EncryptionType: &encryptionType,
 					KMSKeyRef:      &xpv2v1.NamespacedReference{Name: kms.Name, Namespace: kms.Namespace},
 				}},
-				Tags: env.Tags,
+			},
+			ForProvider: v1beta1.RepositoryParameters{
+				Region:             region,
+				ImageTagMutability: env.ImageTagMutability,
+				Tags:               env.Tags,
 			},
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference: &xpv2.ProviderConfigReference{Name: env.AWSProvider, Kind: "ClusterProviderConfig"},
