@@ -64,3 +64,5 @@ spec:
                   type: string
                 objectOwnership:
                   type: string
+                serviceAccountName:
+                  type: string

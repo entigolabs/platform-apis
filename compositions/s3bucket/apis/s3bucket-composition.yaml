@@ -75,6 +75,7 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
                 crossplane.io/external-name: {{ $bucketName }}
                 storage.entigo.com/kms-data-key-alias: {{ $kmsDataKeyAlias.resource.status.atProvider.id }}
+                storage.entigo.com/service-account-name: {{ $serviceAccountName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -391,6 +392,9 @@ spec:
                       regexp:
                         match: "^alias/(.*)$"
                         group: 1
+              - type: ToCompositeFieldPath
+                fromFieldPath: metadata.annotations[storage.entigo.com/service-account-name]
+                toFieldPath: status.serviceAccountName
           - name: encryption
             patches:
               - type: ToCompositeFieldPath
