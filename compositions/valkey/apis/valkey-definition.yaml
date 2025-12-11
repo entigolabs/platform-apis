@@ -126,12 +126,14 @@ spec:
                               type: string
                           description:
                             type: string
+                          fromPort:
+                            type: integer
                           toPort:
                             type: integer
                           protocol:
                             type: string
-                          type:
-                            type: string
+                          self:
+                            type: boolean
 
           required:
             - spec
