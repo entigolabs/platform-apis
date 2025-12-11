@@ -1,10 +1,10 @@
 apiVersion: pkg.crossplane.io/v1
 kind: Function
 metadata:
-  name: platform-apis-repository-fn
-  #annotations:
-    # This tells crossplane beta render to connect to the function locally.
-    # render.crossplane.io/runtime: Development
+  name: platform-apis-artifact-fn
+  annotations:
+     #This tells crossplane beta render to connect to the function locally.
+     render.crossplane.io/runtime: Development
 spec:
   # This is ignored when using the Development runtime. Only when using the cli render command.
   package: ghcr.io/entigolabs/platform-apis-repository-fn:v0.0.0-20251008122559-ce924c6397c8
