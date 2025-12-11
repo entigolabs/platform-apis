@@ -403,6 +403,27 @@ spec:
                 fromFieldPath: status.atProvider.rule[0].bucketKeyEnabled
                 toFieldPath: status.bucketKeyEnabled
 
+          - name: public-access-block
+            patches:
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.blockPublicAcls
+                toFieldPath: status.blockPublicAclsEnabled
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.blockPublicPolicy
+                toFieldPath: status.blockPublicPolicyEnabled
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.ignorePublicAcls
+                toFieldPath: status.ignorePublicAclsEnabled
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.restrictPublicBuckets
+                toFieldPath: status.restrictPublicBucketsEnabled
+
+          - name: ownership-controls
+            patches:
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.rule.objectOwnership
+                toFieldPath: status.objectOwnership
+
     - step: render-secrets
       functionRef:
         name: function-kcl

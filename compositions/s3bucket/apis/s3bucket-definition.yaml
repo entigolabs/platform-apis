@@ -52,3 +52,15 @@ spec:
                   type: string
                 versioningEnabled:
                   type: boolean
+                blockPublicAclsEnabled:
+                  type: boolean
+                blockPublicPolicyEnabled:
+                  type: boolean
+                ignorePublicAclsEnabled:
+                  type: boolean
+                restrictPublicBucketsEnabled:
+                  type: boolean
+                aclStatus:
+                  type: string
+                objectOwnership:
+                  type: string
