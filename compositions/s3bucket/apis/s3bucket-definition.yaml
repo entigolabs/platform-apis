@@ -33,3 +33,22 @@ spec:
                   description: Kubernetes ServiceAccount name for IRSA. Defaults to metadata.name
                   type: string
                   default: ""
+            status:
+              type: object
+              properties:
+                region:
+                  type: string
+                s3Uri:
+                  type: string
+                s3Url:
+                  type: string
+                kmsKeyAlias:
+                  type: string
+                kmsKeyId:
+                  type: string
+                bucketKeyEnabled:
+                  type: boolean
+                encryptionType:
+                  type: string
+                versioningEnabled:
+                  type: boolean

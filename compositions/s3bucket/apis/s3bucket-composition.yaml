@@ -74,6 +74,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
                 crossplane.io/external-name: {{ $bucketName }}
+                storage.entigo.com/kms-data-key-alias: {{ $kmsDataKeyAlias.resource.status.atProvider.id }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -348,6 +349,59 @@ spec:
               name: {{ $serviceAccountName }}
               namespace: {{ $namespace }}
             {{- end }}
+
+    - step: patch-status-fields
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: bucket
+            patches:
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.region
+                toFieldPath: status.region
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.versioning.enabled
+                toFieldPath: status.versioningEnabled
+              - type: ToCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: status.s3Uri
+                transforms:
+                  - type: string
+                    string:
+                      type: Format
+                      fmt: "s3://%s"
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.bucketRegionalDomainName
+                toFieldPath: status.s3Url
+                transforms:
+                  - type: string
+                    string:
+                      type: Format
+                      fmt: "https://%s"
+              - type: ToCompositeFieldPath
+                fromFieldPath: metadata.annotations[storage.entigo.com/kms-data-key-alias]
+                toFieldPath: status.kmsKeyAlias
+                transforms:
+                  - type: string
+                    string:
+                      type: Regexp
+                      regexp:
+                        match: "^alias/(.*)$"
+                        group: 1
+          - name: encryption
+            patches:
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.rule[0].applyServerSideEncryptionByDefault.sseAlgorithm
+                toFieldPath: status.encryptionType
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.rule[0].applyServerSideEncryptionByDefault.kmsMasterKeyId
+                toFieldPath: status.kmsKeyId
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.rule[0].bucketKeyEnabled
+                toFieldPath: status.bucketKeyEnabled
 
     - step: render-secrets
       functionRef:
