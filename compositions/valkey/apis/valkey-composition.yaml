@@ -72,6 +72,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: replication-group
                 crossplane.io/external-name: {{ $name }}
+                database.entigo.com/kms-data-key-alias: {{ $kmsDataKeyAlias.resource.status.atProvider.id }}
               name: {{ $name }}
             spec:
               providerConfigRef:
@@ -171,15 +172,56 @@ spec:
         resources:
           - name: replication-group
             patches:
-              - type: CombineToComposite
-                combine:
-                  variables:
-                    - fromFieldPath: status.atProvider.primaryEndpointAddress
-                    - fromFieldPath: status.atProvider.port
-                  strategy: string
-                  string:
-                    fmt: "%s:%.0f"
-                toFieldPath: status.primaryEndpoint
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.primaryEndpointAddress
+                toFieldPath: status.endpoint.address
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.port
+                toFieldPath: status.endpoint.port
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.autoMinorVersionUpgrade
+                toFieldPath: status.autoMinorVersionUpgrade
+                transforms:
+                  - type: convert
+                    convert:
+                      toType: bool
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.kmsKeyId
+                toFieldPath: status.kmsKeyId
+              - type: ToCompositeFieldPath
+                fromFieldPath: metadata.annotations[database.entigo.com/kms-data-key-alias]
+                toFieldPath: status.kmsKeyAlias
+                transforms:
+                  - type: string
+                    string:
+                      type: Regexp
+                      regexp:
+                        match: "^alias/(.*)$"
+                        group: 1
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.multiAzEnabled
+                toFieldPath: status.multiAZenabled
+                transforms:
+                  - type: convert
+                    convert:
+                      toType: bool
+          - name: security-group
+            patches:
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.tags.Name
+                toFieldPath: status.securityGroup.name
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.description
+                toFieldPath: status.securityGroup.description
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.id
+                toFieldPath: status.securityGroup.id
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.arn
+                toFieldPath: status.securityGroup.arn
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.ingress
+                toFieldPath: status.securityGroup.rules
 
     - step: prepare-credentials
       functionRef:
