@@ -1,0 +1,12 @@
+---
+apiVersion: kafka.entigo.com/v1alpha1
+kind: Topic
+metadata:
+  name: topic-b
+  namespace: team-b
+spec:
+  clusterName: test-crossplane-cluster
+  partitions: 1
+  replicationFactor: 1
+  config:
+    retention.ms: "604800012"

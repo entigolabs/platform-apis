@@ -1,0 +1,33 @@
+{{- if .Values.s3bucket.install }}
+
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-s3bucket
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+    - buckets.s3.aws.m.upbound.io
+    - bucketpublicaccessblocks.s3.aws.m.upbound.io
+    - bucketserversideencryptionconfigurations.s3.aws.m.upbound.io
+    - bucketversionings.s3.aws.m.upbound.io
+    - bucketownershipcontrols.s3.aws.m.upbound.io
+    - users.iam.aws.m.upbound.io
+    - policies.iam.aws.m.upbound.io
+    - userpolicyattachments.iam.aws.m.upbound.io
+    - accesskeys.iam.aws.m.upbound.io
+    - secrets.secretsmanager.aws.m.upbound.io
+    - secretversions.secretsmanager.aws.m.upbound.io
+
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-s3bucket
+spec:
+  package: {{ .Values.s3bucket.package.image }}:{{ .Values.s3bucket.package.tag }}
+  skipDependencyResolution: true
+
+{{- end }}
+

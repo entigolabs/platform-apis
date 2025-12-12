@@ -1,0 +1,56 @@
+{{- if .Values.valkey.install }}
+
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-valkey
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+    - replicationgroups.elasticache.aws.m.upbound.io
+    - parametergroups.elasticache.aws.m.upbound.io
+    - subnetgroups.elasticache.aws.m.upbound.io
+    - secrets.secretsmanager.aws.m.upbound.io
+    - secretversions.secretsmanager.aws.m.upbound.io
+
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-valkey
+spec:
+  package: {{ .Values.valkey.package.image }}:{{ .Values.valkey.package.tag }}
+  skipDependencyResolution: true
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: platform-apis-valkey
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["database.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["valkeyinstances"]
+  validations:
+    - expression: "!has(oldObject.spec.deletionProtection) || oldObject.spec.deletionProtection != true"
+      message: "ValkeyInstance is protected from deletion. Set spec.deletionProtection to false before deleting."
+      reason: Forbidden
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: platform-apis-valkey
+spec:
+  policyName: platform-apis-valkey
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector: {}
+
+{{- end }}
+

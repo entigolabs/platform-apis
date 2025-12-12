@@ -1,0 +1,14 @@
+apiVersion: storage.entigo.com/v1alpha1
+kind: S3Bucket
+metadata:
+  name: example-bucket
+spec: {}
+---
+apiVersion: storage.entigo.com/v1alpha1
+kind: S3Bucket
+metadata:
+  name: example-bucket
+spec:
+  enableVersioning: true
+  createServiceAccount: true
+  serviceAccountName: example-bucket

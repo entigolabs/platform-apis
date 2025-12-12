@@ -1,6 +1,6 @@
 apiVersion: artifact.entigo.com/v1alpha1
 kind: Repository
 metadata:
-  name: repository-example
+  name: repository-example-name
 spec:
   name: overridden-repo-name

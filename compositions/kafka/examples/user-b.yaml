@@ -1,0 +1,11 @@
+---
+apiVersion: kafka.entigo.com/v1alpha1
+kind: KafkaUser
+metadata:
+  name: user-b
+  namespace: team-b
+spec:
+  clusterName: test-crossplane-cluster
+  acls:
+    - topic: topic-b
+      operation: Read

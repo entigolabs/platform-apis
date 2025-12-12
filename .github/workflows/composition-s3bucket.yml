@@ -1,0 +1,19 @@
+name: Build S3Bucket Composition
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "compositions/s3bucket/**"
+  pull_request:
+    paths:
+      - "compositions/s3bucket/**"
+
+jobs:
+  build:
+    uses: ./.github/workflows/builder-composition.yml
+    with:
+      path: compositions/s3bucket
+      name: platform-apis-s3bucket
+    secrets: inherit

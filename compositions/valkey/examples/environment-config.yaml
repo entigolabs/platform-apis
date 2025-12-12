@@ -1,0 +1,12 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-database
+data:
+  awsProvider: crossplane-aws
+  dataKMSKey: data
+  configKMSKey: config
+  subnetGroup: database
+  elasticacheSubnetGroup: elasticache
+  tags:
+    foo: bar

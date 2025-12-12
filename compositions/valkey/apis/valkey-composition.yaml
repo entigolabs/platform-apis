@@ -1,0 +1,369 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: valkeyinstances.database.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: database.entigo.com/v1alpha1
+    kind: ValkeyInstance
+  mode: Pipeline
+  pipeline:
+    - step: render-resources
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-database
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
+              elasticacheSubnetGroup:
+                apiVersion: elasticache.aws.upbound.io/v1beta1
+                kind: SubnetGroup
+                matchName: elasticache
+              kmsDataKeyAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: data
+              kmsConfigKeyAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: config
+              computeSubnets:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: Subnet
+                matchLabels:
+                  subnet-type: compute
+
+            ---
+            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $elasticacheSubnetGroup := mustFirst (getExtraResources . "elasticacheSubnetGroup") }}
+            {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
+            {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
+            {{- $computeSubnets := getExtraResources . "computeSubnets" }}
+
+            {{- $name := .observed.composite.resource.metadata.name }}
+            {{- $namespace := .observed.composite.resource.metadata.namespace }}
+            {{- $spec := .observed.composite.resource.spec }}
+
+            {{- /* Get config from environment */ -}}
+            {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
+            {{- $subnetGroupName := $elasticacheSubnetGroup.resource.status.atProvider.id }}
+            {{- $region := $vpc.resource.status.atProvider.region }}
+            {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
+            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.targetKeyArn }}
+
+            ---
+            apiVersion: elasticache.aws.m.upbound.io/v1beta1
+            kind: ReplicationGroup
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: replication-group
+                crossplane.io/external-name: {{ $name }}
+                database.entigo.com/kms-data-key-alias: {{ $kmsDataKeyAlias.resource.status.atProvider.id }}
+              name: {{ $name }}
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                engine: valkey
+                description: {{ $name }}
+                engineVersion: {{ $spec.engineVersion | quote }}
+                nodeType: {{ $spec.instanceType }}
+                numCacheClusters: {{ $spec.numCacheClusters }}
+                automaticFailoverEnabled: true
+                multiAzEnabled: true
+                applyImmediately: true
+                autoMinorVersionUpgrade: {{ $spec.autoMinorVersionUpgrade | quote }}
+                atRestEncryptionEnabled: "true"
+                transitEncryptionEnabled: true
+                authTokenSecretRef:
+                  key: auth-token
+                  name: {{ $name }}-auth-token
+                autoGenerateAuthToken: true
+                authTokenUpdateStrategy: "SET"
+                kmsKeyId: {{ $kmsDataKeyArn }}
+                finalSnapshotIdentifier: {{ $name }}-final-snapshot
+                maintenanceWindow: {{ $spec.maintenanceWindow }}
+                snapshotWindow: {{ $spec.snapshotWindow }}
+                snapshotRetentionLimit: {{ $spec.snapshotRetentionLimit }}
+                {{- if $spec.parameterGroupName }}
+                parameterGroupName: {{ $spec.parameterGroupName }}
+                {{- end }}
+                subnetGroupName: {{ $subnetGroupName | quote }}
+                securityGroupIdRefs:
+                  - name: {{ $name }}
+                tags:
+                  Name: {{ $name }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+              writeConnectionSecretToRef:
+                name: {{ $name }}
+
+            ---
+            # Security Group
+            apiVersion: ec2.aws.m.upbound.io/v1beta1
+            kind: SecurityGroup
+            metadata:
+              name: {{ $name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: security-group
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                description: Security group for Valkey {{ $name }}
+                vpcId: {{ $vpc.resource.status.atProvider.id }}
+                tags:
+                  Name: {{ $name }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+
+            {{- range $idx, $subnet := $computeSubnets }}
+            ---
+            # Security Group Ingress Rule - {{ $subnet.resource.metadata.name }}
+            apiVersion: ec2.aws.m.upbound.io/v1beta1
+            kind: SecurityGroupRule
+            metadata:
+              name: {{ $name }}-ingress-{{ $subnet.resource.metadata.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: sg-ingress-{{ $subnet.resource.metadata.name }}
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                type: ingress
+                securityGroupIdRef:
+                  name: {{ $name }}
+                protocol: tcp
+                fromPort: 6379
+                toPort: 6379
+                cidrBlocks:
+                  - {{ $subnet.resource.status.atProvider.cidrBlock }}
+                description: Allow Valkey access from {{ $subnet.resource.metadata.name }}
+            {{- end }}
+
+    - step: patch-status-fields
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: replication-group
+            patches:
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.primaryEndpointAddress
+                toFieldPath: status.endpoint.address
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.port
+                toFieldPath: status.endpoint.port
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.autoMinorVersionUpgrade
+                toFieldPath: status.autoMinorVersionUpgrade
+                transforms:
+                  - type: convert
+                    convert:
+                      toType: bool
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.kmsKeyId
+                toFieldPath: status.kmsKeyId
+              - type: ToCompositeFieldPath
+                fromFieldPath: metadata.annotations[database.entigo.com/kms-data-key-alias]
+                toFieldPath: status.kmsKeyAlias
+                transforms:
+                  - type: string
+                    string:
+                      type: Regexp
+                      regexp:
+                        match: "^alias/(.*)$"
+                        group: 1
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.multiAzEnabled
+                toFieldPath: status.multiAZenabled
+                transforms:
+                  - type: convert
+                    convert:
+                      toType: bool
+          - name: security-group
+            patches:
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.tags.Name
+                toFieldPath: status.securityGroup.name
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.description
+                toFieldPath: status.securityGroup.description
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.id
+                toFieldPath: status.securityGroup.id
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.arn
+                toFieldPath: status.securityGroup.arn
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.ingress
+                toFieldPath: status.securityGroup.rules
+
+    - step: prepare-credentials
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            import base64
+            import json
+
+            oxr = option("params").oxr
+            name = oxr.metadata.name
+            namespace = oxr.metadata.namespace
+
+            # Request connection secret
+            extraResourcesRequest = {
+                apiVersion = "meta.krm.kcl.dev/v1alpha1"
+                kind = "ExtraResources"
+                requirements = {
+                    connectionSecret = {
+                        apiVersion = "v1"
+                        kind = "Secret"
+                        matchName = name
+                        matchNamespace = namespace
+                    }
+                }
+            }
+
+            # Get connection secret if available
+            er = option("params")?.extraResources
+            connectionSecret = er?.connectionSecret[0]?.Resource if er?.connectionSecret else None
+
+            # Create JSON credentials secret
+            credentialsSecret = {
+                apiVersion = "v1"
+                kind = "Secret"
+                metadata.name = name + "-credentials"
+                metadata.namespace = namespace
+                metadata.annotations = {
+                    "krm.kcl.dev/composition-resource-name" = "credentials"
+                    "krm.kcl.dev/ready" = "True"
+                }
+                type = "Opaque"
+                stringData = {
+                    AUTH_TOKEN = base64.decode(connectionSecret.data["attribute.auth_token"])
+                    PORT = base64.decode(connectionSecret.data.port)
+                    PRIMARY_ENDPOINT = base64.decode(connectionSecret.data.primary_endpoint_address)
+                    READER_ENDPOINT = base64.decode(connectionSecret.data.reader_endpoint_address)
+                    "credentials.json" = json.encode({
+                        AUTH_TOKEN = base64.decode(connectionSecret.data["attribute.auth_token"])
+                        PORT = base64.decode(connectionSecret.data.port)
+                        PRIMARY_ENDPOINT = base64.decode(connectionSecret.data.primary_endpoint_address)
+                        READER_ENDPOINT = base64.decode(connectionSecret.data.reader_endpoint_address)
+                    })
+                }
+            } if connectionSecret else None
+
+            items = [extraResourcesRequest] + ([credentialsSecret] if credentialsSecret else [])
+
+    - step: sync-to-secrets-manager
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $name := .observed.composite.resource.metadata.name }}
+            {{- $namespace := .observed.composite.resource.metadata.namespace }}
+
+            # Request environment resources
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-database
+              vpc:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: VPC
+                matchName: vpc
+              kmsConfigKeyAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: config
+
+            ---
+            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
+            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
+            {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
+
+            {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
+            {{- $region := $vpc.resource.status.atProvider.region }}
+            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.targetKeyArn }}
+
+            # AWS Secrets Manager Secret
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
+            kind: Secret
+            metadata:
+              name: {{ $name }}-credentials
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
+                crossplane.io/external-name: {{ $name }}-credentials
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                name: {{ $name }}-credentials
+                region: {{ $region }}
+                description: Valkey connection credentials for {{ $name }}
+                kmsKeyId: {{ $kmsConfigKeyArn }}
+                tags:
+                  Name: {{ $name }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+
+            ---
+            # AWS Secrets Manager SecretVersion
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
+            kind: SecretVersion
+            metadata:
+              name: {{ $name }}-credentials
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-version
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                secretIdRef:
+                  name: {{ $name }}-credentials
+                secretStringSecretRef:
+                  name: {{ $name }}-credentials
+                  key: credentials.json
+
+    - step: detect-readiness
+      functionRef:
+        name: function-auto-ready

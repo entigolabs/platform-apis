@@ -3,11 +3,11 @@ kind: Zone
 metadata:
   annotations:
     example.com/role-group-reference: aaa-bbb-ccc-eee-rrr 
-  name: abdhrapp
+  name: testzone
 spec:
   namespaces:
-    - name: abdhrrapp  # when no pool is explicitly specified, default pool is used.
-    - name: abdhrbackend
+    - name: abfe  # when no pool is explicitly specified, default pool is used.
+    - name: abbe
       pool: spot
   pools: 
     - name: default
@@ -15,6 +15,7 @@ spec:
         - key: instance-type
           values:
             - t3.large
+            - t3.medium
         - key: max-size
           value: 3
     - name: spot

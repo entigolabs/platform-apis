@@ -1,0 +1,27 @@
+# Validating policy is required to prevent ValkeyInstance deletion when deletion protection is enabled
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: platform-apis-valkey
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["database.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["valkeyinstances"]
+  validations:
+    - expression: "!has(oldObject.spec.deletionProtection) || oldObject.spec.deletionProtection != true"
+      message: "ValkeyInstance is protected from deletion. Set spec.deletionProtection to false before deleting."
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: platform-apis-valkey
+spec:
+  policyName: platform-apis-valkey
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector: {}

@@ -1,0 +1,13 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-valkey
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+    - replicationgroups.elasticache.aws.m.upbound.io
+    - parametergroups.elasticache.aws.m.upbound.io
+    - subnetgroups.elasticache.aws.m.upbound.io
+    - secrets.secretsmanager.aws.m.upbound.io
+    - secretversions.secretsmanager.aws.m.upbound.io
