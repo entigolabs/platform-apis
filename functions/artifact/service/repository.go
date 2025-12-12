@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required) (map[string]runtime.Object, error) {
+func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
 	env, err := GetEnvironment(required)
 	if err != nil {
 		return nil, err
@@ -28,9 +28,9 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		return nil, err
 	}
 	encryptionType := "KMS"
-	annotations := make(map[string]string)
+	var annotations map[string]string
 	if repository.Spec.Path != "" || repository.Spec.Name != "" {
-		annotations["crossplane.io/external-name"] = getExternalRepoName(repository)
+		annotations = map[string]string{"crossplane.io/external-name": getExternalRepoName(repository)}
 	}
 	objects := make(map[string]runtime.Object)
 	region := kms.Status.AtProvider.Region
@@ -39,6 +39,14 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 	}
 	if region == nil {
 		return nil, fmt.Errorf("KMS key %s must have a region", kms.Name)
+	}
+	encryption := v1beta1.EncryptionConfigurationParameters{
+		EncryptionType: &encryptionType,
+		KMSKeyRef:      &xpv2v1.NamespacedReference{Name: kms.Name, Namespace: kms.Namespace},
+	}
+	kmsArn := getKMSKeyARN(repository.Name, observed)
+	if kmsArn != nil {
+		encryption.KMSKey = kmsArn
 	}
 	repo := &v1beta1.Repository{
 		TypeMeta: metav1.TypeMeta{
@@ -55,16 +63,12 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 			Annotations: annotations,
 		},
 		Spec: v1beta1.RepositorySpec{
-			InitProvider: v1beta1.RepositoryInitParameters{
-				EncryptionConfiguration: []v1beta1.EncryptionConfigurationInitParameters{{
-					EncryptionType: &encryptionType,
-					KMSKeyRef:      &xpv2v1.NamespacedReference{Name: kms.Name, Namespace: kms.Namespace},
-				}},
-			},
+			InitProvider: v1beta1.RepositoryInitParameters{},
 			ForProvider: v1beta1.RepositoryParameters{
-				Region:             region,
-				ImageTagMutability: env.ImageTagMutability,
-				Tags:               env.Tags,
+				Region:                  region,
+				ImageTagMutability:      env.ImageTagMutability,
+				Tags:                    env.Tags,
+				EncryptionConfiguration: []v1beta1.EncryptionConfigurationParameters{encryption},
 			},
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference: &xpv2.ProviderConfigReference{Name: env.AWSProvider, Kind: "ClusterProviderConfig"},
@@ -78,6 +82,18 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 	}
 	objects[repository.Name] = repo
 	return objects, nil
+}
+
+func getKMSKeyARN(name string, observed map[resource.Name]resource.ObservedComposed) *string {
+	observedResource, ok := observed[resource.Name(name)]
+	if !ok {
+		return nil
+	}
+	var observedRepo v1beta1.Repository
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(observedResource.Resource.Object, &observedRepo); err != nil {
+		return nil
+	}
+	return observedRepo.Spec.ForProvider.EncryptionConfiguration[0].KMSKey
 }
 
 func getExternalRepoName(repository v1alpha1.Repository) string {

@@ -33,7 +33,7 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	}
 }
 
-func (g *GroupImpl) generateRepository(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generateRepository(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
 	return service.GenerateRepositoryObject(*obj.(*v1alpha1.Repository), required)
 }
 
