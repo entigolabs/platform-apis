@@ -5,7 +5,6 @@ import (
 	"path"
 
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common"
-	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
@@ -27,13 +26,13 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 	if err = base.ExtractRequiredResource(required, apis.KMSDataKey, &kms); err != nil {
 		return nil, err
 	}
-	encryptionType := "KMS"
-	annotations := repository.GetAnnotations()
-	if annotations == nil {
-		annotations = make(map[string]string)
+	if kms.Status.AtProvider.Arn == nil {
+		return nil, fmt.Errorf("KMS key %s ARN is not available", kms.Name)
 	}
+	encryptionType := "KMS"
+	var annotations map[string]string
 	if repository.Spec.Path != "" || repository.Spec.Name != "" {
-		annotations["crossplane.io/external-name"] = getExternalRepoName(repository)
+		annotations = map[string]string{"crossplane.io/external-name": getExternalRepoName(repository)}
 	}
 	objects := make(map[string]runtime.Object)
 	region := kms.Status.AtProvider.Region
@@ -61,11 +60,11 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 			ForProvider: v1beta1.RepositoryParameters{
 				Region:             region,
 				ImageTagMutability: env.ImageTagMutability,
+				Tags:               env.Tags,
 				EncryptionConfiguration: []v1beta1.EncryptionConfigurationParameters{{
 					EncryptionType: &encryptionType,
-					KMSKeyRef:      &xpv2v1.NamespacedReference{Name: kms.Name, Namespace: kms.Namespace},
+					KMSKey:         kms.Status.AtProvider.Arn,
 				}},
-				Tags: env.Tags,
 			},
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference: &xpv2.ProviderConfigReference{Name: env.AWSProvider, Kind: "ClusterProviderConfig"},

@@ -13,6 +13,8 @@ metadata:
     meta.crossplane.io/readme: |
       ...
 spec:
+  packagePullPolicy: IfNotPresent
+  skipDependencyResolution: true
   crossplane:
     version: ">=v2.0.0"
   dependsOn:
