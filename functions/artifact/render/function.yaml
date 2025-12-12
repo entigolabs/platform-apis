@@ -7,4 +7,4 @@ metadata:
     render.crossplane.io/runtime: Development
 spec:
   # This is ignored when using the Development runtime. Only when using the cli render command.
-  package: ghcr.io/entigolabs/platform-apis-artifact-fn:v0.0.0-20251008122559-ce924c6397c8
+  package: ghcr.io/entigolabs/platform-apis-artifact-fn:v0.1.24

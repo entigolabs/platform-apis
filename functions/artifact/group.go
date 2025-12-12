@@ -37,6 +37,10 @@ func (g *GroupImpl) generateRepository(obj runtime.Object, required map[string][
 	return service.GenerateRepositoryObject(*obj.(*v1alpha1.Repository), required)
 }
 
+func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
+	return base.Sequence{}
+}
+
 func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {
 	return ""
 }
@@ -84,8 +88,4 @@ func getRepositoryStatus(observed *composed.Unstructured) (map[string]interface{
 		return nil, nil
 	}
 	return map[string]interface{}{"repositoryUri": uri}, nil
-}
-
-func (g *GroupImpl) AddStatusConditions(_ *composite.Unstructured, _ map[resource.Name]resource.ObservedComposed) {
-	// No-op
 }

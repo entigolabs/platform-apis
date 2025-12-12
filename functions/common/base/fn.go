@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"regexp"
 	"runtime/debug"
+	"strings"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -131,7 +133,13 @@ func (f *Function) addRequiredResources(rsp *fnv1.RunFunctionResponse, composite
 	return nil
 }
 
-func (f *Function) addDesiredComposedResources(rsp *fnv1.RunFunctionResponse, compositeResource *resource.Composite, requiredResources map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed, desired map[resource.Name]*resource.DesiredComposed) error {
+func (f *Function) addDesiredComposedResources(
+	rsp *fnv1.RunFunctionResponse,
+	compositeResource *resource.Composite,
+	requiredResources map[string][]resource.Required,
+	observed map[resource.Name]resource.ObservedComposed,
+	desired map[resource.Name]*resource.DesiredComposed,
+) error {
 	handler, ok := f.groupService.GetResourceHandlers()[compositeResource.Resource.GetKind()]
 	if !ok {
 		return fmt.Errorf("no resource handler found for kind %s", compositeResource.Resource.GetKind())
@@ -140,17 +148,93 @@ func (f *Function) addDesiredComposedResources(rsp *fnv1.RunFunctionResponse, co
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(compositeResource.Resource.Object, object); err != nil {
 		return err
 	}
-
-	objs, err := handler.Generate(object, requiredResources, observed)
+	allGeneratedObjects, err := handler.Generate(object, requiredResources, observed)
 	if err != nil {
 		return err
 	}
-	for name, object := range objs {
-		if err := f.addDesiredResource(desired, name, object, observed); err != nil {
-			return fmt.Errorf("cannot add desired resource %s: %w", name, err)
+	processedNames, err := f.addDesiredSequenceResources(object, observed, desired, allGeneratedObjects)
+	if err != nil {
+		return err
+	}
+	for name, obj := range allGeneratedObjects {
+		if processedNames[name] {
+			continue
+		}
+		if err := f.addDesiredResource(desired, name, obj, observed); err != nil {
+			return fmt.Errorf("cannot add non-sequenced desired resource %s: %w", name, err)
 		}
 	}
 	return response.SetDesiredComposedResources(rsp, desired)
+}
+
+func (f *Function) addDesiredSequenceResources(
+	object runtime.Object,
+	observed map[resource.Name]resource.ObservedComposed,
+	desired map[resource.Name]*resource.DesiredComposed,
+	allGeneratedObjects map[string]runtime.Object,
+) (Set[string], error) {
+	processedNames := NewSet[string]()
+	previousStepIsReady := true
+
+	sequence := f.groupService.GetSequence(object)
+	for _, step := range sequence.Steps {
+		currentStepResources, err := getStepResourceNames(step, sequence.Regex, allGeneratedObjects)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get step resource names: %w", err)
+		}
+		currentStepAllReady := true
+		for name := range currentStepResources {
+			obj, ok := allGeneratedObjects[name]
+			if !ok {
+				f.log.Info("Skipping sequence object not in generated objects", "name", name)
+				continue
+			}
+			processedNames[name] = true
+			_, existsInObserved := observed[resource.Name(name)]
+			if !existsInObserved && !previousStepIsReady {
+				currentStepAllReady = false
+				continue
+			}
+			if err = f.addDesiredResource(desired, name, obj, observed); err != nil {
+				return nil, fmt.Errorf("cannot add desired resource %s: %w", name, err)
+			}
+			if desired[resource.Name(name)].Ready != resource.ReadyTrue {
+				currentStepAllReady = false
+			}
+		}
+		previousStepIsReady = currentStepAllReady
+	}
+	return processedNames, nil
+}
+
+func getStepResourceNames(step Step, isRegex bool, allGeneratedObjects map[string]runtime.Object) (Set[string], error) {
+	currentStepResources := NewSet[string]()
+	for _, nameOrPattern := range step.Objects {
+		if !isRegex {
+			currentStepResources[nameOrPattern] = true
+			continue
+		}
+		regex, err := getPatternRegex(nameOrPattern)
+		if err != nil {
+			return nil, fmt.Errorf("cannot compile sequence regex %s: %w", regex, err)
+		}
+		for key := range allGeneratedObjects {
+			if regex.MatchString(key) {
+				currentStepResources[key] = true
+			}
+		}
+	}
+	return currentStepResources, nil
+}
+
+func getPatternRegex(pattern string) (*regexp.Regexp, error) {
+	if !strings.HasPrefix(pattern, "^") {
+		pattern = "^" + pattern
+	}
+	if !strings.HasSuffix(pattern, "$") {
+		pattern = pattern + "$"
+	}
+	return regexp.Compile(pattern)
 }
 
 func (f *Function) addDesiredResource(desired map[resource.Name]*resource.DesiredComposed, name string, obj runtime.Object, observed map[resource.Name]resource.ObservedComposed) error {
@@ -186,8 +270,6 @@ func (f *Function) addStatus(rsp *fnv1.RunFunctionResponse, compositeResource *r
 	if err != nil {
 		return fmt.Errorf("cannot get composite resource status: %w", err)
 	}
-
-	f.groupService.AddStatusConditions(compositeResource.Resource, observed)
 
 	if len(extraStatus) == 0 {
 		return nil
