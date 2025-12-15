@@ -104,6 +104,8 @@ spec:
                   type: string
                 multiAZenabled:
                   type: boolean
+                parameterGroupName:
+                  type: string
                 securityGroup:
                   type: object
                   properties:
