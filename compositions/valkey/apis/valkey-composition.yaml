@@ -205,6 +205,9 @@ spec:
                   - type: convert
                     convert:
                       toType: bool
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.parameterGroupName
+                toFieldPath: status.parameterGroupName
           - name: security-group
             patches:
               - type: ToCompositeFieldPath
