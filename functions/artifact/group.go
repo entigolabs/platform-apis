@@ -37,6 +37,10 @@ func (g *GroupImpl) generateRepository(obj runtime.Object, required map[string][
 	return service.GenerateRepositoryObject(*obj.(*v1alpha1.Repository), required)
 }
 
+func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
+	return base.Sequence{}
+}
+
 func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {
 	return ""
 }
@@ -55,11 +59,6 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			return nil, err
 		}
 		resources[apis.KMSDataKey] = kms
-		resources[apis.RequiredRepositoryKey] = &fnv1.ResourceSelector{
-			Kind:       apis.RepositoryKind,
-			ApiVersion: apis.RepositoryApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: compositeResource.GetName()},
-		}
 		return resources, nil
 	default:
 		return nil, nil
@@ -89,8 +88,4 @@ func getRepositoryStatus(observed *composed.Unstructured) (map[string]interface{
 		return nil, nil
 	}
 	return map[string]interface{}{"repositoryUri": uri}, nil
-}
-
-func (g *GroupImpl) AddStatusConditions(_ *composite.Unstructured, _ map[resource.Name]resource.ObservedComposed) {
-	// No-op
 }

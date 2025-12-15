@@ -125,16 +125,10 @@ func (g *pgInstanceGenerator) generate() (map[string]runtime.Object, error) {
 	desired := make(map[string]runtime.Object)
 
 	maps.Copy(desired, g.buildSecurityGroup())
-	if !g.isReady(g.names.sg) || !g.isReady(g.names.sgIngress) || !g.isReady(g.names.sgEgress) {
-		return desired, nil
-	}
 
 	maps.Copy(desired, g.buildRDSInstance())
 	observedRDSInstance, ok := g.observed[g.names.rdsInstance]
 	if !ok {
-		return desired, nil
-	}
-	if GetRDSInstanceReadyStatus(observedRDSInstance.Resource) == resource.ReadyFalse {
 		return desired, nil
 	}
 	secretARN, secretStatus, found := getSecretARNFromRDSInstanceStatus(observedRDSInstance.Resource)
@@ -198,18 +192,42 @@ func (g *pgInstanceGenerator) checkSecretConflict(required map[string][]resource
 	return nil
 }
 
-func (g *pgInstanceGenerator) generateNames() {
-	g.names.sg = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-%s", g.pgInstance.Name, g.hash)))
-	g.names.sgIngress = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-ingress-%s", g.pgInstance.Name, g.hash)))
-	g.names.sgEgress = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-egress-%s", g.pgInstance.Name, g.hash)))
-	g.names.rdsInstance = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-%s", g.pgInstance.Name, g.hash)))
-	g.names.rdsInstanceSnapshot = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-snapshot-%s", g.pgInstance.Name, g.hash)))
-	g.names.es = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-es-%s", g.pgInstance.Name, g.hash)))
-	g.names.pc = resource.Name(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-providerconfig", g.pgInstance.Name)))
+func GetSGName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-%s", instanceName, hash))
 }
 
-func (g *pgInstanceGenerator) isReady(name resource.Name) bool {
-	return g.readinessMap[name]
+func GetSGIngressName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-ingress-%s", instanceName, hash))
+}
+
+func GetSGEgressName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-egress-%s", instanceName, hash))
+}
+
+func GetRDSInstanceName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-%s", instanceName, hash))
+}
+
+func GetRDSInstanceSnapshotName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-snapshot-%s", instanceName, hash))
+}
+
+func GetESName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-es-%s", instanceName, hash))
+}
+
+func GetPCName(instanceName string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-providerconfig", instanceName))
+}
+
+func (g *pgInstanceGenerator) generateNames() {
+	g.names.sg = resource.Name(GetSGName(g.pgInstance.Name, g.hash))
+	g.names.sgIngress = resource.Name(GetSGIngressName(g.pgInstance.Name, g.hash))
+	g.names.sgEgress = resource.Name(GetSGEgressName(g.pgInstance.Name, g.hash))
+	g.names.rdsInstance = resource.Name(GetRDSInstanceName(g.pgInstance.Name, g.hash))
+	g.names.rdsInstanceSnapshot = resource.Name(GetRDSInstanceSnapshotName(g.pgInstance.Name, g.hash))
+	g.names.es = resource.Name(GetESName(g.pgInstance.Name, g.hash))
+	g.names.pc = resource.Name(GetPCName(g.pgInstance.Name))
 }
 
 func (g *pgInstanceGenerator) buildSecurityGroup() map[string]runtime.Object {

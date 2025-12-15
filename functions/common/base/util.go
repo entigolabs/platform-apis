@@ -5,27 +5,26 @@ import (
 	"hash/fnv"
 	"regexp"
 	"strings"
+	"time"
 
 	"dario.cat/mergo"
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
-	"github.com/crossplane/function-sdk-go/resource/composite"
-	"github.com/go-logr/zapr"
 	"github.com/mozillazg/go-unidecode"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 func GenerateFNVHash(uid types.UID) string {
+	return GenerateHash([]byte(uid))
+}
+
+func GenerateHash(bytes []byte) string {
 	hasher := fnv.New32a()
-	_, _ = hasher.Write([]byte(uid))
+	_, _ = hasher.Write(bytes)
 	return strings.ToLower(fmt.Sprintf("%x", hasher.Sum32()))
 }
 
@@ -101,6 +100,21 @@ func ExtractRequiredResource(requiredResources map[string][]resource.Required, k
 	return nil
 }
 
+func ExtractResources[T runtime.Object](requiredResources map[string][]resource.Required, key string) ([]T, error) {
+	if requiredResources == nil {
+		return nil, errors.Errorf("%s not found in required resources", key)
+	}
+	var result []T
+	for _, req := range requiredResources[key] {
+		obj := new(T)
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(req.Resource.Object, obj); err != nil {
+			return nil, fmt.Errorf("cannot convert required resource %s: %w", key, err)
+		}
+		result = append(result, *obj)
+	}
+	return result, nil
+}
+
 func SetString(ptr *string, field *string) {
 	if ptr != nil {
 		*field = *ptr
@@ -147,10 +161,6 @@ func GenerateEligibleKubernetesName(original string, limit int) string {
 	return processed
 }
 
-func IsResourceReady(observed *composed.Unstructured) bool {
-	return GetCrossplaneReadyStatus(observed) == resource.ReadyTrue
-}
-
 func GetCrossplaneReadyStatus(observed *composed.Unstructured) resource.Ready {
 	conditions, found, err := unstructured.NestedSlice(observed.Object, "status", "conditions")
 	if err != nil || !found {
@@ -183,21 +193,16 @@ func defaultCrossplaneReadyStatus(observed *composed.Unstructured) resource.Read
 	return resource.ReadyTrue
 }
 
-// Copied from github.com/crossplane/function-sdk-go to make it compatible with crossplane-runtime v2
-func SetConditions(xr *composite.Unstructured, conditions ...xpv1.Condition) {
-	conditioned := xpv1.ConditionedStatus{}
-	_ = fieldpath.Pave(xr.Object).GetValueInto("status", &conditioned)
-	conditioned.SetConditions(conditions...)
-	_ = fieldpath.Pave(xr.Object).SetValue("status.conditions", conditioned.Conditions)
-}
+// These helper functions should be deprecated with Go 1.26 changes to the `new` function.
 
-// Copied from github.com/crossplane/function-sdk-go to make it compatible with crossplane-runtime v2
-func NewLogger(debug bool) (logging.Logger, error) {
-	o := []zap.Option{zap.AddCallerSkip(1)}
-	if debug {
-		zl, err := zap.NewDevelopment(o...)
-		return logging.NewLogrLogger(zapr.NewLogger(zl)), errors.Wrap(err, "cannot create development zap logger")
-	}
-	zl, err := zap.NewProduction(o...)
-	return logging.NewLogrLogger(zapr.NewLogger(zl)), errors.Wrap(err, "cannot create production zap logger")
-}
+func StringPtr(s string) *string     { return &s }
+func BoolPtr(b bool) *bool           { return &b }
+func IntPtr(i int) *int              { return &i }
+func Float32Ptr(f float32) *float32  { return &f }
+func Float64Ptr(f float64) *float64  { return &f }
+func Int32Ptr(i int32) *int32        { return &i }
+func Int64Ptr(i int64) *int64        { return &i }
+func UintPtr(u uint) *uint           { return &u }
+func Uint32Ptr(u uint32) *uint32     { return &u }
+func Uint64Ptr(u uint64) *uint64     { return &u }
+func TimePtr(t time.Time) *time.Time { return &t }

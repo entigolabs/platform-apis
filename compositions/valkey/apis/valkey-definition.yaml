@@ -86,8 +86,54 @@ spec:
             status:
               type: object
               properties:
-                primaryEndpoint:
+                endpoint:
+                  type: object
+                  properties:
+                    address:
+                      type: string
+                    port:
+                      type: number
+                  required:
+                    - address
+                    - port
+                autoMinorVersionUpgrade:
+                  type: boolean
+                kmsKeyId:
                   type: string
-                  description: Valkey Instance primary endpoint
+                kmsKeyAlias:
+                  type: string
+                multiAZenabled:
+                  type: boolean
+                securityGroup:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    id:
+                      type: string
+                    arn:
+                      type: string
+                    rules:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          cidrBlocks:
+                            type: array
+                            items:
+                              type: string
+                          description:
+                            type: string
+                          fromPort:
+                            type: integer
+                          toPort:
+                            type: integer
+                          protocol:
+                            type: string
+                          self:
+                            type: boolean
+
           required:
             - spec

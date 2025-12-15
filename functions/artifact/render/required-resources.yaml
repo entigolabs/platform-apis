@@ -1,7 +1,7 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: platform-apis-repository
+  name: platform-apis-artifact
 data:
   awsProvider: crossplane-aws
   awsRegion: eu-west-1
@@ -14,3 +14,6 @@ metadata:
     crossplane.io/external-name: arn:aws:kms:eu-north-1:111111111111:key/mrk-6c709a49a34940a48025f3bbc412827e
   name: data
   namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1

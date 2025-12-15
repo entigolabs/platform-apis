@@ -12,7 +12,7 @@ type CLI struct {
 }
 
 func (c *CLI) Run(service GroupService) error {
-	log, err := NewLogger(c.Debug)
+	log, err := function.NewLogger(c.Debug)
 	if err != nil {
 		return err
 	}

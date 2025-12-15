@@ -64,6 +64,12 @@ func KMSKeyResource(name, namespace string) *fnv1.Resources {
 				"region": "eu-north-1",
 			},
 		},
+		"status": map[string]interface{}{
+			"atProvider": map[string]interface{}{
+				"arn":    "arn:aws:kms:eu-north-1:111111111111:key/mrk-6c709a49a34940a48025f3bbc412827e",
+				"region": "eu-north-1",
+			},
+		},
 	})
 	if err != nil {
 		panic(err)

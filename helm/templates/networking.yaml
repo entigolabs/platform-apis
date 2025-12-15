@@ -17,6 +17,11 @@ spec:
     spec:
       selector: {}
       template:
+        metadata:
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8080"
+            prometheus.io/path: "/metrics"
         spec:
           affinity:
             nodeAffinity:
@@ -28,7 +33,15 @@ spec:
                         values:
                           - 'true'
                   weight: 90
-          containers: []
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 1m
+                memory: 11Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
           tolerations:
             - effect: NoSchedule
               key: tools

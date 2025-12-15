@@ -67,6 +67,10 @@ func addWorkloadSpecValues(workload v1alpha1.Workload, required map[string][]res
 	return nil
 }
 
+func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
+	return base.Sequence{}
+}
+
 func GetEnvironment(required map[string][]resource.Required) (apis.Environment, error) {
 	var env apis.Environment
 	err := base.GetEnvironment(base.EnvironmentKey, required, &env)
@@ -119,8 +123,4 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 
 func (g *GroupImpl) GetObservedStatus(_ *composed.Unstructured) (map[string]interface{}, error) {
 	return nil, nil
-}
-
-func (g *GroupImpl) AddStatusConditions(_ *composite.Unstructured, _ map[resource.Name]resource.ObservedComposed) {
-	// No-op
 }

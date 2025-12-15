@@ -1,0 +1,32 @@
+name: Mirror CP functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pullpush.sh'
+      - 'helm/values.yaml'
+  pull_request:
+    paths:
+      - 'pullpush.sh'
+      - 'helm/values.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  sync-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Mirror images
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin && ./pullpush.sh
+
