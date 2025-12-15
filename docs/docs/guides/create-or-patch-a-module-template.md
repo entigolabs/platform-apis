@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 ---
+# Create/Patch a Module Template
 
 # 1. Module Template overview
 **Module Templates** define the configuration specifications for Infralib Agent Modules. They serve as blueprints for infrastructure components.
@@ -31,7 +32,7 @@ When time to configure/create Module, the Infralib-Operator searches for Module 
 - If a template with the same name exists in a parent scope (e.g., Organization or Entigo), the local template acts as a patch.
 - If no matching name is found upstream, the local template is treated as a new definition.
 
-# 3. Creating and Patching Templates.
+# 3. Creating and Patching Templates
 Module Templates are managed via standard Kubernetes manifests. The system 'chooses' between creating a new Module Template and patching an existing one based on the `metadata.name`.
 
 ## 3.1. Patching Strategy

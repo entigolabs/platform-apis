@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 ---
+# Create/Patch a Config Template
 
 # 1. Config Template overview
 The **Config Template** resource defines the configuration specification for the **Infralib Agent Run Job** (infrastructure deployment).
@@ -27,7 +28,7 @@ When initializing a new Job, the Infralib Operator searches for a Config Templat
 - **Patching (Inheritance):** If the active template includes the `spec.parentConfig` field, the Operator looks for a template with that name in the parent scope. The local template is then applied as a **patch** over the parent configuration.
 - **New Definition:** If `spec.parentConfig` is omitted, the local template is treated as a standalone definition.
 
-# 3. Creating and Patching Templates.
+# 3. Creating and Patching Templates
 Config Templates are managed via standard Kubernetes manifests. Depending on your requirements, you can either create a new configuration from scratch or patch an existing one.
 
 ## 3.1. Patching Strategy (Inheritance)
