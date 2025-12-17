@@ -189,6 +189,11 @@ spec:
                 gotemplating.fn.crossplane.io/ready: "True"
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
+              evaluation:
+                admission:
+                  enabled: true
+                mutateExisting:
+                  enabled: false
               matchConstraints:
                 namespaceSelector:
                   matchExpressions:
