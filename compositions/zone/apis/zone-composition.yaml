@@ -184,11 +184,18 @@ spec:
             kind: MutatingPolicy
             metadata:
               name: {{ $name }}-{{ $namespace.name }}-add-nodeselector
+              labels:
+                reports.kyverno.io/disabled: "true"
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: kyverno-mutate-{{ $name }}-{{ $namespace.name }}
                 gotemplating.fn.crossplane.io/ready: "True"
                 tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
             spec:
+              evaluation:
+                admission:
+                  enabled: true
+                mutateExisting:
+                  enabled: false
               matchConstraints:
                 namespaceSelector:
                   matchExpressions:
