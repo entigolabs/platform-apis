@@ -73,7 +73,6 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
-                crossplane.io/external-name: {{ $bucketName }}
                 storage.entigo.com/kms-data-key-alias: {{ $kmsDataKeyAlias.resource.status.atProvider.id }}
                 storage.entigo.com/service-account-name: {{ $serviceAccountName }}
             spec:
@@ -185,7 +184,6 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: iam-policy
-                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -234,7 +232,6 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: iam-user
-                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -542,7 +539,6 @@ spec:
               name: {{ $bucketName }}-credentials
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
-                crossplane.io/external-name: {{ $bucketName }}-credentials
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
