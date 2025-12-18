@@ -88,10 +88,12 @@ fi
 
 echo "=== Watching $(echo "$REFS" | wc -l) resources for changes ==="
 echo "$REFS" | while read -r api kind name ns; do
+    api_group="${api%/*}"
+    [[ "$api_group" == "$api" ]] && api_group="core"
     if [[ -n "$ns" ]]; then
-        echo "  - $kind/$name (ns: $ns)"
+        echo "  - $kind.$api_group/$name (ns: $ns)"
     else
-        echo "  - $kind/$name (cluster-scoped)"
+        echo "  - $kind.$api_group/$name (cluster-scoped)"
     fi
 done
 echo "=== Press Ctrl+C to stop ==="
@@ -105,9 +107,13 @@ watch_resource_poll() {
     local ref_ns="$4"
     local fallback_ns="$5"
     local tmpdir="$6"
-    local resource_id="${kind}/${rname}"
-    local prev_file="${tmpdir}/${kind}_${rname}_prev.yaml"
-    local curr_file="${tmpdir}/${kind}_${rname}_curr.yaml"
+
+    # Extract API group for resource identification
+    local api_group="${api%/*}"
+    [[ "$api_group" == "$api" ]] && api_group="core"
+    local resource_id="${kind}.${api_group}/${rname}"
+    local prev_file="${tmpdir}/${kind}_${api_group}_${rname}_prev.yaml"
+    local curr_file="${tmpdir}/${kind}_${api_group}_${rname}_curr.yaml"
 
     # Resolve correct kubectl resource name
     local full_resource
