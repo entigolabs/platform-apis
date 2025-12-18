@@ -8,7 +8,7 @@ sidebar_position: 1
 
 The system utilizes a hierarchical inheritance model involving three levels.
 
-**Entigo Workspace Module Templates:** Are default, predefined templates.
+**Global Module Templates:** Are default, predefined templates.
 
 **Organization Workspace Module Templates:** Are shared across all child resources.
 
@@ -23,13 +23,13 @@ The configuration applied to an Infralib Agent Module is determined by the locat
 
 **Organization Workspace:** Templates defined here apply to all child resource workspaces within the organization.
 
-**Entigo Workspace (Default):** These are the base read-only templates provided by the platform.
+**Global Module Templates (Default):** These are the base read-only templates provided by the platform.
 
 ### Resolution Logic
 The Infralib-Operator configures/creates Infralib Agent Modules on Module Templates basis.
 When time to configure/create Module, the Infralib-Operator searches for Module Templates in mentioned above locations.
 
-- If a template with the same name exists in a parent scope (e.g., Organization or Entigo), the local template acts as a patch.
+- If a template with the same name exists in a parent scope (e.g., Organization or Global Templates), the local template acts as a patch.
 - If no matching name is found upstream, the local template is treated as a new definition.
 
 # 3. Creating and Patching Templates
@@ -39,13 +39,13 @@ Module Templates are managed via standard Kubernetes manifests. The system 'choo
 To modify the behavior of a default module (e.g., `eks` or `argocd`), create a Module Template in your workspace with the **exact same name** as the target module.
 
 - **Merge Behavior:** You only need to define the fields you wish to override in the spec.
-- **Inheritance:** Fields not specified in your local template will inherit values from the upstream (Organization or Entigo) template.
+- **Inheritance:** Fields not specified in your local template will inherit values from the upstream (Organization or Global Templates) template.
 
 ## 3.2. Creating New Module Templates
 To introduce a custom module template that does not exist in the standard library, create a Module Template with a unique name.
 
 # 4. Standard Library (Predefined Templates)
-The following modules are currently available in the Entigo workspace:
+The following Global Module Templates are currently available:
 ```
 argocd
 aws-alb

@@ -8,7 +8,7 @@ The **Config Template** resource defines the configuration specification for the
 
 The system utilizes a hierarchical inheritance model involving three levels.
 
-1.  **Entigo Workspace Config Template:** The base, read-only template provided by the platform.
+1.  **Global Config Template:** The base, read-only template provided by the platform.
 2.  **Organization Workspace Config Template:** A shared template applicable to all resources within an organization.
 3.  **Resource Workspace Config Template:** A specific template tailored to a single resource environment.
 
@@ -20,7 +20,7 @@ The configuration applied to an Infralib Agent Run Job is determined by the scop
 
 1.  **Resource Workspace (Highest Priority):** Applies strictly to the specific resource.
 2.  **Organization Workspace:** Applies to all child resources within the organization.
-3.  **Entigo Workspace (Lowest Priority):** The fallback default configuration.
+3.  **Global Config (Lowest Priority):** The fallback default configuration.
 
 ### Resolution Logic
 When initializing a new Job, the Infralib Operator searches for a Config Template with the `active-template: "true"` label. The resolution follows this logic:
@@ -39,7 +39,7 @@ To modify the behavior of a parent Config Template (e.g., to override specific o
 
 **Behavior:**
 - **Merge:** You only need to define the specific fields you wish to override.
-- **Inheritance:** Any fields not specified in your local template will automatically inherit values from the parent (Organization or Entigo) template.
+- **Inheritance:** Any fields not specified in your local template will automatically inherit values from the parent (Organization or Global) template.
 
 ## 3.2. Creating New Config Template
 To introduce a fully custom configuration that does not inherit from upstream defaults, omit the `spec.parentConfig` field entirely.
