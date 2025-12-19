@@ -1,6 +1,6 @@
 #!/bin/bash
 # Watch Crossplane composition resourceRefs for changes with diff output
-# Usage: ./watch-composition-refs.sh <resource-type> <n> [namespace]
+# Usage: ./watch-composition-refs.sh <resource-type> <name> [namespace]
 
 set -euo pipefail
 
@@ -9,7 +9,7 @@ NAME="${2:-}"
 NAMESPACE="${3:-}"
 
 if [[ -z "$RESOURCE_TYPE" || -z "$NAME" ]]; then
-    echo "Usage: $0 <resource-type> <n> [namespace]"
+    echo "Usage: $0 <resource-type> <name> [namespace]"
     echo "Example (namespaced):     $0 pginstances.database.entigo.com rig-bff rig-bff"
     echo "Example (cluster-scoped): $0 zones.tenancy.entigo.com myzone"
     exit 1
@@ -29,19 +29,16 @@ trap cleanup EXIT
 # Build API resources lookup table: "KIND.APIGROUP" -> "resourcename.apigroup"
 declare -A API_LOOKUP
 while IFS= read -r line; do
-    # Parse: NAME SHORTNAMES APIVERSION NAMESPACED KIND
     res_name=$(echo "$line" | awk '{print $1}')
     api_ver=$(echo "$line" | awk '{print $(NF-2)}')
     kind=$(echo "$line" | awk '{print $NF}')
 
-    # Extract API group from version (e.g., "rbac.authorization.k8s.io/v1" -> "rbac.authorization.k8s.io")
     if [[ "$api_ver" == *"/"* ]]; then
         api_group="${api_ver%/*}"
     else
-        api_group=""  # Core API (v1)
+        api_group=""
     fi
 
-    # Build lookup key and value
     if [[ -n "$api_group" ]]; then
         API_LOOKUP["${kind}.${api_group}"]="${res_name}.${api_group}"
     else
@@ -51,18 +48,17 @@ done < <(kubectl api-resources --no-headers 2>/dev/null)
 
 # Function to resolve Kind + apiVersion to kubectl resource name
 resolve_resource() {
-    local api="$1"  # e.g., "rbac.authorization.k8s.io/v1"
-    local kind="$2" # e.g., "Role"
+    local api="$1"
+    local kind="$2"
 
     local api_group="${api%/*}"
-    [[ "$api_group" == "$api" ]] && api_group=""  # Core API
+    [[ "$api_group" == "$api" ]] && api_group=""
 
     local lookup_key="${kind}.${api_group}"
 
     if [[ -n "${API_LOOKUP[$lookup_key]:-}" ]]; then
         echo "${API_LOOKUP[$lookup_key]}"
     else
-        # Fallback: lowercase kind with api group
         if [[ -n "$api_group" ]]; then
             echo "${kind,,}.${api_group}"
         else
@@ -71,63 +67,19 @@ resolve_resource() {
     fi
 }
 
-# Fetch resourceRefs from the composition (try namespaced, then cluster-scoped)
-# Format: apiVersion kind name namespace (namespace may be empty)
-REFS=""
-if [[ -n "$NAMESPACE" ]]; then
-    REFS=$(kubectl get "$RESOURCE_TYPE" -n "$NAMESPACE" "$NAME" -o jsonpath='{range .spec.crossplane.resourceRefs[*]}{.apiVersion} {.kind} {.name} {.namespace}{"\n"}{end}' 2>/dev/null)
-fi
-if [[ -z "$REFS" ]]; then
-    REFS=$(kubectl get "$RESOURCE_TYPE" "$NAME" -o jsonpath='{range .spec.crossplane.resourceRefs[*]}{.apiVersion} {.kind} {.name} {.namespace}{"\n"}{end}' 2>/dev/null)
-fi
-
-if [[ -z "$REFS" ]]; then
-    echo "No resourceRefs found in spec.crossplane.resourceRefs"
-    exit 1
-fi
-
-echo "=== Watching $(echo "$REFS" | wc -l) resources for changes ==="
-echo "$REFS" | while read -r api kind name ns; do
-    api_group="${api%/*}"
-    [[ "$api_group" == "$api" ]] && api_group="core"
-    if [[ -n "$ns" ]]; then
-        echo "  - $kind.$api_group/$name (ns: $ns)"
-    else
-        echo "  - $kind.$api_group/$name (cluster-scoped)"
-    fi
-done
-echo "=== Press Ctrl+C to stop ==="
-echo ""
-
 # Function to watch a single resource
 watch_resource_poll() {
-    local api="$1"
-    local kind="$2"
-    local rname="$3"
-    local ref_ns="$4"
-    local fallback_ns="$5"
-    local tmpdir="$6"
+    local full_resource="$1"
+    local rname="$2"
+    local ns_flag="$3"
+    local resource_id="$4"
+    local tmpdir="$5"
 
-    # Extract API group for resource identification
-    local api_group="${api%/*}"
-    [[ "$api_group" == "$api" ]] && api_group="core"
-    local resource_id="${kind}.${api_group}/${rname}"
-    local prev_file="${tmpdir}/${kind}_${api_group}_${rname}_prev.yaml"
-    local curr_file="${tmpdir}/${kind}_${api_group}_${rname}_curr.yaml"
+    local prev_file="${tmpdir}/$(echo "$resource_id" | tr '/' '_')_prev.yaml"
+    local curr_file="${tmpdir}/$(echo "$resource_id" | tr '/' '_')_curr.yaml"
 
-    # Resolve correct kubectl resource name
-    local full_resource
-    full_resource=$(resolve_resource "$api" "$kind")
-
-    # Determine namespace: prefer resourceRef namespace, then fallback, then cluster-scoped
-    local ns_flag=""
-    if [[ -n "$ref_ns" ]] && kubectl get "$full_resource" -n "$ref_ns" "$rname" -o yaml > "$prev_file" 2>/dev/null; then
-        ns_flag="-n $ref_ns"
-    elif [[ -n "$fallback_ns" ]] && kubectl get "$full_resource" -n "$fallback_ns" "$rname" -o yaml > "$prev_file" 2>/dev/null; then
-        ns_flag="-n $fallback_ns"
-    elif kubectl get "$full_resource" "$rname" -o yaml > "$prev_file" 2>/dev/null; then
-        ns_flag=""
-    else
+    # Initial fetch
+    if ! kubectl get "$full_resource" $ns_flag "$rname" -o yaml > "$prev_file" 2>/dev/null; then
         echo "Warning: Could not fetch $resource_id"
         return
     fi
@@ -146,16 +98,67 @@ watch_resource_poll() {
     done
 }
 
+# Determine parent resource namespace flag and fetch resourceRefs
+PARENT_NS_FLAG=""
+REFS=""
+if [[ -n "$NAMESPACE" ]]; then
+    if kubectl get "$RESOURCE_TYPE" -n "$NAMESPACE" "$NAME" > /dev/null 2>&1; then
+        PARENT_NS_FLAG="-n $NAMESPACE"
+        REFS=$(kubectl get "$RESOURCE_TYPE" -n "$NAMESPACE" "$NAME" -o jsonpath='{range .spec.crossplane.resourceRefs[*]}{.apiVersion} {.kind} {.name} {.namespace}{"\n"}{end}' 2>/dev/null)
+    fi
+fi
+if [[ -z "$PARENT_NS_FLAG" ]]; then
+    if kubectl get "$RESOURCE_TYPE" "$NAME" > /dev/null 2>&1; then
+        PARENT_NS_FLAG=""
+        REFS=$(kubectl get "$RESOURCE_TYPE" "$NAME" -o jsonpath='{range .spec.crossplane.resourceRefs[*]}{.apiVersion} {.kind} {.name} {.namespace}{"\n"}{end}' 2>/dev/null)
+    fi
+fi
+
+REF_COUNT=$(echo "$REFS" | grep -c . || echo 0)
+
+echo "=== Watching parent + $REF_COUNT child resources for changes ==="
+echo "  * PARENT: $RESOURCE_TYPE/$NAME"
+echo "$REFS" | while read -r api kind name ns; do
+    [[ -z "$api" ]] && continue
+    api_group="${api%/*}"
+    [[ "$api_group" == "$api" ]] && api_group="core"
+    if [[ -n "$ns" ]]; then
+        echo "  - $kind.$api_group/$name (ns: $ns)"
+    else
+        echo "  - $kind.$api_group/$name (cluster-scoped)"
+    fi
+done
+echo "=== Press Ctrl+C to stop ==="
+echo ""
+
 # Export function and lookup table for subshells
 export -f resolve_resource watch_resource_poll
 export API_LOOKUP NAMESPACE TMPDIR
 
-# Start watching all resources in background
+# Watch parent resource
+watch_resource_poll "$RESOURCE_TYPE" "$NAME" "$PARENT_NS_FLAG" "PARENT:$RESOURCE_TYPE/$NAME" "$TMPDIR" &
+PIDS+=($!)
+
+# Watch all child resources
 while read -r api kind rname ref_ns; do
     [[ -z "$api" ]] && continue
-    watch_resource_poll "$api" "$kind" "$rname" "$ref_ns" "$NAMESPACE" "$TMPDIR" &
+
+    api_group="${api%/*}"
+    [[ "$api_group" == "$api" ]] && api_group="core"
+    resource_id="${kind}.${api_group}/${rname}"
+
+    full_resource=$(resolve_resource "$api" "$kind")
+
+    # Determine namespace flag
+    ns_flag=""
+    if [[ -n "$ref_ns" ]]; then
+        ns_flag="-n $ref_ns"
+    elif [[ -n "$NAMESPACE" ]]; then
+        ns_flag="-n $NAMESPACE"
+    fi
+
+    watch_resource_poll "$full_resource" "$rname" "$ns_flag" "$resource_id" "$TMPDIR" &
     PIDS+=($!)
 done <<< "$REFS"
 
-# Wait for Ctrl+C
 wait
