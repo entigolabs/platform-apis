@@ -560,16 +560,10 @@ spec:
         rules:
           - sequence:
               - bucket
-              - bucket-server-side-encryption-configuration
-          - sequence:
-              - bucket
-              - bucket-public-access-block
-          - sequence:
-              - bucket
               - bucket-versioning
-          - sequence:
-              - bucket
               - bucket-ownership-controls
+              - bucket-public-access-block
+              - bucket-server-side-encryption-configuration
           - sequence:
               - iam-user
               - iam-access-key
