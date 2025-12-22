@@ -96,25 +96,6 @@ spec:
                 name: {{ $bucketName }}-bucket
 
             ---
-            # IAM User for bucket access
-            apiVersion: iam.aws.m.upbound.io/v1beta1
-            kind: User
-            metadata:
-              name: {{ $bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: iam-user
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
-                tags:
-                  Name: {{ $bucketName }}
-                  {{- range $key, $value := $envConfig.resource.data.tags }}
-                  {{ $key }}: {{ $value | quote }}
-                  {{- end }}
-
-            ---
             # Bucket Public Access Block - Private by default
             apiVersion: s3.aws.m.upbound.io/v1beta1
             kind: BucketPublicAccessBlock
@@ -200,6 +181,25 @@ spec:
                 region: {{ $region }}
                 rule:
                   objectOwnership: BucketOwnerEnforced
+
+            ---
+            # IAM User for bucket access
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: User
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-user
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                tags:
+                  Name: {{ $bucketName }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
 
             ---
             # IAM Policy for bucket access for IAM User and IRSA
@@ -525,7 +525,6 @@ spec:
                 metadata.name = bucketName + "-credentials"
                 metadata.namespace = namespace
                 metadata.annotations = {
-                    "gotemplating.fn.crossplane.io/composition-resource-name" = "credentials"
                     "krm.kcl.dev/composition-resource-name" = "credentials"
                     "krm.kcl.dev/ready" = "True"
                 }
@@ -548,6 +547,10 @@ spec:
 
             items = [extraResourcesRequest] + ([targetSecret] if targetSecret else [])
 
+    - step: detect-readiness
+      functionRef:
+        name: function-auto-ready
+
     - step: sequence-creation
       functionRef:
         name: function-sequencer
@@ -557,17 +560,28 @@ spec:
         rules:
           - sequence:
               - bucket
+              - bucket-server-side-encryption-configuration
+          - sequence:
+              - bucket
+              - bucket-public-access-block
+          - sequence:
+              - bucket
+              - bucket-versioning
+          - sequence:
+              - bucket
+              - bucket-ownership-controls
+          - sequence:
               - iam-user
               - iam-access-key
-              - credentials
+              - secrets-manager-secret-version
+          - sequence:
               - secrets-manager-secret
               - secrets-manager-secret-version
-              - iam-policy
+          - sequence:
               - iam-role
-              - iam-user-policy-attachment
+              - iam-policy
               - iam-role-policy-attachment
-              - bucket-.*
-
-    - step: detect-readiness
-      functionRef:
-        name: function-auto-ready
+          - sequence:
+              - iam-user
+              - iam-policy
+              - iam-user-policy-attachment
