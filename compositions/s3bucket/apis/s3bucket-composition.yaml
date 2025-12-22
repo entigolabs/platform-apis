@@ -567,7 +567,6 @@ spec:
               - iam-user-policy-attachment
           - sequence:
               - bucket
-              - iam-user
               - iam-access-key
               - credentials
               - secrets-manager-secret
