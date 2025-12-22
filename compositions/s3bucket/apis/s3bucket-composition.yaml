@@ -525,6 +525,7 @@ spec:
                 metadata.name = bucketName + "-credentials"
                 metadata.namespace = namespace
                 metadata.annotations = {
+                    "gotemplating.fn.crossplane.io/composition-resource-name" = "credentials"
                     "krm.kcl.dev/composition-resource-name" = "credentials"
                     "krm.kcl.dev/ready" = "True"
                 }
@@ -561,20 +562,20 @@ spec:
               - iam-user
               - iam-access-key
           - sequence:
-              - iam-role
-              - iam-role-policy-attachment
-          - sequence:
+              - iam-user
               - iam-policy
               - iam-user-policy-attachment
           - sequence:
+              - bucket
               - iam-user
-              - iam-user-policy-attachment
-          - sequence:
+              - iam-access-key
+              - credentials
               - secrets-manager-secret
               - secrets-manager-secret-version
           - sequence:
-              - iam-access-key
-              - secrets-manager-secret-version
+              - iam-role
+              - iam-policy
+              - iam-role-policy-attachment
 
     - step: detect-readiness
       functionRef:
