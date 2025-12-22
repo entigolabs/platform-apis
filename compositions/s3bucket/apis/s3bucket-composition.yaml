@@ -102,7 +102,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: public-access-block
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-public-access-block
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -123,7 +123,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: encryption
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-server-side-encryption-configuration
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -151,7 +151,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: versioning
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-versioning
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -170,7 +170,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: ownership-controls
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-ownership-controls
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -330,7 +330,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: role-policy-attachment
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-role-policy-attachment
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -370,6 +370,7 @@ spec:
                 name: {{ $bucketName }}-credentials
                 region: {{ $region }}
                 description: Credentials for bucket {{ $bucketName }}
+                recoveryWindowInDays: 0
                 {{- if $kmsConfigKeyArn }}
                 kmsKeyId: {{ $kmsConfigKeyArn }}
                 {{- end }}
@@ -386,7 +387,7 @@ spec:
             metadata:
               name: {{ $bucketName }}-credentials
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-version
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret-version
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -444,7 +445,7 @@ spec:
                 fromFieldPath: metadata.annotations[storage.entigo.com/service-account-name]
                 toFieldPath: status.serviceAccountName
 
-          - name: encryption
+          - name: bucket-server-side-encryption-configuration
             patches:
               - type: ToCompositeFieldPath
                 fromFieldPath: status.atProvider.rule[0].applyServerSideEncryptionByDefault.sseAlgorithm
@@ -456,7 +457,7 @@ spec:
                 fromFieldPath: status.atProvider.rule[0].bucketKeyEnabled
                 toFieldPath: status.bucketKeyEnabled
 
-          - name: public-access-block
+          - name: bucket-public-access-block
             patches:
               - type: ToCompositeFieldPath
                 fromFieldPath: status.atProvider.blockPublicAcls
@@ -471,7 +472,7 @@ spec:
                 fromFieldPath: status.atProvider.restrictPublicBuckets
                 toFieldPath: status.restrictPublicBucketsEnabled
 
-          - name: ownership-controls
+          - name: bucket-ownership-controls
             patches:
               - type: ToCompositeFieldPath
                 fromFieldPath: status.atProvider.rule.objectOwnership
@@ -555,26 +556,25 @@ spec:
         rules:
           - sequence:
               - bucket
-              - encryption
-              - versioning
-              - public-access-block
-              - ownership-controls
-          - sequence:
-              - iam-user
-              - iam-policy
-              - iam-user-policy-attachment
+              - bucket-.*
           - sequence:
               - iam-user
               - iam-access-key
           - sequence:
               - iam-role
-              - iam-policy
-              - role-policy-attachment
+              - iam-role-policy-attachment
           - sequence:
-              - bucket
-              - iam-access-key
+              - iam-policy
+              - iam-user-policy-attachment
+          - sequence:
+              - iam-user
+              - iam-user-policy-attachment
+          - sequence:
               - secrets-manager-secret
-              - secrets-manager-version
+              - secrets-manager-secret-version
+          - sequence:
+              - iam-access-key
+              - secrets-manager-secret-version
 
     - step: detect-readiness
       functionRef:
