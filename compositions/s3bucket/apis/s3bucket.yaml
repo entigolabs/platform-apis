@@ -1,5 +1,0 @@
-apiVersion: storage.entigo.com/v1alpha1
-kind: S3Bucket
-metadata:
-  name: taivotest-hello4
-spec: {}
