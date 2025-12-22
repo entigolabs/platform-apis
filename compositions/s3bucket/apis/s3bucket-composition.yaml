@@ -96,6 +96,25 @@ spec:
                 name: {{ $bucketName }}-bucket
 
             ---
+            # IAM User for bucket access
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: User
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-user
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                tags:
+                  Name: {{ $bucketName }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+
+            ---
             # Bucket Public Access Block - Private by default
             apiVersion: s3.aws.m.upbound.io/v1beta1
             kind: BucketPublicAccessBlock
@@ -224,25 +243,6 @@ spec:
                       }
                     ]
                   }
-                tags:
-                  Name: {{ $bucketName }}
-                  {{- range $key, $value := $envConfig.resource.data.tags }}
-                  {{ $key }}: {{ $value | quote }}
-                  {{- end }}
-
-            ---
-            # IAM User for bucket access
-            apiVersion: iam.aws.m.upbound.io/v1beta1
-            kind: User
-            metadata:
-              name: {{ $bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: iam-user
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
                 tags:
                   Name: {{ $bucketName }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
@@ -557,24 +557,16 @@ spec:
         rules:
           - sequence:
               - bucket
-              - bucket-.*
-          - sequence:
               - iam-user
-              - iam-access-key
-          - sequence:
-              - iam-user
-              - iam-policy
-              - iam-user-policy-attachment
-          - sequence:
-              - bucket
               - iam-access-key
               - credentials
               - secrets-manager-secret
               - secrets-manager-secret-version
-          - sequence:
-              - iam-role
               - iam-policy
+              - iam-role
+              - iam-user-policy-attachment
               - iam-role-policy-attachment
+              - bucket-.*
 
     - step: detect-readiness
       functionRef:
