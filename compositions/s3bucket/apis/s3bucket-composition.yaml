@@ -489,63 +489,67 @@ spec:
             import json
             import base64
 
-            oxr = option("params").oxr
-            bucketName = oxr.metadata.name
-            namespace = oxr.metadata.namespace
+            _oxr = option("params").oxr
+            _bucketName = _oxr.metadata.name
+            _namespace = _oxr.metadata.namespace
 
-            # Request both secrets as extra resources
-            extraResourcesRequest = {
+            _extraResourcesRequest = {
                 apiVersion = "meta.krm.kcl.dev/v1alpha1"
                 kind = "ExtraResources"
                 requirements = {
                     accessKeySecret = {
                         apiVersion = "v1"
                         kind = "Secret"
-                        matchName = bucketName + "-access-key"
-                        matchNamespace = namespace
+                        matchName = _bucketName + "-access-key"
+                        matchNamespace = _namespace
                     }
                     bucketSecret = {
                         apiVersion = "v1"
                         kind = "Secret"
-                        matchName = bucketName + "-bucket"
-                        matchNamespace = namespace
+                        matchName = _bucketName + "-bucket"
+                        matchNamespace = _namespace
                     }
                 }
             }
 
-            # Get the extra resources if available
-            er = option("params")?.extraResources
-            accessKeySecret = er?.accessKeySecret[0]?.Resource if er?.accessKeySecret else None
-            bucketSecret = er?.bucketSecret[0]?.Resource if er?.bucketSecret else None
+            _er = option("params").extraResources
+            _accessKeySecretList = _er.accessKeySecret if _er and _er.accessKeySecret else []
+            _bucketKeySecretList = _er.bucketSecret if _er and _er.bucketSecret else []
 
-            # Create target secret if both secrets exist
-            targetSecret = {
-                apiVersion = "v1"
-                kind = "Secret"
-                metadata.name = bucketName + "-credentials"
-                metadata.namespace = namespace
-                metadata.annotations = {
-                    "krm.kcl.dev/composition-resource-name" = "credentials"
-                    "krm.kcl.dev/ready" = "True"
-                }
-                type = "Opaque"
-                stringData = {
-                    AWS_ACCESS_KEY_ID = base64.decode(accessKeySecret.data.username)
-                    AWS_SECRET_ACCESS_KEY = base64.decode(accessKeySecret.data.password)
-                    BUCKET_REGION = base64.decode(bucketSecret.data.region)
-                    BUCKET_ARN = base64.decode(bucketSecret.data.arn)
-                    BUCKET_NAME = base64.decode(bucketSecret.data.id)
-                    "credentials.json" = json.encode({
-                        AWS_ACCESS_KEY_ID = base64.decode(accessKeySecret.data.username)
-                        AWS_SECRET_ACCESS_KEY = base64.decode(accessKeySecret.data.password)
-                        BUCKET_REGION = base64.decode(bucketSecret.data.region)
-                        BUCKET_ARN = base64.decode(bucketSecret.data.arn)
-                        BUCKET_NAME = base64.decode(bucketSecret.data.id)
-                    })
-                }
-            } if accessKeySecret and bucketSecret else None
+            _targetSecret = None
+            if _accessKeySecretList and _bucketKeySecretList:
+                _accessKeySecret = _accessKeySecretList[0].Resource if _accessKeySecretList[0] else None
+                _bucketKeySecret = _bucketKeySecretList[0].Resource if _bucketKeySecretList[0] else None
+                if _accessKeySecret and _bucketKeySecret and _accessKeySecret.data and _bucketKeySecret.data:
+                    _targetSecret = {
+                        apiVersion = "v1"
+                        kind = "Secret"
+                        metadata = {
+                            name = _bucketName + "-credentials"
+                            namespace = _namespace
+                            annotations = {
+                                "krm.kcl.dev/composition-resource-name" = "credentials"
+                                "krm.kcl.dev/ready" = "True"
+                            }
+                        }
+                        type = "Opaque"
+                        stringData = {
+                            AWS_ACCESS_KEY_ID = base64.decode(_accessKeySecret.data.username)
+                            AWS_SECRET_ACCESS_KEY = base64.decode(_accessKeySecret.data.password)
+                            BUCKET_REGION = base64.decode(_bucketKeySecret.data.region)
+                            BUCKET_ARN = base64.decode(_bucketKeySecret.data.arn)
+                            BUCKET_NAME = base64.decode(_bucketKeySecret.data.id)
+                            "credentials.json" = json.encode({
+                                AWS_ACCESS_KEY_ID = base64.decode(_accessKeySecret.data.username)
+                                AWS_SECRET_ACCESS_KEY = base64.decode(_accessKeySecret.data.password)
+                                BUCKET_REGION = base64.decode(_bucketKeySecret.data.region)
+                                BUCKET_ARN = base64.decode(_bucketKeySecret.data.arn)
+                                BUCKET_NAME = base64.decode(_bucketKeySecret.data.id)
+                            })
+                        }
+                    }
 
-            items = [extraResourcesRequest] + ([targetSecret] if targetSecret else [])
+            items = [_extraResourcesRequest] + ([_targetSecret] if _targetSecret else [])
 
     - step: detect-readiness
       functionRef:
@@ -567,8 +571,7 @@ spec:
           - sequence:
               - iam-user
               - iam-access-key
-              - secrets-manager-secret-version
-          - sequence:
+              - credentials
               - secrets-manager-secret
               - secrets-manager-secret-version
           - sequence:
