@@ -220,7 +220,66 @@ spec:
                         value: {"tenancy.entigo.com/zone-pool": "{{ $name }}-{{ $poolName }}"}
                       }
                     ] : []
-
+            ---
+            apiVersion: policies.kyverno.io/v1alpha1
+            kind: MutatingPolicy
+            metadata:
+              name: {{ $name }}-{{ $namespace.name }}-labels
+              labels:
+                reports.kyverno.io/disabled: "true"
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: kyverno-mutate-labels-{{ $name }}-{{ $namespace.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+                tenancy.entigo.com/zone: {{ $.observed.composite.resource.metadata.name }}
+            spec:
+              evaluation:
+                admission:
+                  enabled: true
+                mutateExisting:
+                  enabled: false
+              matchConstraints:
+                namespaceSelector:
+                  matchExpressions:
+                  - key: kubernetes.io/metadata.name
+                    operator: In
+                    values:
+                    - {{ $namespace.name }}
+                resourceRules:
+                - apiGroups: [""]
+                  apiVersions: ["v1"]
+                  operations: ["CREATE"]
+                  resources: ["services"]
+                - apiGroups: ["networking.k8s.io"]
+                  apiVersions: ["v1"]
+                  operations: ["CREATE"]
+                  resources: ["ingresses"]
+              mutations:
+              - patchType: JSONPatch
+                jsonPatch:
+                  expression: |
+                    has(object.metadata.labels) ?
+                    [
+                      JSONPatch{
+                        op: "add",
+                        path: "/metadata/labels/tenancy.entigo.com~1zone",
+                        value: "{{ $name }}"
+                      },
+                      JSONPatch{
+                        op: "add",
+                        path: "/metadata/labels/tenancy.entigo.com~1zone-ns",
+                        value: "{{ $name }}-{{ $namespace.name }}"
+                      }
+                    ] :
+                    [
+                      JSONPatch{
+                        op: "add",
+                        path: "/metadata/labels",
+                        value: {
+                          "tenancy.entigo.com/zone": "{{ $name }}",
+                          "tenancy.entigo.com/zone-ns": "{{ $name }}-{{ $namespace.name }}"
+                        }
+                      }
+                    ]
             ---
             apiVersion: policies.kyverno.io/v1alpha1
             kind: ValidatingPolicy
@@ -760,6 +819,7 @@ spec:
                 - p, proj:{{ $name }}:cicd, applicationsets, sync, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:cicd, applications, get, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:cicd, applicationsets, get, {{ $name }}/*, allow
+
     - step: create-net-pol
       functionRef:
         name: function-go-templating
@@ -776,12 +836,12 @@ spec:
                 apiVersion: networking.k8s.io/v1
                 kind: Ingress
                 matchLabels:
-                  autonetpol: zone
+                  tenancy.entigo.com/zone: {{ .observed.composite.resource.metadata.name }}
               services:
                 apiVersion: v1
                 kind: Service
                 matchLabels:
-                  autonetpol: zone
+                  tenancy.entigo.com/zone: {{ .observed.composite.resource.metadata.name }}
               serviceSubnets:
                 apiVersion: ec2.aws.upbound.io/v1beta1
                 kind: Subnet
