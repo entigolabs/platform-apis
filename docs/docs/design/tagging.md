@@ -7,8 +7,8 @@ sidebar_position: 1
 *Status*: draft
 
 Entigo Platform makes use of resource tagging and lables to:
-- set (Permissions Boundaries)[permission-boundaries] on privilege delegation and
-- instruct the platform behavioure with (Management Policies)[management-policies]. 
+- set [Permissions Boundaries](permission-boundaries) on privilege delegation and
+- instruct the platform behavioure with [Management Policies](management-policies). 
 
 ## Tag Inheritance 
 
@@ -31,11 +31,11 @@ Add additional information to resources, like cost center, security classificati
 ## Related resources
 
 - [Kubernetes Common Labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/)
-- (ArgoCD Labels)[https://argo-cd.readthedocs.io/en/latest/user-guide/annotations-and-labels/]
-- (How to implement SaaS tenant isolation with ABAC and AWS IAM)[https://aws.amazon.com/blogs/security/how-to-implement-saas-tenant-isolation-with-abac-and-aws-iam/]
-- (SaaS tenant isolation with ABAC using AWS STS support for tags in JWT)[https://aws.amazon.com/blogs/security/saas-tenant-isolation-with-abac-using-aws-sts-support-for-tags-in-jwt/]
-- (Build an end-to-end attribute-based access control strategy with AWS IAM Identity Center and Okta)[https://aws.amazon.com/blogs/security/build-an-end-to-end-attribute-based-access-control-strategy-with-aws-sso-and-okta/]
-- (Crossplane: Observe Only Resources Design)[https://github.com/crossplane/crossplane/blob/main/design/design-doc-observe-only-resources.md]
-- (Support for Querying/Filtering for Import and Observe )[https://github.com/crossplane/crossplane/issues/4141]
-- (Best Practices for Tagging AWS Resources)[https://docs.aws.amazon.com/whitepapers/latest/tagging-best-practices/tagging-best-practices.html]
+- [ArgoCD Labels)[https://argo-cd.readthedocs.io/en/latest/user-guide/annotations-and-labels/]
+- [How to implement SaaS tenant isolation with ABAC and AWS IAM)[https://aws.amazon.com/blogs/security/how-to-implement-saas-tenant-isolation-with-abac-and-aws-iam/]
+- [SaaS tenant isolation with ABAC using AWS STS support for tags in JWT)[https://aws.amazon.com/blogs/security/saas-tenant-isolation-with-abac-using-aws-sts-support-for-tags-in-jwt/]
+- [Build an end-to-end attribute-based access control strategy with AWS IAM Identity Center and Okta)[https://aws.amazon.com/blogs/security/build-an-end-to-end-attribute-based-access-control-strategy-with-aws-sso-and-okta/]
+- [Crossplane: Observe Only Resources Design][https://github.com/crossplane/crossplane/blob/main/design/design-doc-observe-only-resources.md]
+- [Support for Querying/Filtering for Import and Observe](https://github.com/crossplane/crossplane/issues/4141]
+- [Best Practices for Tagging AWS Resources](https://docs.aws.amazon.com/whitepapers/latest/tagging-best-practices/tagging-best-practices.html]
 

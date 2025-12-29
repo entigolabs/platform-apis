@@ -2,7 +2,7 @@
 sidebar_position: 3
 ---
 
-## Management policies
+# Management policies
 Entigo Platform can be used to manage the full lifecycle of a resource or just to observe the resource status, to enable central overview and governance. Management Policies are used to instruct the platform how to manage each resource through the `entigo.com/management-policy` label.
 
 When the label is set to `full`, the resource is managed through the platform. This means that the platform is the source of truth for desired configuration and the resource will be provisioned accordingly to the Workspace. Resource status will be reported back from the Workspace to the Platform.
@@ -15,7 +15,9 @@ Syncer agent is responsible for labelling the resources, if the label is not alr
 
 ### Status matrix
 
-| Platform                  | Workspace                  | Behaviour | Notes                                                                       |
+Label in the Workspace takes precedence over a label set to a resource in the Platform. 
+
+| Platform resource label   | Workspace resource label   | Behaviour | Notes                                                                       |
 | :------------------------ | :------------------------- | :-------- | :-------------------------------------------------------------------------- |
 | any                       | management-policy=full     | full      | Workspace explicitly requests full management                               |
 | any                       | management-policy=observed | observe   | Workspace explicitly requests observe only                                  |
