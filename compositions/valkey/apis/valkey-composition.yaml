@@ -71,7 +71,6 @@ spec:
             metadata:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: replication-group
-                crossplane.io/external-name: {{ $name }}
                 database.entigo.com/kms-data-key-alias: {{ $kmsDataKeyAlias.resource.status.atProvider.id }}
               name: {{ $name }}
             spec:
@@ -139,7 +138,7 @@ spec:
 
             {{- range $idx, $subnet := $computeSubnets }}
             ---
-            # Security Group Ingress Rule - {{ $subnet.resource.metadata.name }}
+            # Security Group Rule
             apiVersion: ec2.aws.m.upbound.io/v1beta1
             kind: SecurityGroupRule
             metadata:
@@ -162,6 +161,49 @@ spec:
                   - {{ $subnet.resource.status.atProvider.cidrBlock }}
                 description: Allow Valkey access from {{ $subnet.resource.metadata.name }}
             {{- end }}
+
+            # AWS Secrets Manager Secret
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
+            kind: Secret
+            metadata:
+              name: {{ $name }}-credentials
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                name: {{ $name }}-credentials
+                region: {{ $region }}
+                recoveryWindowInDays: 0
+                description: Valkey connection credentials for {{ $name }}
+                kmsKeyId: {{ $kmsConfigKeyArn }}
+                tags:
+                  Name: {{ $name }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+
+            ---
+            # AWS Secrets Manager SecretVersion
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
+            kind: SecretVersion
+            metadata:
+              name: {{ $name }}-credentials
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret-version
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                secretIdRef:
+                  name: {{ $name }}-credentials
+                secretStringSecretRef:
+                  name: {{ $name }}-credentials
+                  key: credentials.json
 
     - step: patch-status-fields
       functionRef:
@@ -226,7 +268,7 @@ spec:
                 fromFieldPath: status.atProvider.ingress
                 toFieldPath: status.securityGroup.rules
 
-    - step: prepare-credentials
+    - step: render-secrets
       functionRef:
         name: function-kcl
       input:
@@ -234,139 +276,76 @@ spec:
         kind: KCLInput
         spec:
           source: |
-            import base64
             import json
+            import base64
 
-            oxr = option("params").oxr
-            name = oxr.metadata.name
-            namespace = oxr.metadata.namespace
+            _oxr = option("params").oxr
+            _name = _oxr.metadata.name
+            _namespace = _oxr.metadata.namespace
 
-            # Request connection secret
-            extraResourcesRequest = {
+            _extraResourcesRequest = {
                 apiVersion = "meta.krm.kcl.dev/v1alpha1"
                 kind = "ExtraResources"
                 requirements = {
                     connectionSecret = {
                         apiVersion = "v1"
                         kind = "Secret"
-                        matchName = name
-                        matchNamespace = namespace
+                        matchName = _name
+                        matchNamespace = _namespace
                     }
                 }
             }
 
-            # Get connection secret if available
-            er = option("params")?.extraResources
-            connectionSecret = er?.connectionSecret[0]?.Resource if er?.connectionSecret else None
+            _er = option("params").extraResources
+            _connectionSecretList = _er.connectionSecret if _er and _er.connectionSecret else []
 
-            # Create JSON credentials secret
-            credentialsSecret = {
-                apiVersion = "v1"
-                kind = "Secret"
-                metadata.name = name + "-credentials"
-                metadata.namespace = namespace
-                metadata.annotations = {
-                    "krm.kcl.dev/composition-resource-name" = "credentials"
-                    "krm.kcl.dev/ready" = "True"
-                }
-                type = "Opaque"
-                stringData = {
-                    AUTH_TOKEN = base64.decode(connectionSecret.data["attribute.auth_token"])
-                    PORT = base64.decode(connectionSecret.data.port)
-                    PRIMARY_ENDPOINT = base64.decode(connectionSecret.data.primary_endpoint_address)
-                    READER_ENDPOINT = base64.decode(connectionSecret.data.reader_endpoint_address)
-                    "credentials.json" = json.encode({
-                        AUTH_TOKEN = base64.decode(connectionSecret.data["attribute.auth_token"])
-                        PORT = base64.decode(connectionSecret.data.port)
-                        PRIMARY_ENDPOINT = base64.decode(connectionSecret.data.primary_endpoint_address)
-                        READER_ENDPOINT = base64.decode(connectionSecret.data.reader_endpoint_address)
-                    })
-                }
-            } if connectionSecret else None
+            _targetSecret = None
+            if _connectionSecretList:
+                _connectionSecret = _connectionSecretList[0].Resource if _connectionSecretList[0] else None
+                if _connectionSecret and _connectionSecret.data:
+                    _targetSecret = {
+                        apiVersion = "v1"
+                        kind = "Secret"
+                        metadata = {
+                            name = _name + "-credentials"
+                            namespace = _namespace
+                            annotations = {
+                                "krm.kcl.dev/composition-resource-name" = "credentials"
+                                "krm.kcl.dev/ready" = "True"
+                            }
+                        }
+                        type = "Opaque"
+                        stringData = {
+                            AUTH_TOKEN = base64.decode(_connectionSecret.data["attribute.auth_token"])
+                            PORT = base64.decode(_connectionSecret.data.port)
+                            PRIMARY_ENDPOINT = base64.decode(_connectionSecret.data.primary_endpoint_address)
+                            READER_ENDPOINT = base64.decode(_connectionSecret.data.reader_endpoint_address)
+                            "credentials.json" = json.encode({
+                                AUTH_TOKEN = base64.decode(_connectionSecret.data["attribute.auth_token"])
+                                PORT = base64.decode(_connectionSecret.data.port)
+                                PRIMARY_ENDPOINT = base64.decode(_connectionSecret.data.primary_endpoint_address)
+                                READER_ENDPOINT = base64.decode(_connectionSecret.data.reader_endpoint_address)
+                            })
+                        }
+                    }
 
-            items = [extraResourcesRequest] + ([credentialsSecret] if credentialsSecret else [])
-
-    - step: sync-to-secrets-manager
-      functionRef:
-        name: function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{- $name := .observed.composite.resource.metadata.name }}
-            {{- $namespace := .observed.composite.resource.metadata.namespace }}
-
-            # Request environment resources
-            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-            kind: ExtraResources
-            requirements:
-              environmentConfig:
-                apiVersion: apiextensions.crossplane.io/v1beta1
-                kind: EnvironmentConfig
-                matchName: platform-apis-database
-              vpc:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: VPC
-                matchName: vpc
-              kmsConfigKeyAlias:
-                apiVersion: kms.aws.upbound.io/v1beta1
-                kind: Alias
-                matchName: config
-
-            ---
-            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
-            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
-            {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
-
-            {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $region := $vpc.resource.status.atProvider.region }}
-            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.targetKeyArn }}
-
-            # AWS Secrets Manager Secret
-            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
-            kind: Secret
-            metadata:
-              name: {{ $name }}-credentials
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
-                crossplane.io/external-name: {{ $name }}-credentials
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
-                name: {{ $name }}-credentials
-                region: {{ $region }}
-                description: Valkey connection credentials for {{ $name }}
-                kmsKeyId: {{ $kmsConfigKeyArn }}
-                tags:
-                  Name: {{ $name }}
-                  {{- range $key, $value := $envConfig.resource.data.tags }}
-                  {{ $key }}: {{ $value | quote }}
-                  {{- end }}
-
-            ---
-            # AWS Secrets Manager SecretVersion
-            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
-            kind: SecretVersion
-            metadata:
-              name: {{ $name }}-credentials
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-version
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
-                region: {{ $region }}
-                secretIdRef:
-                  name: {{ $name }}-credentials
-                secretStringSecretRef:
-                  name: {{ $name }}-credentials
-                  key: credentials.json
+            items = [_extraResourcesRequest] + ([_targetSecret] if _targetSecret else [])
 
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
+
+    - step: sequence-creation
+      functionRef:
+        name: function-sequencer
+      input:
+        apiVersion: sequencer.fn.crossplane.io/v1beta1
+        kind: Input
+        rules:
+          - sequence:
+              - security-group
+              - replication-group
+              - sg-.*
+              - credentials
+              - secrets-manager-secret
+              - secrets-manager-secret-version
