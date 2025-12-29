@@ -760,6 +760,112 @@ spec:
                 - p, proj:{{ $name }}:cicd, applicationsets, sync, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:cicd, applications, get, {{ $name }}/*, allow
                 - p, proj:{{ $name }}:cicd, applicationsets, get, {{ $name }}/*, allow
+    - step: create-net-pol
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              ingresses:
+                apiVersion: networking.k8s.io/v1
+                kind: Ingress
+                matchLabels:
+                  autonetpol: zone
+              services:
+                apiVersion: v1
+                kind: Service
+                matchLabels:
+                  autonetpol: zone
+              serviceSubnets:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: Subnet
+                matchLabels:
+                  subnet-type: service
+              publicSubnets:
+                apiVersion: ec2.aws.upbound.io/v1beta1
+                kind: Subnet
+                matchLabels:
+                  subnet-type: public
+            ---
+            {{- $ingresses := getExtraResources . "ingresses" }}
+            {{- $services := getExtraResources . "services" }}
+            {{- $serviceCIDRs := list }}
+            {{- range $subnet := (getExtraResources . "serviceSubnets") }}
+              {{- $serviceCIDRs = append $serviceCIDRs $subnet.resource.status.atProvider.cidrBlock }}
+            {{- end }}
+            {{- $publicCIDRs := list }}
+            {{- range $subnet := (getExtraResources . "publicSubnets") }}
+              {{- $publicCIDRs = append $publicCIDRs $subnet.resource.status.atProvider.cidrBlock }}
+            {{- end }}
+            {{- range $namespace := .observed.composite.resource.spec.namespaces }}
+            {{- range $ingress := $ingresses }}
+            {{- $ingressName := $ingress.resource.metadata.name }}
+            {{- $ingressClass := $ingress.resource.spec.ingressClassName }}
+            {{- if eq $ingress.resource.metadata.namespace $namespace.name }}
+            {{- if $ingress.resource.spec.rules }}
+            {{- range $rule := $ingress.resource.spec.rules }}
+            {{- if $rule.http }}
+            {{- range $path := $rule.http.paths }}
+              {{- $serviceName := $path.backend.service.name }}
+              {{- $servicePort := printf "%v" $path.backend.service.port.number }}
+              {{- $targetPort := $servicePort }}
+              {{- range $svc := $services }}
+                {{- if and (eq $svc.resource.metadata.name $serviceName) (eq $svc.resource.metadata.namespace $namespace.name) }}
+                  {{- range $port := $svc.resource.spec.ports }}
+                    {{- if eq (printf "%v" $port.port) $servicePort }}
+                      {{- $targetPort = printf "%v" $port.targetPort }}
+                    {{- end }}
+                  {{- end }}
+
+            ---
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: {{ $ingressName }}-{{ $serviceName }}-{{ $targetPort }}
+              namespace: {{ $namespace.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $namespace.name }}-{{ $ingressName }}-{{ $serviceName }}-{{ $targetPort }}
+            spec:
+              podSelector:
+                matchLabels:
+                  {{- range $key, $value := $svc.resource.spec.selector }}
+                  {{ $key }}: {{ $value }}
+                  {{- end }}
+              policyTypes:
+              - Ingress
+              ingress:
+              - from:
+                  {{- if eq $ingressClass "service" }}
+                  {{- range $cidr := $serviceCIDRs }}
+                - ipBlock:
+                    cidr: {{ $cidr }}
+                  {{- end }}
+                  {{- else if eq $ingressClass "external" }}
+                  {{- range $cidr := $publicCIDRs }}
+                - ipBlock:
+                    cidr: {{ $cidr }}
+                  {{- end }}
+                  {{- end }}
+                ports:
+                - protocol: TCP
+                  port: {{ $targetPort }}
+
+            {{ end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
