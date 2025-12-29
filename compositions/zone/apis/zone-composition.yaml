@@ -263,11 +263,6 @@ spec:
                         op: "add",
                         path: "/metadata/labels/tenancy.entigo.com~1zone",
                         value: "{{ $name }}"
-                      },
-                      JSONPatch{
-                        op: "add",
-                        path: "/metadata/labels/tenancy.entigo.com~1zone-ns",
-                        value: "{{ $name }}-{{ $namespace.name }}"
                       }
                     ] :
                     [
@@ -275,8 +270,7 @@ spec:
                         op: "add",
                         path: "/metadata/labels",
                         value: {
-                          "tenancy.entigo.com/zone": "{{ $name }}",
-                          "tenancy.entigo.com/zone-ns": "{{ $name }}-{{ $namespace.name }}"
+                          "tenancy.entigo.com/zone": "{{ $name }}"
                         }
                       }
                     ]
