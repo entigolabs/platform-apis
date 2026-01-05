@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"maps"
+	"strconv"
 	"time"
 
 	postgresv1alpha1 "github.com/crossplane-contrib/provider-sql/apis/namespaced/postgresql/v1alpha1"
@@ -397,12 +398,11 @@ func (g *pgInstanceGenerator) buildExternalSecret(secretARN string, endpoint str
 	externalSecrets := make(map[string]runtime.Object)
 	esName := string(g.names.es)
 	targetName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.pgInstance.Name, "dbadmin"))
-	forceSyncTime := fmt.Sprintf("%d", time.Now().Add(10*time.Second).Unix())
 
 	externalSecret := &esv1.ExternalSecret{
 		TypeMeta: metav1.TypeMeta{Kind: "ExternalSecret", APIVersion: "external-secrets.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{"force-sync": forceSyncTime},
+			Annotations: map[string]string{},
 			Name:        esName,
 			Namespace:   g.pgInstance.Namespace,
 		},
@@ -431,8 +431,39 @@ func (g *pgInstanceGenerator) buildExternalSecret(secretARN string, endpoint str
 			},
 		},
 	}
+
+	if annotation := g.resolveForceSyncAnnotation(); annotation != "" {
+		externalSecret.Annotations["force-sync"] = annotation
+	}
+
 	externalSecrets[esName] = externalSecret
 	return externalSecrets
+}
+
+func (g *pgInstanceGenerator) resolveForceSyncAnnotation() string {
+	observed, found := g.observed[g.names.es]
+
+	if found && isResourceReady(observed.Resource) {
+		return ""
+	}
+
+	newTimestamp := fmt.Sprintf("%d", time.Now().Add(10*time.Second).Unix())
+
+	if !found {
+		return newTimestamp
+	}
+
+	existingSync, hasAnnotation := observed.Resource.GetAnnotations()["force-sync"]
+	if !hasAnnotation {
+		return newTimestamp
+	}
+
+	ts, err := strconv.ParseInt(existingSync, 10, 64)
+	if err == nil && time.Unix(ts, 0).After(time.Now()) {
+		return existingSync
+	}
+
+	return newTimestamp
 }
 
 func isResourceReady(observed *composed.Unstructured) bool {

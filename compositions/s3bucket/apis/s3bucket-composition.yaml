@@ -32,10 +32,15 @@ spec:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: data
+              kmsConfigKeyAlias:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Alias
+                matchName: config
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
+            {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
             {{- $namespace := .observed.composite.resource.metadata.namespace }}
@@ -44,6 +49,7 @@ spec:
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $region := $eks.resource.status.atProvider.region }}
             {{- $kmsDataKeyArn := $kmsDataKeyAlias.resource.status.atProvider.targetKeyArn }}
+            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.arn }}
 
             {{- $clusterOIDC := "" }}
             {{- $id := $eks.resource.status.atProvider.identity }}
@@ -73,7 +79,6 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
-                crossplane.io/external-name: {{ $bucketName }}
                 storage.entigo.com/kms-data-key-alias: {{ $kmsDataKeyAlias.resource.status.atProvider.id }}
                 storage.entigo.com/service-account-name: {{ $serviceAccountName }}
             spec:
@@ -97,7 +102,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: public-access-block
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-public-access-block
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -118,7 +123,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: encryption
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-server-side-encryption-configuration
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -146,7 +151,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: versioning
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-versioning
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -165,7 +170,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: ownership-controls
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-ownership-controls
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -178,6 +183,25 @@ spec:
                   objectOwnership: BucketOwnerEnforced
 
             ---
+            # IAM User for bucket access
+            apiVersion: iam.aws.m.upbound.io/v1beta1
+            kind: User
+            metadata:
+              name: {{ $bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-user
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                tags:
+                  Name: {{ $bucketName }}
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+
+            ---
             # IAM Policy for bucket access for IAM User and IRSA
             apiVersion: iam.aws.m.upbound.io/v1beta1
             kind: Policy
@@ -185,7 +209,6 @@ spec:
               name: {{ $bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: iam-policy
-                crossplane.io/external-name: {{ $bucketName }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -220,26 +243,6 @@ spec:
                       }
                     ]
                   }
-                tags:
-                  Name: {{ $bucketName }}
-                  {{- range $key, $value := $envConfig.resource.data.tags }}
-                  {{ $key }}: {{ $value | quote }}
-                  {{- end }}
-
-            ---
-            # IAM User for bucket access
-            apiVersion: iam.aws.m.upbound.io/v1beta1
-            kind: User
-            metadata:
-              name: {{ $bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: iam-user
-                crossplane.io/external-name: {{ $bucketName }}
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
                 tags:
                   Name: {{ $bucketName }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
@@ -327,7 +330,7 @@ spec:
             metadata:
               name: {{ $bucketName }}
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: role-policy-attachment
+                gotemplating.fn.crossplane.io/composition-resource-name: iam-role-policy-attachment
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -350,6 +353,52 @@ spec:
               name: {{ $serviceAccountName }}
               namespace: {{ $namespace }}
             {{- end }}
+
+            ---
+            # AWS Secrets Manager Secret
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
+            kind: Secret
+            metadata:
+              name: {{ $bucketName }}-credentials
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                name: {{ $bucketName }}-credentials
+                region: {{ $region }}
+                description: Credentials for bucket {{ $bucketName }}
+                recoveryWindowInDays: 0
+                {{- if $kmsConfigKeyArn }}
+                kmsKeyId: {{ $kmsConfigKeyArn }}
+                {{- end }}
+                tags:
+                  Name: {{ $bucketName }}-credentials
+                  {{- range $key, $value := $envConfig.resource.data.tags }}
+                  {{ $key }}: {{ $value | quote }}
+                  {{- end }}
+
+            ---
+            # AWS Secrets Manager Secret Version
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
+            kind: SecretVersion
+            metadata:
+              name: {{ $bucketName }}-credentials
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret-version
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                region: {{ $region }}
+                secretIdRef:
+                  name: {{ $bucketName }}-credentials
+                secretStringSecretRef:
+                  name: {{ $bucketName }}-credentials
+                  key: credentials.json
 
     - step: patch-status-fields
       functionRef:
@@ -395,7 +444,8 @@ spec:
               - type: ToCompositeFieldPath
                 fromFieldPath: metadata.annotations[storage.entigo.com/service-account-name]
                 toFieldPath: status.serviceAccountName
-          - name: encryption
+
+          - name: bucket-server-side-encryption-configuration
             patches:
               - type: ToCompositeFieldPath
                 fromFieldPath: status.atProvider.rule[0].applyServerSideEncryptionByDefault.sseAlgorithm
@@ -407,7 +457,7 @@ spec:
                 fromFieldPath: status.atProvider.rule[0].bucketKeyEnabled
                 toFieldPath: status.bucketKeyEnabled
 
-          - name: public-access-block
+          - name: bucket-public-access-block
             patches:
               - type: ToCompositeFieldPath
                 fromFieldPath: status.atProvider.blockPublicAcls
@@ -422,7 +472,7 @@ spec:
                 fromFieldPath: status.atProvider.restrictPublicBuckets
                 toFieldPath: status.restrictPublicBucketsEnabled
 
-          - name: ownership-controls
+          - name: bucket-ownership-controls
             patches:
               - type: ToCompositeFieldPath
                 fromFieldPath: status.atProvider.rule.objectOwnership
@@ -439,145 +489,96 @@ spec:
             import json
             import base64
 
-            oxr = option("params").oxr
-            bucketName = oxr.metadata.name
-            namespace = oxr.metadata.namespace
+            _oxr = option("params").oxr
+            _bucketName = _oxr.metadata.name
+            _namespace = _oxr.metadata.namespace
 
-            # Request both secrets as extra resources
-            extraResourcesRequest = {
+            _extraResourcesRequest = {
                 apiVersion = "meta.krm.kcl.dev/v1alpha1"
                 kind = "ExtraResources"
                 requirements = {
                     accessKeySecret = {
                         apiVersion = "v1"
                         kind = "Secret"
-                        matchName = bucketName + "-access-key"
-                        matchNamespace = namespace
+                        matchName = _bucketName + "-access-key"
+                        matchNamespace = _namespace
                     }
                     bucketSecret = {
                         apiVersion = "v1"
                         kind = "Secret"
-                        matchName = bucketName + "-bucket"
-                        matchNamespace = namespace
+                        matchName = _bucketName + "-bucket"
+                        matchNamespace = _namespace
                     }
                 }
             }
 
-            # Get the extra resources if available
-            er = option("params")?.extraResources
-            accessKeySecret = er?.accessKeySecret[0]?.Resource if er?.accessKeySecret else None
-            bucketSecret = er?.bucketSecret[0]?.Resource if er?.bucketSecret else None
+            _er = option("params").extraResources
+            _accessKeySecretList = _er.accessKeySecret if _er and _er.accessKeySecret else []
+            _bucketKeySecretList = _er.bucketSecret if _er and _er.bucketSecret else []
 
-            # Create target secret if both secrets exist
-            targetSecret = {
-                apiVersion = "v1"
-                kind = "Secret"
-                metadata.name = bucketName + "-credentials"
-                metadata.namespace = namespace
-                metadata.annotations = {
-                    "krm.kcl.dev/composition-resource-name" = "credentials"
-                    "krm.kcl.dev/ready" = "True"
-                }
-                type = "Opaque"
-                stringData = {
-                    AWS_ACCESS_KEY_ID = base64.decode(accessKeySecret.data.username)
-                    AWS_SECRET_ACCESS_KEY = base64.decode(accessKeySecret.data.password)
-                    BUCKET_REGION = base64.decode(bucketSecret.data.region)
-                    BUCKET_ARN = base64.decode(bucketSecret.data.arn)
-                    BUCKET_NAME = base64.decode(bucketSecret.data.id)
-                    "credentials.json" = json.encode({
-                        AWS_ACCESS_KEY_ID = base64.decode(accessKeySecret.data.username)
-                        AWS_SECRET_ACCESS_KEY = base64.decode(accessKeySecret.data.password)
-                        BUCKET_REGION = base64.decode(bucketSecret.data.region)
-                        BUCKET_ARN = base64.decode(bucketSecret.data.arn)
-                        BUCKET_NAME = base64.decode(bucketSecret.data.id)
-                    })
-                }
-            } if accessKeySecret and bucketSecret else None
+            _targetSecret = None
+            if _accessKeySecretList and _bucketKeySecretList:
+                _accessKeySecret = _accessKeySecretList[0].Resource if _accessKeySecretList[0] else None
+                _bucketKeySecret = _bucketKeySecretList[0].Resource if _bucketKeySecretList[0] else None
+                if _accessKeySecret and _bucketKeySecret and _accessKeySecret.data and _bucketKeySecret.data:
+                    _targetSecret = {
+                        apiVersion = "v1"
+                        kind = "Secret"
+                        metadata = {
+                            name = _bucketName + "-credentials"
+                            namespace = _namespace
+                            annotations = {
+                                "krm.kcl.dev/composition-resource-name" = "credentials"
+                                "krm.kcl.dev/ready" = "True"
+                            }
+                        }
+                        type = "Opaque"
+                        stringData = {
+                            AWS_ACCESS_KEY_ID = base64.decode(_accessKeySecret.data.username)
+                            AWS_SECRET_ACCESS_KEY = base64.decode(_accessKeySecret.data.password)
+                            BUCKET_REGION = base64.decode(_bucketKeySecret.data.region)
+                            BUCKET_ARN = base64.decode(_bucketKeySecret.data.arn)
+                            BUCKET_NAME = base64.decode(_bucketKeySecret.data.id)
+                            "credentials.json" = json.encode({
+                                AWS_ACCESS_KEY_ID = base64.decode(_accessKeySecret.data.username)
+                                AWS_SECRET_ACCESS_KEY = base64.decode(_accessKeySecret.data.password)
+                                BUCKET_REGION = base64.decode(_bucketKeySecret.data.region)
+                                BUCKET_ARN = base64.decode(_bucketKeySecret.data.arn)
+                                BUCKET_NAME = base64.decode(_bucketKeySecret.data.id)
+                            })
+                        }
+                    }
 
-            items = [extraResourcesRequest] + ([targetSecret] if targetSecret else [])
-
-    - step: create-aws-secret
-      functionRef:
-        name: function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            # Get required resources
-            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-            kind: ExtraResources
-            requirements:
-              environmentConfig:
-                apiVersion: apiextensions.crossplane.io/v1beta1
-                kind: EnvironmentConfig
-                matchName: platform-apis-storage
-              vpc:
-                apiVersion: ec2.aws.upbound.io/v1beta1
-                kind: VPC
-                matchName: vpc
-              kmsConfigKeyAlias:
-                apiVersion: kms.aws.upbound.io/v1beta1
-                kind: Alias
-                matchName: config
-            ---
-            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
-            {{- $vpc := mustFirst (getExtraResources . "vpc") }}
-            {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
-
-            {{- $bucketName := .observed.composite.resource.metadata.name }}
-
-            {{- /* Get config from environment */ -}}
-            {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
-            {{- $region := $vpc.resource.status.atProvider.region }}
-            {{- $kmsConfigKeyArn := $kmsConfigKeyAlias.resource.status.atProvider.arn }}
-
-            ---
-            # AWS Secrets Manager Secret
-            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
-            kind: Secret
-            metadata:
-              name: {{ $bucketName }}-credentials
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-secret
-                crossplane.io/external-name: {{ $bucketName }}-credentials
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
-                name: {{ $bucketName }}-credentials
-                region: {{ $region }}
-                description: Credentials for bucket {{ $bucketName }}
-                {{- if $kmsConfigKeyArn }}
-                kmsKeyId: {{ $kmsConfigKeyArn }}
-                {{- end }}
-                tags:
-                  Name: {{ $bucketName }}-credentials
-                  {{- range $key, $value := $envConfig.resource.data.tags }}
-                  {{ $key }}: {{ $value | quote }}
-                  {{- end }}
-            ---
-            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
-            kind: SecretVersion
-            metadata:
-              name: {{ $bucketName }}-credentials
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: secrets-manager-version
-            spec:
-              providerConfigRef:
-                name: {{ $providerConfigRef }}
-                kind: ClusterProviderConfig
-              forProvider:
-                region: {{ $region }}
-                secretIdRef:
-                  name: {{ $bucketName }}-credentials
-                secretStringSecretRef:
-                  name: {{ $bucketName }}-credentials
-                  key: credentials.json
+            items = [_extraResourcesRequest] + ([_targetSecret] if _targetSecret else [])
 
     - step: detect-readiness
       functionRef:
         name: function-auto-ready
+
+    - step: sequence-creation
+      functionRef:
+        name: function-sequencer
+      input:
+        apiVersion: sequencer.fn.crossplane.io/v1beta1
+        kind: Input
+        rules:
+          - sequence:
+              - bucket
+              - bucket-versioning
+              - bucket-ownership-controls
+              - bucket-public-access-block
+              - bucket-server-side-encryption-configuration
+          - sequence:
+              - iam-user
+              - iam-access-key
+              - credentials
+              - secrets-manager-secret
+              - secrets-manager-secret-version
+          - sequence:
+              - iam-role
+              - iam-policy
+              - iam-role-policy-attachment
+          - sequence:
+              - iam-user
+              - iam-policy
+              - iam-user-policy-attachment

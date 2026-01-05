@@ -212,7 +212,7 @@ metadata:
   name: platform-apis-zone
 rules:
   - apiGroups: [""]
-    resources: ["namespaces"]
+    resources: ["namespaces", "services"]
     verbs: ["*"]
   - apiGroups: ["argoproj.io"]
     resources: ["appprojects"]
@@ -221,7 +221,7 @@ rules:
     resources: ["rolebindings", "roles"]
     verbs: ["*"]
   - apiGroups: ["networking.k8s.io"]
-    resources: ["networkpolicies"]
+    resources: ["networkpolicies", "ingresses"]
     verbs: ["*"]
   - apiGroups: ["policies.kyverno.io"]
     resources: ["mutatingpolicies", "validatingpolicies","mutatingpolicies/status", "validatingpolicies/status"]

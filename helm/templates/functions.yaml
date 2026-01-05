@@ -63,8 +63,8 @@ spec:
           - name: package-runtime
             resources:
               requests:
-                cpu: 5m
-                memory: 21Mi
+                cpu: 60m
+                memory: 32Mi
               limits:
                 cpu: 2000m
                 memory: 1024Mi
@@ -117,7 +117,7 @@ spec:
             resources:
               requests:
                 cpu: 3m
-                memory: 16Mi
+                memory: 32Mi
               limits:
                 cpu: 2000m
                 memory: 1024Mi
@@ -144,6 +144,43 @@ spec:
 {{- if (index .Values.functions "function-sequencer").install }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-function-sequencer
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 50m
+                memory: 28Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
   name: function-sequencer
@@ -154,7 +191,7 @@ spec:
   runtimeConfigRef:
     apiVersion: pkg.crossplane.io/v1beta1
     kind: DeploymentRuntimeConfig
-    name: platform-apis-function
+    name: platform-apis-function-sequencer
 {{- end }}
 
 {{- if (index .Values.functions "function-kcl").install }}
