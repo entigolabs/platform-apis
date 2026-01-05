@@ -9,6 +9,8 @@ data:
   configKMSKey: {{ .Values.database.environmentConfig.configKMSKey }}
   vpc: {{ .Values.database.environmentConfig.vpc }}
   subnetGroup: {{ .Values.database.environmentConfig.subnetGroup }}
+  elasticacheSubnetGroup: {{ .Values.database.environmentConfig.elasticacheSubnetGroup }}
+  esClusterSecretStore: {{ .Values.database.environmentConfig.esClusterSecretStore }}
   {{- if .Values.database.environmentConfig.tags }}
   tags: {{- toYaml .Values.database.environmentConfig.tags | nindent 4 }}
   {{- else }}
@@ -26,6 +28,11 @@ spec:
     spec:
       selector: {}
       template:
+        metadata:
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8080"
+            prometheus.io/path: "/metrics"
         spec:
           affinity:
             nodeAffinity:
@@ -37,7 +44,15 @@ spec:
                         values:
                           - 'true'
                   weight: 90
-          containers: []
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 1m
+                memory: 21Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
           tolerations:
             - effect: NoSchedule
               key: tools

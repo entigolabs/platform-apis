@@ -5,6 +5,7 @@ import (
 	"maps"
 	"time"
 
+	postgresv1alpha1 "github.com/crossplane-contrib/provider-sql/apis/namespaced/postgresql/v1alpha1"
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
@@ -23,8 +24,9 @@ import (
 )
 
 const (
-	ec2ApiVersion = "ec2.aws.m.upbound.io/v1beta1"
-	rdsApiVersion = "rds.aws.m.upbound.io/v1beta1"
+	ec2ApiVersion   = "ec2.aws.m.upbound.io/v1beta1"
+	rdsApiVersion   = "rds.aws.m.upbound.io/v1beta1"
+	pgSqlApiVersion = "postgresql.sql.m.crossplane.io/v1alpha1"
 )
 
 type pgInstanceGenerator struct {
@@ -44,7 +46,7 @@ type pgInstanceGenerator struct {
 }
 
 type resourceNames struct {
-	sg, sgIngress, sgEgress, rdsInstance, rdsInstanceSnapshot, es resource.Name
+	sg, sgIngress, sgEgress, rdsInstance, rdsInstanceSnapshot, es, pc resource.Name
 }
 
 func GeneratePgInstanceObjects(
@@ -133,8 +135,16 @@ func (g *pgInstanceGenerator) generate() (map[string]runtime.Object, error) {
 	if !found || secretStatus != "active" {
 		return desired, nil
 	}
-
-	maps.Copy(desired, g.buildExternalSecret(secretARN))
+	endpoint, found := getEndpointFromRDSInstanceStatus(observedRDSInstance.Resource)
+	if !found {
+		return desired, nil
+	}
+	port, found := getPortFromRDSInstanceStatus(observedRDSInstance.Resource)
+	if !found {
+		return desired, nil
+	}
+	maps.Copy(desired, g.buildExternalSecret(secretARN, endpoint, port))
+	maps.Copy(desired, g.buildSqlProviderConfig())
 
 	return desired, nil
 }
@@ -147,15 +157,36 @@ func (g *pgInstanceGenerator) checkSecretConflict(required map[string][]resource
 		return nil
 	}
 	conflictingSecret := conflictingSecrets[0].Resource
-	annotations := conflictingSecret.GetAnnotations()
-	actualAnnotationValue, annotationFound := annotations["crossplane.io/composition-resource-name"]
+	expectedExternalSecretName := string(g.names.es)
 
-	if !annotationFound || actualAnnotationValue != string(g.names.es) {
+	ownerReferences, _, err := unstructured.NestedSlice(conflictingSecret.Object, "metadata", "ownerReferences")
+	if err != nil {
+		return fmt.Errorf("cannot read owner references from existing Secret '%s': %w", secretName, err)
+	}
+
+	isManagedByExpectedEs := false
+	for _, owner := range ownerReferences {
+		ownerMap, ok := owner.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		ownerKind, _, _ := unstructured.NestedString(ownerMap, "kind")
+		if ownerKind != "ExternalSecret" {
+			continue
+		}
+		ownerName, _, _ := unstructured.NestedString(ownerMap, "name")
+		if ownerName == expectedExternalSecretName {
+			isManagedByExpectedEs = true
+			break
+		}
+	}
+
+	if !isManagedByExpectedEs {
 		return fmt.Errorf(
 			"naming conflict: a Secret named '%s' already exists in namespace '%s' but is not managed by this PostgreSQLInstance's ExternalSecret ('%s')",
 			secretName,
 			g.pgInstance.Namespace,
-			string(g.names.es),
+			expectedExternalSecretName,
 		)
 	}
 	return nil
@@ -185,6 +216,10 @@ func GetESName(instanceName string, hash string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-es-%s", instanceName, hash))
 }
 
+func GetPCName(instanceName string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-providerconfig", instanceName))
+}
+
 func (g *pgInstanceGenerator) generateNames() {
 	g.names.sg = resource.Name(GetSGName(g.pgInstance.Name, g.hash))
 	g.names.sgIngress = resource.Name(GetSGIngressName(g.pgInstance.Name, g.hash))
@@ -192,10 +227,7 @@ func (g *pgInstanceGenerator) generateNames() {
 	g.names.rdsInstance = resource.Name(GetRDSInstanceName(g.pgInstance.Name, g.hash))
 	g.names.rdsInstanceSnapshot = resource.Name(GetRDSInstanceSnapshotName(g.pgInstance.Name, g.hash))
 	g.names.es = resource.Name(GetESName(g.pgInstance.Name, g.hash))
-}
-
-func (g *pgInstanceGenerator) isReady(name resource.Name) bool {
-	return g.readinessMap[name]
+	g.names.pc = resource.Name(GetPCName(g.pgInstance.Name))
 }
 
 func (g *pgInstanceGenerator) buildSecurityGroup() map[string]runtime.Object {
@@ -317,9 +349,9 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 				SkipFinalSnapshot:           &skipFinalSnapshot,
 				StorageType:                 &storageType,
 				StorageEncrypted:            &storageEncrypted,
+				Tags:                        g.env.Tags,
 				Username:                    &masterUsername,
 				VPCSecurityGroupIDRefs:      vpcSecurityGroupIDRef,
-				Tags:                        g.env.Tags,
 			},
 		},
 	}
@@ -339,7 +371,29 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 	return rdsInstances
 }
 
-func (g *pgInstanceGenerator) buildExternalSecret(secretARN string) map[string]runtime.Object {
+func (g *pgInstanceGenerator) buildSqlProviderConfig() map[string]runtime.Object {
+	providerConfigs := make(map[string]runtime.Object)
+	pcName := string(g.names.pc)
+	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.pgInstance.Name, "dbadmin"))
+	sslMode := "require"
+	providerConfig := &postgresv1alpha1.ProviderConfig{
+		TypeMeta:   metav1.TypeMeta{Kind: "ProviderConfig", APIVersion: pgSqlApiVersion},
+		ObjectMeta: metav1.ObjectMeta{Name: pcName, Namespace: g.pgInstance.Namespace},
+		Spec: postgresv1alpha1.ProviderConfigSpec{
+			Credentials: postgresv1alpha1.ProviderCredentials{
+				Source: "PostgreSQLConnectionSecret",
+				ConnectionSecretRef: xpv2v1.LocalSecretReference{
+					Name: secretName,
+				},
+			},
+			SSLMode: &sslMode,
+		},
+	}
+	providerConfigs[providerConfig.Name] = providerConfig
+	return providerConfigs
+}
+
+func (g *pgInstanceGenerator) buildExternalSecret(secretARN string, endpoint string, port float64) map[string]runtime.Object {
 	externalSecrets := make(map[string]runtime.Object)
 	esName := string(g.names.es)
 	targetName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.pgInstance.Name, "dbadmin"))
@@ -355,11 +409,19 @@ func (g *pgInstanceGenerator) buildExternalSecret(secretARN string) map[string]r
 		Spec: esv1.ExternalSecretSpec{
 			RefreshInterval: &metav1.Duration{Duration: time.Minute * 15},
 			RefreshPolicy:   esv1.ExternalSecretRefreshPolicy("Periodic"),
-			SecretStoreRef:  esv1.SecretStoreRef{Name: "external-secrets", Kind: "ClusterSecretStore"},
+			SecretStoreRef:  esv1.SecretStoreRef{Name: g.env.EsClusterSecretStore, Kind: "ClusterSecretStore"},
 			Target: esv1.ExternalSecretTarget{
 				Name:           targetName,
 				CreationPolicy: esv1.ExternalSecretCreationPolicy("Owner"),
 				DeletionPolicy: esv1.ExternalSecretDeletionPolicy("Delete"),
+				Template: &esv1.ExternalSecretTemplate{
+					Data: map[string]string{
+						"username": "dbadmin",
+						"password": "{{ .password | toString }}",
+						"endpoint": endpoint,
+						"port":     fmt.Sprintf("%d", int(port)),
+					},
+				},
 			},
 			Data: []esv1.ExternalSecretData{
 				{
@@ -415,6 +477,24 @@ func getSecretARNFromRDSInstanceStatus(instance *composed.Unstructured) (string,
 	}
 
 	return secretARN, secretStatus, true
+}
+
+func getEndpointFromRDSInstanceStatus(instance *composed.Unstructured) (string, bool) {
+	endpoint, found, err := unstructured.NestedString(instance.Object, "status", "atProvider", "address")
+	if err != nil || !found {
+		return "", false
+	}
+
+	return endpoint, true
+}
+
+func getPortFromRDSInstanceStatus(instance *composed.Unstructured) (float64, bool) {
+	port, found, err := unstructured.NestedFloat64(instance.Object, "status", "atProvider", "port")
+	if err != nil || !found {
+		return 0, false
+	}
+
+	return port, true
 }
 
 func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.PostgreSQLInstanceStatus {

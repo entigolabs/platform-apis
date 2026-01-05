@@ -8,12 +8,20 @@ database:
     configKMSKey: config
     vpc: vpc
     subnetGroup: database
+    elasticacheSubnetGroup: elasticache
+    esClusterSecretStore: external-secrets
     tags: {}
 
 postgresql:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-postgresql
+    tag: v0.0.0
+
+valkey:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-valkey
     tag: v0.0.0
 
 artifact:
@@ -34,12 +42,37 @@ repository:
     image: ghcr.io/entigolabs/platform-apis-repository
     tag: v0.0.0
 
+storage:
+  install: true
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    dataKMSKey: data
+    configKMSKey: config
+    tags: {}
+
+s3bucket:
+  install: true
+  package:
+    image: ghcr.io/entigolabs/platform-apis-s3bucket
+    tag: v0.0.0
+
+kafka:
+  install: false
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    tags: {}
+  package:
+    image: ghcr.io/entigolabs/platform-apis-kafka
+    tag: v0.0.0
+
 zone:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-zone
     tag: v0.0.0
   environmentConfig:
+    granularEgress: false
+    granularEgressExclude: []
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
     appProject:
@@ -50,7 +83,6 @@ zone:
     maintainerGroups: ["maintainer"]
     observerGroups: ["observer"]
     contributorGroups: ["contributor"]
-
 
 networking:
   function:
@@ -89,19 +121,30 @@ cronjob:
 providers: {}
 
 functions:
- function-go-templating:
-   install: true
-   image: xpkg.upbound.io/crossplane-contrib/function-go-templating
-   tag: v0.11.0
- function-auto-ready:
-   install: true
-   image: xpkg.upbound.io/crossplane-contrib/function-auto-ready
-   tag: v0.5.0
- function-sequencer:
-   install: true
-   image: xpkg.upbound.io/crossplane-contrib/function-sequencer
-   tag: v0.3.0
-
+  function-go-templating:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-go-templating
+    tag: v0.11.2
+  function-auto-ready:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+    tag: v0.6.0
+  function-sequencer:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-sequencer
+    tag: v0.3.0
+  function-kcl:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-kcl
+    tag: v0.11.6
+  function-patch-and-transform:
+    install: true
+    image: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
+    tag: v0.9.2
+  function-extra-resources:
+    install: false
+    image: xpkg.upbound.io/crossplane-contrib/function-extra-resources
+    tag: v0.2.0
 
 extraFunctions: []
 #  - name: function-foo

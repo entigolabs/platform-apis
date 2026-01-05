@@ -6,10 +6,15 @@ mkdir crds
 
 cp ../../compositions/cronjob/apis/cronjob-definition.yaml crds/
 cp ../../compositions/postgresql/apis/instance-definition.yaml crds/
+cp ../../compositions/postgresql/apis/database-definition.yaml crds/
+cp ../../compositions/postgresql/apis/user-definition.yaml crds/
 cp ../../compositions/repository/apis/repository-definition.yaml crds/
 cp ../../compositions/webaccess/apis/webaccess-definition.yaml crds/
 cp ../../compositions/webapp/apis/webapp-definition.yaml crds/
 cp ../../compositions/zone/apis/zone-definition.yaml crds/
+cp ../../compositions/s3bucket/apis/s3bucket-definition.yaml crds/
+cp ../../compositions/kafka/apis/*definition.yaml crds/
+cp ../../compositions/valkey/apis/valkey-definition.yaml crds/
 
 for i in `find crds/ -type f`; do 
 

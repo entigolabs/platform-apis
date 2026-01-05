@@ -59,11 +59,6 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			return nil, err
 		}
 		resources[apis.KMSDataKey] = kms
-		resources[apis.RequiredRepositoryKey] = &fnv1.ResourceSelector{
-			Kind:       apis.RepositoryKind,
-			ApiVersion: apis.RepositoryApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: compositeResource.GetName()},
-		}
 		return resources, nil
 	default:
 		return nil, nil

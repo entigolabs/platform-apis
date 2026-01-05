@@ -1,0 +1,6 @@
+apiVersion: kafka.entigo.com/v1alpha1
+kind: MSK
+metadata:
+  name: test-crossplane-cluster-observed
+spec:
+  clusterARN: "" # MSK arn

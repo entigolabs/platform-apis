@@ -1,0 +1,10 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLUser
+metadata:
+  name: user-example
+spec:
+  instanceRef:
+    name: postgresql-example
+  grant:
+    roles:
+    - example-role

@@ -2,7 +2,7 @@
 A minimal PostgreSQL instance definition showing the required fields only.
 
 ```yaml
-apiVersion: database.example.org/v1alpha1
+apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLInstance
 metadata:
   name: basic-instance
@@ -14,7 +14,7 @@ spec:
 An example of a PostgreSQL instance configured with replication for high availability.
 
 ```yaml
-apiVersion: database.example.org/v1alpha1
+apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLInstance
 metadata:
   name: ha-instance

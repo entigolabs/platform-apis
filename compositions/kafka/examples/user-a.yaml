@@ -1,0 +1,16 @@
+---
+apiVersion: kafka.entigo.com/v1alpha1
+kind: KafkaUser
+metadata:
+  name: user-a
+  namespace: default
+spec:
+  clusterName: test-crossplane-cluster
+  consumerGroups:
+    - alpha
+    - gamma
+  acls:
+    - topic: topic-a
+      operation: Read
+    - topic: topic-b
+      operation: Write

@@ -1,0 +1,8 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLDatabase
+metadata:
+  name: database-example
+spec:
+  owner: owner
+  instanceRef:
+    name: postgresql-example

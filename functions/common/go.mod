@@ -6,10 +6,10 @@ require (
 	dario.cat/mergo v1.0.2
 	github.com/crossplane/crossplane-runtime/v2 v2.1.0 // Other dependencies should match versions used in crossplane-runtime
 	github.com/crossplane/function-sdk-go v0.5.0
-	github.com/go-logr/zapr v1.3.0
+	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/google/go-cmp v0.7.0
 	github.com/mozillazg/go-unidecode v0.2.0
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.0 // indirect
 	google.golang.org/protobuf v1.36.10
 	k8s.io/api v0.34.0 // indirect
 	k8s.io/apiextensions-apiserver v0.34.0 // indirect

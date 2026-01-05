@@ -48,7 +48,8 @@ func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
 		sgEgress := service.GetSGEgressName(instance.GetName(), setHash)
 		rdsInstance := service.GetRDSInstanceName(instance.GetName(), setHash)
 		es := service.GetESName(instance.GetName(), setHash)
-		return base.NewSequence(false, []string{sg, sgIngress, sgEgress}, []string{rdsInstance}, []string{es})
+		pc := service.GetPCName(instance.GetName())
+		return base.NewSequence(false, []string{sg, sgIngress, sgEgress}, []string{rdsInstance}, []string{es, pc})
 	default:
 		return base.Sequence{}
 	}

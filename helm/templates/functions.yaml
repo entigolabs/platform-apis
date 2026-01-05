@@ -1,4 +1,78 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-function
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 1m
+                memory: 8Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+
 {{- if (index .Values.functions "function-go-templating").install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-function-go-templating
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 5m
+                memory: 21Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
@@ -8,9 +82,50 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   package: {{ (index .Values.functions "function-go-templating").image }}:{{ (index .Values.functions "function-go-templating").tag }}
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: platform-apis-function-go-templating
 {{- end }}
 
 {{- if (index .Values.functions "function-auto-ready").install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-function-auto-ready
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 3m
+                memory: 16Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
@@ -20,6 +135,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   package: {{ (index .Values.functions "function-auto-ready").image }}:{{ (index .Values.functions "function-auto-ready").tag }}
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: platform-apis-function-auto-ready
 {{- end }}
 
 {{- if (index .Values.functions "function-sequencer").install }}
@@ -32,6 +151,131 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   package: {{ (index .Values.functions "function-sequencer").image }}:{{ (index .Values.functions "function-sequencer").tag }}
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: platform-apis-function
+{{- end }}
+
+{{- if (index .Values.functions "function-kcl").install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-function-kcl
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 10m
+                memory: 48Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-kcl
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ (index .Values.functions "function-kcl").image }}:{{ (index .Values.functions "function-kcl").tag }}
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: platform-apis-function-kcl
+{{- end }}
+
+{{- if (index .Values.functions "function-patch-and-transform").install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-function-patch-and-transform
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 1m
+                memory: 16Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ (index .Values.functions "function-patch-and-transform").image }}:{{ (index .Values.functions "function-patch-and-transform").tag }}
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: platform-apis-function-patch-and-transform
+{{- end }}
+{{- if (index .Values.functions "function-extra-resources").install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-extra-resources
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ (index .Values.functions "function-extra-resources").image }}:{{ (index .Values.functions "function-extra-resources").tag }}
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: platform-apis-function
 {{- end }}
 
 {{- range .Values.extraFunctions }}
@@ -44,6 +288,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   package: {{ .image }}:{{ .tag }}
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: platform-apis-function
 {{- end }}
 
 {{- range .Values.extraProviders }}

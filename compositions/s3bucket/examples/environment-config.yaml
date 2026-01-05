@@ -1,0 +1,10 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-storage
+data:
+  awsProvider: crossplane-aws
+  dataKMSKey: data
+  configKMSKey: config
+  tags:
+    foo: bar

@@ -8,6 +8,105 @@ rules:
 - apiGroups: ["tenancy.entigo.com"]
   resources: ["zones"]
   verbs: ["*"]
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["apiextensions.crossplane.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["ec2.aws.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["eks.aws.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["external-secrets.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["generators.external-secrets.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["iam.aws.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["kms.aws.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["networkfirewall.aws.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["ram.aws.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["kyverno.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["policies.kyverno.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["reports.kyverno.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["pkg.crossplane.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["ria.ee"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: [""]
+  resources: ["configmaps", "pods", "persistentvolumes", "endpoints", "events", "serviceaccounts", "services", "resourcequotas", "limitranges"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["discovery.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["events.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["apps"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["policy"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["argoproj.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["artifact.entigo.com"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["database.entigo.com"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["batch"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["elbv2.k8s.aws"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["externaldns.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["networking.istio.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["security.istio.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["telemetry.istio.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -15,7 +114,7 @@ metadata:
   name: zone-tenancy-c-read
 rules:
 - apiGroups: [""]
-  resources: ["namespaces"]
+  resources: ["namespaces", "nodes", "persistentvolumes"]
   verbs: ["get", "watch", "list"]
 - apiGroups: ["tenancy.entigo.com"]
   resources: ["zones"]
@@ -25,6 +124,15 @@ rules:
   verbs: ["get", "watch", "list"]
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingressclasses"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["elbv2.k8s.aws"]
+  resources: ["ingressclassparams"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["nodes"]
   verbs: ["get", "watch", "list"]
 {{- if .Values.zone.clusterrolebinding.maintainerGroups }}
 ---
@@ -118,7 +226,9 @@ rules:
   - apiGroups: ["policies.kyverno.io"]
     resources: ["mutatingpolicies", "validatingpolicies","mutatingpolicies/status", "validatingpolicies/status"]
     verbs: ["*"]
-
+  - apiGroups: ["networking.istio.io"]
+    resources: ["*"]
+    verbs: ["*"]
 
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -131,7 +241,9 @@ spec:
   activate:
   - launchtemplates.ec2.aws.upbound.io
   - nodegroups.eks.aws.upbound.io
+  - accessentries.eks.aws.upbound.io
   - roles.iam.upbound.io
+
 # ---
 # apiVersion: rbac.authorization.k8s.io/v1
 # kind: ClusterRoleBinding
@@ -151,6 +263,8 @@ kind: EnvironmentConfig
 metadata:
   name: platform-apis-zone
 data:
+  granularEgress: {{ .Values.zone.environmentConfig.granularEgress }}
+  granularEgressExclude: {{ .Values.zone.environmentConfig.granularEgressExclude }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
   appProject:

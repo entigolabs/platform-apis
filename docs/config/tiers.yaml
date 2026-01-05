@@ -2,10 +2,24 @@ CronJob: [Standard, Premium]
 
 PostgreSQLInstance: [Standard, Premium]
 
+PostgreSQLDatabase: [Standard, Premium]
+
+PostgreSQLUser: [Standard, Premium]
+
+ValkeyInstance: [Standard, Premium]
+
 Repository: [Standard, Premium]
 
-WebAccess: [Basic, Standard, Premium] 
+WebAccess: [Basic, Standard, Premium]
 
 WebApp: [Basic, Standard, Premium]
 
 Zone: [Premium]
+
+S3Bucket: [Basic, Standard, Premium]
+
+MSK: [Standard, Premium]
+
+XTopic: [Standard, Premium]
+
+XKafkaUser: [Standard, Premium]

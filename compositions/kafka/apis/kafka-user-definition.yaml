@@ -1,0 +1,40 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xkafkausers.kafka.entigo.com
+spec:
+  group: kafka.entigo.com
+  names:
+    kind: XKafkaUser
+    plural: xkafkausers
+  claimNames:
+    kind: KafkaUser
+    plural: kafkausers
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                clusterName:
+                  type: string
+                consumerGroups:
+                  type: array
+                  items:
+                    type: string
+                acls:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      topic:
+                        type: string
+                      operation:
+                        type: string
+              required:
+                - clusterName
