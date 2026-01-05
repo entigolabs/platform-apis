@@ -65,6 +65,25 @@ kafka:
     image: ghcr.io/entigolabs/platform-apis-kafka
     tag: v0.0.0
 
+tenancy:
+  function:
+    image: ghcr.io/entigolabs/platform-apis-tenancy-fn
+    tag: v0.0.0
+  environmentConfig:
+    granularEgress: false
+    granularEgressExclude: []
+    argoCDNamespace: argocd
+    awsProvider: "crossplane-aws"
+    appProject:
+      maintainerGroups: []
+      observerGroups: []
+    cluster: eks
+    dataKMSAlias: data
+    securityGroup: "eks-node"
+    vpc: vpc
+    subnetType: compute
+    tags: {}
+
 zone:
   install: true
   package:

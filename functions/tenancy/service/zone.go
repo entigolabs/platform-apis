@@ -14,10 +14,12 @@ import (
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	policyv1alpha1 "github.com/kyverno/kyverno/api/policies.kyverno.io/v1alpha1"
-	ec2v1beta1 "github.com/upbound/provider-aws/apis/cluster/ec2/v1beta1"
-	eksv1beta1 "github.com/upbound/provider-aws/apis/cluster/eks/v1beta1"
-	iamv1beta1 "github.com/upbound/provider-aws/apis/cluster/iam/v1beta1"
-	kmsv1beta1 "github.com/upbound/provider-aws/apis/cluster/kms/v1beta1"
+	ec2v1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/ec2/v1beta1"
+	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
+	iamv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/iam/v1beta1"
+	kmsv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/kms/v1beta1"
+	istiov1alpha3 "istio.io/api/networking/v1alpha3"
+	istiov1 "istio.io/client-go/pkg/apis/networking/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	admissionregistrationv1alpha1 "k8s.io/api/admissionregistration/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -47,6 +49,7 @@ type zoneGenerator struct {
 
 	zoneAnnotations map[string]string
 	zoneTags        map[string]*string
+	egressExclude   base.Set[string]
 }
 
 func GenerateZoneObjects(
@@ -96,7 +99,8 @@ func GenerateZoneObjects(
 		zoneAnnotations: map[string]string{
 			zoneAnnotation: zone.Name,
 		},
-		zoneTags: tags,
+		zoneTags:      tags,
+		egressExclude: base.NewSet(env.GranularEgressExclude...),
 	}
 	return generator.generate()
 }
@@ -125,6 +129,10 @@ func GetEnvironment(required map[string][]resource.Required) (apis.Environment, 
 
 func GetNamespaceKey(zone string) string {
 	return "namespace-" + zone
+}
+
+func GetSidecarKey(zone, namespace string) string {
+	return "sidecar-" + zone + "-" + namespace
 }
 
 func GetNetworkPolicyKey(zone, namespace string) string {
@@ -183,6 +191,10 @@ func GetRoleECRProxyAttachmentKey(zone string) string {
 	return "rpa-ecr-proxy-" + zone
 }
 
+func GetAccessentryKey(zone string) string {
+	return "ae-" + zone
+}
+
 func GetNodeGroupKey(poolName, hash string) string {
 	return "nodepool-" + poolName + "-" + hash
 }
@@ -196,6 +208,10 @@ func (g zoneGenerator) generateNamespaces() map[string]runtime.Object {
 	for _, ns := range g.zone.Spec.Namespaces {
 		namespace := g.getNamespace(ns.Name)
 		objs[GetNamespaceKey(g.zone.Name)] = namespace
+		if g.env.GranularEgress {
+			sidecar := g.getSidecar(ns.Name)
+			objs[GetSidecarKey(g.zone.Name, ns.Name)] = sidecar
+		}
 		networkPolicy := g.getNetworkPolicy(ns.Name)
 		objs[GetNetworkPolicyKey(g.zone.Name, ns.Name)] = networkPolicy
 		allRole := g.getAllRole(ns.Name)
@@ -217,17 +233,55 @@ func (g zoneGenerator) generateNamespaces() map[string]runtime.Object {
 }
 
 func (g zoneGenerator) getNamespace(name string) *corev1.Namespace {
+	labels := map[string]string{
+		zoneAnnotation: g.zone.Name,
+	}
+	if g.env.GranularEgress {
+		labels["istio-injection"] = "enabled"
+	}
 	return &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Namespace",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				zoneAnnotation: g.zone.Name,
-			},
+			Name:        name,
+			Labels:      labels,
 			Annotations: g.zoneAnnotations,
+		},
+	}
+}
+
+func (g zoneGenerator) getSidecar(name string) runtime.Object {
+	hosts := []string{
+		"*/*.svc.cluster.local",
+		"istio-system/*",
+		"kube-system/kube-dns.kube-system.svc.cluster.local",
+	}
+	for _, ns := range g.zone.Spec.Namespaces {
+		hosts = append(hosts, ns.Name+"/*")
+	}
+	mode := istiov1alpha3.OutboundTrafficPolicy_REGISTRY_ONLY
+	if g.egressExclude.Contains(g.zone.Name) {
+		mode = istiov1alpha3.OutboundTrafficPolicy_ALLOW_ANY
+	}
+	return &istiov1.Sidecar{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.istio.io/v1",
+			Kind:       "Sidecar",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name + "-egress",
+			Namespace:   name,
+			Annotations: g.zoneAnnotations,
+		},
+		Spec: istiov1alpha3.Sidecar{
+			OutboundTrafficPolicy: &istiov1alpha3.OutboundTrafficPolicy{
+				Mode: mode,
+			},
+			Egress: []*istiov1alpha3.IstioEgressListener{{
+				Hosts: hosts,
+			}},
 		},
 	}
 }
@@ -550,6 +604,8 @@ func (g zoneGenerator) generateNodePools() (map[string]runtime.Object, error) {
 	objs[GetRoleSSMAttachmentKey(g.zone.Name)] = ssmRoleAttachment
 	ecrProxyRoleAttachment := g.getIAMRolePolicyAttachmentWithArnRef(g.zone.Name+"-ecr-proxy", "ecr-proxy")
 	objs[GetRoleECRProxyAttachmentKey(g.zone.Name)] = ecrProxyRoleAttachment
+	accessEntry := g.getAccessEntry(g.zone.Name)
+	objs[GetAccessentryKey(g.zone.Name)] = accessEntry
 	for _, pool := range g.zone.Spec.Pools {
 		launchTemplate, ok := g.observed[resource.Name(GetLaunchTemplateKey(g.zone.Name, pool.Name))]
 		if !ok || launchTemplate.Resource == nil {
@@ -558,6 +614,9 @@ func (g zoneGenerator) generateNodePools() (map[string]runtime.Object, error) {
 		key, ng, err := g.getNodeGroup(pool, *launchTemplate.Resource)
 		if err != nil {
 			return nil, err
+		}
+		if ng == nil {
+			continue
 		}
 		objs[key] = ng
 	}
@@ -652,6 +711,35 @@ func (g zoneGenerator) getIAMRolePolicyAttachmentWithArnRef(name, policyArnRef s
 	}
 }
 
+func (g zoneGenerator) getAccessEntry(name string) runtime.Object {
+	return &eksv1beta1.AccessEntry{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "eks.aws.upbound.io/v1beta1",
+			Kind:       "AccessEntry",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: eksv1beta1.AccessEntrySpec{
+			ResourceSpec: v1.ResourceSpec{
+				ProviderConfigReference: &v1.Reference{
+					Name: g.env.AWSProvider,
+				},
+			},
+			ForProvider: eksv1beta1.AccessEntryParameters{
+				ClusterNameRef: &v1.Reference{
+					Name: g.cluster.GetName(),
+				},
+				PrincipalArnFromRoleRef: &v1.Reference{
+					Name: name,
+				},
+				Type:   base.StringPtr("EC2_LINUX"),
+				Region: g.vpc.Status.AtProvider.Region,
+			},
+		},
+	}
+}
+
 func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.Unstructured) (string, *eksv1beta1.NodeGroup, error) {
 	zoneName := g.zone.GetName()
 	zonePool := fmt.Sprintf("%s-%s", zoneName, pool.Name)
@@ -683,6 +771,10 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 			}
 			maxSize = val
 		}
+	}
+
+	if maxSize < 1 {
+		return "", nil, nil
 	}
 
 	if maxSize < minSize {
@@ -848,6 +940,7 @@ func (g zoneGenerator) getAppProject() runtime.Object {
 				{
 					Name:        "cicd",
 					Description: "Use this role for your CI/CD pipelines",
+					Groups:      g.env.AppProject.MaintainerGroups,
 					Policies: []string{
 						fmt.Sprintf("p, proj:%s:cicd, applications, sync, %s/*, allow", g.zone.Name, g.zone.Name),
 						fmt.Sprintf("p, proj:%s:cicd, applicationsets, sync, %s/*, allow", g.zone.Name, g.zone.Name),

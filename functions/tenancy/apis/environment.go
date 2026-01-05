@@ -5,15 +5,17 @@ import (
 )
 
 type Environment struct {
-	AppProject      AppProject         `json:"appProject"`
-	ArgoCDNamespace string             `json:"argoCDNamespace"`
-	AWSProvider     string             `json:"awsProvider"`
-	Cluster         string             `json:"cluster"`
-	DataKMSAlias    string             `json:"dataKMSAlias"`
-	SecurityGroup   string             `json:"securityGroup"`
-	SubnetType      string             `json:"subnetType"`
-	Tags            map[string]*string `json:"tags,omitempty"`
-	VPC             string             `json:"vpc"`
+	AppProject            AppProject         `json:"appProject"`
+	ArgoCDNamespace       string             `json:"argoCDNamespace"`
+	AWSProvider           string             `json:"awsProvider"`
+	Cluster               string             `json:"cluster"`
+	DataKMSAlias          string             `json:"dataKMSAlias"`
+	SecurityGroup         string             `json:"securityGroup"`
+	SubnetType            string             `json:"subnetType"`
+	Tags                  map[string]*string `json:"tags,omitempty"`
+	VPC                   string             `json:"vpc"`
+	GranularEgress        bool               `json:"granularEgress,omitempty"`
+	GranularEgressExclude []string           `json:"granularEgressExclude,omitempty"`
 }
 
 type AppProject struct {
