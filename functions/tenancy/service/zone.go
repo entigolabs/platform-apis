@@ -264,7 +264,7 @@ func (g zoneGenerator) generateNamespaces() map[string]runtime.Object {
 		objs[GetRBObserverKey(g.zone.Name, ns.Name)] = observerBinding
 		mutatingPolicy := g.getMutatingPolicy(ns.Name, ns.Pool)
 		objs[GetMutatingPolicyKey(g.zone.Name, ns.Name)] = mutatingPolicy
-		labelsMutatingPolicy := g.getLabelsMutatingPolicy(ns.Name, ns.Pool)
+		labelsMutatingPolicy := g.getLabelsMutatingPolicy(ns.Name)
 		objs[GetLabelsMutatingPolicyKey(g.zone.Name, ns.Name)] = labelsMutatingPolicy
 		validatingPolicy := g.getValidatingPolicy(ns.Name)
 		objs[GetValidatingPolicyKey(g.zone.Name, ns.Name)] = validatingPolicy
@@ -476,8 +476,7 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) *policy
 	}
 }
 
-func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName, poolName string) *policyv1alpha1.MutatingPolicy {
-	poolName = g.getPoolName(poolName)
+func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) *policyv1alpha1.MutatingPolicy {
 	return &policyv1alpha1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1alpha1",
@@ -1132,7 +1131,7 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 							Kind:       "NetworkPolicy",
 						},
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      fmt.Sprintf("%s-%s-%d", ingress.Name, serviceName, targetPort),
+							Name:      fmt.Sprintf("%s-%s-%s", ingress.Name, serviceName, targetPort.String()),
 							Namespace: ns.Name,
 						},
 						Spec: networkingv1.NetworkPolicySpec{
