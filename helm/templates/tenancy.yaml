@@ -15,7 +15,9 @@ data:
   dataKMSAlias: {{ .Values.tenancy.environmentConfig.dataKMSAlias }}
   securityGroup: {{ .Values.tenancy.environmentConfig.securityGroup }}
   vpc: {{ .Values.tenancy.environmentConfig.vpc }}
-  subnetType: {{ .Values.tenancy.environmentConfig.subnetType }}
+  computeSubnetType: {{ .Values.tenancy.environmentConfig.computeSubnetType }}
+  serviceSubnetType: {{ .Values.tenancy.environmentConfig.serviceSubnetType }}
+  publicSubnetType: {{ .Values.tenancy.environmentConfig.publicSubnetType }}
   {{- if .Values.tenancy.environmentConfig.tags }}
   tags: {{- toYaml .Values.tenancy.environmentConfig.tags | nindent 4 }}
   {{- else }}

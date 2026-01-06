@@ -81,7 +81,9 @@ tenancy:
     dataKMSAlias: data
     securityGroup: "eks-node"
     vpc: vpc
-    subnetType: compute
+    computeSubnetType: compute
+    serviceSubnetType: service
+    publicSubnetType: public
     tags: {}
 
 zone:

@@ -11,7 +11,9 @@ type Environment struct {
 	Cluster               string             `json:"cluster"`
 	DataKMSAlias          string             `json:"dataKMSAlias"`
 	SecurityGroup         string             `json:"securityGroup"`
-	SubnetType            string             `json:"subnetType"`
+	ComputeSubnetType     string             `json:"computeSubnetType"`
+	ServiceSubnetType     string             `json:"serviceSubnetType"`
+	PublicSubnetType      string             `json:"publicSubnetType"`
 	Tags                  map[string]*string `json:"tags,omitempty"`
 	VPC                   string             `json:"vpc"`
 	GranularEgress        bool               `json:"granularEgress,omitempty"`
@@ -42,8 +44,14 @@ func (e Environment) Validate() error {
 	if e.Cluster == "" {
 		return errors.New("cluster is required")
 	}
-	if e.SubnetType == "" {
-		return errors.New("subnetType is required")
+	if e.ComputeSubnetType == "" {
+		return errors.New("computeSubnetType is required")
+	}
+	if e.ServiceSubnetType == "" {
+		return errors.New("serviceSubnetType is required")
+	}
+	if e.PublicSubnetType == "" {
+		return errors.New("publicSubnetType is required")
 	}
 	return nil
 }

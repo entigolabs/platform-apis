@@ -28,24 +28,38 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
 	zoneAnnotation     = "tenancy.entigo.com/zone"
 	zonePoolAnnotation = "tenancy.entigo.com/zone-pool"
+
+	VPCKey            = "VPC"
+	KMSDataAliasKey   = "KMSDataAlias"
+	SecurityGroupKey  = "NodeSecurityGroup"
+	ClusterKey        = "Cluster"
+	ComputeSubnetsKey = "ComputeSubnets"
+	ServiceSubnetsKey = "ServiceSubnets"
+	PublicSubnetsKey  = "PublicSubnets"
+	IngressKey        = "Ingresses"
+	ServiceKey        = "Services"
 )
 
 type zoneGenerator struct {
 	// Inputs
 	zone     v1alpha1.Zone
 	observed map[resource.Name]resource.ObservedComposed
+	required map[string][]resource.Required
 	env      apis.Environment
 	// Dependencies
-	vpc           ec2v1beta1.VPC
-	kmsDataAlias  kmsv1beta1.Alias
-	securityGroup ec2v1beta1.SecurityGroup
-	cluster       eksv1beta1.Cluster
-	subnets       []*ec2v1beta1.Subnet
+	vpc            ec2v1beta1.VPC
+	kmsDataAlias   kmsv1beta1.Alias
+	securityGroup  ec2v1beta1.SecurityGroup
+	cluster        eksv1beta1.Cluster
+	computeSubnets []*ec2v1beta1.Subnet
+	serviceSubnets []*ec2v1beta1.Subnet
+	publicSubnets  []*ec2v1beta1.Subnet
 
 	zoneAnnotations map[string]string
 	zoneTags        map[string]*string
@@ -67,19 +81,27 @@ func GenerateZoneObjects(
 	var securityGroup ec2v1beta1.SecurityGroup
 	var cluster eksv1beta1.Cluster
 
-	if err := base.ExtractRequiredResource(required, "VPC", &vpc); err != nil {
+	if err := base.ExtractRequiredResource(required, VPCKey, &vpc); err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, "KMSDataAlias", &kmsDataAlias); err != nil {
+	if err := base.ExtractRequiredResource(required, KMSDataAliasKey, &kmsDataAlias); err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, "NodeSecurityGroup", &securityGroup); err != nil {
+	if err := base.ExtractRequiredResource(required, SecurityGroupKey, &securityGroup); err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, "Cluster", &cluster); err != nil {
+	if err := base.ExtractRequiredResource(required, ClusterKey, &cluster); err != nil {
 		return nil, err
 	}
-	subnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, "Subnets")
+	computeSubnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, ComputeSubnetsKey)
+	if err != nil {
+		return nil, err
+	}
+	serviceSubnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, ServiceSubnetsKey)
+	if err != nil {
+		return nil, err
+	}
+	publicSubnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, PublicSubnetsKey)
 	if err != nil {
 		return nil, err
 	}
@@ -88,14 +110,17 @@ func GenerateZoneObjects(
 	}
 	maps.Copy(tags, env.Tags)
 	generator := zoneGenerator{
-		zone:          zone,
-		observed:      observed,
-		env:           env,
-		vpc:           vpc,
-		kmsDataAlias:  kmsDataAlias,
-		securityGroup: securityGroup,
-		cluster:       cluster,
-		subnets:       subnets,
+		zone:           zone,
+		observed:       observed,
+		required:       required,
+		env:            env,
+		vpc:            vpc,
+		kmsDataAlias:   kmsDataAlias,
+		securityGroup:  securityGroup,
+		cluster:        cluster,
+		computeSubnets: computeSubnets,
+		serviceSubnets: serviceSubnets,
+		publicSubnets:  publicSubnets,
 		zoneAnnotations: map[string]string{
 			zoneAnnotation: zone.Name,
 		},
@@ -118,6 +143,11 @@ func (g zoneGenerator) generate() (map[string]runtime.Object, error) {
 	maps.Copy(objs, nodePools)
 	appProject := g.getAppProject()
 	objs[GetAppProjectKey(g.zone.Name)] = appProject
+	networkPolicies, err := g.generateTargetNetworkPolicies()
+	if err != nil {
+		return nil, err
+	}
+	maps.Copy(objs, networkPolicies)
 	return objs, nil
 }
 
@@ -163,6 +193,10 @@ func GetMutatingPolicyKey(zone, namespace string) string {
 	return "kyverno-mutate-" + zone + "-" + namespace
 }
 
+func GetLabelsMutatingPolicyKey(zone, namespace string) string {
+	return "kyverno-mutate-labels-" + zone + "-" + namespace
+}
+
 func GetValidatingPolicyKey(zone, namespace string) string {
 	return "kyverno-validate-" + zone + "-" + namespace
 }
@@ -203,6 +237,10 @@ func GetAppProjectKey(zone string) string {
 	return "appproject-" + zone
 }
 
+func GetTargetNetworkPolicyKey(namespace, ingress, service string, port intstr.IntOrString) string {
+	return "netpol-" + namespace + "-" + ingress + "-" + service + "-" + port.String()
+}
+
 func (g zoneGenerator) generateNamespaces() map[string]runtime.Object {
 	objs := make(map[string]runtime.Object)
 	for _, ns := range g.zone.Spec.Namespaces {
@@ -226,6 +264,8 @@ func (g zoneGenerator) generateNamespaces() map[string]runtime.Object {
 		objs[GetRBObserverKey(g.zone.Name, ns.Name)] = observerBinding
 		mutatingPolicy := g.getMutatingPolicy(ns.Name, ns.Pool)
 		objs[GetMutatingPolicyKey(g.zone.Name, ns.Name)] = mutatingPolicy
+		labelsMutatingPolicy := g.getLabelsMutatingPolicy(ns.Name, ns.Pool)
+		objs[GetLabelsMutatingPolicyKey(g.zone.Name, ns.Name)] = labelsMutatingPolicy
 		validatingPolicy := g.getValidatingPolicy(ns.Name)
 		objs[GetValidatingPolicyKey(g.zone.Name, ns.Name)] = validatingPolicy
 	}
@@ -389,8 +429,13 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) *policy
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        g.zone.Name + "-" + namespaceName + "-add-nodeselector",
 			Annotations: g.zoneAnnotations,
+			Labels:      map[string]string{"reports.kyverno.io/disabled": "true"},
 		},
 		Spec: policyv1alpha1.MutatingPolicySpec{
+			EvaluationConfiguration: &policyv1alpha1.MutatingPolicyEvaluationConfiguration{
+				Admission:                   &policyv1alpha1.AdmissionConfiguration{Enabled: base.BoolPtr(true)},
+				MutateExistingConfiguration: &policyv1alpha1.MutateExistingConfiguration{Enabled: base.BoolPtr(false)},
+			},
 			MatchConstraints: &admissionregistrationv1alpha1.MatchResources{
 				NamespaceSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
@@ -424,6 +469,81 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) *policy
     value: {"tenancy.entigo.com/zone-pool": "` + g.zone.Name + `-` + poolName + `"}
   }
 ] : []`,
+					},
+				},
+			},
+		},
+	}
+}
+
+func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName, poolName string) *policyv1alpha1.MutatingPolicy {
+	poolName = g.getPoolName(poolName)
+	return &policyv1alpha1.MutatingPolicy{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "policies.kyverno.io/v1alpha1",
+			Kind:       "MutatingPolicy",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        g.zone.Name + "-" + namespaceName + "-labels",
+			Annotations: g.zoneAnnotations,
+			Labels:      map[string]string{"reports.kyverno.io/disabled": "true"},
+		},
+		Spec: policyv1alpha1.MutatingPolicySpec{
+			EvaluationConfiguration: &policyv1alpha1.MutatingPolicyEvaluationConfiguration{
+				Admission:                   &policyv1alpha1.AdmissionConfiguration{Enabled: base.BoolPtr(true)},
+				MutateExistingConfiguration: &policyv1alpha1.MutateExistingConfiguration{Enabled: base.BoolPtr(false)},
+			},
+			MatchConstraints: &admissionregistrationv1alpha1.MatchResources{
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "kubernetes.io/metadata.name",
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{namespaceName},
+						},
+					},
+				},
+				ResourceRules: []admissionregistrationv1alpha1.NamedRuleWithOperations{{
+					RuleWithOperations: admissionregistrationv1alpha1.RuleWithOperations{
+						Rule: admissionregistrationv1alpha1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"services"},
+						},
+						Operations: []admissionregistrationv1alpha1.OperationType{admissionregistrationv1alpha1.Create},
+					},
+				}, {
+					RuleWithOperations: admissionregistrationv1alpha1.RuleWithOperations{
+						Rule: admissionregistrationv1alpha1.Rule{
+							APIGroups:   []string{"networking.k8s.io"},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"ingresses"},
+						},
+						Operations: []admissionregistrationv1alpha1.OperationType{admissionregistrationv1alpha1.Create},
+					},
+				}},
+			},
+			Mutations: []admissionregistrationv1alpha1.Mutation{
+				{
+					PatchType: admissionregistrationv1alpha1.PatchTypeJSONPatch,
+					JSONPatch: &admissionregistrationv1alpha1.JSONPatch{
+						Expression: fmt.Sprintf(`has(object.metadata.labels) ?
+[
+  JSONPatch{
+    op: "add",
+    path: "/metadata/labels/tenancy.entigo.com~1zone",
+    value: "%s"
+  }
+] :
+[
+  JSONPatch{
+    op: "add",
+    path: "/metadata/labels",
+    value: {
+      "tenancy.entigo.com/zone": "%s"
+    }
+  }
+]`, g.zone.Name, g.zone.Name),
 					},
 				},
 			},
@@ -785,7 +905,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 	name := fmt.Sprintf("%s-%s", zonePool, hash)
 
 	var subnetRefs []v1.Reference
-	for _, subnet := range g.subnets {
+	for _, subnet := range g.computeSubnets {
 		subnetName := subnet.GetName()
 		if zoneFilter.Size() > 0 {
 			if subnet.Status.AtProvider.AvailabilityZone != nil && zoneFilter.Contains(*subnet.Status.AtProvider.AvailabilityZone) {
@@ -951,6 +1071,100 @@ func (g zoneGenerator) getAppProject() runtime.Object {
 			},
 		},
 	}
+}
+
+func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Object, error) {
+	serviceBlocks := getSubnetsBlocks(g.serviceSubnets)
+	publicBlocks := getSubnetsBlocks(g.publicSubnets)
+	protocol := corev1.ProtocolTCP
+	objs := make(map[string]runtime.Object)
+	for _, ns := range g.zone.Spec.Namespaces {
+		if ns.Name == "" {
+			continue
+		}
+		ingresses, err := base.ExtractResources[*networkingv1.Ingress](g.required, ns.Name+IngressKey)
+		if err != nil {
+			return nil, err
+		}
+		services, err := base.ExtractResources[*corev1.Service](g.required, ns.Name+ServiceKey)
+		if err != nil {
+			return nil, err
+		}
+		for _, ingress := range ingresses {
+			if ingress.Spec.Rules == nil || ingress.Spec.IngressClassName == nil {
+				continue
+			}
+			for _, rule := range ingress.Spec.Rules {
+				if rule.HTTP == nil {
+					continue
+				}
+				for _, path := range rule.HTTP.Paths {
+					targetPort := intstr.FromInt32(path.Backend.Service.Port.Number)
+					serviceName := path.Backend.Service.Name
+					var service corev1.Service
+					for _, svc := range services {
+						if svc.Name != serviceName {
+							continue
+						}
+						service = *svc
+						for _, port := range svc.Spec.Ports {
+							if port.Port != targetPort.IntVal {
+								continue
+							}
+							targetPort = port.TargetPort
+						}
+					}
+					if service.Name == "" {
+						continue
+					}
+					matchLabels := make(map[string]string)
+					for key, value := range service.Spec.Selector {
+						matchLabels[key] = value
+					}
+					blocks := publicBlocks
+					// TODO Handle ALB IngressClass
+					if *ingress.Spec.IngressClassName == "service" {
+						blocks = serviceBlocks
+					}
+					objs[GetTargetNetworkPolicyKey(ns.Name, ingress.Name, serviceName, targetPort)] = &networkingv1.NetworkPolicy{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "networking.k8s.io/v1",
+							Kind:       "NetworkPolicy",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      fmt.Sprintf("%s-%s-%d", ingress.Name, serviceName, targetPort),
+							Namespace: ns.Name,
+						},
+						Spec: networkingv1.NetworkPolicySpec{
+							PodSelector: metav1.LabelSelector{MatchLabels: matchLabels},
+							PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress},
+							Ingress: []networkingv1.NetworkPolicyIngressRule{{
+								From: blocks,
+								Ports: []networkingv1.NetworkPolicyPort{{
+									Protocol: &protocol,
+									Port:     &targetPort,
+								}},
+							}},
+						},
+					}
+				}
+			}
+		}
+	}
+	return objs, nil
+}
+
+func getSubnetsBlocks(subnets []*ec2v1beta1.Subnet) []networkingv1.NetworkPolicyPeer {
+	var blocks []networkingv1.NetworkPolicyPeer
+	for _, subnet := range subnets {
+		if cidr := subnet.Status.AtProvider.CidrBlock; cidr != nil {
+			blocks = append(blocks, networkingv1.NetworkPolicyPeer{
+				IPBlock: &networkingv1.IPBlock{CIDR: *cidr},
+			})
+		}
+	}
+
+	return blocks
 }
 
 func GetInstanceTypesHash(instanceTypes []*string) string {

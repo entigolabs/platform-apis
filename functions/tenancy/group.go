@@ -14,6 +14,7 @@ import (
 
 const (
 	environmentName = "platform-apis-tenancy"
+	ec2ApiVersion   = "ec2.aws.upbound.io/v1beta1"
 )
 
 type GroupImpl struct {
@@ -51,6 +52,11 @@ func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {
 func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
 	switch compositeResource.GetKind() {
 	case apis.XRKindZone:
+		// Converting required to access namespaces
+		var zone v1alpha1.Zone
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(compositeResource.Object, &zone); err != nil {
+			return nil, err
+		}
 		resources := map[string]*fnv1.ResourceSelector{
 			base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
 		}
@@ -61,34 +67,55 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		resources["VPC"] = &fnv1.ResourceSelector{
+		resources[service.VPCKey] = &fnv1.ResourceSelector{
 			Kind:       "VPC",
-			ApiVersion: "ec2.aws.upbound.io/v1beta1",
+			ApiVersion: ec2ApiVersion,
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
 		}
-		resources["KMSDataAlias"] = &fnv1.ResourceSelector{
+		resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
 			Kind:       "Alias",
 			ApiVersion: "kms.aws.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSAlias},
 		}
-		resources["NodeSecurityGroup"] = &fnv1.ResourceSelector{
+		resources[service.SecurityGroupKey] = &fnv1.ResourceSelector{
 			Kind:       "SecurityGroup",
-			ApiVersion: "ec2.aws.upbound.io/v1beta1",
+			ApiVersion: ec2ApiVersion,
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.SecurityGroup},
 		}
-		resources["Cluster"] = &fnv1.ResourceSelector{
+		resources[service.ClusterKey] = &fnv1.ResourceSelector{
 			Kind:       "Cluster",
 			ApiVersion: "eks.aws.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.Cluster},
 		}
-		resources["Subnets"] = &fnv1.ResourceSelector{
-			Kind:       "Subnet",
-			ApiVersion: "ec2.aws.upbound.io/v1beta1",
-			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": env.SubnetType}}},
+		resources[service.ComputeSubnetsKey] = subnetSelector(env.ComputeSubnetType)
+		resources[service.ServiceSubnetsKey] = subnetSelector(env.ServiceSubnetType)
+		resources[service.PublicSubnetsKey] = subnetSelector(env.PublicSubnetType)
+		for _, ns := range zone.Spec.Namespaces {
+			if ns.Name == "" {
+				continue
+			}
+			resources[ns.Name+service.IngressKey] = &fnv1.ResourceSelector{
+				Kind:       "Ingress",
+				ApiVersion: "networking.k8s.io/v1",
+				Namespace:  &ns.Name,
+			}
+			resources[ns.Name+service.ServiceKey] = &fnv1.ResourceSelector{
+				Kind:       "Service",
+				ApiVersion: "v1",
+				Namespace:  &ns.Name,
+			}
 		}
 		return resources, nil
 	default:
 		return nil, nil
+	}
+}
+
+func subnetSelector(subnetType string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       "Subnet",
+		ApiVersion: ec2ApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": subnetType}}},
 	}
 }
 
