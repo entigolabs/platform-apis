@@ -69,22 +69,6 @@ tenancy:
   function:
     image: ghcr.io/entigolabs/platform-apis-tenancy-fn
     tag: v0.0.0
-  environmentConfig:
-    granularEgress: false
-    granularEgressExclude: []
-    argoCDNamespace: argocd
-    awsProvider: "crossplane-aws"
-    appProject:
-      maintainerGroups: []
-      observerGroups: []
-    cluster: eks
-    dataKMSAlias: data
-    securityGroup: "eks-node"
-    vpc: vpc
-    computeSubnetType: compute
-    serviceSubnetType: service
-    publicSubnetType: public
-    tags: {}
 
 zone:
   install: true
@@ -99,6 +83,13 @@ zone:
     appProject:
       maintainerGroups: []
       observerGroups: []
+    cluster: eks
+    dataKMSAlias: data
+    securityGroup: "eks-node"
+    vpc: vpc
+    computeSubnetType: compute
+    serviceSubnetType: service
+    publicSubnetType: public
     tags: {}
   clusterrolebinding:
     maintainerGroups: ["maintainer"]

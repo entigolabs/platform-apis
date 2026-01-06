@@ -270,6 +270,13 @@ data:
   appProject:
     maintainerGroups: {{ .Values.zone.environmentConfig.appProject.maintainerGroups }}
     observerGroups: {{ .Values.zone.environmentConfig.appProject.observerGroups }}
+  cluster: {{ .Values.zone.environmentConfig.cluster }}
+  dataKMSAlias: {{ .Values.zone.environmentConfig.dataKMSAlias }}
+  securityGroup: {{ .Values.zone.environmentConfig.securityGroup }}
+  vpc: {{ .Values.zone.environmentConfig.vpc }}
+  computeSubnetType: {{ .Values.zone.environmentConfig.computeSubnetType }}
+  serviceSubnetType: {{ .Values.zone.environmentConfig.serviceSubnetType }}
+  publicSubnetType: {{ .Values.zone.environmentConfig.publicSubnetType }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}
   {{- else }}

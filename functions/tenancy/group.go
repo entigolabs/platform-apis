@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	environmentName = "platform-apis-tenancy"
+	environmentName = "platform-apis-zone"
 	ec2ApiVersion   = "ec2.aws.upbound.io/v1beta1"
 )
 
