@@ -227,8 +227,8 @@ func TestZoneFunction(t *testing.T) {
 			service.ComputeSubnetsKey:   {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "compute"}}}},
 			service.ServiceSubnetsKey:   {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "service"}}}},
 			service.PublicSubnetsKey:    {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "public"}}}},
-			nsName + service.IngressKey: {Kind: "Ingress", ApiVersion: "networking.k8s.io/v1", Namespace: &nsName},
-			nsName + service.ServiceKey: {Kind: "Service", ApiVersion: "v1", Namespace: &nsName},
+			nsName + service.IngressKey: {Kind: "Ingress", ApiVersion: "networking.k8s.io/v1", Namespace: &nsName, Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
+			nsName + service.ServiceKey: {Kind: "Service", ApiVersion: "v1", Namespace: &nsName, Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
 		},
 	}
 

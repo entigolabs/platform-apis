@@ -98,11 +98,13 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 				Kind:       "Ingress",
 				ApiVersion: "networking.k8s.io/v1",
 				Namespace:  &ns.Name,
+				Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 			}
 			resources[ns.Name+service.ServiceKey] = &fnv1.ResourceSelector{
 				Kind:       "Service",
 				ApiVersion: "v1",
 				Namespace:  &ns.Name,
+				Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 			}
 		}
 		return resources, nil
