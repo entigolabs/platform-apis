@@ -157,8 +157,8 @@ func GetEnvironment(required map[string][]resource.Required) (apis.Environment, 
 	return env, err
 }
 
-func GetNamespaceKey(zone string) string {
-	return "namespace-" + zone
+func GetNamespaceKey(namespace string) string {
+	return "namespace-" + namespace
 }
 
 func GetSidecarKey(zone, namespace string) string {
@@ -245,7 +245,7 @@ func (g zoneGenerator) generateNamespaces() map[string]runtime.Object {
 	objs := make(map[string]runtime.Object)
 	for _, ns := range g.zone.Spec.Namespaces {
 		namespace := g.getNamespace(ns.Name)
-		objs[GetNamespaceKey(g.zone.Name)] = namespace
+		objs[GetNamespaceKey(ns.Name)] = namespace
 		if g.env.GranularEgress {
 			sidecar := g.getSidecar(ns.Name)
 			objs[GetSidecarKey(g.zone.Name, ns.Name)] = sidecar

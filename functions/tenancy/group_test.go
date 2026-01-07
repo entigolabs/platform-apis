@@ -248,7 +248,7 @@ func TestZoneFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName):                    {Resource: resource.MustStructJSON(namespaceJson)},
+							service.GetNamespaceKey(nsName):                      {Resource: resource.MustStructJSON(namespaceJson)},
 							service.GetLaunchTemplateKey(zoneName, poolName):     {Resource: resource.MustStructJSON(launchTemplateJson)},
 							service.GetAppProjectKey(zoneName):                   {Resource: resource.MustStructJSON(appProjectJson)},
 							service.GetMutatingPolicyKey(zoneName, nsName):       {Resource: resource.MustStructJSON(mutatingPolicyJson)},
@@ -267,7 +267,7 @@ func TestZoneFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(zoneInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName):                    withReadyStatus(namespaceJson),
+							service.GetNamespaceKey(nsName):                      withReadyStatus(namespaceJson),
 							service.GetLaunchTemplateKey(zoneName, poolName):     withReadyStatus(launchTemplateJson),
 							service.GetAppProjectKey(zoneName):                   withReadyStatus(appProjectJson),
 							service.GetMutatingPolicyKey(zoneName, nsName):       withReadyStatus(mutatingPolicyJson),
@@ -283,7 +283,7 @@ func TestZoneFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName):                    {Resource: resource.MustStructJSON(namespaceJson), Ready: 1},
+							service.GetNamespaceKey(nsName):                      {Resource: resource.MustStructJSON(namespaceJson), Ready: 1},
 							service.GetLaunchTemplateKey(zoneName, poolName):     {Resource: resource.MustStructJSON(launchTemplateJson), Ready: 1},
 							service.GetAppProjectKey(zoneName):                   {Resource: resource.MustStructJSON(appProjectJson), Ready: 1},
 							service.GetMutatingPolicyKey(zoneName, nsName):       {Resource: resource.MustStructJSON(mutatingPolicyJson), Ready: 1},
@@ -305,7 +305,7 @@ func TestZoneFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(zoneInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName):                    withReadyStatus(namespaceJson),
+							service.GetNamespaceKey(nsName):                      withReadyStatus(namespaceJson),
 							service.GetLaunchTemplateKey(zoneName, poolName):     withReadyStatus(launchTemplateJson),
 							service.GetAppProjectKey(zoneName):                   withReadyStatus(appProjectJson),
 							service.GetMutatingPolicyKey(zoneName, nsName):       withReadyStatus(mutatingPolicyJson),
@@ -324,7 +324,7 @@ func TestZoneFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName):                    {Resource: resource.MustStructJSON(namespaceJson), Ready: 1},
+							service.GetNamespaceKey(nsName):                      {Resource: resource.MustStructJSON(namespaceJson), Ready: 1},
 							service.GetLaunchTemplateKey(zoneName, poolName):     {Resource: resource.MustStructJSON(launchTemplateJson), Ready: 1},
 							service.GetNetworkPolicyKey(zoneName, nsName):        {Resource: resource.MustStructJSON(networkPolicyJson), Ready: 1},
 							targetNetworkPolicyKey:                               {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
@@ -353,7 +353,7 @@ func TestZoneFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(zoneInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName):                    withReadyStatus(namespaceJson),
+							service.GetNamespaceKey(nsName):                      withReadyStatus(namespaceJson),
 							service.GetLaunchTemplateKey(zoneName, poolName):     withReadyStatus(launchTemplateJson),
 							service.GetAppProjectKey(zoneName):                   withReadyStatus(appProjectJson),
 							service.GetMutatingPolicyKey(zoneName, nsName):       withReadyStatus(mutatingPolicyJson),
@@ -379,7 +379,7 @@ func TestZoneFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName):                    {Resource: resource.MustStructJSON(namespaceJson), Ready: 1},
+							service.GetNamespaceKey(nsName):                      {Resource: resource.MustStructJSON(namespaceJson), Ready: 1},
 							service.GetLaunchTemplateKey(zoneName, poolName):     {Resource: resource.MustStructJSON(launchTemplateJson), Ready: 1},
 							service.GetNetworkPolicyKey(zoneName, nsName):        {Resource: resource.MustStructJSON(networkPolicyJson), Ready: 1},
 							targetNetworkPolicyKey:                               {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
@@ -412,7 +412,7 @@ func TestZoneFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(zoneInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName):                    withReadyStatus(namespaceJson),
+							service.GetNamespaceKey(nsName):                      withReadyStatus(namespaceJson),
 							service.GetLaunchTemplateKey(zoneName, poolName):     withReadyStatus(launchTemplateJson),
 							service.GetAppProjectKey(zoneName):                   withReadyStatus(appProjectJson),
 							service.GetMutatingPolicyKey(zoneName, nsName):       withReadyStatus(mutatingPolicyJson),
@@ -441,7 +441,7 @@ func TestZoneFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(zoneName): {Resource: resource.MustStructJSON(`
+							service.GetNamespaceKey(nsName): {Resource: resource.MustStructJSON(`
 {"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"istio-injection":"enabled","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns"},"spec":{},"status":{}}
 							`), Ready: 1},
 							service.GetLaunchTemplateKey(zoneName, poolName): {Resource: resource.MustStructJSON(`
