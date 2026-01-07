@@ -6,6 +6,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // This isn't a custom resource, in the sense that we never install its CRD.
@@ -68,7 +69,7 @@ type Requirement struct {
 	Key string `json:"key"`
 
 	// Single value for capacity-type, min-size, max-size, or desired-size. Can be string or integer.
-	Value string `json:"value,omitempty"`
+	Value intstr.IntOrString `json:"value,omitempty"`
 
 	// Array of values for instance-type or availability-zone
 	Values []string `json:"values,omitempty"`

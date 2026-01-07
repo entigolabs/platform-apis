@@ -863,7 +863,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 	zoneName := g.zone.GetName()
 	zonePool := fmt.Sprintf("%s-%s", zoneName, pool.Name)
 
-	var instanceTypes []*string
+	var instanceTypes []string
 	var zoneFilter base.Set[string]
 	var capacityType = "ON_DEMAND"
 	var minSize float64 = 1
@@ -872,19 +872,19 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 	for _, requirement := range pool.Requirements {
 		switch requirement.Key {
 		case "instance-type":
-			instanceTypes = append(instanceTypes, &requirement.Value)
+			instanceTypes = requirement.Values
 		case "zone":
 			zoneFilter = base.ToSet(requirement.Values)
 		case "capacity-type":
-			capacityType = requirement.Value
+			capacityType = requirement.Value.String()
 		case "min-size":
-			val, err := strconv.ParseFloat(requirement.Value, 64)
+			val, err := getIntOrFloat(requirement.Value)
 			if err != nil {
 				return "", nil, err
 			}
 			minSize = val
 		case "max-size":
-			val, err := strconv.ParseFloat(requirement.Value, 64)
+			val, err := getIntOrFloat(requirement.Value)
 			if err != nil {
 				return "", nil, err
 			}
@@ -960,7 +960,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 				},
 				Region:        g.vpc.Status.AtProvider.Region,
 				UpdateConfig:  []eksv1beta1.UpdateConfigParameters{{MaxUnavailable: base.Float64Ptr(1)}},
-				InstanceTypes: instanceTypes,
+				InstanceTypes: toInstanceTypePointers(instanceTypes),
 				SubnetIDRefs:  subnetRefs,
 				Labels:        eksLabels,
 				NodeRoleArnRef: &v1.Reference{
@@ -982,6 +982,21 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 	}, nil
 }
 
+func getIntOrFloat(value intstr.IntOrString) (float64, error) {
+	if value.Type == intstr.Int {
+		return float64(value.IntValue()), nil
+	}
+	return strconv.ParseFloat(value.StrVal, 64)
+}
+
+func toInstanceTypePointers(types []string) []*string {
+	ptrTypes := make([]*string, len(types))
+	for i, t := range types {
+		ptrTypes[i] = &t
+	}
+	return ptrTypes
+}
+
 func (g zoneGenerator) getAppProject() runtime.Object {
 	var destinations []argov1alpha1.ApplicationDestination
 	var namespaces []string
@@ -1000,6 +1015,10 @@ func (g zoneGenerator) getAppProject() runtime.Object {
 	} else {
 		whitelist = []metav1.GroupKind{}
 		blacklist = []metav1.GroupKind{{Group: "*", Kind: "*"}}
+	}
+	var contributorGroups []string
+	if g.zone.Spec.AppProject != nil {
+		contributorGroups = g.zone.Spec.AppProject.ContributorGroups
 	}
 
 	return &argov1alpha1.AppProject{
@@ -1047,7 +1066,7 @@ func (g zoneGenerator) getAppProject() runtime.Object {
 				{
 					Name:        "contributor",
 					Description: "Contributor permissions",
-					Groups:      g.zone.Spec.AppProject.ContributorGroups,
+					Groups:      contributorGroups,
 					Policies: []string{
 						fmt.Sprintf("p, proj:%s:contributor, applications, *, %s/*, allow", g.zone.Name, g.zone.Name),
 						fmt.Sprintf("p, proj:%s:contributor, repositories, *, %s/*, allow", g.zone.Name, g.zone.Name),
@@ -1166,18 +1185,6 @@ func getSubnetsBlocks(subnets []*ec2v1beta1.Subnet) []networkingv1.NetworkPolicy
 	return blocks
 }
 
-func GetInstanceTypesHash(instanceTypes []*string) string {
-	return base.GenerateHash([]byte(joinStringPtrs(instanceTypes, "-")))
-}
-
-func joinStringPtrs(ptrs []*string, sep string) string {
-	vals := make([]string, len(ptrs))
-	for i, p := range ptrs {
-		if p != nil {
-			vals[i] = *p
-		} else {
-			vals[i] = ""
-		}
-	}
-	return strings.Join(vals, sep)
+func GetInstanceTypesHash(instanceTypes []string) string {
+	return base.GenerateHash([]byte(strings.Join(instanceTypes, "-")))
 }
