@@ -727,7 +727,11 @@ func (g zoneGenerator) generateNodePools() (map[string]runtime.Object, error) {
 	objs[GetAccessentryKey(g.zone.Name)] = accessEntry
 	for _, pool := range g.zone.Spec.Pools {
 		launchTemplate, ok := g.observed[resource.Name(GetLaunchTemplateKey(g.zone.Name, pool.Name))]
-		if !ok || launchTemplate.Resource == nil {
+		if !ok || launchTemplate.Resource == nil || launchTemplate.Resource.Object == nil {
+			continue
+		}
+		version, _, _ := unstructured.NestedString(launchTemplate.Resource.Object, "status", "atProvider", "latestVersion")
+		if version == "" {
 			continue
 		}
 		key, ng, err := g.getNodeGroup(pool, *launchTemplate.Resource)
@@ -867,7 +871,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 	var zoneFilter base.Set[string]
 	var capacityType = "ON_DEMAND"
 	var minSize float64 = 1
-	var maxSize float64 = 1
+	var maxSize float64 = -1
 
 	for _, requirement := range pool.Requirements {
 		switch requirement.Key {
@@ -892,12 +896,11 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 		}
 	}
 
+	if maxSize == -1 {
+		maxSize = minSize
+	}
 	if maxSize < 1 {
 		return "", nil, nil
-	}
-
-	if maxSize < minSize {
-		maxSize = minSize
 	}
 
 	hash := GetInstanceTypesHash(instanceTypes)
@@ -969,13 +972,14 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 				Tags:         tags,
 				CapacityType: base.StringPtr(capacityType),
 				ScalingConfig: []eksv1beta1.ScalingConfigParameters{{
-					MaxSize: base.Float64Ptr(maxSize),
-					MinSize: base.Float64Ptr(minSize),
+					MaxSize:     &maxSize,
+					MinSize:     &minSize,
+					DesiredSize: &minSize,
 				}},
 			},
 			InitProvider: eksv1beta1.NodeGroupInitParameters{
 				ScalingConfig: []eksv1beta1.ScalingConfigInitParameters{{
-					DesiredSize: base.Float64Ptr(minSize),
+					DesiredSize: &minSize,
 				}},
 			},
 		},
