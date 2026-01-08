@@ -9,7 +9,6 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/function-sdk-go/resource"
-	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
@@ -26,7 +25,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -730,11 +728,14 @@ func (g zoneGenerator) generateNodePools() (map[string]runtime.Object, error) {
 		if !ok || launchTemplate.Resource == nil || launchTemplate.Resource.Object == nil {
 			continue
 		}
-		version, _, _ := unstructured.NestedString(launchTemplate.Resource.Object, "status", "atProvider", "latestVersion")
-		if version == "" {
+		var launchTemplateObj ec2v1beta1.LaunchTemplate
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(launchTemplate.Resource.Object, &launchTemplateObj); err != nil {
+			return nil, err
+		}
+		if launchTemplateObj.Status.AtProvider.LatestVersion == nil {
 			continue
 		}
-		key, ng, err := g.getNodeGroup(pool, *launchTemplate.Resource)
+		key, ng, err := g.getNodeGroup(pool, launchTemplateObj)
 		if err != nil {
 			return nil, err
 		}
@@ -863,9 +864,10 @@ func (g zoneGenerator) getAccessEntry(name string) runtime.Object {
 	}
 }
 
-func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.Unstructured) (string, *eksv1beta1.NodeGroup, error) {
+func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1beta1.LaunchTemplate) (string, *eksv1beta1.NodeGroup, error) {
 	zoneName := g.zone.GetName()
 	zonePool := fmt.Sprintf("%s-%s", zoneName, pool.Name)
+	version := strconv.FormatFloat(*launchTemplateObj.Status.AtProvider.LatestVersion, 'f', -1, 64)
 
 	var instanceTypes []string
 	var zoneFilter base.Set[string]
@@ -918,14 +920,6 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 		}
 	}
 
-	version, _, _ := unstructured.NestedString(launchTemplate.Object, "status", "atProvider", "latestVersion")
-	ltParams := eksv1beta1.LaunchTemplateParameters{
-		Name: base.StringPtr(zonePool),
-	}
-	if version != "" {
-		ltParams.Version = &version
-	}
-
 	annotations := map[string]string{
 		zonePoolAnnotation: zonePool,
 	}
@@ -957,7 +951,10 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplate composed.
 				},
 			},
 			ForProvider: eksv1beta1.NodeGroupParameters{
-				LaunchTemplate: []eksv1beta1.LaunchTemplateParameters{ltParams},
+				LaunchTemplate: []eksv1beta1.LaunchTemplateParameters{{
+					Name:    base.StringPtr(zonePool),
+					Version: &version,
+				}},
 				ClusterNameRef: &v1.Reference{
 					Name: g.cluster.GetName(),
 				},

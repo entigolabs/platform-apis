@@ -146,7 +146,7 @@ func withReadyStatus(jsonStr string) *fnv1.Resource {
 
 	if u.GetKind() == "LaunchTemplate" {
 		atProvider := map[string]interface{}{
-			"latestVersion": "1",
+			"latestVersion": float64(1),
 		}
 		if err := unstructured.SetNestedMap(u.Object, atProvider, "status", "atProvider"); err != nil {
 			panic(fmt.Sprintf("failed set nested map to unstructured: %v", err))
