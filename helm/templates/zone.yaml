@@ -270,6 +270,10 @@ data:
   appProject:
     maintainerGroups: {{ .Values.zone.environmentConfig.appProject.maintainerGroups }}
     observerGroups: {{ .Values.zone.environmentConfig.appProject.observerGroups }}
+    sourceRepos:
+    {{- range .Values.zone.environmentConfig.appProject.sourceRepos }}
+    - {{ . | quote }}
+    {{- end }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}
   {{- else }}
@@ -297,9 +301,32 @@ spec:
   clusterResourceWhitelist:
   - group: tenancy.entigo.com
     kind: Zone
+  - group: eks.aws.upbound.io
+    kind: NodeGroup
+  - group: ec2.aws.upbound.io
+    kind: LaunchTemplate
+  - group: eks.aws.upbound.io
+    kind: AccessEntry
+  - group: policies.kyverno.io
+    kind: MutatingPolicy
+  - group: policies.kyverno.io
+    kind: ValidatingPolicy
   namespaceResourceBlacklist:
   - group: '*'
     kind: '*'
+  namespaceResourceWhitelist:
+  - group: argoproj.io
+    kind: Application
+  {{- $sourceRepos := list -}}
+  {{- if hasKey .Values.zone.environmentConfig.appProject "sourceRepos" -}}
+    {{- $sourceRepos = .Values.zone.environmentConfig.appProject.sourceRepos -}}
+  {{- end }}
+  {{- if $sourceRepos }}
+  sourceRepos:
+    {{- range $sourceRepos }}
+  - {{ . | quote }}
+    {{- end }}
+  {{- end }}
   roles:
   - description: Maintainer permissions
     {{- $maintainerGroups := list -}}

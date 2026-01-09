@@ -885,6 +885,7 @@ spec:
               namespace: {{ $namespace.name }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: netpol-{{ $namespace.name }}-{{ $ingressName }}-{{ $serviceName }}-{{ $targetPort }}
+                gotemplating.fn.crossplane.io/ready: "True"
             spec:
               podSelector:
                 matchLabels:
