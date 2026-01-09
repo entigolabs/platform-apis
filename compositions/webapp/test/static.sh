@@ -16,9 +16,9 @@ mock_environment "$ENV_CONFIG"
 
 echo "TEST 1: rendering resources"
 
-echo "TEST 1 WebApp: rendering Deployment, Service and Secret..."
+echo "TEST 1: rendering resources"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES")
-assert_counts "$OUTPUT" "CronJob" 1 "Service" 1 "Secret" 1
+assert_counts "$OUTPUT" "Deployment" 1 "Service" 1 "Secret" 1
 
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_dep_ready_status > "$OBSERVED_RESOURCES"
