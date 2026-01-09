@@ -83,6 +83,7 @@ zone:
     appProject:
       maintainerGroups: []
       observerGroups: []
+      sourceRepos: ["*"]
     cluster: eks
     dataKMSAlias: data
     securityGroup: "eks-node"
