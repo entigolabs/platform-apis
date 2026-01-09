@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"maps"
 	"strconv"
@@ -25,6 +27,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -130,7 +133,10 @@ func GenerateZoneObjects(
 
 func (g zoneGenerator) generate() (map[string]runtime.Object, error) {
 	objs := make(map[string]runtime.Object)
-	namespaces := g.generateNamespaces()
+	namespaces, err := g.generateNamespaces()
+	if err != nil {
+		return nil, err
+	}
 	maps.Copy(objs, namespaces)
 	launchTemplates := g.generateLaunchTemplates()
 	maps.Copy(objs, launchTemplates)
@@ -239,13 +245,16 @@ func GetTargetNetworkPolicyKey(namespace, ingress, service string, port intstr.I
 	return "netpol-" + namespace + "-" + ingress + "-" + service + "-" + port.String()
 }
 
-func (g zoneGenerator) generateNamespaces() map[string]runtime.Object {
+func (g zoneGenerator) generateNamespaces() (map[string]runtime.Object, error) {
 	objs := make(map[string]runtime.Object)
 	for _, ns := range g.zone.Spec.Namespaces {
 		namespace := g.getNamespace(ns.Name)
 		objs[GetNamespaceKey(ns.Name)] = namespace
 		if g.env.GranularEgress {
-			sidecar := g.getSidecar(ns.Name)
+			sidecar, err := g.getSidecar(ns.Name)
+			if err != nil {
+				return nil, err
+			}
 			objs[GetSidecarKey(g.zone.Name, ns.Name)] = sidecar
 		}
 		networkPolicy := g.getNetworkPolicy(ns.Name)
@@ -267,7 +276,7 @@ func (g zoneGenerator) generateNamespaces() map[string]runtime.Object {
 		validatingPolicy := g.getValidatingPolicy(ns.Name)
 		objs[GetValidatingPolicyKey(g.zone.Name, ns.Name)] = validatingPolicy
 	}
-	return objs
+	return objs, nil
 }
 
 func (g zoneGenerator) getNamespace(name string) *corev1.Namespace {
@@ -290,7 +299,7 @@ func (g zoneGenerator) getNamespace(name string) *corev1.Namespace {
 	}
 }
 
-func (g zoneGenerator) getSidecar(name string) runtime.Object {
+func (g zoneGenerator) getSidecar(name string) (runtime.Object, error) {
 	hosts := []string{
 		"*/*.svc.cluster.local",
 		"istio-system/*",
@@ -299,11 +308,11 @@ func (g zoneGenerator) getSidecar(name string) runtime.Object {
 	for _, ns := range g.zone.Spec.Namespaces {
 		hosts = append(hosts, ns.Name+"/*")
 	}
-	mode := istiov1alpha3.OutboundTrafficPolicy_REGISTRY_ONLY
+	modeStr := istiov1alpha3.OutboundTrafficPolicy_Mode_name[int32(istiov1alpha3.OutboundTrafficPolicy_REGISTRY_ONLY)]
 	if g.egressExclude.Contains(g.zone.Name) {
-		mode = istiov1alpha3.OutboundTrafficPolicy_ALLOW_ANY
+		modeStr = istiov1alpha3.OutboundTrafficPolicy_Mode_name[int32(istiov1alpha3.OutboundTrafficPolicy_ALLOW_ANY)]
 	}
-	return &istiov1.Sidecar{
+	sidecar := &istiov1.Sidecar{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.istio.io/v1",
 			Kind:       "Sidecar",
@@ -314,14 +323,21 @@ func (g zoneGenerator) getSidecar(name string) runtime.Object {
 			Annotations: g.zoneAnnotations,
 		},
 		Spec: istiov1alpha3.Sidecar{
-			OutboundTrafficPolicy: &istiov1alpha3.OutboundTrafficPolicy{
-				Mode: mode,
-			},
 			Egress: []*istiov1alpha3.IstioEgressListener{{
 				Hosts: hosts,
 			}},
 		},
 	}
+	// This workaround is required because istio uses 0 for REGISTRY_ONLY enum and it converts to nil outboundTrafficPolicy
+	u, err := base.ToUnstructured(sidecar)
+	if err != nil {
+		return nil, err
+	}
+	err = unstructured.SetNestedField(u.Object, modeStr, "spec", "outboundTrafficPolicy", "mode")
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 func (g zoneGenerator) getNetworkPolicy(nsName string) *networkingv1.NetworkPolicy {
@@ -1187,5 +1203,6 @@ func getSubnetsBlocks(subnets []*ec2v1beta1.Subnet) []networkingv1.NetworkPolicy
 }
 
 func GetInstanceTypesHash(instanceTypes []string) string {
-	return base.GenerateHash([]byte(strings.Join(instanceTypes, "-")))
+	hash := sha256.Sum256([]byte(strings.Join(instanceTypes, "-")))
+	return hex.EncodeToString(hash[:])[:8]
 }
