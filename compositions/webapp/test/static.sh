@@ -15,8 +15,6 @@ setup_function "$SCRIPT_DIR/../../../functions/workload"
 mock_environment "$ENV_CONFIG"
 
 echo "TEST 1: rendering resources"
-
-echo "TEST 1: rendering resources"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES")
 assert_counts "$OUTPUT" "Deployment" 1 "Service" 1 "Secret" 1
 
