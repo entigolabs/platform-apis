@@ -301,6 +301,16 @@ spec:
   clusterResourceWhitelist:
   - group: tenancy.entigo.com
     kind: Zone
+  - group: eks.aws.upbound.io
+    kind: NodeGroup
+  - group: ec2.aws.upbound.io
+    kind: LaunchTemplate
+  - group: eks.aws.upbound.io
+    kind: AccessEntry
+  - group: policies.kyverno.io
+    kind: MutatingPolicy
+  - group: policies.kyverno.io
+    kind: ValidatingPolicy
   namespaceResourceBlacklist:
   - group: '*'
     kind: '*'
