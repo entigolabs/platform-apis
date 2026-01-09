@@ -270,6 +270,7 @@ data:
   appProject:
     maintainerGroups: {{ .Values.zone.environmentConfig.appProject.maintainerGroups }}
     observerGroups: {{ .Values.zone.environmentConfig.appProject.observerGroups }}
+    sourceRepos: {{ .Values.zone.environmentConfig.appProject.sourceRepos }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}
   {{- else }}
@@ -300,6 +301,21 @@ spec:
   namespaceResourceBlacklist:
   - group: '*'
     kind: '*'
+  namespaceResourceWhitelist:
+  - group: 'argoproj.io/v1alpha1'
+    kind: 'Application'
+  sourceRepos:
+  {{- $sourceRepos := list -}}
+  {{- if hasKey .Values.zone.environmentConfig.appProject "sourceRepos" -}}
+    {{- $sourceRepos = .Values.zone.environmentConfig.appProject.sourceRepos -}}
+  {{- end }}
+  {{- if $sourceRepos }}
+    {{- range $sourceRepos }}
+  - {{ . }}
+    {{- end }}
+  {{- else }}
+  - '*'
+  {{- end }}
   roles:
   - description: Maintainer permissions
     {{- $maintainerGroups := list -}}
