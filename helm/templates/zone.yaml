@@ -311,9 +311,6 @@ spec:
     kind: MutatingPolicy
   - group: policies.kyverno.io
     kind: ValidatingPolicy
-  namespaceResourceBlacklist:
-  - group: '*'
-    kind: '*'
   namespaceResourceWhitelist:
   - group: argoproj.io
     kind: Application
