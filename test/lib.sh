@@ -8,28 +8,49 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+setup_binary_function() {
+    local cmd="$1"
+    local port="$2"
+
+    if [ -z "$port" ]; then port="9443"; fi
+
+    echo "--- Starting $cmd on port $port ---"
+
+    $cmd --insecure --debug --address ":$port" &
+
+    local pid=$!
+    FUNC_PIDS+=($pid)
+
+    wait_for_function "$port"
+}
+
 setup_function() {
     local func_path="$1"
-    echo "--- Starting Function at $func_path ---"
+    echo "--- Starting Custom Function at $func_path ---"
 
     pushd "$func_path" > /dev/null
     go run . --insecure --debug &
-    FUNC_PID=$!
-
+    local pid=$!
+    FUNC_PIDS+=($pid)
     popd > /dev/null
 
-    echo "Waiting for function to be ready on port 9443..."
-        local retries=0
-        while ! nc -z localhost 9443; do
-            sleep 1
-            retries=$((retries+1))
-            if [ "$retries" -ge 60 ]; then
-                echo "${RED}Timeout waiting for function to start."
-                kill $FUNC_PID
-                exit 1
-            fi
-        done
-        echo "✔ Function is ready!"
+    wait_for_function "9443"
+}
+
+wait_for_function() {
+    local port="$1"
+    echo "Waiting for function on port $port..."
+    local retries=0
+    while ! nc -z localhost $port; do
+        sleep 1
+        retries=$((retries+1))
+        if [ "$retries" -ge 30 ]; then
+            echo "${RED}Timeout waiting for function on port $port.${NC}"
+            cleanup_test
+            exit 1
+        fi
+    done
+    echo "✔ Function is ready on $port!"
 }
 
 mock_environment() {
@@ -96,9 +117,15 @@ assert_ready() {
 }
 
 run_render() {
-    crossplane render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG" \
-      -e "$EXTRA_RESOURCES" \
-      -o "$OBSERVED_RESOURCES" 2>&1
+    local input="${1:-$INPUT}"
+    local composition="${2:-$COMPOSITION}"
+    local func_config="${3:-$FUNC_CONFIG}"
+
+    touch "$EXTRA_RESOURCES" "$OBSERVED_RESOURCES"
+
+    crossplane render "$input" "$composition" "$func_config" \
+        -e "$EXTRA_RESOURCES" \
+        -o "$OBSERVED_RESOURCES" 2>&1 -r -x
 }
 
 append_mock() {
@@ -108,10 +135,12 @@ append_mock() {
 }
 
 cleanup_test() {
-    #rm -f "$OBSERVED_RESOURCES"
+    rm -f "$OBSERVED_RESOURCES"
 
-    if [ ! -z "$FUNC_PID" ]; then
-        echo "Stopping Function (PID $FUNC_PID)..."
-        kill -9 "$FUNC_PID" 2>/dev/null || true
+    if [ ${#FUNC_PIDS[@]} -gt 0 ]; then
+      echo "Stopping Functions (PIDs: ${FUNC_PIDS[*]} )..."
+      for pid in "${FUNC_PIDS[@]}"; do
+        kill -9 "$pid" 2>/dev/null || true
+      done
     fi
 }

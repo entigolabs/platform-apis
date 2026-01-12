@@ -24,3 +24,6 @@ echo "$OUTPUT" | mock_vs_se_and_dr_ready_statuses > "$OBSERVED_RESOURCES"
 echo "TEST 2: Checking Readiness"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES" "$OBSERVED_RESOURCES")
 assert_ready "$OUTPUT" "WebAccess"
+
+rm -f "$EXTRA_RESOURCES"
+cleanup_test
