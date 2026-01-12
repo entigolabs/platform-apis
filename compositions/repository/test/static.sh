@@ -12,7 +12,6 @@ ENV_CONFIG="$SCRIPT_DIR/../examples/environment-config.yaml"
 
 setup_function "$SCRIPT_DIR/../../../functions/artifact"
 
-echo "---" >> "$EXTRA_RESOURCES"
 mock_environment "$ENV_CONFIG"
 
 echo "TEST 1: rendering resources"
@@ -26,3 +25,6 @@ echo "$OUTPUT" | mock_rep_ready_status >> "$OBSERVED_RESOURCES"
 echo "TEST 2: Checking Readiness"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES" "$OBSERVED_RESOURCES")
 assert_ready "$OUTPUT" "Repository"
+
+yq -i 'del(select(.kind == "EnvironmentConfig"))' "$EXTRA_RESOURCES"
+cleanup_test
