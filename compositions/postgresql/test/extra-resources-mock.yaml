@@ -39,7 +39,6 @@ status:
       reason: Available
       status: "True"
       type: Ready
-
 ---
 apiVersion: kms.aws.m.upbound.io/v1beta1
 kind: Key
@@ -84,7 +83,6 @@ status:
       reason: Available
       status: "True"
       type: Ready
-
 ---
 apiVersion: kms.aws.m.upbound.io/v1beta1
 kind: Key
@@ -129,7 +127,6 @@ status:
       reason: Available
       status: "True"
       type: Ready
-
 ---
 apiVersion: rds.aws.m.upbound.io/v1beta1
 kind: SubnetGroup

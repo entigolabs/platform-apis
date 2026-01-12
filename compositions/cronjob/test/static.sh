@@ -26,3 +26,6 @@ echo "$OUTPUT" | mock_sec >> "$OBSERVED_RESOURCES"
 echo "TEST 2: Checking Readiness"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES" "$OBSERVED_RESOURCES")
 assert_ready "$OUTPUT" "CronJob"
+
+rm -f "$EXTRA_RESOURCES"
+cleanup_test
