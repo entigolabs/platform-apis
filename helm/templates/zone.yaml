@@ -281,7 +281,7 @@ data:
   computeSubnetType: {{ .Values.zone.environmentConfig.computeSubnetType }}
   serviceSubnetType: {{ .Values.zone.environmentConfig.serviceSubnetType }}
   publicSubnetType: {{ .Values.zone.environmentConfig.publicSubnetType }}
-  publicSubnetType: {{ .Values.zone.environmentConfig.controlSubnetType }}
+  controlSubnetType: {{ .Values.zone.environmentConfig.controlSubnetType }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}
   {{- else }}
