@@ -43,9 +43,12 @@ const (
 	ComputeSubnetsKey = "ComputeSubnets"
 	ServiceSubnetsKey = "ServiceSubnets"
 	PublicSubnetsKey  = "PublicSubnets"
+	ControlSubnetsKey = "ControlSubnets"
 	IngressKey        = "Ingresses"
 	ServiceKey        = "Services"
 )
+
+var supportedIngressClasses = base.NewSet("service", "external", "alb")
 
 type zoneGenerator struct {
 	// Inputs
@@ -61,6 +64,7 @@ type zoneGenerator struct {
 	computeSubnets []*ec2v1beta1.Subnet
 	serviceSubnets []*ec2v1beta1.Subnet
 	publicSubnets  []*ec2v1beta1.Subnet
+	controlSubnets []*ec2v1beta1.Subnet
 
 	zoneAnnotations map[string]string
 	zoneTags        map[string]*string
@@ -106,6 +110,10 @@ func GenerateZoneObjects(
 	if err != nil {
 		return nil, err
 	}
+	controlSubnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, ControlSubnetsKey)
+	if err != nil {
+		return nil, err
+	}
 	tags := map[string]*string{
 		zoneAnnotation: &zone.Name,
 	}
@@ -122,6 +130,7 @@ func GenerateZoneObjects(
 		computeSubnets: computeSubnets,
 		serviceSubnets: serviceSubnets,
 		publicSubnets:  publicSubnets,
+		controlSubnets: controlSubnets,
 		zoneAnnotations: map[string]string{
 			zoneAnnotation: zone.Name,
 		},
@@ -1129,6 +1138,7 @@ func (g zoneGenerator) getAppProject() runtime.Object {
 func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Object, error) {
 	serviceBlocks := getSubnetsBlocks(g.serviceSubnets)
 	publicBlocks := getSubnetsBlocks(g.publicSubnets)
+	controlBlocks := getSubnetsBlocks(g.controlSubnets)
 	protocol := corev1.ProtocolTCP
 	objs := make(map[string]runtime.Object)
 	for _, ns := range g.zone.Spec.Namespaces {
@@ -1144,7 +1154,8 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 			return nil, err
 		}
 		for _, ingress := range ingresses {
-			if ingress.Spec.Rules == nil || ingress.Spec.IngressClassName == nil {
+			if ingress.Spec.Rules == nil || ingress.Spec.IngressClassName == nil ||
+				!supportedIngressClasses.Contains(*ingress.Spec.IngressClassName) {
 				continue
 			}
 			for _, rule := range ingress.Spec.Rules {
@@ -1174,10 +1185,15 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 					for key, value := range service.Spec.Selector {
 						matchLabels[key] = value
 					}
-					blocks := publicBlocks
-					// TODO Handle ALB IngressClass
-					if *ingress.Spec.IngressClassName == "service" {
+					var blocks []networkingv1.NetworkPolicyPeer
+					switch *ingress.Spec.IngressClassName {
+					case "service":
 						blocks = serviceBlocks
+					case "external":
+						blocks = publicBlocks
+					case "alb":
+						// TODO Improved ALB support based on annotations
+						blocks = controlBlocks
 					}
 					objs[GetTargetNetworkPolicyKey(ns.Name, ingress.Name, serviceName, targetPort)] = &networkingv1.NetworkPolicy{
 						TypeMeta: metav1.TypeMeta{

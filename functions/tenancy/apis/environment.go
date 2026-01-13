@@ -14,6 +14,7 @@ type Environment struct {
 	ComputeSubnetType     string             `json:"computeSubnetType"`
 	ServiceSubnetType     string             `json:"serviceSubnetType"`
 	PublicSubnetType      string             `json:"publicSubnetType"`
+	ControlSubnetType     string             `json:"controlSubnetType"`
 	Tags                  map[string]*string `json:"tags,omitempty"`
 	VPC                   string             `json:"vpc"`
 	GranularEgress        bool               `json:"granularEgress,omitempty"`
@@ -52,6 +53,9 @@ func (e Environment) Validate() error {
 	}
 	if e.PublicSubnetType == "" {
 		return errors.New("publicSubnetType is required")
+	}
+	if e.ControlSubnetType == "" {
+		return errors.New("controlSubnetType is required")
 	}
 	return nil
 }

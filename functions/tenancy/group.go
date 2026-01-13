@@ -90,6 +90,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		resources[service.ComputeSubnetsKey] = subnetSelector(env.ComputeSubnetType)
 		resources[service.ServiceSubnetsKey] = subnetSelector(env.ServiceSubnetType)
 		resources[service.PublicSubnetsKey] = subnetSelector(env.PublicSubnetType)
+		resources[service.ControlSubnetsKey] = subnetSelector(env.ControlSubnetType)
 		for _, ns := range zone.Spec.Namespaces {
 			if ns.Name == "" {
 				continue

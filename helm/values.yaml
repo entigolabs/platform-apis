@@ -91,6 +91,7 @@ zone:
     computeSubnetType: compute
     serviceSubnetType: service
     publicSubnetType: public
+    controlSubnetType: control
     tags: {}
   clusterrolebinding:
     maintainerGroups: ["maintainer"]

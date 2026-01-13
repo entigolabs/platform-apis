@@ -45,12 +45,17 @@ const (
 	requiredSubnetAJson = `{
 		"apiVersion": "ec2.aws.upbound.io/v1beta1", "kind": "Subnet",
 		"metadata": {"name": "subnet-a"},
-		"status": {"atProvider": {"availabilityZone": "eu-north-1a", "id": "subnet-a-id"}}
+		"status": {"atProvider": {"availabilityZone": "eu-north-1a", "id": "subnet-a-id", "cidrBlock": "10.10.10.1"}}
 	}`
 	requiredSubnetBJson = `{
 		"apiVersion": "ec2.aws.upbound.io/v1beta1", "kind": "Subnet",
 		"metadata": {"name": "subnet-b"},
-		"status": {"atProvider": {"availabilityZone": "eu-north-1b", "id": "subnet-b-id"}}
+		"status": {"atProvider": {"availabilityZone": "eu-north-1b", "id": "subnet-b-id", "cidrBlock": "10.10.10.2"}}
+	}`
+	requiredSubnetCJson = `{
+		"apiVersion": "ec2.aws.upbound.io/v1beta1", "kind": "Subnet",
+		"metadata": {"name": "subnet-c"},
+		"status": {"atProvider": {"availabilityZone": "eu-north-1c", "id": "subnet-c-id", "cidrBlock": "10.10.10.3"}}
 	}`
 	requiredIngressJson = `{
         "apiVersion":"networking.k8s.io/v1","kind":"Ingress",
@@ -66,7 +71,7 @@ const (
 	rbacRoleReadJson           = `{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-read","namespace":"test-app-ns"},"rules":[{"apiGroups":["*"],"resources":["*"],"verbs":["get","watch","list"]}]}`
 	appProjectJson             = `{"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone","namespace":"argocd"},"spec":{"clusterResourceBlacklist":[{"group":"*","kind":"*"}],"description":"Security zone for isolated team deployment","destinations":[{"namespace":"test-app-ns","server":"https://kubernetes.default.svc"}],"namespaceResourceBlacklist":[{"group":"*.m.upbound.io","kind":"*"}],"roles":[{"description":"Maintainer permissions","groups":["group-maintainer"],"name":"maintainer","policies":["p, proj:test-zone:maintainer, applications, *, test-zone/*, allow","p, proj:test-zone:maintainer, repositories, *, test-zone/*, allow","p, proj:test-zone:maintainer, applicationsets, *, test-zone/*, allow","p, proj:test-zone:maintainer, logs, *, test-zone/*, allow","p, proj:test-zone:maintainer, exec, *, test-zone/*, allow"]},{"description":"Observer permissions","groups":["group-observer"],"name":"observer","policies":["p, proj:test-zone:observer, applications, get, test-zone/*, allow","p, proj:test-zone:observer, applicationsets, get, test-zone/*, allow"]},{"description":"Contributor permissions","name":"contributor","policies":["p, proj:test-zone:contributor, applications, *, test-zone/*, allow","p, proj:test-zone:contributor, repositories, *, test-zone/*, allow","p, proj:test-zone:contributor, applicationsets, *, test-zone/*, allow","p, proj:test-zone:contributor, logs, *, test-zone/*, allow","p, proj:test-zone:contributor, exec, *, test-zone/*, allow"]},{"description":"Use this role for your CI/CD pipelines","groups":["group-maintainer"],"name":"cicd","policies":["p, proj:test-zone:cicd, applications, sync, test-zone/*, allow","p, proj:test-zone:cicd, applicationsets, sync, test-zone/*, allow","p, proj:test-zone:cicd, applications, get, test-zone/*, allow","p, proj:test-zone:cicd, applicationsets, get, test-zone/*, allow"]}],"sourceNamespaces":["test-app-ns"],"sourceRepos":["*"]},"status":{}}`
 	networkPolicyJson          = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-zone","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"tenancy.entigo.com/zone":"test-zone"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}`
-	targetNetworkPolicyJson    = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}`
+	targetNetworkPolicyJson    = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.1"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}`
 	rbMaintainerJson           = `{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-maintainer","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"maintainer"}]}`
 	roleJson                   = `{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone"},"spec":{"forProvider":{"assumeRolePolicy":"{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"ec2.amazonaws.com\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}","tags":{"tenancy.entigo.com/zone":"test-zone"}},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}`
 	roleECRProxyAttachmentJson = `{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"RolePolicyAttachment","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-ecr-proxy"},"spec":{"forProvider":{"policyArnRef":{"name":"ecr-proxy"},"roleRef":{"name":"test-zone"}},"initProvider":{},"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}`
@@ -147,6 +152,7 @@ func TestZoneFunction(t *testing.T) {
 		"computeSubnetType": "compute",
 		"serviceSubnetType": "service",
 		"publicSubnetType":  "public",
+		"controlSubnetType": "control",
 		"vpc":               "test-vpc",
 	}
 	optEnvironmentData := map[string]interface{}{
@@ -173,6 +179,7 @@ func TestZoneFunction(t *testing.T) {
 		service.ComputeSubnetsKey:   {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetAJson)}, {Resource: resource.MustStructJSON(requiredSubnetBJson)}}},
 		service.ServiceSubnetsKey:   {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetAJson)}}},
 		service.PublicSubnetsKey:    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetBJson)}}},
+		service.ControlSubnetsKey:   {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetCJson)}}},
 		nsName + service.IngressKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredIngressJson)}}},
 		nsName + service.ServiceKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredServiceJson)}}},
 	}
@@ -190,6 +197,7 @@ func TestZoneFunction(t *testing.T) {
 			service.ComputeSubnetsKey:   {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "compute"}}}},
 			service.ServiceSubnetsKey:   {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "service"}}}},
 			service.PublicSubnetsKey:    {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "public"}}}},
+			service.ControlSubnetsKey:   {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "control"}}}},
 			nsName + service.IngressKey: {Kind: "Ingress", ApiVersion: "networking.k8s.io/v1", Namespace: &nsName, Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
 			nsName + service.ServiceKey: {Kind: "Service", ApiVersion: "v1", Namespace: &nsName, Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
 		},
