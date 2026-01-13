@@ -880,7 +880,7 @@ func (g zoneGenerator) getAccessEntry(name string) runtime.Object {
 	}
 }
 
-func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1beta1.LaunchTemplate) (string, *eksv1beta1.NodeGroup, error) {
+func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1beta1.LaunchTemplate) (string, runtime.Object, error) {
 	zoneName := g.zone.GetName()
 	zonePool := fmt.Sprintf("%s-%s", zoneName, pool.Name)
 	version := strconv.FormatFloat(*launchTemplateObj.Status.AtProvider.LatestVersion, 'f', -1, 64)
@@ -950,7 +950,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 		zonePoolAnnotation: &zonePool,
 	}
 
-	return GetNodeGroupKey(pool.Name, hash), &eksv1beta1.NodeGroup{
+	ng := &eksv1beta1.NodeGroup{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "eks.aws.upbound.io/v1beta1",
 			Kind:       "NodeGroup",
@@ -985,9 +985,8 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 				Tags:         tags,
 				CapacityType: base.StringPtr(capacityType),
 				ScalingConfig: []eksv1beta1.ScalingConfigParameters{{
-					MaxSize:     &maxSize,
-					MinSize:     &minSize,
-					DesiredSize: &minSize,
+					MaxSize: &maxSize,
+					MinSize: &minSize,
 				}},
 			},
 			InitProvider: eksv1beta1.NodeGroupInitParameters{
@@ -996,7 +995,26 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 				}},
 			},
 		},
-	}, nil
+	}
+	u, err := base.ToUnstructured(ng)
+	if err != nil {
+		return "", nil, err
+	}
+	configs, found, _ := unstructured.NestedSlice(u.Object, "spec", "forProvider", "scalingConfig")
+	if found {
+		for _, cfg := range configs {
+			if c, ok := cfg.(map[string]any); ok {
+				if val, exists := c["desiredSize"]; exists && val == nil {
+					delete(c, "desiredSize")
+				}
+			}
+		}
+		err = unstructured.SetNestedSlice(u.Object, configs, "spec", "forProvider", "scalingConfig")
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	return GetNodeGroupKey(pool.Name, hash), u, nil
 }
 
 func getIntOrFloat(value intstr.IntOrString) (float64, error) {
