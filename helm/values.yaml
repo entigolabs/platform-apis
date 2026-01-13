@@ -167,3 +167,4 @@ extraProviders: []
 #  - name: provider-bar
 #    image: xpkg.upbound.io/upbound/provider-bar
 #    tag: v0.1.0
+
