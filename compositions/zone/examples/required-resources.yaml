@@ -1,7 +1,6 @@
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPC
 metadata:
-  annotations:
   name: vpc
   namespace: crossplane-aws
 spec:
@@ -138,7 +137,6 @@ status:
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: SecurityGroup
 metadata:
-  annotations:
   name: eks-node
   namespace: crossplane-aws
 spec:
@@ -159,7 +157,6 @@ status:
 apiVersion: aws.m.upbound.io/v1beta1
 kind: ClusterProviderConfig
 metadata:
-  annotations:
   name: crossplane-aws
 spec:
   credentials:

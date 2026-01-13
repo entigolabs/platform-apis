@@ -65,6 +65,11 @@ kafka:
     image: ghcr.io/entigolabs/platform-apis-kafka
     tag: v0.0.0
 
+tenancy:
+  function:
+    image: ghcr.io/entigolabs/platform-apis-tenancy-fn
+    tag: v0.0.0
+
 zone:
   install: true
   package:
@@ -79,6 +84,14 @@ zone:
       maintainerGroups: []
       observerGroups: []
       sourceRepos: ["*"]
+    cluster: eks
+    dataKMSAlias: data
+    securityGroup: "eks-node"
+    vpc: vpc
+    computeSubnetType: compute
+    serviceSubnetType: service
+    publicSubnetType: public
+    controlSubnetType: control
     tags: {}
   clusterrolebinding:
     maintainerGroups: ["maintainer"]
@@ -155,3 +168,4 @@ extraProviders: []
 #  - name: provider-bar
 #    image: xpkg.upbound.io/upbound/provider-bar
 #    tag: v0.1.0
+

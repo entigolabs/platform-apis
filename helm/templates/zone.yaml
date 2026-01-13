@@ -272,8 +272,16 @@ data:
     observerGroups: {{ .Values.zone.environmentConfig.appProject.observerGroups }}
     sourceRepos:
     {{- range .Values.zone.environmentConfig.appProject.sourceRepos }}
-    - {{ . | quote }}
+      - {{ . | quote }}
     {{- end }}
+  cluster: {{ .Values.zone.environmentConfig.cluster }}
+  dataKMSAlias: {{ .Values.zone.environmentConfig.dataKMSAlias }}
+  securityGroup: {{ .Values.zone.environmentConfig.securityGroup }}
+  vpc: {{ .Values.zone.environmentConfig.vpc }}
+  computeSubnetType: {{ .Values.zone.environmentConfig.computeSubnetType }}
+  serviceSubnetType: {{ .Values.zone.environmentConfig.serviceSubnetType }}
+  publicSubnetType: {{ .Values.zone.environmentConfig.publicSubnetType }}
+  controlSubnetType: {{ .Values.zone.environmentConfig.controlSubnetType }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}
   {{- else }}

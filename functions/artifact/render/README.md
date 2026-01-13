@@ -5,5 +5,10 @@ crossplane render compositions/repository/examples/repository.yaml compositions/
 ```
 With extra resources:
 ```sh
-crossplane render -e functions/artifact/render/required-resources.yaml  compositions/repository/examples/repository.yaml compositions/repository/apis/repository-composition.yaml functions/artifact/render/function.yaml
+crossplane render -e functions/artifact/render/required-resources.yaml -o functions/artifact/render/observed-resources.yaml compositions/repository/examples/repository.yaml compositions/repository/apis/repository-composition.yaml functions/artifact/render/function.yaml
+```
+With observed resources:
+```sh
+crossplane render -e functions/artifact/render/required-resources.yaml -o functions/artifact/render/observed-resources.yaml compositions/repository/examples/repository.yaml compositions/repository/apis/repository-composition.yaml functions/artifact/render/function.yaml
+```
 ```

@@ -1,0 +1,27 @@
+name: Build tenancy Function
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/tenancy/**'
+      - 'functions/common/base/**'
+  pull_request:
+    paths:
+      - 'functions/tenancy/**'
+      - 'functions/common/base/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version (e.g. v0.1.0)
+        required: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/builder-function.yml
+    with:
+      path: functions/tenancy
+      name: platform-apis-tenancy-fn
+      version: ${{ inputs.version }}
+    secrets: inherit

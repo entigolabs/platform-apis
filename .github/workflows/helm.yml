@@ -79,6 +79,11 @@ jobs:
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-zone/versions" \
             | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
             | head -n 1)
+          
+          TENANCY_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-tenancy-fn/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
+            | head -n 1)
 
           S3BUCKET_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-s3bucket/versions" \
@@ -143,6 +148,10 @@ jobs:
             echo "Failed to fetch zone tag"
             exit 1
           fi
+          if [ -z "$TENANCY_FN_TAG" ] || [ "$TENANCY_FN_TAG" = "null" ]; then
+            echo "Failed to fetch tenancy-fn tag"
+            exit 1
+          fi
 
           if [ -z "$S3BUCKET_TAG" ] || [ "$S3BUCKET_TAG" = "null" ]; then
             echo "Failed to fetch s3bucket tag"
@@ -187,6 +196,7 @@ jobs:
           yq -i ".repository.package.tag = \"$REPOSITORY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".artifact.function.tag = \"$ARTIFACT_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".zone.package.tag = \"$ZONE_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".tenancy.function.tag = \"$TENANCY_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".s3bucket.package.tag = \"$S3BUCKET_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".kafka.package.tag = \"$KAFKA_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           yq -i ".valkey.package.tag = \"$VALKEY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
