@@ -78,6 +78,7 @@ zone:
     appProject:
       maintainerGroups: []
       observerGroups: []
+      sourceRepos: ["*"]
     tags: {}
   clusterrolebinding:
     maintainerGroups: ["maintainer"]
