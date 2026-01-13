@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/function-sdk-go"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/entigolabs/function-base/base"
 	"github.com/google/go-cmp/cmp"
@@ -100,9 +100,14 @@ type Case struct {
 }
 
 func RunFunctionCases(t *testing.T, serviceFn func() base.GroupService, cases map[string]Case, ignoredFields ...string) {
+	log, err := function.NewLogger(true)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+		return
+	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			f := base.NewFunction(logging.NewNopLogger(), serviceFn())
+			f := base.NewFunction(log, serviceFn())
 			rsp, err := f.RunFunction(tc.Args.Ctx, tc.Args.Req)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)

@@ -9,7 +9,7 @@ metadata:
     # Set the license of your Configuration
     meta.crossplane.io/license: AGPL
     meta.crossplane.io/description: |
-      Divide Kubernetes infrastructure into isolated resource zones
+      Divide Kubernetes infrastructure into isolated resource zones.
     meta.crossplane.io/readme: |
       ...
 spec:
