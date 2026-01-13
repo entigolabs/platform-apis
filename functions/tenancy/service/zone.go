@@ -983,6 +983,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 				ClusterNameRef: &v1.Reference{
 					Name: g.cluster.GetName(),
 				},
+				Version:       g.cluster.Status.AtProvider.Version,
 				Region:        g.vpc.Status.AtProvider.Region,
 				UpdateConfig:  []eksv1beta1.UpdateConfigParameters{{MaxUnavailable: base.Float64Ptr(1)}},
 				InstanceTypes: toInstanceTypePointers(instanceTypes),
