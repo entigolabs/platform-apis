@@ -7,9 +7,11 @@ kind: PostgreSQLInstance
 metadata:
   name: basic-instance
 spec:
-  storageGB: 10
-  version: "14"
+  allocatedStorage: 20
+  engineVersion: "18.1"
+  instanceType: db.t4g.micro
 ```
+
 ### High Availability Instance
 An example of a PostgreSQL instance configured with replication for high availability.
 
@@ -19,10 +21,8 @@ kind: PostgreSQLInstance
 metadata:
   name: ha-instance
 spec:
-  storageGB: 100
-  version: "15"
-  replicas: 3
-  backup:
-    enabled: true
-    schedule: "0 2 * * *"
+  allocatedStorage: 20
+  engineVersion: "18.1"
+  instanceType: db.t4g.micro
+  multiAZ: true
 ```
