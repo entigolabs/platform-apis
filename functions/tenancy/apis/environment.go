@@ -19,6 +19,7 @@ type Environment struct {
 	VPC                   string             `json:"vpc"`
 	GranularEgress        bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude []string           `json:"granularEgressExclude,omitempty"`
+	PodSecurity           string             `json:"podSecurity"`
 }
 
 type AppProject struct {
@@ -56,6 +57,9 @@ func (e Environment) Validate() error {
 	}
 	if e.ControlSubnetType == "" {
 		return errors.New("controlSubnetType is required")
+	}
+	if e.PodSecurity == "" {
+		return errors.New("podSecurity is required")
 	}
 	return nil
 }
