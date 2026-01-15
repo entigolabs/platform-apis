@@ -290,7 +290,9 @@ func (g zoneGenerator) generateNamespaces() (map[string]runtime.Object, error) {
 
 func (g zoneGenerator) getNamespace(name string) *corev1.Namespace {
 	labels := map[string]string{
-		zoneAnnotation: g.zone.Name,
+		zoneAnnotation:                       g.zone.Name,
+		"pod-security.kubernetes.io/enforce": g.env.PodSecurity,
+		"pod-security.kubernetes.io/warn":    g.env.PodSecurity,
 	}
 	if g.env.GranularEgress {
 		labels["istio-injection"] = "enabled"
