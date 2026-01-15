@@ -36,14 +36,24 @@ spec:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Alias
                 matchName: config
+              namespace:
+                  apiVersion: v1
+                  kind: Namespace
+                  matchName: {{ .observed.composite.resource.metadata.namespace }}
             ---
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $eks := mustFirst (getExtraResources . "eks") }}
             {{- $kmsDataKeyAlias := mustFirst (getExtraResources . "kmsDataKeyAlias") }}
             {{- $kmsConfigKeyAlias := mustFirst (getExtraResources . "kmsConfigKeyAlias") }}
+            {{- $ns := mustFirst (getExtraResources . "namespace") }}
 
             {{- $bucketName := .observed.composite.resource.metadata.name }}
             {{- $namespace := .observed.composite.resource.metadata.namespace }}
+
+            {{- $tenancyZone := "" }}
+            {{- if $ns.resource.metadata.labels }}
+              {{- $tenancyZone = index $ns.resource.metadata.labels "tenancy.entigo.com/zone" }}
+            {{- end }}
 
             {{- /* Get config from environment */ -}}
             {{- $providerConfigRef := $envConfig.resource.data.awsProvider }}
@@ -81,6 +91,10 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket
                 storage.entigo.com/kms-data-key-alias: {{ $kmsDataKeyAlias.resource.status.atProvider.id }}
                 storage.entigo.com/service-account-name: {{ $serviceAccountName }}
+              {{- if $tenancyZone }}
+              labels:
+                tenancy.entigo.com/zone: {{ $tenancyZone | quote }}
+              {{- end }}
             spec:
               providerConfigRef:
                 name: {{ $providerConfigRef }}
@@ -89,6 +103,9 @@ spec:
                 region: {{ $region }}
                 tags:
                   Name: {{ $bucketName }}
+                  {{- if $tenancyZone }}
+                  tenancy.entigo.com/zone: {{ $tenancyZone | quote }}
+                  {{- end }}
                   {{- range $key, $value := $envConfig.resource.data.tags }}
                   {{ $key }}: {{ $value | quote }}
                   {{- end }}
