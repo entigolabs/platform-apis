@@ -19,13 +19,6 @@ yq -i '
   .spec.providerConfig = "aws-provider"
  ' "$TEMP_INPUT"
 
-TEMP_COMPOSITION="temp_composition.yaml"
-cp "$COMPOSITION" "$TEMP_COMPOSITION"
-
-yq -i 'del(.spec.pipeline[] | select(.step == "auto-ready"))' "$TEMP_COMPOSITION"
-
-setup_binary_function "function-go-templating"
-
 echo "---" >> $EXTRA_RESOURCES
 echo "kind: EnvironmentConfig
 apiVersion: apiextensions.crossplane.io/v1beta1
@@ -36,22 +29,19 @@ spec:
 " >> "$EXTRA_RESOURCES"
 
 echo "MSK. TEST 1: rendering resources"
-OUTPUT=$(run_render "$TEMP_INPUT" "$TEMP_COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES")
+OUTPUT=$(run_render "$TEMP_INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES")
 assert_counts "$OUTPUT" "MSK" 1 "Cluster" 1
 
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_cluster_ready_status > "$OBSERVED_RESOURCES"
 
 echo "MSK. TEST 2: rendering resources"
-OUTPUT=$(run_render "$TEMP_INPUT" "$TEMP_COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES" "$OBSERVED_RESOURCES")
+OUTPUT=$(run_render "$TEMP_INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES" "$OBSERVED_RESOURCES")
 assert_counts "$OUTPUT" "Cluster" 1 "ProviderConfig" 1 "MSK" 1 "Secret" 1
-
-rm -f "$TEMP_COMPOSITION"
 
 echo "Mocking required resources"
 echo "---" >> $EXTRA_RESOURCES
 cat "$TEMP_INPUT" | mock_msk_observer_ready_status >> "$EXTRA_RESOURCES"
-
 rm -f "$TEMP_INPUT"
 
 #===================== KAFKA - TOPIC - COMPOSITION  TESTS =====================
@@ -66,14 +56,9 @@ yq -i '
   .spec.claimRef.name = "topic-claimRef"
  ' "$TEMP_INPUT"
 
-TEMP_COMPOSITION="temp_composition.yaml"
-cp "$COMPOSITION" "$TEMP_COMPOSITION"
-
-yq -i 'del(.spec.pipeline[] | select(.step == "detect-readiness"))' "$TEMP_COMPOSITION"
-
 echo "TOPIC. TEST 1: rendering resources"
-OUTPUT=$(run_render "$TEMP_INPUT" "$TEMP_COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES")
-assert_counts "$OUTPUT" "XTopic" 1 "Topic" 1
+OUTPUT=$(run_render "$TEMP_INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES")
+assert_counts "$OUTPUT" "Topic" 1
 
 #===================== KAFKA - USER - COMPOSITION  TESTS =====================
 
@@ -91,7 +76,6 @@ yq -i '
 TEMP_COMPOSITION="temp_composition.yaml"
 cp "$COMPOSITION" "$TEMP_COMPOSITION"
 
-yq -i 'del(.spec.pipeline[] | select(.step == "detect-readiness"))' "$TEMP_COMPOSITION"
 yq -i 'del(.spec.pipeline[] | select(.step == "sequence-creation"))' "$TEMP_COMPOSITION"
 
 echo "USER. TEST 1: rendering resources"

@@ -12,10 +12,3 @@ mock_msk_observer_ready_status() {
     .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
   ' -
 }
-
-mock_xtopic_ready_status() {
-  yq eval '
-    select(.kind == "XTopic") |
-    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
-  ' -
-}
