@@ -282,6 +282,7 @@ data:
   serviceSubnetType: {{ .Values.zone.environmentConfig.serviceSubnetType }}
   publicSubnetType: {{ .Values.zone.environmentConfig.publicSubnetType }}
   controlSubnetType: {{ .Values.zone.environmentConfig.controlSubnetType }}
+  podSecurity: {{ .Values.zone.environmentConfig.podSecurity }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}
   {{- else }}

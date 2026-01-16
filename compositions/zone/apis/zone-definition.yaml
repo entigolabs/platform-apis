@@ -22,7 +22,7 @@ spec:
                 clusterPermissions:
                   type: boolean
                   default: false
-                  description: Enable cluster-level permissions for the zone
+                  description: Enable cluster-level permissions for the zone. Value true will allow users in spec.appProject.contributorGroups to escalate privileges to Kubernetes administrator.
                 appProject:
                   type: object
                   properties:
