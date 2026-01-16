@@ -9,6 +9,7 @@ import (
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -59,11 +60,22 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		}
 		resources := map[string]*fnv1.ResourceSelector{
 			base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+			service.NamespaceKey: {
+				Kind:       "Namespace",
+				ApiVersion: "",
+				Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{
+					service.ZoneAnnotation: zone.Name,
+				}}},
+			},
 		}
 		if _, envPresent := required[base.EnvironmentKey]; !envPresent {
 			return resources, nil
 		}
 		env, err := service.GetEnvironment(required)
+		if err != nil {
+			return nil, err
+		}
+		namespaces, err := base.ExtractResources[*corev1.Namespace](required, service.NamespaceKey)
 		if err != nil {
 			return nil, err
 		}
@@ -91,20 +103,20 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		resources[service.ServiceSubnetsKey] = subnetSelector(env.ServiceSubnetType)
 		resources[service.PublicSubnetsKey] = subnetSelector(env.PublicSubnetType)
 		resources[service.ControlSubnetsKey] = subnetSelector(env.ControlSubnetType)
-		for _, ns := range zone.Spec.Namespaces {
-			if ns.Name == "" {
+		for _, ns := range service.GetUniqueNamespaces(zone, namespaces) {
+			if ns == "" {
 				continue
 			}
-			resources[ns.Name+service.IngressKey] = &fnv1.ResourceSelector{
+			resources[ns+service.IngressKey] = &fnv1.ResourceSelector{
 				Kind:       "Ingress",
 				ApiVersion: "networking.k8s.io/v1",
-				Namespace:  &ns.Name,
+				Namespace:  &ns,
 				Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 			}
-			resources[ns.Name+service.ServiceKey] = &fnv1.ResourceSelector{
+			resources[ns+service.ServiceKey] = &fnv1.ResourceSelector{
 				Kind:       "Service",
 				ApiVersion: "v1",
-				Namespace:  &ns.Name,
+				Namespace:  &ns,
 				Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 			}
 		}
