@@ -21,13 +21,13 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 spec:
   activate:
-    - cluster.kafka.aws.upbound.io
-    - topic.topic.kafka.crossplane.io
-    - accesscontrollist.acl.kafka.crossplane.io
-    - secret.secretsmanager.aws.upbound.io
-    - secretversion.secretsmanager.aws.upbound.io
-    - secretpolicy.secretsmanager.aws.upbound.io
-    - singlescramsecretassociation.kafka.aws.upbound.io
+    - clusters.kafka.aws.upbound.io
+    - topics.topic.kafka.crossplane.io
+    - accesscontrollists.acl.kafka.crossplane.io
+    - secrets.secretsmanager.aws.upbound.io
+    - secretversions.secretsmanager.aws.upbound.io
+    - secretpolicies.secretsmanager.aws.upbound.io
+    - singlescramsecretassociations.kafka.aws.upbound.io
 
 ---
 apiVersion: pkg.crossplane.io/v1
