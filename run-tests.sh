@@ -2,7 +2,7 @@
 set -e
 
 IMAGE_NAME="platform-apis-test-runner"
-TARGET=$1
+TARGET=$(basename "${1%/}")
 
 echo "Building Test Docker Image..."
 docker build -t $IMAGE_NAME -f test/build/Dockerfile.test .

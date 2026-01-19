@@ -22,6 +22,7 @@ jobs:
         run : ./run-tests.sh ${{ inputs.path }}
 
   build:
+    needs: static-test
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
