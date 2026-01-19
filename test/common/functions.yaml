@@ -1,29 +1,31 @@
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
-  name: function-auto-ready
-  annotations:
-    render.crossplane.io/runtime: Development
-    render.crossplane.io/runtime-development-url: tcp://localhost:9444
-spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.2.1
----
-apiVersion: pkg.crossplane.io/v1beta1
-kind: Function
-metadata:
   name: function-go-templating
   annotations:
-    render.crossplane.io/runtime: Development
-    render.crossplane.io/runtime-development-url: tcp://localhost:9445
+    render.crossplane.io/runtime: Docker
 spec:
   package: xpkg.upbound.io/upbound/function-go-templating:v0.11.3
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
-  name: function-sequencer
+  name: function-auto-ready
   annotations:
-    render.crossplane.io/runtime: Development
-    render.crossplane.io/runtime-development-url: tcp://localhost:9446
+    render.crossplane.io/runtime: Docker
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-sequencer:v0.1.0
+  package: xpkg.upbound.io/upbound/function-auto-ready:v0.6.0
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-kcl
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-kcl:v0.11.6
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform:v0.9.1
