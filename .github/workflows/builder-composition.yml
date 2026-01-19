@@ -11,6 +11,16 @@ on:
         type: string
 
 jobs:
+  static-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Add rights to execute test script
+        run: chmod +x run_tests.sh
+      - name: Runt Static Tests
+        run : ./run_tests.sh ${{ inputs.path }}
+
   build:
     runs-on: ubuntu-24.04
     steps:
@@ -26,9 +36,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Static Tests
-        run: sudo ${{ inputs.path }}/test/run_tests.sh
 
       - name: Remove Test and Examples Directories
         run: rm -rf ${{ inputs.path }}/test ${{ inputs.path }}/examples
