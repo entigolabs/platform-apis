@@ -97,6 +97,7 @@ zone:
     maintainerGroups: ["maintainer"]
     observerGroups: ["observer"]
     contributorGroups: ["contributor"]
+  kyvernoNamespace: kyverno
 
 networking:
   function:
