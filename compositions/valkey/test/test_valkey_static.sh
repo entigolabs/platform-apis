@@ -16,5 +16,4 @@ yq -i 'del(.spec.pipeline[] | select(.step == "sequence-creation"))' "$TEMP_COMP
 
 echo "TEST 1: rendering ReplicationGroup, Secret, SecretVersion, SecurityGroup resources..."
 OUTPUT=$(run_render "$INPUT" "$TEMP_COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES")
-#TODO: Why not "SecurityGroupRule" created???
 assert_counts "$OUTPUT" "ReplicationGroup" 1 "Secret" 1 "SecretVersion" 1 "SecurityGroup" 1
