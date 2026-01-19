@@ -383,13 +383,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kyverno-admission-controller
-  namespace: kyverno
+  namespace: {{ .Values.zone.kyvernoNamespace }}
 - kind: ServiceAccount
   name: kyverno-background-controller
-  namespace: kyverno
+  namespace: {{ .Values.zone.kyvernoNamespace }}
 - kind: ServiceAccount
   name: kyverno-reports-controller
-  namespace: kyverno
+  namespace: {{ .Values.zone.kyvernoNamespace }}
 ---
 apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
