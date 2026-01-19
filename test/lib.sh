@@ -106,7 +106,7 @@ run_render() {
     args+=("-o" "$OBSERVED_RESOURCES")
   fi
 
-  crossplane render "${args[@]}" -r -x -c 2>&1 || true
+  crossplane render "${args[@]}" -r -x 2>&1 || true
 }
 
 assert_counts() {
