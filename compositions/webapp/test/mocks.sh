@@ -1,4 +1,11 @@
-mock_dep_ready_status() {
+mock_observed_resources() {
+  yq eval '
+      select(.kind == "Service") |
+      .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Available", "status": "True"}]
+    ' -
+}
+
+mock_dep_as_observed_resource() {
   yq eval '
     select(.kind == "Deployment") |
     .status.readyReplicas = 1 |
@@ -8,14 +15,7 @@ mock_dep_ready_status() {
   ' -
 }
 
-mock_ser_ready_status() {
-  yq eval '
-      select(.kind == "Service") |
-      .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Available", "status": "True"}]
-    ' -
-}
-
-mock_sec() {
+mock_sec_as_observed_resource() {
   yq eval '
       select(.kind == "Secret")
      ' -
