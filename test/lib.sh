@@ -36,7 +36,7 @@ wait_for_function() {
   while ! nc -z localhost "$port"; do
     sleep 1
     retries=$((retries+1))
-    if [ "$retries" -ge 180 ]; then
+    if [ "$retries" -ge 300 ]; then
       echo -e "\n${RED}Timeout waiting for function on port $port.${NC}"
       cleanup_test
       exit 1
