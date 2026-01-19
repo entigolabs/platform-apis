@@ -27,8 +27,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Remove Test Directory
-        run: rm -rf ${{ inputs.path }}/test
+      - name: Remove Test and Examples Directories
+        run: rm -rf ${{ inputs.path }}/test ${{ inputs.path }}/examples
           
       - name: Build & Publish Package
         working-directory: ${{ inputs.path }}
