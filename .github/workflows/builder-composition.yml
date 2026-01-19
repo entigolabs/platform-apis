@@ -17,7 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Add rights to execute test script
-        run: chmod +x run_tests.sh
+        run: chmod +x run-tests.sh
       - name: Runt Static Tests
         run : ./run-tests.sh ${{ inputs.path }}
 
