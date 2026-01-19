@@ -216,7 +216,7 @@ func TestZoneFunction(t *testing.T) {
 	requirements := &fnv1.Requirements{
 		Resources: map[string]*fnv1.ResourceSelector{
 			base.EnvironmentKey:            base.RequiredEnvironmentConfig(environmentName),
-			service.NamespaceKey:           {Kind: "Namespace", ApiVersion: "", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{service.ZoneAnnotation: zoneName}}}},
+			service.NamespaceKey:           {Kind: "Namespace", ApiVersion: "v1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{service.ZoneAnnotation: zoneName}}}},
 			service.VPCKey:                 {Kind: "VPC", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-vpc"}},
 			service.KMSDataAliasKey:        {Kind: "Alias", ApiVersion: "kms.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
 			service.SecurityGroupKey:       {Kind: "SecurityGroup", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "eks-node-sg"}},

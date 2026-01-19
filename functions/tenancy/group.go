@@ -62,7 +62,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
 			service.NamespaceKey: {
 				Kind:       "Namespace",
-				ApiVersion: "",
+				ApiVersion: "v1",
 				Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{
 					service.ZoneAnnotation: zone.Name,
 				}}},

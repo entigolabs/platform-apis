@@ -281,6 +281,7 @@ func GetTargetNetworkPolicyKey(namespace, ingress, service string, port intstr.I
 
 func (g zoneGenerator) generateNamespaces() (map[string]runtime.Object, error) {
 	objs := make(map[string]runtime.Object)
+	zoneNs := base.NewSet[string]()
 	for _, ns := range g.zone.Spec.Namespaces {
 		namespace := g.getNamespace(ns.Name)
 		objs[GetNamespaceKey(ns.Name)] = namespace
@@ -288,8 +289,12 @@ func (g zoneGenerator) generateNamespaces() (map[string]runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
+		zoneNs.Add(ns.Name)
 	}
 	for _, ns := range g.namespaces {
+		if zoneNs.Contains(ns.Name) {
+			continue
+		}
 		var pool string
 		if ns.Labels != nil {
 			pool = ns.Labels[PoolLabel]

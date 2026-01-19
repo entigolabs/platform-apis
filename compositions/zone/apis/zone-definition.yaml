@@ -35,7 +35,7 @@ spec:
                 namespaces:
                   type: array
                   minItems: 1
-                  description: List of namespaces to manage as part of the Zone. At least one namespace must be specified.
+                  description: Deprecated, create namespaces with the matching zone label instead. List of namespaces to manage as part of the Zone. At least one namespace must be specified.
                   items:
                     type: object
                     properties:
