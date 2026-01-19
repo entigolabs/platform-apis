@@ -27,6 +27,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Run Static Tests
+        run: ${{ inputs.path }}/test/run_tests.sh
+
       - name: Remove Test and Examples Directories
         run: rm -rf ${{ inputs.path }}/test ${{ inputs.path }}/examples
           
