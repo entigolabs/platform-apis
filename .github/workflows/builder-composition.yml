@@ -19,7 +19,7 @@ jobs:
       - name: Add rights to execute test script
         run: chmod +x run_tests.sh
       - name: Runt Static Tests
-        run : ./run_tests.sh ${{ inputs.path }}
+        run : ./run-tests.sh ${{ inputs.path }}
 
   build:
     runs-on: ubuntu-24.04
