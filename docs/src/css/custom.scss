@@ -1,0 +1,577 @@
+/* src/css/custom.scss */
+
+/* -------------------------------------------------------
+   1. VARIABLES & CONFIGURATION
+   ------------------------------------------------------- */
+$spacers: (
+  0: 0,
+  4: 4px,
+  6: 6px,
+  8: 8px,
+  10: 10px,
+  12: 12px,
+  16: 16px,
+  20: 20px,
+  22: 22px,
+  /* Used for Navbar Logo alignment */
+  24: 24px,
+  28: 28px,
+  30: 30px,
+  32: 32px,
+  36: 36px,
+  38: 38px,
+  40: 40px,
+  43: 43px,
+  54: 54px
+);
+
+$breakpoints: (
+  lg: 996px
+);
+
+:root {
+  /* Docusaurus Defaults */
+  --ifm-color-primary: #2c7dff;
+  --ifm-color-primary-dark: #3767b5;
+  --ifm-color-primary-darker: #0e397e;
+  --ifm-color-primary-darkest: #192b5a;
+  --ifm-color-primary-light: #6ea8ff;
+  --ifm-color-primary-lighter: #87b1f1;
+  --ifm-color-primary-lightest: #ecf3ff;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Custom Brand Colors */
+  --entigo-blue: #2c7dff;
+  --bright-blue: #6ea8ff;
+  --light-grey: #f8f9fa;
+  --dark-bg: #141414;
+
+  /* --- NAVBAR DYNAMIC THEME VARIABLES (Light Mode Default) --- */
+  --navbar-bg-color: #ffffff;
+  --navbar-text-color: #212529;
+  /* Dark text */
+  --navbar-icon-color: var(--entigo-blue);
+  --navbar-hover-color: var(--entigo-blue);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #2c7dff;
+  --ifm-color-primary-dark: #3767b5;
+  --ifm-color-primary-darker: #0e397e;
+  --ifm-color-primary-darkest: #192b5a;
+  --ifm-color-primary-light: #6ea8ff;
+  --ifm-color-primary-lighter: #87b1f1;
+  --ifm-color-primary-lightest: #ecf3ff;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+
+  /* --- NAVBAR DYNAMIC THEME VARIABLES (Dark Mode Override) --- */
+  --navbar-bg-color: var(--dark-bg);
+  --navbar-text-color: #ffffff;
+  /* White text */
+  --navbar-icon-color: #ffffff;
+  --navbar-hover-color: var(--bright-blue);
+}
+
+.hero {
+  --ifm-hero-background-color: #2c7dff;
+}
+
+/* -------------------------------------------------------
+   2. STATIC UTILITIES (Mobile First Defaults)
+   ------------------------------------------------------- */
+
+// Display & Flex
+.d-flex {
+  display: flex !important;
+}
+
+.d-none {
+  display: none !important;
+}
+
+.d-block {
+  display: block !important;
+}
+
+.flex-column {
+  flex-direction: column !important;
+}
+
+.flex-wrap {
+  flex-wrap: wrap !important;
+}
+
+// Justify & Align
+.justify-content-space-between {
+  justify-content: space-between !important;
+}
+
+.justify-content-center {
+  justify-content: center !important;
+}
+
+.justify-content-flex-end {
+  justify-content: flex-end !important;
+}
+
+.align-items-center,
+.flex-align-items-center {
+  align-items: center !important;
+}
+
+// Positioning
+.position-relative {
+  position: relative !important;
+}
+
+.absolute {
+  position: absolute !important;
+}
+
+.w-100 {
+  width: 100% !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+// Text Styling
+.text-decoration-none {
+  text-decoration: none !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+// Typography
+.text-size-12 {
+  font-size: 12px;
+}
+
+.text-size-14 {
+  font-size: 14px;
+}
+
+.text-size-18 {
+  font-size: 18px;
+}
+
+.text-weight-400 {
+  font-weight: 400;
+}
+
+.text-weight-500 {
+  font-weight: 500;
+}
+
+.text-weight-600 {
+  font-weight: 600;
+}
+
+.text-weight-700 {
+  font-weight: 700;
+}
+
+.text-line-20 {
+  line-height: 20px;
+}
+
+// Color Utilities
+.text-white {
+  color: #ffffff !important;
+}
+
+.text-dark {
+  color: #212529 !important;
+}
+
+.text-light-grey {
+  color: var(--light-grey) !important;
+}
+
+.text-entigo-blue {
+  color: var(--entigo-blue) !important;
+}
+
+.text-bright-blue {
+  color: var(--bright-blue) !important;
+}
+
+// Hover States
+.text-hover-blue:hover {
+  color: var(--entigo-blue) !important;
+}
+
+.hover-text-entigo-blue:hover {
+  color: var(--entigo-blue) !important;
+  transition: color 0.2s ease;
+}
+
+.hover-text-bright-blue {
+  transition: color 0.2s ease;
+}
+
+.hover-text-bright-blue:hover {
+  color: var(--bright-blue) !important;
+  text-decoration: none !important;
+}
+
+// Backgrounds
+.background-white {
+  background-color: #ffffff !important;
+}
+
+.background-light-grey {
+  background-color: var(--light-grey) !important;
+}
+
+.background-dark {
+  background-color: var(--dark-bg) !important;
+}
+
+/* -------------------------------------------------------
+   3. VERSATILE UTILITY LOOPS (Margins/Padding)
+   ------------------------------------------------------- */
+@each $spacing, $value in $spacers {
+  .m-#{$spacing} {
+    margin: $value !important;
+  }
+
+  .mt-#{$spacing} {
+    margin-top: $value !important;
+  }
+
+  .mr-#{$spacing} {
+    margin-right: $value !important;
+  }
+
+  .mb-#{$spacing} {
+    margin-bottom: $value !important;
+  }
+
+  .ml-#{$spacing} {
+    margin-left: $value !important;
+  }
+
+  .mx-#{$spacing} {
+    margin-left: $value !important;
+    margin-right: $value !important;
+  }
+
+  .my-#{$spacing} {
+    margin-top: $value !important;
+    margin-bottom: $value !important;
+  }
+
+  .p-#{$spacing} {
+    padding: $value !important;
+  }
+
+  .pt-#{$spacing} {
+    padding-top: $value !important;
+  }
+
+  .pr-#{$spacing} {
+    padding-right: $value !important;
+  }
+
+  .pb-#{$spacing} {
+    padding-bottom: $value !important;
+  }
+
+  .pl-#{$spacing} {
+    padding-left: $value !important;
+  }
+
+  .px-#{$spacing} {
+    padding-left: $value !important;
+    padding-right: $value !important;
+  }
+
+  .py-#{$spacing} {
+    padding-top: $value !important;
+    padding-bottom: $value !important;
+  }
+
+  .gap-#{$spacing} {
+    gap: $value !important;
+  }
+}
+
+/* -------------------------------------------------------
+   4. LAYOUT COMPONENTS
+   ------------------------------------------------------- */
+.container,
+.container-fluid,
+.container-xxl,
+.container-xl,
+.container-lg,
+.container-md,
+.container-sm {
+  --bs-gutter-x: 1.5rem;
+  --bs-gutter-y: 0;
+  width: 100%;
+  padding-right: calc(var(--bs-gutter-x) * 0.5);
+  padding-left: calc(var(--bs-gutter-x) * 0.5);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 0;
+  margin-right: -0.75rem;
+  margin-left: -0.75rem;
+}
+
+.col-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+// Burger Icon Helper
+.burger-icon svg {
+  width: 40px;
+  height: 40px;
+  fill: currentColor;
+}
+
+/* -------------------------------------------------------
+   5. COMPONENT OVERRIDES
+   ------------------------------------------------------- */
+
+/* NAVBAR: Core Overrides */
+/* src/css/custom.scss */
+
+.navbar {
+  height: auto !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  // box-shadow: none !important;
+  // border-bottom: none !important;
+
+  /* 👇 MAKE SURE THIS LINE IS HERE */
+  background-color: var(--navbar-bg-color) !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+
+  display: block !important;
+  position: relative !important;
+  z-index: 1000 !important;
+}
+
+.navbar--fixed-top {
+  position: relative !important;
+}
+
+.navbar>.container {
+  display: block !important;
+  width: 100% !important;
+  max-width: 1320px !important;
+}
+
+/* NAVBAR: Dynamic Link Colors (Switches based on CSS Variables) */
+.nav-link-dynamic {
+  color: var(--navbar-text-color) !important;
+  transition: color 0.2s ease;
+}
+
+.nav-link-dynamic:hover {
+  color: var(--navbar-hover-color) !important;
+  text-decoration: none !important;
+}
+
+/* NAVBAR: Dynamic Icon Colors */
+.nav-icon-dynamic {
+  color: var(--navbar-icon-color) !important;
+  fill: currentColor;
+}
+
+/* NAVBAR: General Link Reset */
+.navbar a,
+.navbar a:hover {
+  text-decoration: none !important;
+}
+
+.footer {
+  height: auto !important;
+
+}
+
+/* FOOTER: Link Reset */
+.footer-custom a,
+.footer-custom a:hover {
+  text-decoration: none !important;
+}
+
+/* -------------------------------------------------------
+   6. RESPONSIVE MEDIA QUERIES (MUST BE LAST TO OVERRIDE)
+   ------------------------------------------------------- */
+@each $spacing, $value in $spacers {
+  @each $size, $breakpoint in $breakpoints {
+    @media (min-width: $breakpoint) {
+      .m-#{$size}-#{$spacing} {
+        margin: $value !important;
+      }
+
+      .mt-#{$size}-#{$spacing} {
+        margin-top: $value !important;
+      }
+
+      .mr-#{$size}-#{$spacing} {
+        margin-right: $value !important;
+      }
+
+      .mb-#{$size}-#{$spacing} {
+        margin-bottom: $value !important;
+      }
+
+      .ml-#{$size}-#{$spacing} {
+        margin-left: $value !important;
+      }
+
+      .mx-#{$size}-#{$spacing} {
+        margin-left: $value !important;
+        margin-right: $value !important;
+      }
+
+      .my-#{$size}-#{$spacing} {
+        margin-top: $value !important;
+        margin-bottom: $value !important;
+      }
+
+      .p-#{$size}-#{$spacing} {
+        padding: $value !important;
+      }
+
+      .pt-#{$size}-#{$spacing} {
+        padding-top: $value !important;
+      }
+
+      .pr-#{$size}-#{$spacing} {
+        padding-right: $value !important;
+      }
+
+      .pb-#{$size}-#{$spacing} {
+        padding-bottom: $value !important;
+      }
+
+      .pl-#{$size}-#{$spacing} {
+        padding-left: $value !important;
+      }
+
+      .px-#{$size}-#{$spacing} {
+        padding-left: $value !important;
+        padding-right: $value !important;
+      }
+
+      .py-#{$size}-#{$spacing} {
+        padding-top: $value !important;
+        padding-bottom: $value !important;
+      }
+
+      .gap-#{$size}-#{$spacing} {
+        gap: $value !important;
+      }
+    }
+  }
+}
+
+// Specific LG Overrides
+@media (min-width: map-get($breakpoints, lg)) {
+  .col-lg-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+
+  // Responsive display utilities
+  .d-lg-flex {
+    display: flex !important;
+  }
+
+  .d-lg-none,
+  .d-md-none {
+    display: none !important;
+  }
+
+  // Flex Ordering / Text Alignment
+  .order-lg-first {
+    order: -1 !important;
+  }
+
+  .text-lg-right {
+    text-align: right !important;
+  }
+
+  .text-lg-left {
+    text-align: left !important;
+  }
+
+  // Justify Alignment
+  .justify-content-lg-start {
+    justify-content: flex-start !important;
+  }
+
+  .justify-content-lg-flex-start {
+    justify-content: flex-start !important;
+  }
+}
+
+@media (min-width: 576px) {
+
+  .container-sm,
+  .container {
+    max-width: 540px;
+  }
+}
+
+@media (min-width: 768px) {
+
+  .container-md,
+  .container-sm,
+  .container {
+    max-width: 720px;
+  }
+}
+
+@media (min-width: 992px) {
+
+  .container-lg,
+  .container-md,
+  .container-sm,
+  .container {
+    max-width: 960px;
+  }
+}
+
+@media (min-width: 1200px) {
+
+  .container-xl,
+  .container-lg,
+  .container-md,
+  .container-sm,
+  .container {
+    max-width: 1140px;
+  }
+}
+
+@media (min-width: 1400px) {
+
+  .container-xxl,
+  .container-xl,
+  .container-lg,
+  .container-md,
+  .container-sm,
+  .container {
+    max-width: 1320px;
+  }
+}
+
+.bottom-border-grey {
+  border-bottom: 1px solid rgba(233, 236, 241, 1);
+}
