@@ -4,7 +4,7 @@ set -e
 GIT_ROOT=$(git rev-parse --show-toplevel)
 cd "$GIT_ROOT"
 
-IMAGE_NAME="platform-apis-test-runner"
+IMAGE_NAME="${IMAGE_NAME:-platform-apis-test-runner}"
 DOCKERFILE="test/build/Dockerfile.test"
 
 BLUE='\033[0;34m'

@@ -32,8 +32,6 @@ jobs:
              docker pull "$LATEST_IMAGE"
              echo "IMAGE_NAME=$LATEST_IMAGE" >> $GITHUB_ENV
           fi
-      - name: Pull Latest Image
-        run: docker pull ${{ env.IMAGE_NAME }}
       - name: Add rights to execute test script
         run: chmod +x run-tests.sh
       - name: Run Static Tests
