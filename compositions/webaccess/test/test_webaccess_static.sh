@@ -4,7 +4,7 @@ load_mocks
 
 INPUT="../examples/webaccess.yaml"
 COMPOSITION="../apis/webaccess-composition.yaml"
-FUNC_CONFIG="networking-function.yaml"
+FUNC_CONFIG="/workspace/test/common/functions.yaml"
 ENV_CONFIG="../examples/environment-config.yaml"
 
 setup_function "/workspace/functions/networking"

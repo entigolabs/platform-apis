@@ -4,7 +4,7 @@ load_mocks
 
 INPUT="../examples/webapp.yaml"
 COMPOSITION="../apis/webapp-composition.yaml"
-FUNC_CONFIG="workload-function.yaml"
+FUNC_CONFIG="/workspace/test/common/functions.yaml"
 ENV_CONFIG="../examples/environment-config.yaml"
 
 setup_function "/workspace/functions/workload"

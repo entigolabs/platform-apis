@@ -16,9 +16,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set Test Image
+        run: echo "IMAGE_NAME=${{ vars.DOCKER_USERNAME }}/platform-apis-test-runner:latest" >> $GITHUB_ENV
+      - name: Pull Latest Image
+        run: docker pull ${{ env.IMAGE_NAME }}
       - name: Add rights to execute test script
         run: chmod +x run-tests.sh
       - name: Run Static Tests
+        env:
+          SKIP_BUILD: "true"
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run : ./run-tests.sh ${{ inputs.path }}
 
   build:

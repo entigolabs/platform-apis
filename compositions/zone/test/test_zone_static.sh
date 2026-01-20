@@ -4,7 +4,7 @@ load_mocks
 
 INPUT="../examples/zone.yaml"
 COMPOSITION="../apis/zone-composition.yaml"
-FUNC_CONFIG="tenancy-function.yaml"
+FUNC_CONFIG="/workspace/test/common/functions.yaml"
 ENV_CONFIG="../examples/environment-config.yaml"
 
 setup_function "/workspace/functions/tenancy"

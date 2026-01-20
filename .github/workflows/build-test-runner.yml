@@ -1,0 +1,35 @@
+name: Build Test Runner
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'test/build/Dockerfile.test'
+      - 'functions/**/go.mod'
+  pull_request:
+    paths:
+      - 'test/build/Dockerfile.test'
+      - 'functions/**/go.mod'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - id: tag
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "tag=pr-${{ github.event.number }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+  build:
+    needs: prepare
+    uses: ./.github/workflows/test-runner-image.yml
+    with:
+      image_name: ${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner
+      dockerfile: test/build/Dockerfile.test
+      tag: ${{ needs.prepare.outputs.tag }}
+    secrets: inherit

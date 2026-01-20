@@ -4,7 +4,7 @@ load_mocks
 
 INPUT="../examples/repository.yaml"
 COMPOSITION="../apis/repository-composition.yaml"
-FUNC_CONFIG="artifact-function.yaml"
+FUNC_CONFIG="/workspace/test/common/functions.yaml"
 ENV_CONFIG="../examples/environment-config.yaml"
 
 setup_function "/workspace/functions/artifact"

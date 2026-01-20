@@ -29,3 +29,53 @@ metadata:
   name: function-patch-and-transform
 spec:
   package: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform:v0.9.1
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-workload-fn
+  annotations:
+    render.crossplane.io/runtime: Development
+spec:
+  runtimeConfigRef:
+    name: platform-apis-workload-fn
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-database-fn
+  annotations:
+    render.crossplane.io/runtime: Development
+spec:
+  runtimeConfigRef:
+    name: platform-apis-database-fn
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-artifact-fn
+  annotations:
+    render.crossplane.io/runtime: Development
+spec:
+  runtimeConfigRef:
+    name: platform-apis-artifact-fn
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-networking-fn
+  annotations:
+    render.crossplane.io/runtime: Development
+spec:
+  runtimeConfigRef:
+    name: platform-apis-networking-fn
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-tenancy-fn
+  annotations:
+    render.crossplane.io/runtime: Development
+spec:
+  runtimeConfigRef:
+    name: platform-apis-tenancy-fn
