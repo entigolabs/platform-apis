@@ -171,8 +171,15 @@ jobs:
       # Go's pseudo-versions: https://go.dev/ref/mod#pseudo-versions.
       - name: Set Default Multi-Platform Package Version
         if: env.XPKG_VERSION == ''
-        run: echo "XPKG_VERSION=v0.1.${{ github.run_number }}" >> $GITHUB_ENV
-
+        run: |
+          VERSION="v0.1.${{ github.run_number }}"
+          
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            VERSION="${VERSION}-rc.${{ github.event.number }}"
+          fi
+          
+          echo "Auto-generated Version: $VERSION"
+          echo "XPKG_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Push Multi-Platform Package to GitHub Container Registry
         # XPKG repo name can't contain uppercase characters like UpboundCare, we need to lowercase if the GithubOrg contains them.

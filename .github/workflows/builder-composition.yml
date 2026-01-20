@@ -32,8 +32,10 @@ jobs:
              docker pull "$LATEST_IMAGE"
              echo "IMAGE_NAME=$LATEST_IMAGE" >> $GITHUB_ENV
           fi
+
       - name: Add rights to execute test script
         run: chmod +x run-tests.sh
+
       - name: Run Static Tests
         env:
           SKIP_BUILD: "true"
@@ -59,6 +61,16 @@ jobs:
 
       - name: Remove Test and Examples Directories
         run: rm -rf ${{ inputs.path }}/test ${{ inputs.path }}/examples
+
+      - name: Calculate Package Version
+        run: |
+          VERSION="v0.1.${{ github.run_number }}"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            VERSION="${VERSION}-rc.${{ github.event.number }}"
+          fi
+            
+          echo "Calculated Version: $VERSION"
+          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
           
       - name: Build & Publish Package
         working-directory: ${{ inputs.path }}
@@ -69,4 +81,4 @@ jobs:
 
           crossplane xpkg push \
             -f ${{ inputs.name }}.xpkg \
-            ghcr.io/${{ github.repository_owner }}/${{ inputs.name }}:v0.1.${{ github.run_number }}
+            ghcr.io/${{ github.repository_owner }}/${{ inputs.name }}:${{ env.PACKAGE_VERSION }}
