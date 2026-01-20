@@ -17,7 +17,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set Test Image
-        run: echo "IMAGE_NAME=${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner:latest" >> $GITHUB_ENV
+        run: |
+          PR_IMAGE="${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner:pr-${{ github.event.number }}"
+          LATEST_IMAGE="${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner:latest"
+          
+          echo "Attempting to pull PR image: $PR_IMAGE"
+          
+          if docker pull "$PR_IMAGE"; then
+             echo "Using PR image."
+             echo "IMAGE_NAME=$PR_IMAGE" >> $GITHUB_ENV
+          else
+             echo "PR image not found. Falling back to 'latest'..."
+          
+             docker pull "$LATEST_IMAGE"
+             echo "IMAGE_NAME=$LATEST_IMAGE" >> $GITHUB_ENV
+          fi
       - name: Pull Latest Image
         run: docker pull ${{ env.IMAGE_NAME }}
       - name: Add rights to execute test script
