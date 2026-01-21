@@ -7,7 +7,12 @@ WORKDIR /opt/docusaurus
 COPY . /opt/docusaurus/
 
 RUN npm ci
-RUN npm run build
+
+ARG MARKETING_URL
+
+RUN --mount=type=secret,id=STRAPI_URL,env=STRAPI_URL \
+    --mount=type=secret,id=STRAPI_API_TOKEN,env=STRAPI_API_TOKEN \
+    npm run build
 
 FROM nginx:stable-alpine AS prod
 WORKDIR /opt/docusaurus
