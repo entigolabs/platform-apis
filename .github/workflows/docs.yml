@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          sparse-checkout: docs
       - name: Install crdoc & generate API documentation
         run: |
           mkdir docs/temp
@@ -43,6 +45,7 @@ jobs:
             type=raw,value=v1.${{ github.run_number }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
+        working-directory: docs
         with:
           context: .
           push: true
