@@ -73,9 +73,6 @@ spec:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Key
                 matchName: data
-              msk-observer:
-                apiVersion: kafka.entigo.com/v1alpha1
-                kind: MSK
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $kmskeys := getExtraResources . "kms-key" -}}
