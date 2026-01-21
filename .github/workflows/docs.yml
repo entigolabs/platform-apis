@@ -19,8 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: docs
       - name: Install crdoc & generate API documentation
         run: |
           mkdir docs/temp
