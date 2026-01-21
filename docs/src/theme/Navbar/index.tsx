@@ -60,7 +60,7 @@ export default function Navbar(): JSX.Element | null {
                         <div className="d-flex flex-wrap justify-content-space-between align-items-center px-12">
 
                             {/* LOGO */ }
-                            <StrapiLink href="/" className="d-flex flex-align-items-center cursor-pointer my-28 my-lg-22 logo-link">
+                            <StrapiLink href="https://docs.entigo.com/" className="d-flex flex-align-items-center cursor-pointer my-28 my-lg-22 logo-link">
                                 { headerNavbarContent.logo?.url && (
                                     <ReactSVG
                                         src={ headerNavbarContent.logo.url }
@@ -120,7 +120,7 @@ export default function Navbar(): JSX.Element | null {
 
                                 <div className="d-flex flex-column justify-content-center flex-align-items-center">
                                     <StrapiLink href={ headerNavbarContent.cta_href } target={ headerNavbarContent.target } className="text-decoration-none">
-                                        <button className={ classNames('btn-custom', styles.ctaButton, isDark ? 'text-dark' : 'text-white') }>
+                                        <button className={ classNames('btn-custom text-white', styles.ctaButton) }>
                                             { headerNavbarContent.cta_text }
                                         </button>
                                     </StrapiLink>
@@ -197,7 +197,7 @@ export default function Navbar(): JSX.Element | null {
                     <div className="d-flex my-28 my-lg-22 align-items-center justify-content-space-between">
                         <StrapiLink href={ headerNavbarContent.cta_href } target={ headerNavbarContent.target }
                             onClick={ () => setHamburgerOpen(false) }
-                            className={ classNames('btn-custom text-decoration-none', styles.ctaButton, isDark ? 'text-dark' : 'text-white') }>
+                            className={ classNames('btn-custom text-decoration-none text-white', styles.ctaButton) }>
                             { headerNavbarContent.cta_text }
                         </StrapiLink>
 
