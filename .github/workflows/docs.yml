@@ -45,9 +45,9 @@ jobs:
             type=raw,value=v1.${{ github.run_number }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
-        working-directory: docs
         with:
-          context: .
+          context: docs
+          file: docs/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
