@@ -39,13 +39,11 @@ spec:
             {{- if not $password -}}
               {{- $password = randAlphaNum 32 -}}
             {{- end -}}
-            {{- $bootstrapServersScram := "" -}}
+            {{- $bootstrapServers := "" -}}
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
             {{- if $mskObservers -}}
               {{- $mskObserver := mustFirst $mskObservers -}}
-              {{- if $mskObserver.resource.status -}}
-                {{- $bootstrapServersScram = $mskObserver.resource.status.brokersScram | default "" -}}
-              {{- end -}}
+              {{- $bootstrapServers = $mskObserver.resource.status.brokers | default "" -}}
             {{- end }}
             ---
             apiVersion: v1
@@ -61,7 +59,7 @@ spec:
                 gotemplating.fn.crossplane.io/ready: "True"
             type: Opaque
             stringData:
-              secretString: '{"username":"{{ $username }}","password":"{{ $password }}","bootstrap_servers":"{{ $bootstrapServersScram }}"}'
+              secretString: '{"username":"{{ $username }}","password":"{{ $password }}","bootstrap_servers":"{{ $bootstrapServers }}"}'
             {{- if $observedSecret }}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
