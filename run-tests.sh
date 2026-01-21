@@ -26,6 +26,21 @@ build_image() {
   fi
 }
 
+# Unified docker test runner
+run_docker_test() {
+  local test_type="$1"
+  local workdir="$2"
+
+  docker run --rm \
+    -v "$GIT_ROOT:/workspace" \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    --network host \
+    -e TERM=xterm \
+    -w "$workdir" \
+    $IMAGE_NAME \
+    /bin/bash /workspace/test/runner.sh --type="$test_type"
+}
+
 run_composition_test() {
   local target_path="${1%/}"
 
@@ -33,40 +48,19 @@ run_composition_test() {
     target_path=$(dirname "$target_path")
   fi
 
-  local full_workdir="/workspace/$target_path"
-
   log_info "Running Composition Suite: $target_path"
-
-  docker run --rm \
-    -v "$GIT_ROOT:/workspace" \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    --network host \
-    -e TERM=xterm \
-    -w "$full_workdir/test" \
-    $IMAGE_NAME \
-    /bin/bash /workspace/test/runner.sh
+  run_docker_test "composition" "/workspace/$target_path/test"
 }
 
 run_function_test() {
   local func_name=$(basename "$1")
-  log_info "Running Go Tests: functions/$func_name"
-
-  docker run --rm \
-    -v "$GIT_ROOT:/workspace" \
-    -w "/workspace/functions/$func_name" \
-    -e CGO_ENABLED=1 \
-    $IMAGE_NAME \
-    go test -v .
+  log_info "Running Function Tests: functions/$func_name"
+  run_docker_test "function" "/workspace/functions/$func_name"
 }
 
 run_helm_test() {
-  log_info "Running Helm Lint & Kubeconform..."
-  CRD_CATALOG="https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
-  docker run --rm \
-    -v "$GIT_ROOT:/workspace" \
-    -w "/workspace" \
-    $IMAGE_NAME \
-    /bin/bash -c "helm lint ./helm && helm template my-release ./helm | kubeconform -verbose -summary -ignore-missing-schemas -schema-location default -schema-location '$CRD_CATALOG'"
+  log_info "Running Helm Tests..."
+  run_docker_test "helm" "/workspace/helm"
 }
 
 TARGET="${1%/}"
@@ -93,7 +87,7 @@ if [ -z "$TARGET" ]; then
     fi
   done
 
-  # 3. Helm
+  # Helm
   if [ -d "helm" ]; then run_helm_test; fi
 
 else
@@ -109,7 +103,7 @@ else
     if [ -d "$TARGET/test" ] || [[ "$PWD" == *"/test" ]]; then
        run_composition_test "$TARGET"
     else
-       log_error "Unknown target: $TARGET"
+       echo "Unknown target: $TARGET"
        exit 1
     fi
   fi

@@ -13,6 +13,80 @@ load_mocks() {
   fi
 }
 
+# Initialize test environment by deriving paths from test filename.
+# Usage: init_test "resource_name" [function_path]
+# Example: init_test "cronjob" "/workspace/functions/workload"
+init_test() {
+  local resource="$1"
+  local func_path="$2"
+
+  INPUT="../examples/${resource}.yaml"
+  COMPOSITION="../apis/${resource}-composition.yaml"
+  ENV_CONFIG="../examples/environment-config.yaml"
+  FUNC_CONFIG="/workspace/test/common/functions.yaml"
+
+  if [ -n "$func_path" ]; then
+    setup_function "$func_path"
+  fi
+}
+
+# Setup extra resources from required-resources.yaml and optionally mock environment
+# Usage: setup_resources [--env] [--required]
+#   --env       Mock the environment config
+#   --required  Copy required-resources.yaml to EXTRA_RESOURCES
+setup_resources() {
+  local mock_env=false
+  local copy_required=false
+
+  for arg in "$@"; do
+    case "$arg" in
+      --env) mock_env=true ;;
+      --required) copy_required=true ;;
+    esac
+  done
+
+  if [ "$copy_required" = true ] && [ -f "../examples/required-resources.yaml" ]; then
+    cp "../examples/required-resources.yaml" "$EXTRA_RESOURCES"
+  fi
+
+  if [ "$mock_env" = true ]; then
+    mock_environment "$ENV_CONFIG"
+  fi
+}
+
+# Append output to observed resources with YAML document separator
+# Usage: echo "$OUTPUT" | mock_function | append_observed
+# Or:    append_observed < <(echo "$OUTPUT" | mock_function)
+append_observed() {
+  if [ -s "$OBSERVED_RESOURCES" ]; then
+    echo "---" >> "$OBSERVED_RESOURCES"
+  fi
+  cat >> "$OBSERVED_RESOURCES"
+}
+
+# Start fresh observed resources (overwrite)
+# Usage: echo "$OUTPUT" | mock_function | start_observed
+start_observed() {
+  cat > "$OBSERVED_RESOURCES"
+}
+
+mock_environment() {
+  local env_config_path="$1"
+  echo "Mocking EnvironmentConfig from $env_config_path..."
+
+  touch "$EXTRA_RESOURCES"
+
+  local mocked_env
+  mocked_env=$(cat "$EXTRA_RESOURCES" | yq 'select(.kind == "EnvironmentConfig") | length' - | wc -l | xargs)
+
+  if [ "$mocked_env" -eq 0 ]; then
+    if [ -s "$EXTRA_RESOURCES" ]; then
+      echo "---" >> "$EXTRA_RESOURCES";
+    fi
+    yq 'select(.kind == "EnvironmentConfig")' "$env_config_path" >> "$EXTRA_RESOURCES"
+  fi
+}
+
 cleanup_test() {
   rm -f "$OBSERVED_RESOURCES"
   rm -f "$EXTRA_RESOURCES"
@@ -65,23 +139,6 @@ setup_function() {
   wait_for_function "9443"
 }
 
-mock_environment() {
-  local env_config_path="$1"
-  echo "Mocking EnvironmentConfig from $env_config_path..."
-
-  touch "$EXTRA_RESOURCES"
-
-  local mocked_env
-  mocked_env=$(cat "$EXTRA_RESOURCES" | yq eval 'select(.kind == "EnvironmentConfig") | length' - | wc -l | xargs)
-
-  if [ "$mocked_env" -eq 0 ]; then
-    if [ -s "$EXTRA_RESOURCES" ]; then
-      echo "---" >> "$EXTRA_RESOURCES";
-    fi
-    yq 'select(.kind == "EnvironmentConfig")' "$env_config_path" >> "$EXTRA_RESOURCES"
-  fi
-}
-
 run_render() {
   local input="$1"
   local composition="$2"
@@ -128,7 +185,7 @@ assert_counts() {
     local expected=$2
 
     local actual
-    actual=$(echo "$output" | yq eval "select(.kind == \"$kind\") | length" - | wc -l | xargs)
+    actual=$(echo "$output" | yq "select(.kind == \"$kind\") | length" - | wc -l | xargs)
 
     if [ "$actual" -eq "$expected" ]; then
       echo -e "   ${GREEN}SUCCESS: $kind count: $actual/$expected${NC}"
@@ -151,12 +208,12 @@ assert_ready() {
   local output="$1"
   local kind="$2"
 
-  if echo "$output" | yq eval "select(.kind == \"$kind\")" - | grep -q 'status: "True"'; then
+  if echo "$output" | yq "select(.kind == \"$kind\")" - | grep -q 'status: "True"'; then
     echo -e "${GREEN} SUCCESS: $kind is Ready.${NC}"
   else
     echo -e "${RED} FAIL: $kind is NOT Ready.${NC}"
     echo -e "${YELLOW}--- Debug Output for $kind ---${NC}"
-    echo "$output" | yq eval "select(.kind == \"$kind\")" -
+    echo "$output" | yq "select(.kind == \"$kind\")" -
     cleanup_test
     exit 1
   fi

@@ -17,29 +17,38 @@ env:
   CHART_NAME: platform-apis
 jobs:
   lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Helm Lint
-        run: helm lint ${{ env.CHART_PATH }}
-      - name: Helm Template
+
+      - name: Set Test Image
         run: |
-          mkdir -p out
-          helm template test-release ${{ env.CHART_PATH }} > out/manifest.yaml
-      - name: Install kube-score
-        run: |
-          wget https://github.com/zegl/kube-score/releases/download/v1.19.0/kube-score_1.19.0_linux_amd64 -O kube-score
-          chmod +x kube-score
-          sudo mv kube-score /usr/local/bin/
-      - name: Run kube-score
-        run: kube-score score out/manifest.yaml --output-format ci
+          PR_IMAGE="${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner:pr-${{ github.event.number }}"
+          LATEST_IMAGE="${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner:latest"
+
+          echo "Attempting to pull PR image: $PR_IMAGE"
+
+          if docker pull "$PR_IMAGE"; then
+             echo "Using PR image."
+             echo "IMAGE_NAME=$PR_IMAGE" >> $GITHUB_ENV
+          else
+             echo "PR image not found. Falling back to 'latest'..."
+
+             docker pull "$LATEST_IMAGE"
+             echo "IMAGE_NAME=$LATEST_IMAGE" >> $GITHUB_ENV
+          fi
+
+      - name: Add rights to execute test script
+        run: chmod +x run-tests.sh
+
+      - name: Run Helm Tests
+        env:
+          SKIP_BUILD: "true"
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: ./run-tests.sh helm
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: lint-and-test
     permissions:
       contents: read
@@ -122,6 +131,9 @@ jobs:
         run: |
           sed -i "s/^version:.*/version: ${{ env.NEW_VERSION }}/" ${{ env.CHART_PATH }}/Chart.yaml
           echo "Updated Chart.yaml version to ${{ env.NEW_VERSION }}"
+
+      - name: Remove Test Files
+        run: rm -f ${{ env.CHART_PATH }}/run_tests.sh
 
       - name: Login to GHCR
         uses: docker/login-action@v3

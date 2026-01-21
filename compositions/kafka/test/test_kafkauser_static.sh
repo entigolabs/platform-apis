@@ -1,15 +1,13 @@
 #!/bin/bash
 
 load_mocks
+init_test "kafka-user"
+INPUT="../examples/user-a.yaml"  # override default input
+COMPOSITION="../apis/kafka-user-composition.yaml"  # override default
+setup_resources --required
 
-INPUT="../examples/user-a.yaml"
-COMPOSITION="../apis/kafka-user-composition.yaml"
-FUNC_CONFIG="/workspace/test/common/functions.yaml"
+# Mock MSK as a required resource
 MSK="../examples/msk-observer.yaml"
-
-cp "../examples/required-resources.yaml" "$EXTRA_RESOURCES"
-
-echo "Mocking required resources"
 echo "---" >> $EXTRA_RESOURCES
 cat "$MSK" | mock_observed_resources >> "$EXTRA_RESOURCES"
 
@@ -22,9 +20,9 @@ yq -i '
   .spec.claimRef.namespace = "default"
  ' "$TEMP_INPUT"
 
+# Remove sequence-creation step for testing
 TEMP_COMPOSITION="temp_composition.yaml"
 cp "$COMPOSITION" "$TEMP_COMPOSITION"
-
 yq -i 'del(.spec.pipeline[] | select(.step == "sequence-creation"))' "$TEMP_COMPOSITION"
 
 echo "TEST 1: rendering Secret, SecretVersion, SecretPolicy, SingleScramSecretAssociation, AccessControlList"

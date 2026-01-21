@@ -1,25 +1,16 @@
 #!/bin/bash
 
 load_mocks
-
-INPUT="../examples/repository.yaml"
-COMPOSITION="../apis/repository-composition.yaml"
-FUNC_CONFIG="/workspace/test/common/functions.yaml"
-ENV_CONFIG="../examples/environment-config.yaml"
-
-setup_function "/workspace/functions/artifact"
-
-cp "../examples/required-resources.yaml" "$EXTRA_RESOURCES"
-mock_environment "$ENV_CONFIG"
+init_test "repository" "/workspace/functions/artifact"
+setup_resources --env --required
 
 echo "TEST 1: rendering repository"
-OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES")
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 assert_counts "$OUTPUT" "Repository" 2 # because our input has same kind
 
 echo "Mocking observed resources"
-echo "---" >> $OBSERVED_RESOURCES
-echo "$OUTPUT" | mock_observed_resources >> "$OBSERVED_RESOURCES"
+echo "$OUTPUT" | mock_observed_resources | append_observed
 
 echo "TEST 2: Checking Repository Readiness"
-OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG" "$EXTRA_RESOURCES" "$OBSERVED_RESOURCES")
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 assert_ready "$OUTPUT" "Repository"
