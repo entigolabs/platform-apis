@@ -48,7 +48,6 @@ export default function Navbar(): JSX.Element | null {
 
     const handleThemeChange = () => {
         const newMode = colorMode === 'dark' ? 'light' : 'dark';
-        console.log('Manual Toggle: Switching to:', newMode);
         setColorMode(newMode);
     };
 
