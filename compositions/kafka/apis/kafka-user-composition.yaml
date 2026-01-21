@@ -98,6 +98,7 @@ spec:
                 description: "SCRAM credentials for Kafka user {{ $username }}"
                 region: {{ $region }}
                 kmsKeyId: {{ $kmsKeyId }}
+                recoveryWindowInDays: 0
                 tags:
                   KafkaCluster: {{ $clusterName }}
                   KafkaUser: {{ $username }}
