@@ -39,12 +39,10 @@ spec:
             {{- if not $password -}}
               {{- $password = randAlphaNum 32 -}}
             {{- end -}}
-            {{- $bootstrapServersScram := "" -}}
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
             {{- if $mskObservers -}}
               {{- $mskObserver := mustFirst $mskObservers -}}
-              {{- $bootstrapServersScram = $mskObserver.resource.status.brokersScram | default "" -}}
-            {{- end }}
+              {{- $bootstrapServersScram := $mskObserver.resource.status.brokersScram | default "" }}
             ---
             apiVersion: v1
             kind: Secret
@@ -60,6 +58,7 @@ spec:
             type: Opaque
             stringData:
               secretString: '{"username":"{{ $username }}","password":"{{ $password }}","bootstrap_servers":"{{ $bootstrapServersScram }}"}'
+            {{- end }}
             {{- if $observedSecret }}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
