@@ -43,7 +43,7 @@ spec:
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
             {{- if $mskObservers -}}
               {{- $mskObserver := mustFirst $mskObservers -}}
-              {{- $bootstrapServers = $mskObserver.resource.status.brokersScram | default "" -}}
+              {{- $bootstrapServers = $mskObserver.resource.status.brokersscram | default "" -}}
             {{- end }}
             ---
             apiVersion: v1

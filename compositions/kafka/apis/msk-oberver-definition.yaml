@@ -30,7 +30,7 @@ spec:
             properties:
               brokers:
                 type: string
-              brokersScram:
+              brokersscram:
                 type: string
               arn:
                 type: string

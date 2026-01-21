@@ -86,7 +86,7 @@ spec:
           kind: MSK
           status:
             brokers: {{ $mskCluster.resource.status.atProvider.bootstrapBrokersSaslIam | quote }}
-            brokersScram: {{ $mskCluster.resource.status.atProvider.bootstrapBrokersSaslScram | quote }}
+            brokersscram: {{ $mskCluster.resource.status.atProvider.bootstrapBrokersSaslScram | quote }}
             arn: {{ $mskCluster.resource.status.atProvider.arn | quote }}
             region: {{ $region | quote }}
             providerConfig: {{ $clusterName }}-observed
