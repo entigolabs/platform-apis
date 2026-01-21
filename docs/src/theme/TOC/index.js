@@ -7,7 +7,6 @@ export default function TOCWrapper(props) {
   const params = new URLSearchParams(location.search);
   const tab = params.get('tab') || 'api-reference';
 
-  //TODO: When table of contents is rendered, it covers entigo logo, so it is not clickable (although it is visible)
   // Filter headings based on tab
   const filteredToc = props.toc.filter(item => {
     if (tab === 'api-reference') {

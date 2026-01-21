@@ -5,26 +5,21 @@
   overflow: hidden;
 }
 
-/* 1. Base styles (Desktop) */
 .buttons {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 24px;
-  /* Adds space between buttons */
   margin-top: 24px;
 }
 
-/* 2. Mobile styles (Narrow screens) */
 @media screen and (max-width: 996px) {
   .buttons {
     flex-direction: column;
-    /* Stacks buttons vertically */
     width: 100%;
     padding: 0 20px;
   }
 
-  /* Optional: Make buttons nice and wide on mobile for easier tapping */
   .buttons a {
     width: 100%;
     max-width: 350px;
