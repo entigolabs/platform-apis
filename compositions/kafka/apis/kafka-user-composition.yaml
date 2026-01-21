@@ -72,7 +72,7 @@ spec:
               kms-key:
                 apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Key
-                matchName: data
+                matchName: config
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
             {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider }}
             {{- $kmskeys := getExtraResources . "kms-key" -}}
