@@ -20,6 +20,13 @@ spec:
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
             {{- $username := .observed.composite.resource.spec.claimRef.name -}}
             {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              msk-observer:
+                apiVersion: kafka.entigo.com/v1alpha1
+                kind: MSK
+                matchName: {{ $clusterName }}-observed
             {{- $secretResourceName := printf "k8s-secret-%s" $username -}}
             {{- $observedSecret := getComposedResource . $secretResourceName -}}
             {{- $password := "" -}}
@@ -31,7 +38,14 @@ spec:
             {{- end -}}
             {{- if not $password -}}
               {{- $password = randAlphaNum 32 -}}
+            {{- end -}}
+            {{- $bootstrapServers := "" -}}
+            {{- $mskObservers := getExtraResources . "msk-observer" -}}
+            {{- if $mskObservers -}}
+              {{- $mskObserver := mustFirst $mskObservers -}}
+              {{- $bootstrapServers = $mskObserver.resource.status.brokers | default "" -}}
             {{- end }}
+            ---
             apiVersion: v1
             kind: Secret
             metadata:
@@ -45,7 +59,7 @@ spec:
                 gotemplating.fn.crossplane.io/ready: "True"
             type: Opaque
             stringData:
-              secretString: '{"username":"{{ $username }}","password":"{{ $password }}"}'
+              secretString: '{"username":"{{ $username }}","password":"{{ $password }}","bootstrap_servers":"{{ $bootstrapServers }}"}'
             {{- if $observedSecret }}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
