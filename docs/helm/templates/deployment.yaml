@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}
 spec:
-  replicas: 2
+  replicas: {{ .Values.numberOfReplicas }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -12,6 +12,10 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -26,25 +30,30 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
         - name: entigo-docs
-          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          image: {{ .Values.container.image.repository }}:{{ .Values.container.image.tag }}
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
-              ephemeral-storage: "1Gi"
+              cpu: {{ .Values.container.resources.requests.cpu }}
+              memory: {{ .Values.container.resources.requests.memory }}
+              ephemeral-storage: {{ .Values.container.resources.requests.ephemeralStorage }}
             limits:
-              cpu: 200m
-              memory: 256Mi
-              ephemeral-storage: "2Gi"
+              cpu: {{ .Values.container.resources.limits.cpu }}
+              memory: {{ .Values.container.resources.limits.memory }}
+              ephemeral-storage: {{ .Values.container.resources.limits.ephemeralStorage }}
           ports:
             - containerPort: 80
               protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /
-              port: http
+              port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
