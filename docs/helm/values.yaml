@@ -1,1 +1,4 @@
 hostname: docs.entigo.com
+image:
+  repository: ghcr.io/entigolabs/entigo-docs
+  tag: v1.187
