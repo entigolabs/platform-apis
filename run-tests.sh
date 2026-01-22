@@ -50,15 +50,6 @@ run_helm_test() {
 
 TARGET="${1%/}"
 
-if [ "$TARGET" == "build" ]; then
-  resolve_image
-  FORCE_BUILD=true build_image
-  exit 0
-fi
-
-resolve_image
-build_image
-
 if [ -z "$TARGET" ]; then
   log_info "No target specified. Auto-discovering all tests..."
 
