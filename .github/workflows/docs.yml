@@ -65,13 +65,18 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
+      - name: Calculate Version
+        id: version
+        run: |
+          CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}') 
+          MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2) 
+          NEW_VERSION="${MAJOR_MINOR}.${{ github.run_number }}" 
+          echo "BUILD_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+      - name: Extract metadata
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_NAME }}
-          tags: |
-            type=raw,value=v1.${{ github.run_number }}
+          tags: type=raw,value=v${{ env.BUILD_VERSION }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -87,16 +92,9 @@ jobs:
             STRAPI_API_TOKEN=${{ secrets.STRAPI_API_TOKEN }}
       - name: Update Chart Version
         run: |
-          NEW_TAG="v1.${{ github.run_number }}"
-          yq -i ".container.image.tag = \"$NEW_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          CURRENT_VERSION=$(yq '.version' ${{ env.CHART_PATH }}/Chart.yaml)
-          MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
-          NEW_CHART_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
-          yq -i ".version = \"$NEW_CHART_VERSION\"" ${{ env.CHART_PATH }}/Chart.yaml
-          yq -i ".appVersion = \"$NEW_TAG\"" ${{ env.CHART_PATH }}/Chart.yaml
-          echo "NEW_VERSION=$NEW_CHART_VERSION" >> $GITHUB_ENV
-          echo "Updated Chart Version to: $NEW_CHART_VERSION"
-          echo "Updated Image Tag in values.yaml to: $NEW_TAG"
+          yq -i ".version = \"${{ env.BUILD_VERSION }}\"" ${{ env.CHART_PATH }}/Chart.yaml
+          yq -i ".appVersion = \"v${{ env.BUILD_VERSION }}\"" ${{ env.CHART_PATH }}/Chart.yaml
+          yq -i ".container.image.tag = \"v${{ env.BUILD_VERSION }}\"" ${{ env.CHART_PATH }}/values.yaml
       - name: Package Helm Chart
         run: helm package ${{ env.CHART_PATH }}
       - name: Push Helm Chart to GHCR
