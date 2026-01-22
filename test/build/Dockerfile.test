@@ -17,6 +17,9 @@ RUN curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeco
     mv kubeconform /usr/bin/kubeconform && \
     chmod +x /usr/bin/kubeconform
 
+ENV GOPATH=/go
+ENV GOCACHE=/go/cache
+
 WORKDIR /workspace
 COPY functions/ functions/
 
