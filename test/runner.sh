@@ -26,7 +26,27 @@ log_info "Workdir: $CURRENT_DIR"
 log_info "Test type: ${TEST_TYPE:-not specified}"
 
 # ============ COMPOSITION TESTS ============
+generate_crossplane_functions_configs() {
+  local output="/workspace/test/common/functions.yaml"
+  log_info "Generating $output from helm/values.yaml..."
+
+  yq -r '
+    .functions | to_entries[] | select(.value.install == true) |
+    "---\napiVersion: pkg.crossplane.io/v1beta1\nkind: Function\nmetadata:\n  name: " + .key + "\nspec:\n  package: " + .value.image + ":" + .value.tag
+  ' /workspace/helm/values.yaml | tail -n +2 > "$output"
+
+  echo "---" >> "$output"
+  cat /workspace/test/common/functions-dev.yaml >> "$output"
+}
+
+cleanup_test_functions() {
+  rm -f /workspace/test/common/functions.yaml
+}
+
 run_composition_tests() {
+  generate_crossplane_functions_configs
+  trap cleanup_test_functions EXIT
+
   source /workspace/test/lib.sh
   source /workspace/test/mock_lib.sh
 
