@@ -19,13 +19,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Determine Docker Tag
-        run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
-          else
-            echo "TAG=latest" >> $GITHUB_ENV
-          fi
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to Docker Hub
@@ -39,6 +32,6 @@ jobs:
           context: .
           file: test/build/Dockerfile.test
           push: true
-          tags: entigolabs/platform-apis-test-runner:${{ env.TAG }}
+          tags: entigolabs/platform-apis-test-runner:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
