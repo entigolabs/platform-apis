@@ -87,12 +87,16 @@ jobs:
             STRAPI_API_TOKEN=${{ secrets.STRAPI_API_TOKEN }}
       - name: Update Chart Version
         run: |
-          CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
+          NEW_TAG="v1.${{ github.run_number }}"
+          yq -i ".image.tag = \"$NEW_TAG\"" ${{ env.CHART_PATH }/values.yaml
+          CURRENT_VERSION=$(yq '.version' ${{ env.CHART_PATH }}/Chart.yaml)
           MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
-          NEW_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
-          sed -i "s/^version:.*/version: $NEW_VERSION/" ${{ env.CHART_PATH }}/Chart.yaml
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "Updated version to $NEW_VERSION"
+          NEW_CHART_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
+          yq -i ".version = \"$NEW_CHART_VERSION\"" ${{ env.CHART_PATH }}/Chart.yaml
+          yq -i ".appVersion = \"$NEW_TAG\"" ${{ env.CHART_PATH }}/Chart.yaml
+          echo "NEW_VERSION=$NEW_CHART_VERSION" >> $GITHUB_ENV
+          echo "Updated Chart Version to: $NEW_CHART_VERSION"
+          echo "Updated Image Tag in values.yaml to: $NEW_TAG"
       - name: Package Helm Chart
         run: helm package ${{ env.CHART_PATH }}
       - name: Push Helm Chart to GHCR
