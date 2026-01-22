@@ -24,8 +24,8 @@ jobs:
 
       - name: Set Test Image
         run: |
-          PR_IMAGE="${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner:pr-${{ github.event.number }}"
-          LATEST_IMAGE="${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner:latest"
+          PR_IMAGE="entigolabs/platform-apis-test-runner:pr-${{ github.event.number }}"
+          LATEST_IMAGE="entigolabs/platform-apis-test-runner:latest"
 
           echo "Attempting to pull PR image: $PR_IMAGE"
 
