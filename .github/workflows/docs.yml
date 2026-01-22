@@ -97,5 +97,4 @@ jobs:
         run: helm package ${{ env.CHART_PATH }}
       - name: Push Helm Chart to GHCR
         run: |
-          ls
           helm push ${{ env.CHART_NAME }}-${{ env.NEW_VERSION }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}
