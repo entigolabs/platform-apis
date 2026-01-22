@@ -4,63 +4,19 @@ set -e
 GIT_ROOT=$(git rev-parse --show-toplevel)
 cd "$GIT_ROOT"
 
-DOCKERFILE="test/build/Dockerfile.test"
-DOCKER_HUB_REPO="entigolabs/platform-apis-test-runner"
+IMAGE_NAME="${IMAGE_NAME:-entigolabs/platform-apis-test-runner:latest}"
 
 BLUE='\033[0;34m'
 NC='\033[0m'
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 
-resolve_image() {
-  if [ -n "$IMAGE_NAME" ]; then
-    return
-  fi
-
-  if [ "$CI" == "true" ]; then
-    LATEST_IMAGE="${DOCKER_HUB_REPO}:latest"
-
-    if [ -n "$GITHUB_EVENT_NUMBER" ]; then
-      PR_IMAGE="${DOCKER_HUB_REPO}:pr-${GITHUB_EVENT_NUMBER}"
-      log_info "Attempting to pull PR image: $PR_IMAGE"
-
-      if docker pull "$PR_IMAGE" 2>/dev/null; then
-        log_info "Using PR image."
-        IMAGE_NAME="$PR_IMAGE"
-        SKIP_BUILD="true"
-        return
-      fi
-      log_info "PR image not found. Falling back to 'latest'..."
-    fi
-
-    docker pull "$LATEST_IMAGE"
-    IMAGE_NAME="$LATEST_IMAGE"
-    SKIP_BUILD="true"
-  else
-    IMAGE_NAME="platform-apis-test-runner"
-  fi
-}
-
-build_image() {
-  if [ "$SKIP_BUILD" == "true" ]; then
-    log_info "Skipping Docker build (SKIP_BUILD=true)..."
-    return
-  fi
-
-  if [[ "$(docker images -q $IMAGE_NAME 2> /dev/null)" == "" ]] || [ "$FORCE_BUILD" == "true" ]; then
-    log_info "Building Test Runner Image..."
-    docker build -t $IMAGE_NAME -f "$DOCKERFILE" .
-  else
-    log_info "Image $IMAGE_NAME exists. Skipping build."
-  fi
-}
-
 # Unified docker test runner
 run_docker_test() {
   local test_type="$1"
   local workdir="$2"
 
-  docker run --rm \
+  docker run --rm --pull always \
     -v "$GIT_ROOT:/workspace" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     --network host \
