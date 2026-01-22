@@ -88,7 +88,7 @@ jobs:
       - name: Update Chart Version
         run: |
           NEW_TAG="v1.${{ github.run_number }}"
-          yq -i ".image.tag = \"$NEW_TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".container.image.tag = \"$NEW_TAG\"" ${{ env.CHART_PATH }}/values.yaml
           CURRENT_VERSION=$(yq '.version' ${{ env.CHART_PATH }}/Chart.yaml)
           MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
           NEW_CHART_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
