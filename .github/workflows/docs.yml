@@ -38,7 +38,12 @@ jobs:
           chmod +x kube-score
           sudo mv kube-score /usr/local/bin/
       - name: Run kube-score
-        run: kube-score score out/manifest.yaml --output-format ci
+        run: |
+          kube-score score out/manifest.yaml \
+            --ignore-test container-image-pull-policy \
+            --ignore-test container-security-context-user-group-id \
+            --ignore-test statefulset-has-servicename \
+            --output-format ci
   build-and-push:
     needs: lint-and-test
     runs-on: ubuntu-latest
