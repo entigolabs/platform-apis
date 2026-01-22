@@ -49,7 +49,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+      - name: Calculate Version
+        id: version
+        run: |
+          CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
+          MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
+          NEW_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
+          echo "BUILD_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "Calculated version: $NEW_VERSION"
       - name: Install crdoc & generate API documentation
         run: |
           mkdir docs/temp
@@ -65,13 +73,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Calculate Version
-        id: version
-        run: |
-          CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}') 
-          MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2) 
-          NEW_VERSION="${MAJOR_MINOR}.${{ github.run_number }}" 
-          echo "BUILD_VERSION=$NEW_VERSION" >> $GITHUB_ENV
       - name: Extract metadata
         uses: docker/metadata-action@v5
         with:
@@ -99,4 +100,4 @@ jobs:
         run: helm package ${{ env.CHART_PATH }}
       - name: Push Helm Chart to GHCR
         run: |
-          helm push ${{ env.CHART_NAME }}-${{ env.NEW_VERSION }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}
+          helm push ${{ env.CHART_NAME }}-${{ env.BUILD_VERSION }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts
