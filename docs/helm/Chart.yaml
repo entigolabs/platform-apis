@@ -1,5 +1,5 @@
 apiVersion: v2
-name: entigo-docs
+name: entigo-docs-helm
 description: A Helm chart for Entigo docs
 
 # A chart can be either an 'application' or a 'library' chart.
