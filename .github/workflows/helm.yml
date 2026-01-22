@@ -17,31 +17,18 @@ env:
   CHART_NAME: platform-apis
 jobs:
   lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Helm Lint
-        run: helm lint ${{ env.CHART_PATH }}
-      - name: Helm Template
-        run: |
-          mkdir -p out
-          helm template test-release ${{ env.CHART_PATH }} > out/manifest.yaml
-      - name: Install kube-score
-        run: |
-          wget https://github.com/zegl/kube-score/releases/download/v1.19.0/kube-score_1.19.0_linux_amd64 -O kube-score
-          chmod +x kube-score
-          sudo mv kube-score /usr/local/bin/
-      - name: Run kube-score
-        run: kube-score score out/manifest.yaml --output-format ci
+
+      - name: Run Helm Tests
+        env:
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+        run: ./run-tests.sh helm
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: lint-and-test
-    #if: github.event_name != 'pull_request'
     permissions:
       contents: read
       packages: write
@@ -52,179 +39,91 @@ jobs:
         uses: azure/setup-helm@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Fetch Latest Image Tags from GHCR
+      - name: Configure Versioning Rules
+        id: rules
         run: |
-          # Fetch most recently pushed tags for each package
-          POSTGRESQL_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-postgresql/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          DATABASE_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-database-fn/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          REPOSITORY_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-repository/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          ARTIFACT_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-artifact-fn/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          ZONE_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-zone/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-          
-          TENANCY_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-tenancy-fn/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          S3BUCKET_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-s3bucket/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          KAFKA_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-kafka/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
+            CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
+            MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
+            BASE_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
             
-          VALKEY_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-valkey/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          WEBAPP_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-webapp/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          CRONJOB_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-cronjob/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          WORKLOAD_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-workload-fn/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          WEBACCESS_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-webaccess/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          NETWORKING_FN_TAG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-networking-fn/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[] | startswith("v"))] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select(startswith("v"))' \
-            | head -n 1)
-
-          # Validate tags were fetched
-          if [ -z "$POSTGRESQL_TAG" ] || [ "$POSTGRESQL_TAG" = "null" ]; then
-            echo "Failed to fetch postgresql tag"
-            exit 1
-          fi
-          if [ -z "$DATABASE_FN_TAG" ] || [ "$DATABASE_FN_TAG" = "null" ]; then
-            echo "Failed to fetch database-fn tag"
-            exit 1
-          fi
-
-          if [ -z "$REPOSITORY_TAG" ] || [ "$REPOSITORY_TAG" = "null" ]; then
-            echo "Failed to fetch repository tag"
-            exit 1
-          fi
-          if [ -z "$ARTIFACT_FN_TAG" ] || [ "$ARTIFACT_FN_TAG" = "null" ]; then
-            echo "Failed to fetch artifact-fn tag"
-            exit 1
-          fi
-
-          if [ -z "$ZONE_TAG" ] || [ "$ZONE_TAG" = "null" ]; then
-            echo "Failed to fetch zone tag"
-            exit 1
-          fi
-          if [ -z "$TENANCY_FN_TAG" ] || [ "$TENANCY_FN_TAG" = "null" ]; then
-            echo "Failed to fetch tenancy-fn tag"
-            exit 1
-          fi
-
-          if [ -z "$S3BUCKET_TAG" ] || [ "$S3BUCKET_TAG" = "null" ]; then
-            echo "Failed to fetch s3bucket tag"
-            exit 1
-          fi
-
-          if [ -z "$KAFKA_TAG" ] || [ "$KAFKA_TAG" = "null" ]; then
-            echo "Failed to fetch kafka tag"
-            exit 1
-          fi
-
-          if [ -z "$VALKEY_TAG" ] || [ "$VALKEY_TAG" = "null" ]; then
-            echo "Failed to fetch valkey tag"
-            exit 1
-          fi
-
-          if [ -z "$WEBAPP_TAG" ] || [ "$WEBAPP_TAG" = "null" ]; then
-            echo "Failed to fetch webapp tag"
-            exit 1
-          fi
-          if [ -z "$CRONJOB_TAG" ] || [ "$CRONJOB_TAG" = "null" ]; then
-            echo "Failed to fetch cronjob tag"
-            exit 1
-          fi
-          if [ -z "$WORKLOAD_FN_TAG" ] || [ "$WORKLOAD_FN_TAG" = "null" ]; then
-            echo "Failed to fetch workload-fn tag"
-            exit 1
-          fi
-
-          if [ -z "$WEBACCESS_TAG" ] || [ "$WEBACCESS_TAG" = "null" ]; then
-            echo "Failed to fetch webaccess tag"
-            exit 1
-          fi
-          if [ -z "$NETWORKING_FN_TAG" ] || [ "$NETWORKING_FN_TAG" = "null" ]; then
-            echo "Failed to fetch networking-fn tag"
-            exit 1
-          fi
-
-          echo "Updating tags..."
-          yq -i ".postgresql.package.tag = \"$POSTGRESQL_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".database.function.tag = \"$DATABASE_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".repository.package.tag = \"$REPOSITORY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".artifact.function.tag = \"$ARTIFACT_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".zone.package.tag = \"$ZONE_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".tenancy.function.tag = \"$TENANCY_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".s3bucket.package.tag = \"$S3BUCKET_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".kafka.package.tag = \"$KAFKA_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".valkey.package.tag = \"$VALKEY_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".webapp.package.tag = \"$WEBAPP_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".cronjob.package.tag = \"$CRONJOB_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".workload.function.tag = \"$WORKLOAD_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".webaccess.package.tag = \"$WEBACCESS_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          yq -i ".networking.function.tag = \"$NETWORKING_FN_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-          echo "After update:"
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              NEW_VERSION="${BASE_VERSION}-rc.${{ github.event.number }}"
+              # Takes latest, RC or not...
+              echo "JQ_FILTER=startswith(\"v\")" >> $GITHUB_ENV
+            else
+              NEW_VERSION="${BASE_VERSION}"
+              echo "JQ_FILTER=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
+            fi
+            
+            echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+            echo "Calculated Chart Version: $NEW_VERSION"
+      - name: Update Dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          declare -A PACKAGES=(
+            ["artifact"]="platform-apis-artifact-fn"
+            ["cronjob"]="platform-apis-cronjob"
+            ["database"]="platform-apis-database-fn"
+            ["kafka"]="platform-apis-kafka"
+            ["networking"]="platform-apis-networking-fn"
+            ["postgresql"]="platform-apis-postgresql"
+            ["repository"]="platform-apis-repository"
+            ["s3bucket"]="platform-apis-s3bucket"
+            ["tenancy"]="platform-apis-tenancy-fn"
+            ["valkey"]="platform-apis-valkey"
+            ["webaccess"]="platform-apis-webaccess"
+            ["webapp"]="platform-apis-webapp"
+            ["workload"]="platform-apis-workload-fn"
+            ["zone"]="platform-apis-zone" 
+          )
+          
+          for KEY in "${!PACKAGES[@]}"; do
+            PKG_NAME="${PACKAGES[$KEY]}"
+            echo "Fetching tag for $PKG_NAME..."
+          
+            TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/orgs/entigolabs/packages/container/$PKG_NAME/versions" \
+              | jq -r "[.[] | select(.metadata.container.tags[] | $JQ_FILTER)] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select($JQ_FILTER)" \
+              | head -n 1)
+          
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "Error: Could not find a matching tag for $PKG_NAME using filter."
+              exit 1
+            fi
+          
+            echo "Found tag: $TAG"
+          
+            if [[ "$PKG_NAME" == *"-fn" ]]; then
+              YQ_PATH=".$KEY.function.tag"
+            else
+              YQ_PATH=".$KEY.package.tag"
+            fi
+            
+            yq -i "$YQ_PATH = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          done
+          
+          echo "Updated values.yaml"
           cat ${{ env.CHART_PATH }}/values.yaml
 
-          echo "Updated values.yaml with latest image tags"
       - name: Update Chart Version
         run: |
-          CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
-          MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
-          NEW_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
-          sed -i "s/^version:.*/version: $NEW_VERSION/" ${{ env.CHART_PATH }}/Chart.yaml
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "Updated version to $NEW_VERSION"
+          sed -i "s/^version:.*/version: ${{ env.NEW_VERSION }}/" ${{ env.CHART_PATH }}/Chart.yaml
+          echo "Updated Chart.yaml version to ${{ env.NEW_VERSION }}"
+
+      - name: Remove Test Files
+        run: rm -f ${{ env.CHART_PATH }}/run_tests.sh
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Package Helm Chart
         run: helm package ${{ env.CHART_PATH }}
+
       - name: Push Helm Chart to GHCR
         run: |
           helm push ${{ env.CHART_NAME }}-${{ env.NEW_VERSION }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}

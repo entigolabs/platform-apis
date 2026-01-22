@@ -11,11 +11,22 @@ on:
         type: string
 
 jobs:
+  static-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Static Tests
+        env:
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+        run: ./run-tests.sh ${{ inputs.path }}
+
   build:
+    needs: static-test
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      
       - name: Setup the Crossplane CLI
         run: |
           curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
@@ -26,7 +37,20 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}          
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove Test and Examples Directories
+        run: rm -rf ${{ inputs.path }}/test ${{ inputs.path }}/examples
+
+      - name: Calculate Package Version
+        run: |
+          VERSION="v0.1.${{ github.run_number }}"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            VERSION="${VERSION}-rc.${{ github.event.number }}"
+          fi
+            
+          echo "Calculated Version: $VERSION"
+          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
           
       - name: Build & Publish Package
         working-directory: ${{ inputs.path }}
@@ -37,4 +61,4 @@ jobs:
 
           crossplane xpkg push \
             -f ${{ inputs.name }}.xpkg \
-            ghcr.io/${{ github.repository_owner }}/${{ inputs.name }}:v0.1.${{ github.run_number }}
+            ghcr.io/${{ github.repository_owner }}/${{ inputs.name }}:${{ env.PACKAGE_VERSION }}

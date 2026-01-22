@@ -58,20 +58,14 @@ jobs:
 
   unit-test:
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: ${{ inputs.path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
       - name: Run Unit Tests
-        run: go test -v -cover ./...
+        env:
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+        run: ./run-tests.sh ${{ inputs.path }}
 
   # We want to build most packages for the amd64 and arm64 architectures. To
   # speed this up we build single-platform packages in parallel. We then upload
@@ -104,6 +98,9 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Remove Test Files
+        run: rm -f ${{ inputs.path }}/*_test.go ${{ inputs.path }}/run_tests.sh
 
       # We ask Docker to use GitHub Action's native caching support to speed up
       # the build, per https://docs.docker.com/build/cache/backends/gha/.
@@ -171,8 +168,15 @@ jobs:
       # Go's pseudo-versions: https://go.dev/ref/mod#pseudo-versions.
       - name: Set Default Multi-Platform Package Version
         if: env.XPKG_VERSION == ''
-        run: echo "XPKG_VERSION=v0.1.${{ github.run_number }}" >> $GITHUB_ENV
-
+        run: |
+          VERSION="v0.1.${{ github.run_number }}"
+          
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            VERSION="${VERSION}-rc.${{ github.event.number }}"
+          fi
+          
+          echo "Auto-generated Version: $VERSION"
+          echo "XPKG_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Push Multi-Platform Package to GitHub Container Registry
         # XPKG repo name can't contain uppercase characters like UpboundCare, we need to lowercase if the GithubOrg contains them.
