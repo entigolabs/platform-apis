@@ -4,13 +4,42 @@ set -e
 GIT_ROOT=$(git rev-parse --show-toplevel)
 cd "$GIT_ROOT"
 
-IMAGE_NAME="${IMAGE_NAME:-platform-apis-test-runner}"
 DOCKERFILE="test/build/Dockerfile.test"
+DOCKER_HUB_REPO="entigolabs/platform-apis-test-runner"
 
 BLUE='\033[0;34m'
 NC='\033[0m'
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+
+resolve_image() {
+  if [ -n "$IMAGE_NAME" ]; then
+    return
+  fi
+
+  if [ "$CI" == "true" ]; then
+    LATEST_IMAGE="${DOCKER_HUB_REPO}:latest"
+
+    if [ -n "$GITHUB_EVENT_NUMBER" ]; then
+      PR_IMAGE="${DOCKER_HUB_REPO}:pr-${GITHUB_EVENT_NUMBER}"
+      log_info "Attempting to pull PR image: $PR_IMAGE"
+
+      if docker pull "$PR_IMAGE" 2>/dev/null; then
+        log_info "Using PR image."
+        IMAGE_NAME="$PR_IMAGE"
+        SKIP_BUILD="true"
+        return
+      fi
+      log_info "PR image not found. Falling back to 'latest'..."
+    fi
+
+    docker pull "$LATEST_IMAGE"
+    IMAGE_NAME="$LATEST_IMAGE"
+    SKIP_BUILD="true"
+  else
+    IMAGE_NAME="platform-apis-test-runner"
+  fi
+}
 
 build_image() {
   if [ "$SKIP_BUILD" == "true" ]; then
@@ -66,10 +95,12 @@ run_helm_test() {
 TARGET="${1%/}"
 
 if [ "$TARGET" == "build" ]; then
+  resolve_image
   FORCE_BUILD=true build_image
   exit 0
 fi
 
+resolve_image
 build_image
 
 if [ -z "$TARGET" ]; then

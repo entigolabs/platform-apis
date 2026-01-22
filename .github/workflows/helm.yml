@@ -22,27 +22,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set Test Image
-        run: |
-          PR_IMAGE="entigolabs/platform-apis-test-runner:pr-${{ github.event.number }}"
-          LATEST_IMAGE="entigolabs/platform-apis-test-runner:latest"
-
-          echo "Attempting to pull PR image: $PR_IMAGE"
-
-          if docker pull "$PR_IMAGE"; then
-             echo "Using PR image."
-             echo "IMAGE_NAME=$PR_IMAGE" >> $GITHUB_ENV
-          else
-             echo "PR image not found. Falling back to 'latest'..."
-
-             docker pull "$LATEST_IMAGE"
-             echo "IMAGE_NAME=$LATEST_IMAGE" >> $GITHUB_ENV
-          fi
-
       - name: Run Helm Tests
         env:
-          SKIP_BUILD: "true"
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
         run: ./run-tests.sh helm
   build-and-push:
     runs-on: ubuntu-24.04
