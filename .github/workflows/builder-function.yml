@@ -79,9 +79,6 @@ jobs:
              echo "IMAGE_NAME=$LATEST_IMAGE" >> $GITHUB_ENV
           fi
 
-      - name: Add rights to execute test script
-        run: chmod +x run-tests.sh
-
       - name: Run Unit Tests
         env:
           SKIP_BUILD: "true"

@@ -39,6 +39,6 @@ jobs:
           context: .
           file: test/build/Dockerfile.test
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/platform-apis-test-runner:${{ env.TAG }}
+          tags: entigolabs/platform-apis-test-runner:${{ env.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
