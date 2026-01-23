@@ -22,10 +22,9 @@ USER root
 COPY ./config/nginx-default.conf /etc/nginx/templates/default.conf.template
 COPY --chmod=755 ./config/15-default.envsh /docker-entrypoint.d/
 
-RUN mkdir -p /var/docusaurus && \
-    chown -R nginx:nginx /var/docusaurus
+COPY --from=build /opt/docusaurus/build /var/docusaurus
 
-COPY --from=build --chown=nginx:nginx /opt/docusaurus/build /var/docusaurus
+RUN chown -R nginx:nginx /var/docusaurus
 
 USER nginx
 
