@@ -14,6 +14,8 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
         seccompProfile:
           type: RuntimeDefault
       affinity:
@@ -48,16 +50,16 @@ spec:
               memory: {{ .Values.container.resources.limits.memory }}
               ephemeral-storage: {{ .Values.container.resources.limits.ephemeralStorage }}
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               protocol: TCP
           livenessProbe:
             tcpSocket:
-              port: 80
+              port: 8080
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
