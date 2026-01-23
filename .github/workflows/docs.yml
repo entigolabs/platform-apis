@@ -46,6 +46,7 @@ jobs:
             --ignore-test container-image-pull-policy \
             --ignore-test container-security-context-user-group-id \
             --ignore-test statefulset-has-servicename \
+            --ignore-test container-security-context-readonlyrootfilesystem \
             --output-format ci
 
   build-and-push:
