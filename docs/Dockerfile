@@ -14,7 +14,7 @@ RUN --mount=type=secret,id=STRAPI_URL,env=STRAPI_URL \
     --mount=type=secret,id=STRAPI_API_TOKEN,env=STRAPI_API_TOKEN \
     npm run build
 
-FROM nginx:stable-alpine AS prod
+FROM nginxinc/nginx-unprivileged:stable-alpine AS prod
 WORKDIR /opt/docusaurus
 
 COPY ./config/nginx-default.conf /etc/nginx/templates/default.conf.template

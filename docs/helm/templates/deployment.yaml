@@ -34,7 +34,6 @@ spec:
         - name: entigo-docs
           image: {{ .Values.container.image.repository }}:{{ .Values.container.image.tag }}
           securityContext:
-            readOnlyRootFilesystem: true
             runAsNonRoot: true
             allowPrivilegeEscalation: false
             capabilities:
