@@ -17,9 +17,16 @@ RUN --mount=type=secret,id=STRAPI_URL,env=STRAPI_URL \
 FROM nginxinc/nginx-unprivileged:stable-alpine AS prod
 WORKDIR /opt/docusaurus
 
+USER root
+
 COPY ./config/nginx-default.conf /etc/nginx/templates/default.conf.template
 COPY --chmod=755 ./config/15-default.envsh /docker-entrypoint.d/
 
-COPY --from=build /opt/docusaurus/build /var/docusaurus
+RUN mkdir -p /var/docusaurus && \
+    chown -R nginx:nginx /var/docusaurus
+
+COPY --from=build --chown=nginx:nginx /opt/docusaurus/build /var/docusaurus
+
+USER nginx
 
 EXPOSE 8080
