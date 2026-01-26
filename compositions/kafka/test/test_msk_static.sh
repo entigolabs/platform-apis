@@ -20,6 +20,6 @@ assert_counts "$OUTPUT" "Cluster" 1
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_cluster_as_observed_resource | start_observed
 
-echo "TEST 2: rendering ProviderConfig, Secret when cluster ready"
+echo "TEST 2: rendering ClusterProviderConfig, Secret when cluster ready"
 OUTPUT=$(run_render "$TEMP_INPUT" "$COMPOSITION" "$FUNC_CONFIG")
-assert_counts "$OUTPUT" "ProviderConfig" 1 "Secret" 1
+assert_counts "$OUTPUT" "ClusterProviderConfig" 1 "Secret" 1
