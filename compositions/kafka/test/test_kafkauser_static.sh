@@ -15,7 +15,6 @@ TEMP_INPUT="temp_input.yaml"
 cp "$INPUT" "$TEMP_INPUT"
 yq -i '
   select(.kind == "KafkaUser") |
-  .kind = "XKafkaUser" |
   .spec.claimRef.name = "user-claimRef" |
   .spec.claimRef.namespace = "default"
  ' "$TEMP_INPUT"

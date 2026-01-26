@@ -15,10 +15,9 @@ TEMP_INPUT="temp_input.yaml"
 cp "$INPUT" "$TEMP_INPUT"
 yq -i '
   select(.kind == "Topic") |
-  .kind = "XTopic" |
   .spec.claimRef.name = "topic-claimRef"
  ' "$TEMP_INPUT"
 
 echo "TEST 1: rendering Topic"
 OUTPUT=$(run_render "$TEMP_INPUT" "$COMPOSITION" "$FUNC_CONFIG")
-assert_counts "$OUTPUT" "Topic" 1
+assert_counts "$OUTPUT" "Topic" 2
