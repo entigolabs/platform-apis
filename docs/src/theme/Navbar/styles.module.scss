@@ -1,0 +1,60 @@
+.ctaButton {
+  display: inline-block;
+  padding: 8px 24px;
+  background-color: var(--ifm-color-primary);
+  border: none;
+  font-size: 16px;
+  font-family: 'Open Sans';
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: var(--ifm-color-primary-dark);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    color: #ffffff !important;
+    text-decoration: none;
+  }
+
+  &:focus,
+  &:active {
+    outline: none;
+    box-shadow: none;
+    background-color: var(--ifm-color-primary);
+  }
+}
+
+.dropdown {
+  z-index: 99 !important;
+  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+
+  opacity: 0;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+  background-color: var(--navbar-bg-color) !important;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+
+.dropdownActive {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

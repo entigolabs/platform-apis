@@ -114,6 +114,13 @@ Resource Types:
         </td>
         <td>false</td>
       </tr><tr>
+        <td><b><a href="#postgresqluserspecgrant">grant</a></b></td>
+        <td>object</td>
+        <td>
+          <br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
         <td><b>inherit</b></td>
         <td>boolean</td>
         <td>
@@ -161,6 +168,33 @@ Resource Types:
       </tr></tbody>
 </table>
 
+
+### PostgreSQLUser.spec.grant
+<sup><sup>[↩ Parent](#postgresqluserspec)</sup></sup>
+
+
+
+
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Required</th>
+        </tr>
+    </thead>
+    <tbody><tr>
+        <td><b>roles</b></td>
+        <td>[]string</td>
+        <td>
+          An array of role names to be granted.<br/>
+        </td>
+        <td>false</td>
+      </tr></tbody>
+</table>
+
 </TabItem>
 
 <TabItem value="examples" label="Examples">
@@ -175,6 +209,20 @@ metadata:
 spec:
   instanceRef:
     name: basic-instance
+```
+
+A PostgreSQL User definition  with role grant.
+```yaml
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLUser
+metadata:
+  name: user-example
+spec:
+  instanceRef:
+    name: postgresql-example
+  grant:
+    roles:
+    - example-role
 ```
 
 ### Prerequisites {#example-prerequisites}
