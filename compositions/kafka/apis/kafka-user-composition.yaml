@@ -27,6 +27,14 @@ spec:
                 apiVersion: kafka.entigo.com/v1alpha1
                 kind: MSK
                 matchName: {{ $clusterName }}-observed
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-kafka
+              kms-key:
+                apiVersion: kms.aws.m.upbound.io/v1beta1
+                kind: Key
+                matchName: config
             {{- $secretResourceName := printf "k8s-secret-%s" $username -}}
             {{- $observedSecret := getComposedResource . $secretResourceName -}}
             {{- $password := "" -}}
@@ -61,23 +69,12 @@ spec:
             stringData:
               secretString: '{"username":"{{ $username }}","password":"{{ $password }}","bootstrap_servers":"{{ $bootstrapServers }}"}'
             {{- if $observedSecret }}
-            ---
-            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-            kind: ExtraResources
-            requirements:
-              environmentConfig:
-                apiVersion: apiextensions.crossplane.io/v1beta1
-                kind: EnvironmentConfig
-                matchName: platform-apis-kafka
-              kms-key:
-                apiVersion: kms.aws.m.upbound.io/v1beta1
-                kind: Key
-                matchName: config
-            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
-            {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider }}
+            {{- $envConfigs := getExtraResources . "environmentConfig" -}}
             {{- $kmskeys := getExtraResources . "kms-key" -}}
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
-            {{- if and $kmskeys $mskObservers -}}
+            {{- if and $envConfigs $kmskeys $mskObservers -}}
+            {{- $envConfig := mustFirst $envConfigs }}
+            {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider -}}
               {{- $kmskey := mustFirst $kmskeys -}}
               {{- $kmsKeyId := $kmskey.resource.status.atProvider.keyId -}}
               {{- $mskObserver := mustFirst $mskObservers -}}
