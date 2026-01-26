@@ -103,6 +103,7 @@ spec:
                   KafkaCluster: {{ $clusterName }}
                   KafkaUser: {{ $username }}
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $awsProviderConfigRef }}
             {{- end -}}
             {{- end -}}
@@ -159,6 +160,7 @@ spec:
                   namespace: {{ $namespace }}
                   key: secretString
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $awsProviderConfigRef }}
             {{- end }}
 
@@ -221,6 +223,7 @@ spec:
                     }]
                   }
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $awsProviderConfigRef }}
             {{- end }}
     - step: create-scram-association
@@ -267,6 +270,7 @@ spec:
                 secretArnRef:
                   name: {{ $clusterName }}-{{ $username }}
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $awsProviderConfigRef }}
             {{- end }}
     - step: consumer-group-acls
