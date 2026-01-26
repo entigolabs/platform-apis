@@ -5,7 +5,7 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: kafka.entigo.com/v1alpha1
-    kind: XKafkaUser
+    kind: KafkaUser
   mode: Pipeline
   pipeline:
     - step: create-base-secrets
@@ -18,8 +18,23 @@ spec:
         inline:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              msk-observer:
+                apiVersion: kafka.entigo.com/v1alpha1
+                kind: MSK
+                matchName: {{ $clusterName }}-observed
+              environmentConfig:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: platform-apis-kafka
+              kms-key:
+                apiVersion: kms.aws.upbound.io/v1beta1
+                kind: Key
+                matchName: config
             {{- $secretResourceName := printf "k8s-secret-%s" $username -}}
             {{- $observedSecret := getComposedResource . $secretResourceName -}}
             {{- $password := "" -}}
@@ -31,7 +46,14 @@ spec:
             {{- end -}}
             {{- if not $password -}}
               {{- $password = randAlphaNum 32 -}}
+            {{- end -}}
+            {{- $bootstrapServers := "" -}}
+            {{- $mskObservers := getExtraResources . "msk-observer" -}}
+            {{- if $mskObservers -}}
+              {{- $mskObserver := mustFirst $mskObservers -}}
+              {{- $bootstrapServers = $mskObserver.resource.status.brokersscram | default "" -}}
             {{- end }}
+            ---
             apiVersion: v1
             kind: Secret
             metadata:
@@ -45,34 +67,20 @@ spec:
                 gotemplating.fn.crossplane.io/ready: "True"
             type: Opaque
             stringData:
-              secretString: '{"username":"{{ $username }}","password":"{{ $password }}"}'
+              secretString: '{"username":"{{ $username }}","password":"{{ $password }}","bootstrap_servers":"{{ $bootstrapServers }}"}'
             {{- if $observedSecret }}
-            ---
-            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-            kind: ExtraResources
-            requirements:
-              environmentConfig:
-                apiVersion: apiextensions.crossplane.io/v1beta1
-                kind: EnvironmentConfig
-                matchName: platform-apis-kafka
-              kms-key:
-                apiVersion: kms.aws.upbound.io/v1beta1
-                kind: Key
-                matchName: data
-              msk-observer:
-                apiVersion: kafka.entigo.com/v1alpha1
-                kind: MSK
-            {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
-            {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider }}
+            {{- $envConfigs := getExtraResources . "environmentConfig" -}}
             {{- $kmskeys := getExtraResources . "kms-key" -}}
             {{- $mskObservers := getExtraResources . "msk-observer" -}}
-            {{- if and $kmskeys $mskObservers -}}
+            {{- if and $envConfigs $kmskeys $mskObservers -}}
+            {{- $envConfig := mustFirst $envConfigs }}
+            {{- $awsProviderConfigRef := $envConfig.resource.data.awsProvider -}}
               {{- $kmskey := mustFirst $kmskeys -}}
               {{- $kmsKeyId := $kmskey.resource.status.atProvider.keyId -}}
               {{- $mskObserver := mustFirst $mskObservers -}}
               {{- $region := $mskObserver.resource.status.region }}
             ---
-            apiVersion: secretsmanager.aws.upbound.io/v1beta1
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: Secret
             metadata:
               name: {{ $clusterName }}-{{ $username }}
@@ -87,10 +95,12 @@ spec:
                 description: "SCRAM credentials for Kafka user {{ $username }}"
                 region: {{ $region }}
                 kmsKeyId: {{ $kmsKeyId }}
+                recoveryWindowInDays: 0
                 tags:
                   KafkaCluster: {{ $clusterName }}
                   KafkaUser: {{ $username }}
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $awsProviderConfigRef }}
             {{- end -}}
             {{- end -}}
@@ -104,8 +114,8 @@ spec:
         inline:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
@@ -125,7 +135,7 @@ spec:
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $region := $mskObserver.resource.status.region }}
             ---
-            apiVersion: secretsmanager.aws.upbound.io/v1beta1
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretVersion
             metadata:
               name: {{ $clusterName }}-{{ $username }}-version
@@ -144,9 +154,9 @@ spec:
                     kafka-user: {{ $username }}
                 secretStringSecretRef:
                   name: {{ $clusterName }}-{{ $username }}-k8s
-                  namespace: {{ $namespace }}
                   key: secretString
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $awsProviderConfigRef }}
             {{- end }}
 
@@ -160,8 +170,8 @@ spec:
         inline:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
@@ -181,7 +191,7 @@ spec:
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $region := $mskObserver.resource.status.region }}
             ---
-            apiVersion: secretsmanager.aws.upbound.io/v1beta1
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretPolicy
             metadata:
               name: {{ $clusterName }}-{{ $username }}-policy
@@ -209,6 +219,7 @@ spec:
                     }]
                   }
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $awsProviderConfigRef }}
             {{- end }}
     - step: create-scram-association
@@ -221,7 +232,7 @@ spec:
         inline:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
@@ -242,7 +253,7 @@ spec:
             {{- $clusterArn := $mskObserver.resource.status.arn -}}
             {{- $region := $mskObserver.resource.status.region }}
             ---
-            apiVersion: kafka.aws.upbound.io/v1beta1
+            apiVersion: kafka.aws.m.upbound.io/v1beta1
             kind: SingleScramSecretAssociation
             metadata:
               name: {{ $clusterName }}-{{ $username }}-scram
@@ -255,6 +266,7 @@ spec:
                 secretArnRef:
                   name: {{ $clusterName }}-{{ $username }}
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $awsProviderConfigRef }}
             {{- end }}
     - step: consumer-group-acls
@@ -278,13 +290,15 @@ spec:
             {{- if $mskObservers -}}
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             {{- range $index, $consumerGroup := .observed.composite.resource.spec.consumerGroups }}
             ---
-            apiVersion: acl.kafka.crossplane.io/v1alpha1
+            apiVersion: acl.kafka.m.crossplane.io/v1alpha1
             kind: AccessControlList
             metadata:
               name: {{ $username }}-{{ lower $consumerGroup }}-cg
+              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: acl-cg-{{ $username }}-{{ $consumerGroup }}
             spec:
@@ -297,6 +311,7 @@ spec:
                 resourceOperation: "Read"
                 resourcePermissionType: "Allow"
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $kafkaProviderConfig }}
             {{- end }}
             {{- end }}
@@ -322,13 +337,15 @@ spec:
             {{- if $mskObservers -}}
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             {{- range $index, $acl := .observed.composite.resource.spec.acls }}
             ---
-            apiVersion: acl.kafka.crossplane.io/v1alpha1
+            apiVersion: acl.kafka.m.crossplane.io/v1alpha1
             kind: AccessControlList
             metadata:
               name: {{ $acl.topic }}-{{ $username }}-{{ lower $acl.operation }}
+              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: acl-topic-{{ $acl.topic }}-{{ $username }}-{{ lower $acl.operation }}
             spec:
@@ -341,6 +358,7 @@ spec:
                 resourceOperation: {{ $acl.operation | quote }}
                 resourcePermissionType: "Allow"
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $kafkaProviderConfig }}
             {{- end }}
             {{- end }}

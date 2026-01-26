@@ -5,7 +5,7 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: kafka.entigo.com/v1alpha1
-    kind: XTopic
+    kind: Topic
   mode: Pipeline
   pipeline:
     - step: create-kafka-topics
@@ -17,7 +17,8 @@ spec:
         source: Inline
         inline:
           template: |
-            {{- $topicName := .observed.composite.resource.spec.claimRef.name -}}
+            {{- $topicName := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             {{- $partitions := .observed.composite.resource.spec.partitions | default 3 -}}
             {{- $replicationFactor := .observed.composite.resource.spec.replicationFactor | default 3 -}}
             {{- $config := .observed.composite.resource.spec.config -}}
@@ -35,10 +36,11 @@ spec:
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig }}
             ---
-            apiVersion: topic.kafka.crossplane.io/v1alpha1
+            apiVersion: topic.kafka.m.crossplane.io/v1alpha1
             kind: Topic
             metadata:
               name: {{ $topicName }}
+              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: topic-{{ $topicName }}
             spec:
@@ -52,6 +54,7 @@ spec:
                   {{- end }}
                 {{- end }}
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $kafkaProviderConfig }}
             {{- end }}
 

@@ -20,6 +20,6 @@ S3Bucket: [Basic, Standard, Premium]
 
 MSK: [Standard, Premium]
 
-XTopic: [Standard, Premium]
+Topic: [Standard, Premium]
 
-XKafkaUser: [Standard, Premium]
+KafkaUser: [Standard, Premium]

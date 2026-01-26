@@ -1,13 +1,11 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xkafkausers.kafka.entigo.com
+  name: kafkausers.kafka.entigo.com
 spec:
+  scope: Namespaced
   group: kafka.entigo.com
   names:
-    kind: XKafkaUser
-    plural: xkafkausers
-  claimNames:
     kind: KafkaUser
     plural: kafkausers
   versions:
