@@ -154,7 +154,6 @@ spec:
                     kafka-user: {{ $username }}
                 secretStringSecretRef:
                   name: {{ $clusterName }}-{{ $username }}-k8s
-                  namespace: {{ $namespace }}
                   key: secretString
               providerConfigRef:
                 kind: ClusterProviderConfig
