@@ -1,0 +1,6 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-kafka
+spec:
+  awsProvider: crossplane-aws

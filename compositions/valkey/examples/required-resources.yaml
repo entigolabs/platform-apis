@@ -1,0 +1,55 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: VPC
+metadata:
+  name: vpc
+  labels:
+    crossplane.io/claim-name: vpc
+status:
+  atProvider:
+    id: vpc-1234567890abcdef0
+    region: eu-north-1
+---
+apiVersion: elasticache.aws.upbound.io/v1beta1
+kind: SubnetGroup
+metadata:
+  name: elasticache
+status:
+  atProvider:
+    id: my-elasticache-subnet-group
+---
+apiVersion: rds.aws.m.upbound.io/v1beta1
+kind: SubnetGroup
+metadata:
+  name: database
+status:
+  atProvider:
+    id: my-database-subnet-group
+---
+apiVersion: kms.aws.upbound.io/v1beta1
+kind: Alias
+metadata:
+  name: data
+status:
+  atProvider:
+    id: alias/data-key
+    targetKeyArn: arn:aws:kms:eu-north-1:123456789012:key/data-key-uuid
+---
+apiVersion: kms.aws.upbound.io/v1beta1
+kind: Alias
+metadata:
+  name: config
+status:
+  atProvider:
+    id: alias/config-key
+    targetKeyArn: arn:aws:kms:eu-north-1:123456789012:key/config-key-uuid
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  name: database
+  labels:
+    subnet-type: compute
+status:
+  atProvider:
+    cidrBlock: 10.0.1.0/24
+    id: database
