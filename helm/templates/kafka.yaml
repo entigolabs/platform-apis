@@ -22,8 +22,9 @@ metadata:
 spec:
   activate:
     - clusters.kafka.aws.upbound.io
-    - topics.topic.kafka.crossplane.io
-    - accesscontrollists.acl.kafka.crossplane.io
+    - topics.topic.kafka.m.crossplane.io
+    - accesscontrollists.acl.kafka.m.crossplane.io
+    - clusterproviderconfigusages.kafka.m.crossplane.io
     - secrets.secretsmanager.aws.upbound.io
     - secretversions.secretsmanager.aws.upbound.io
     - secretpolicies.secretsmanager.aws.upbound.io
