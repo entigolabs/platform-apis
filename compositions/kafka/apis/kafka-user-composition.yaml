@@ -32,7 +32,7 @@ spec:
                 kind: EnvironmentConfig
                 matchName: platform-apis-kafka
               kms-key:
-                apiVersion: kms.aws.m.upbound.io/v1beta1
+                apiVersion: kms.aws.upbound.io/v1beta1
                 kind: Key
                 matchName: config
             {{- $secretResourceName := printf "k8s-secret-%s" $username -}}
