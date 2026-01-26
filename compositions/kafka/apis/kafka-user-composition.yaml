@@ -70,7 +70,7 @@ spec:
                 kind: EnvironmentConfig
                 matchName: platform-apis-kafka
               kms-key:
-                apiVersion: kms.aws.upbound.io/v1beta1
+                apiVersion: kms.aws.m.upbound.io/v1beta1
                 kind: Key
                 matchName: config
             {{- $envConfig := mustFirst (getExtraResources . "environmentConfig") }}
@@ -83,7 +83,7 @@ spec:
               {{- $mskObserver := mustFirst $mskObservers -}}
               {{- $region := $mskObserver.resource.status.region }}
             ---
-            apiVersion: secretsmanager.aws.upbound.io/v1beta1
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: Secret
             metadata:
               name: {{ $clusterName }}-{{ $username }}
@@ -138,7 +138,7 @@ spec:
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $region := $mskObserver.resource.status.region }}
             ---
-            apiVersion: secretsmanager.aws.upbound.io/v1beta1
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretVersion
             metadata:
               name: {{ $clusterName }}-{{ $username }}-version
@@ -195,7 +195,7 @@ spec:
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $region := $mskObserver.resource.status.region }}
             ---
-            apiVersion: secretsmanager.aws.upbound.io/v1beta1
+            apiVersion: secretsmanager.aws.m.upbound.io/v1beta1
             kind: SecretPolicy
             metadata:
               name: {{ $clusterName }}-{{ $username }}-policy
@@ -257,7 +257,7 @@ spec:
             {{- $clusterArn := $mskObserver.resource.status.arn -}}
             {{- $region := $mskObserver.resource.status.region }}
             ---
-            apiVersion: kafka.aws.upbound.io/v1beta1
+            apiVersion: kafka.aws.m.upbound.io/v1beta1
             kind: SingleScramSecretAssociation
             metadata:
               name: {{ $clusterName }}-{{ $username }}-scram
