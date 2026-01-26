@@ -1,16 +1,18 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  name: {{.Release.Name}}
   annotations:
-    alb.ingress.kubernetes.io/group.name: external
-    alb.ingress.kubernetes.io/scheme: internet-facing
+    {{- if eq .Values.ingress.className "alb" }}
+    alb.ingress.kubernetes.io/group.name: {{ .Values.ingress.groupName }}
+    alb.ingress.kubernetes.io/scheme: {{ .Values.ingress.scheme }}
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/backend-protocol: HTTP
-  name: {{.Release.Name}}
+    {{- end }}
 spec:
-  ingressClassName: alb
+  ingressClassName: {{ .Values.ingress.className }}
   rules:
     - host: {{.Values.hostname}}
       http:

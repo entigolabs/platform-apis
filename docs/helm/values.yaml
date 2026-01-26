@@ -1,5 +1,9 @@
 hostname: docs.entigo.com
 numberOfReplicas: 2
+ingress:
+  className: alb
+  groupName: external
+  scheme: internet-facing
 container:
   image:
     repository: ghcr.io/entigolabs/entigo-docs
