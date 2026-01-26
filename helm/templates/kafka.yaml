@@ -24,6 +24,7 @@ spec:
     - clusters.kafka.aws.upbound.io
     - topics.topic.kafka.m.crossplane.io
     - accesscontrollists.acl.kafka.m.crossplane.io
+    - clusterproviderconfigs.kafka.m.crossplane.io
     - clusterproviderconfigusages.kafka.m.crossplane.io
     - secrets.secretsmanager.aws.upbound.io
     - secretversions.secretsmanager.aws.upbound.io

@@ -82,6 +82,21 @@ spec:
                 namespace: crossplane-kafka
                 key: credentials
           ---
+          apiVersion: kafka.m.crossplane.io/v1alpha1
+          kind: ClusterProviderConfig
+          metadata:
+            name: {{ $clusterName }}-observed
+            annotations:
+              {{ setResourceNameAnnotation "kafka-cluster-provider-config" }}
+              gotemplating.fn.crossplane.io/ready: "True"
+          spec:
+            credentials:
+              source: Secret
+              secretRef:
+                name: {{ $clusterName }}-observed-config
+                namespace: crossplane-kafka
+                key: credentials
+          ---
           apiVersion: kafka.entigo.com/v1alpha1
           kind: MSK
           status:

@@ -311,6 +311,7 @@ spec:
                 resourceOperation: "Read"
                 resourcePermissionType: "Allow"
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $kafkaProviderConfig }}
             {{- end }}
             {{- end }}
@@ -357,6 +358,7 @@ spec:
                 resourceOperation: {{ $acl.operation | quote }}
                 resourcePermissionType: "Allow"
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $kafkaProviderConfig }}
             {{- end }}
             {{- end }}

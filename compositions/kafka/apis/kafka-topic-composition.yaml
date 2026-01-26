@@ -54,6 +54,7 @@ spec:
                   {{- end }}
                 {{- end }}
               providerConfigRef:
+                kind: ClusterProviderConfig
                 name: {{ $kafkaProviderConfig }}
             {{- end }}
 
