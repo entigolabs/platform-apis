@@ -5,7 +5,7 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: kafka.entigo.com/v1alpha1
-    kind: XKafkaUser
+    kind: KafkaUser
   mode: Pipeline
   pipeline:
     - step: create-base-secrets
@@ -18,8 +18,8 @@ spec:
         inline:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
             requirements:
@@ -116,8 +116,8 @@ spec:
         inline:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
@@ -172,8 +172,8 @@ spec:
         inline:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
-            {{- $namespace := .observed.composite.resource.spec.claimRef.namespace -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
@@ -233,7 +233,7 @@ spec:
         inline:
           template: |
             {{- $clusterName := .observed.composite.resource.spec.clusterName -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
@@ -290,13 +290,15 @@ spec:
             {{- if $mskObservers -}}
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             {{- range $index, $consumerGroup := .observed.composite.resource.spec.consumerGroups }}
             ---
-            apiVersion: acl.kafka.crossplane.io/v1alpha1
+            apiVersion: acl.kafka.m.crossplane.io/v1alpha1
             kind: AccessControlList
             metadata:
               name: {{ $username }}-{{ lower $consumerGroup }}-cg
+              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: acl-cg-{{ $username }}-{{ $consumerGroup }}
             spec:
@@ -334,13 +336,15 @@ spec:
             {{- if $mskObservers -}}
             {{- $mskObserver := mustFirst $mskObservers -}}
             {{- $kafkaProviderConfig := $mskObserver.resource.status.providerConfig -}}
-            {{- $username := .observed.composite.resource.spec.claimRef.name -}}
+            {{- $username := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
             {{- range $index, $acl := .observed.composite.resource.spec.acls }}
             ---
-            apiVersion: acl.kafka.crossplane.io/v1alpha1
+            apiVersion: acl.kafka.m.crossplane.io/v1alpha1
             kind: AccessControlList
             metadata:
               name: {{ $acl.topic }}-{{ $username }}-{{ lower $acl.operation }}
+              namespace: {{ $namespace }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: acl-topic-{{ $acl.topic }}-{{ $username }}-{{ lower $acl.operation }}
             spec:
