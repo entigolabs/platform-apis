@@ -13,13 +13,56 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+  CHART_PATH: docs/helm
+  IMAGE_NAME: entigo-docs
+  CHART_NAME: entigo-docs-helm
+
 jobs:
-  build:
+  lint-and-test:
     runs-on: ubuntu-latest
     steps:
-      # Check-out your repository.
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Helm Lint
+        run: helm lint ${{ env.CHART_PATH }}
+      - name: Helm Template
+        run: |
+          mkdir -p out
+          helm template test-release ${{ env.CHART_PATH }} > out/manifest.yaml
+      - name: Install kube-score
+        run: |
+          wget https://github.com/zegl/kube-score/releases/download/v1.19.0/kube-score_1.19.0_linux_amd64 -O kube-score
+          chmod +x kube-score
+          sudo mv kube-score /usr/local/bin/
+      - name: Run kube-score
+        run: |
+          kube-score score out/manifest.yaml \
+            --ignore-test container-image-pull-policy \
+            --ignore-test container-security-context-user-group-id \
+            --ignore-test statefulset-has-servicename \
+            --ignore-test container-security-context-readonlyrootfilesystem \
+            --output-format ci
+
+  build-and-push:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+  
+      - name: Calculate Version
+        id: version
+        run: |
+          CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
+          MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
+          NEW_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
+          echo "BUILD_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Install crdoc & generate API documentation
         run: |
@@ -31,14 +74,54 @@ jobs:
           cd -
           rm -rf temp
 
-      - name: Install Heroku CLI
-        run: |
-          curl https://cli-assets.heroku.com/install.sh | sh
-      - uses: akhileshns/heroku-deploy@v3.14.15
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
-          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          appdir: docs/
-          stack: container
-          usedocker: true
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: type=raw,value=${{ env.BUILD_VERSION }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: docs
+          file: docs/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            MARKETING_URL=${{ vars.MARKETING_URL }}
+          secrets: |
+            STRAPI_URL=${{ secrets.STRAPI_URL }}
+            STRAPI_API_TOKEN=${{ secrets.STRAPI_API_TOKEN }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to GHCR (Helm)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} --username ${{ github.actor }} --password-stdin
+
+      - name: Update Chart Version
+        run: |
+          yq -i ".version = \"${{ env.BUILD_VERSION }}\"" ${{ env.CHART_PATH }}/Chart.yaml
+          yq -i ".appVersion = \"${{ env.BUILD_VERSION }}\"" ${{ env.CHART_PATH }}/Chart.yaml
+          FULL_IMAGE_REPO="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}"
+          yq -i ".container.image.repository = \"$FULL_IMAGE_REPO\"" ${{ env.CHART_PATH }}/values.yaml
+          yq -i ".container.image.tag = \"${{ env.BUILD_VERSION }}\"" ${{ env.CHART_PATH }}/values.yaml
+
+      - name: Package Helm Chart
+        run: helm package ${{ env.CHART_PATH }}
+
+      - name: Push Helm Chart to GHCR
+        run: |
+          helm push ${{ env.CHART_NAME }}-${{ env.BUILD_VERSION }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}

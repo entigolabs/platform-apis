@@ -113,7 +113,7 @@ Resource Types:
         <td><b>clusterPermissions</b></td>
         <td>boolean</td>
         <td>
-          Enable cluster-level permissions for the zone<br/>
+          Enable cluster-level permissions for the zone. Value true will allow users in spec.appProject.contributorGroups to escalate privileges to Kubernetes administrator.<br/>
           <br/>
             <i>Default</i>: false<br/>
         </td>

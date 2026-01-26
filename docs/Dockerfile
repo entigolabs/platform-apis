@@ -7,14 +7,25 @@ WORKDIR /opt/docusaurus
 COPY . /opt/docusaurus/
 
 RUN npm ci
-RUN npm run build
 
-FROM nginx:stable-alpine AS prod
+ARG MARKETING_URL
+
+RUN --mount=type=secret,id=STRAPI_URL,env=STRAPI_URL \
+    --mount=type=secret,id=STRAPI_API_TOKEN,env=STRAPI_API_TOKEN \
+    npm run build
+
+FROM nginxinc/nginx-unprivileged:stable-alpine AS prod
 WORKDIR /opt/docusaurus
+
+USER root
 
 COPY ./config/nginx-default.conf /etc/nginx/templates/default.conf.template
 COPY --chmod=755 ./config/15-default.envsh /docker-entrypoint.d/
 
 COPY --from=build /opt/docusaurus/build /var/docusaurus
+
+RUN chown -R nginx:nginx /var/docusaurus
+
+USER nginx
 
 EXPOSE 8080
