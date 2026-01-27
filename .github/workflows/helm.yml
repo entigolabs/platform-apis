@@ -21,7 +21,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Run Helm Tests
         env:
           GITHUB_EVENT_NUMBER: ${{ github.event.number }}
@@ -45,16 +44,21 @@ jobs:
             CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
             MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
             BASE_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
-            
-            if [ "${{ github.event_name }}" == "pull_request" ]; then
-              NEW_VERSION="${BASE_VERSION}-rc.${{ github.event.number }}"
-              # Takes latest, RC or not...
-              echo "JQ_FILTER=startswith(\"v\")" >> $GITHUB_ENV
-            else
+
+            IS_MAIN_BRANCH=${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+
+            if [ "$IS_MAIN_BRANCH" == "true" ]; then
               NEW_VERSION="${BASE_VERSION}"
               echo "JQ_FILTER=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
+            elif [ "${{ github.event_name }}" == "pull_request" ]; then
+              NEW_VERSION="${BASE_VERSION}-rc.${{ github.event.number }}"
+              echo "JQ_FILTER=startswith(\"v\")" >> $GITHUB_ENV
+            else
+              SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+              NEW_VERSION="${BASE_VERSION}-rc.${SHORT_SHA}"
+              echo "JQ_FILTER=startswith(\"v\")" >> $GITHUB_ENV
             fi
-            
+
             echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
             echo "Calculated Chart Version: $NEW_VERSION"
       - name: Update Dependencies
