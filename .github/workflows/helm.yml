@@ -132,7 +132,8 @@ jobs:
         run: |
           helm push ${{ env.CHART_NAME }}-${{ env.NEW_VERSION }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}
 
-      - name: Push to entigo-infralib
+      - name: Push to entigo-infralib (test branch)
+        if: github.ref != 'refs/heads/main' || github.event_name == 'pull_request'
         env:
           TARGET_REPO: entigolabs/entigo-infralib
           TARGET_BRANCH: platform-apis-tests
@@ -151,3 +152,34 @@ jobs:
           git add ${TARGET_PATH}/
           git commit -m "Update platform-apis helm chart to ${{ env.NEW_VERSION }}"
           git push
+
+      - name: Create PR to entigo-infralib main
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          TARGET_REPO: entigolabs/entigo-infralib
+          TARGET_PATH: modules/k8s/platform-apis/charts
+          GH_TOKEN: ${{ secrets.INFRALIB_PAT }}
+        run: |
+          PR_BRANCH="platform-apis-${{ env.NEW_VERSION }}"
+
+          git clone --depth 1 https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git infralib
+          cd infralib
+
+          git checkout -b ${PR_BRANCH}
+
+          rm -f ${TARGET_PATH}/${{ env.CHART_NAME }}-*.tgz
+          mkdir -p ${TARGET_PATH}
+          cp ../${{ env.CHART_NAME }}-${{ env.NEW_VERSION }}.tgz ${TARGET_PATH}/
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${TARGET_PATH}/
+          git commit -m "Update platform-apis helm chart to ${{ env.NEW_VERSION }}"
+          git push -u origin ${PR_BRANCH}
+
+          gh pr create \
+            --repo ${TARGET_REPO} \
+            --base main \
+            --head ${PR_BRANCH} \
+            --title "Update platform-apis to ${{ env.NEW_VERSION }}" \
+            --body "Automated PR to update platform-apis helm chart to version ${{ env.NEW_VERSION }}"
