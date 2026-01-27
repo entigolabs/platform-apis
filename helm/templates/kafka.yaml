@@ -23,7 +23,9 @@ spec:
   activate:
     - clusters.kafka.aws.upbound.io
     - topics.topic.kafka.m.crossplane.io
+    - topics.topic.kafka.crossplane.io
     - accesscontrollists.acl.kafka.m.crossplane.io
+    - accesscontrollists.acl.kafka.crossplane.io
     - clusterproviderconfigs.kafka.m.crossplane.io
     - clusterproviderconfigusages.kafka.m.crossplane.io
     - secrets.secretsmanager.aws.m.upbound.io
