@@ -21,6 +21,7 @@ spec:
   - securitygrouprules.ec2.aws.m.upbound.io
   - securitygroups.ec2.aws.m.upbound.io
   - instances.rds.aws.m.upbound.io
+  - providerconfigs.postgresql.sql.crossplane.io
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
