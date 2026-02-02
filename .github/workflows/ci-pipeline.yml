@@ -1,6 +1,16 @@
-name: Pull Request CI
+name: PR and Main CI Pipeline
+
+# Main PR workflow divided into queued steps.
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/**'
+      - 'compositions/**'
+      - 'test/**'
+      - 'helm/**'
   pull_request:
     branches:
       - main
@@ -16,9 +26,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Step 1: Detects changes in functions, compositions, test common folder, helm
   detect-changes:
     uses: ./.github/workflows/detect-changes.yml
 
+  # Step 2: Checks if test runner image exists in docker hub, and it is updated. If image is missing or old, pushes image.
   ensure-test-image:
     needs: detect-changes
     uses: ./.github/workflows/ensure-test-image.yml
@@ -26,7 +38,7 @@ jobs:
       force_rebuild: ${{ needs.detect-changes.outputs.test_image_changed == 'true' }}
     secrets: inherit
 
-  # Step 3: Test functions (if changed)
+  # Step 3: Tests changed functions.
   test-functions:
     needs: [detect-changes, ensure-test-image]
     if: needs.detect-changes.outputs.has_function_changes == 'true'
@@ -34,7 +46,8 @@ jobs:
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
 
-  # Step 4: Test compositions (after functions tests pass or skip)
+  # Step 4: Tests compositions after successful functions tests (if functions were changed also), or after skipped functions test (if no changes in functions detected).
+  # It is placed before compositions testing as no need to test compositions if there are problems with functions.
   test-compositions:
     needs: [detect-changes, ensure-test-image, test-functions]
     if: |
@@ -45,7 +58,7 @@ jobs:
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
 
-  # Step 5: Build functions (if changed and tests passed)
+  # Step 5: Builds packages for functions and compositions (if tests passed)
   build-functions:
     needs: [detect-changes, test-functions, test-compositions]
     if: |
@@ -58,7 +71,6 @@ jobs:
       functions: ${{ needs.detect-changes.outputs.functions }}
     secrets: inherit
 
-  # Step 5: Build compositions (if changed and tests passed)
   build-compositions:
     needs: [detect-changes, test-functions, test-compositions]
     if: |
@@ -71,7 +83,7 @@ jobs:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
     secrets: inherit
 
-  # Step 6: Helm (if any build completed OR helm folder changed)
+  # Step 6: Tests and builds helm (if any packages built or changes detected in helm itself)
   helm:
     needs: [detect-changes, build-functions, build-compositions]
     if: |

@@ -1,16 +1,16 @@
 name: Build Database Function
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'functions/database/**'
-      - 'functions/common/base/**'
-  pull_request:
-    paths:
-      - 'functions/database/**'
-      - 'functions/common/base/**'
+#  push:
+#    branches:
+#      - main
+#    paths:
+#      - 'functions/database/**'
+#      - 'functions/common/base/**'
+#  pull_request:
+#    paths:
+#      - 'functions/database/**'
+#      - 'functions/common/base/**'
   workflow_dispatch:
     inputs:
       version:

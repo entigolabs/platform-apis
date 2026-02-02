@@ -1,5 +1,7 @@
 name: Detect changes
 
+# Detects changes in code and splits them into categories to trigger right jobs.
+
 on:
   workflow_call:
     outputs:

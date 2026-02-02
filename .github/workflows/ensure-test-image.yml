@@ -1,5 +1,7 @@
 name: Ensure test image
 
+# Checks if test runner image exists in docker hub, to avoid workflow error due to missing image and updates/pulls it, if needed.
+
 on:
   workflow_call:
     inputs:
