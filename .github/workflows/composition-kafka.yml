@@ -2,13 +2,13 @@ name: Build Kafka Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "compositions/kafka/**"
-  pull_request:
-    paths:
-      - "compositions/kafka/**"
+#  push:
+#    branches: [main]
+#    paths:
+#      - "compositions/kafka/**"
+#  pull_request:
+#    paths:
+#      - "compositions/kafka/**"
 
 jobs:
   build:

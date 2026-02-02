@@ -2,13 +2,13 @@ name: Build Webapp Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'compositions/webapp/**'
-  pull_request:
-    paths:
-      - 'compositions/webapp/**'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'compositions/webapp/**'
+#  pull_request:
+#    paths:
+#      - 'compositions/webapp/**'
     
 jobs:
   build:

@@ -1,0 +1,239 @@
+name: PR compositions
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'compositions/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      compositions: ${{ steps.changes.outputs.compositions }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v42
+        with:
+          base_sha: ${{ github.event.pull_request.base.sha }}
+          sha: ${{ github.event.pull_request.head.sha }}
+
+      - name: Detect changed compositions
+        id: changes
+        run: |
+          COMPOSITIONS=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | grep '^compositions/' | grep -v '/examples/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          echo "Changed compositions: $COMPOSITIONS"
+          echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
+
+          if [ "$COMPOSITIONS" == "[]" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+  test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        composition: ${{ fromJson(needs.detect-changes.outputs.compositions) }}
+    name: Test ${{ matrix.composition }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Run tests
+        env:
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+        run: |
+          cd compositions/${{ matrix.composition }}/test
+          ./run_tests.sh
+
+  build:
+    needs: [detect-changes, test]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        composition: ${{ fromJson(needs.detect-changes.outputs.compositions) }}
+    name: Build ${{ matrix.composition }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+          sudo mv crossplane /usr/local/bin
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove Test and Examples
+        run: rm -rf compositions/${{ matrix.composition }}/test compositions/${{ matrix.composition }}/examples
+
+      - name: Calculate Version
+        run: |
+          VERSION="v0.1.${{ github.run_number }}"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            VERSION="${VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
+          fi
+          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build & Push Package
+        working-directory: compositions/${{ matrix.composition }}
+        run: |
+          PACKAGE_NAME="platform-apis-${{ matrix.composition }}"
+
+          crossplane xpkg build \
+            --package-root=. \
+            --package-file=${PACKAGE_NAME}.xpkg
+
+          crossplane xpkg push \
+            -f ${PACKAGE_NAME}.xpkg \
+            ghcr.io/${{ github.repository_owner }}/${PACKAGE_NAME}:${{ env.PACKAGE_VERSION }}
+
+  helm:
+    needs: [detect-changes, build]
+    runs-on: ubuntu-latest
+    name: Build Helm
+    permissions:
+      contents: read
+      packages: write
+    env:
+      CHART_PATH: helm
+      CHART_NAME: platform-apis
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Version
+        run: |
+          CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
+          MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
+          BASE_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            NEW_VERSION="${BASE_VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
+            # For PR: match RC tags for this PR, or stable tags
+            echo "JQ_FILTER_RC=test(\"-rc\\\\.${{ github.event.number }}\\\\.\")" >> $GITHUB_ENV
+            echo "JQ_FILTER_STABLE=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
+            echo "IS_PR=true" >> $GITHUB_ENV
+          else
+            NEW_VERSION="${BASE_VERSION}"
+            echo "JQ_FILTER_STABLE=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
+            echo "IS_PR=false" >> $GITHUB_ENV
+          fi
+
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "Chart Version: $NEW_VERSION"
+
+      - name: Update Dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          declare -A PACKAGES=(
+            ["artifact"]="platform-apis-artifact-fn"
+            ["cronjob"]="platform-apis-cronjob"
+            ["database"]="platform-apis-database-fn"
+            ["kafka"]="platform-apis-kafka"
+            ["networking"]="platform-apis-networking-fn"
+            ["postgresql"]="platform-apis-postgresql"
+            ["repository"]="platform-apis-repository"
+            ["s3bucket"]="platform-apis-s3bucket"
+            ["tenancy"]="platform-apis-tenancy-fn"
+            ["valkey"]="platform-apis-valkey"
+            ["webaccess"]="platform-apis-webaccess"
+            ["webapp"]="platform-apis-webapp"
+            ["workload"]="platform-apis-workload-fn"
+            ["zone"]="platform-apis-zone"
+          )
+
+          for KEY in "${!PACKAGES[@]}"; do
+            PKG_NAME="${PACKAGES[$KEY]}"
+            echo "Fetching tag for $PKG_NAME..."
+
+            # Try RC version first (for PR), then fall back to stable
+            TAG=""
+            if [ "$IS_PR" == "true" ]; then
+              TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/orgs/entigolabs/packages/container/$PKG_NAME/versions" \
+                | jq -r "[.[] | select(.metadata.container.tags[] | $JQ_FILTER_RC)] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select($JQ_FILTER_RC)" \
+                | head -n 1)
+            fi
+
+            # Fall back to stable if no RC found
+            if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
+              TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/orgs/entigolabs/packages/container/$PKG_NAME/versions" \
+                | jq -r "[.[] | select(.metadata.container.tags[] | $JQ_FILTER_STABLE)] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select($JQ_FILTER_STABLE)" \
+                | head -n 1)
+            fi
+
+            if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
+              echo "Error: Could not find a matching tag for $PKG_NAME"
+              exit 1
+            fi
+
+            echo "Found tag: $TAG"
+
+            if [[ "$PKG_NAME" == *"-fn" ]]; then
+              YQ_PATH=".$KEY.function.tag"
+            else
+              YQ_PATH=".$KEY.package.tag"
+            fi
+
+            yq -i "$YQ_PATH = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
+          done
+
+          echo "Updated values.yaml:"
+          cat ${{ env.CHART_PATH }}/values.yaml
+
+      - name: Update Chart Version
+        run: |
+          sed -i "s/^version:.*/version: ${{ env.NEW_VERSION }}/" ${{ env.CHART_PATH }}/Chart.yaml
+
+      - name: Remove Test Files
+        run: rm -f ${{ env.CHART_PATH }}/run_tests.sh
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package Helm Chart
+        run: helm package ${{ env.CHART_PATH }}
+
+      - name: Push Helm Chart to GHCR
+        run: |
+          helm push ${{ env.CHART_NAME }}-${{ env.NEW_VERSION }}.tgz oci://ghcr.io/${{ github.repository_owner }}

@@ -2,13 +2,13 @@ name: Build Zone Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'compositions/zone/**'
-  pull_request:
-    paths:
-      - 'compositions/zone/**'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'compositions/zone/**'
+#  pull_request:
+#    paths:
+#      - 'compositions/zone/**'
     
 jobs:
   build:
