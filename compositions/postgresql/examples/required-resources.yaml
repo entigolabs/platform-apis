@@ -1,0 +1,171 @@
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPC
+metadata:
+  annotations:
+    crossplane.io/external-name: vpc
+  name: vpc
+  namespace: crossplane-aws
+spec:
+  deletionPolicy: Orphan
+  forProvider:
+    cidrBlock: 10.138.0.0/16
+    enableDnsHostNames: true
+    enableDnsSupport: true
+    enableNetworkAddressUsageMetrics: false
+    instanceTenancy: default
+    region: eu-north-1
+  managementPolicies:
+    - Observe
+  providerConfigRef:
+    name: crossplane-aws
+status:
+  atProvider:
+    cidrBlockAssociationSet:
+      - associationId: vpc-cidr-assoc-test
+        cidrBlock: 10.138.0.0/16
+        cidrBlockState:
+          state: associated
+    dhcpOptionsId: dopt-test
+    ownerId: "012345678901"
+    vpcId: vpc-test
+    vpcState: available
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready
+---
+apiVersion: kms.aws.m.upbound.io/v1beta1
+kind: Key
+metadata:
+  annotations:
+    crossplane.io/external-name: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
+  name: data
+  namespace: crossplane-aws
+spec:
+  deletionPolicy: Orphan
+  forProvider:
+    enabled: true
+    policy: |-
+      {}
+    region: eu-north-1
+  managementPolicies:
+    - Observe
+  providerConfigRef:
+    name: crossplane-aws
+status:
+  atProvider:
+    arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
+    awsAccountID: "012345678901"
+    creationDate: "2025-01-01T00:00:00Z"
+    enabled: true
+    encryptionAlgorithms:
+      - SYMMETRIC_DEFAULT
+    keyID: mrk-0
+    keyManager: CUSTOMER
+    keyState: Enabled
+    multiRegionConfiguration:
+      multiRegionKeyType: PRIMARY
+      primaryKey:
+        arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
+        region: eu-north-1
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready
+---
+apiVersion: kms.aws.m.upbound.io/v1beta1
+kind: Key
+metadata:
+  annotations:
+    crossplane.io/external-name: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
+  name: config
+  namespace: crossplane-aws
+spec:
+  deletionPolicy: Orphan
+  forProvider:
+    enabled: true
+    policy: |-
+      {}
+    region: eu-north-1
+  managementPolicies:
+    - Observe
+  providerConfigRef:
+    name: crossplane-aws
+status:
+  atProvider:
+    arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
+    awsAccountID: "012345678901"
+    creationDate: "2025-01-01T00:00:00Z"
+    enabled: true
+    encryptionAlgorithms:
+      - SYMMETRIC_DEFAULT
+    keyID: mrk-1
+    keyManager: CUSTOMER
+    keyState: Enabled
+    multiRegionConfiguration:
+      multiRegionKeyType: PRIMARY
+      primaryKey:
+        arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
+        region: eu-north-1
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready
+---
+apiVersion: rds.aws.m.upbound.io/v1beta1
+kind: SubnetGroup
+metadata:
+  annotations:
+    crossplane.io/external-name: database
+  name: database
+  namespace: crossplane-aws
+spec:
+  deletionPolicy: Orphan
+  forProvider:
+    description: Subnet group for PostgreSQL instance
+    region: eu-north-1
+    subnetIdRefs:
+      - name: dbsubnet-0
+      - name: dbsubnet-1
+    subnetIds:
+      - subnet-0
+      - subnet-1
+  managementPolicies:
+    - Observe
+  providerConfigRef:
+    name: crossplane-aws
+status:
+  atProvider:
+    arn: arn:aws:rds:eu-north-1:012345678901:subgrp:test-subnetgroup
+    state: Complete
+    subnets:
+      - subnetID: subnet-0
+        subnetStatus: Active
+      - subnetID: subnet-1
+        subnetStatus: Active
+    vpcId: vpc
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready

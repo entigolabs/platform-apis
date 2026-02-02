@@ -1,0 +1,23 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-zone
+data:
+  granularEgress: false
+  granularEgressExclude: []
+  argoCDNamespace: "argocd"
+  awsProvider: "crossplane-aws"
+  appProject:
+    maintainerGroups: []
+    observerGroups: []
+    sourceRepos: ["*"]
+  cluster: eks
+  dataKMSAlias: data
+  securityGroup: "eks-node"
+  vpc: vpc
+  computeSubnetType: compute
+  serviceSubnetType: service
+  publicSubnetType: public
+  controlSubnetType: control
+  podSecurity: baseline
+  tags: {}
