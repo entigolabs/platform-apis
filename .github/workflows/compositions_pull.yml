@@ -62,9 +62,7 @@ jobs:
       - name: Run tests
         env:
           GITHUB_EVENT_NUMBER: ${{ github.event.number }}
-        run: |
-          cd compositions/${{ matrix.composition }}/test
-          ./run_tests.sh
+        run: ./run-tests.sh compositions/${{ matrix.composition }}
 
   build:
     needs: [detect-changes, test]
