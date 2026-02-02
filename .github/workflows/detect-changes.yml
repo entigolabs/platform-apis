@@ -18,6 +18,9 @@ on:
       test_image_changed:
         description: 'Whether test image sources changed'
         value: ${{ jobs.detect.outputs.test_image_changed }}
+      helm_changed:
+        description: 'Whether helm folder changed'
+        value: ${{ jobs.detect.outputs.helm_changed }}
 
 jobs:
   detect:
@@ -28,6 +31,7 @@ jobs:
       compositions: ${{ steps.changes.outputs.compositions }}
       has_composition_changes: ${{ steps.changes.outputs.has_composition_changes }}
       test_image_changed: ${{ steps.changes.outputs.test_image_changed }}
+      helm_changed: ${{ steps.changes.outputs.helm_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,4 +85,12 @@ jobs:
             echo "Test image sources changed"
           else
             echo "test_image_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Helm folder
+          if echo "$ALL_FILES" | tr ' ' '\n' | grep -qE '^helm/'; then
+            echo "helm_changed=true" >> $GITHUB_OUTPUT
+            echo "Helm folder changed"
+          else
+            echo "helm_changed=false" >> $GITHUB_OUTPUT
           fi
