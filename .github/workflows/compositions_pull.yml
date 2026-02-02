@@ -113,8 +113,22 @@ jobs:
             -f ${PACKAGE_NAME}.xpkg \
             ghcr.io/${{ github.repository_owner }}/${PACKAGE_NAME}:${{ env.PACKAGE_VERSION }}
 
-  helm:
+  test-helm:
     needs: [detect-changes, build]
+    runs-on: ubuntu-latest
+    name: Test Helm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Run Helm Tests
+        env:
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+        run: ./run-tests.sh helm
+
+  helm:
+    needs: [detect-changes, build, test-helm]
     runs-on: ubuntu-latest
     name: Build Helm
     permissions:
@@ -184,15 +198,15 @@ jobs:
             if [ "$IS_PR" == "true" ]; then
               TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/orgs/entigolabs/packages/container/$PKG_NAME/versions" \
-                | jq -r "[.[] | select(.metadata.container.tags[] | $JQ_FILTER_RC)] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select($JQ_FILTER_RC)" \
-                | head -n 1)
+                | jq -r "[.[] | select(.metadata.container.tags[]? | $JQ_FILTER_RC)] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select($JQ_FILTER_RC)" \
+                | head -n 1 2>/dev/null || echo "")
             fi
 
             # Fall back to stable if no RC found
             if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
               TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/orgs/entigolabs/packages/container/$PKG_NAME/versions" \
-                | jq -r "[.[] | select(.metadata.container.tags[] | $JQ_FILTER_STABLE)] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select($JQ_FILTER_STABLE)" \
+                | jq -r "[.[] | select(.metadata.container.tags[]? | $JQ_FILTER_STABLE)] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select($JQ_FILTER_STABLE)" \
                 | head -n 1)
             fi
 
