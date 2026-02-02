@@ -67,12 +67,12 @@ spec:
                 "skipTlsVerify": false
               }
           ---
-          apiVersion: kafka.crossplane.io/v1alpha1
-          kind: ProviderConfig
+          apiVersion: kafka.m.crossplane.io/v1alpha1
+          kind: ClusterProviderConfig
           metadata:
             name: {{ $clusterName }}-observed
             annotations:
-              {{ setResourceNameAnnotation "kafka-provider-config" }}
+              {{ setResourceNameAnnotation "kafka-cluster-provider-config" }}
               gotemplating.fn.crossplane.io/ready: "True"
           spec:
             credentials:
@@ -86,6 +86,7 @@ spec:
           kind: MSK
           status:
             brokers: {{ $mskCluster.resource.status.atProvider.bootstrapBrokersSaslIam | quote }}
+            brokersscram: {{ $mskCluster.resource.status.atProvider.bootstrapBrokersSaslScram | quote }}
             arn: {{ $mskCluster.resource.status.atProvider.arn | quote }}
             region: {{ $region | quote }}
             providerConfig: {{ $clusterName }}-observed

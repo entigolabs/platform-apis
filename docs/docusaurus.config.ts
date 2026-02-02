@@ -1,6 +1,8 @@
+import 'dotenv/config';
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import path from 'path';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -37,6 +39,12 @@ const config: Config = {
     locales: ['en'],
   },
 
+  customFields: {
+    // This passes the Node.js env var to the Client-side React context
+    marketingUrl: process.env.MARKETING_URL, 
+    strapiUrl: process.env.STRAPI_URL,
+  },
+
   presets: [
     [
       'classic',
@@ -49,7 +57,7 @@ const config: Config = {
             'https://github.com/entigolabs/platform-apis/docs',
         },
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: './src/css/custom.scss',
         },
       } satisfies Preset.Options,
     ],
@@ -66,6 +74,8 @@ const config: Config = {
     ],
     // Custom plugin to inject PostHog runtime config
     './src/plugins/posthog-runtime-config.ts',
+    'docusaurus-plugin-sass',
+    path.resolve(__dirname, 'src/plugins/strapi-data'),
   ],
 
   themeConfig: {

@@ -30,6 +30,8 @@ spec:
             properties:
               brokers:
                 type: string
+              brokersscram:
+                type: string
               arn:
                 type: string
               region:

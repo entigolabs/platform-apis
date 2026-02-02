@@ -129,15 +129,15 @@ NAME                                 TYPE     DATA   AGE
 test-crossplane-cluster-user-a-k8s   Opaque   1      18h
 
 
-$ kubectl get secret.secretsmanager.aws.upbound.io
+$ kubectl get secret.secretsmanager.aws.m.upbound.io
 NAME                             SYNCED   READY   EXTERNAL-NAME                                                                                    AGE
 test-crossplane-cluster-user-a   True     True    arn:aws:secretsmanager:us-east-1:xxxxxxxxxxxx:secret:AmazonMSK_test-cluster-name-user-a-U0dDJe   18h
 
-$ kubectl get secretpolicy.secretsmanager.aws.upbound.io
+$ kubectl get secretpolicy.secretsmanager.aws.m.upbound.io
 NAME                                    SYNCED   READY   EXTERNAL-NAME                                                                                    AGE
 test-crossplane-cluster-user-a-policy   True     True    arn:aws:secretsmanager:us-east-1:xxxxxxxxxxxx:secret:AmazonMSK_test-cluster-name-user-a-U0dDJe   18h
 
-$ kubectl get secretversion.secretsmanager.aws.upbound.io
+$ kubectl get secretversion.secretsmanager.aws.m.upbound.io
 NAME                                     SYNCED   READY   EXTERNAL-NAME   AGE
 test-crossplane-cluster-user-a-version   True     True                    18h
 
@@ -178,7 +178,7 @@ $ kubectl get Topic.kafka.entigo.com -A
 NAMESPACE   NAME      SYNCED   READY   CONNECTION-SECRET   AGE
 team-a      topic-a   True     True                        19h
 
-$ kubectl get topic.topic.kafka.crossplane.io
+$ kubectl get topic.topic.kafka.m.crossplane.io
 NAME                                 READY   SYNCED   EXTERNAL-NAME                        AGE
 topic-a                              True    True     team-a                               19h
 ```

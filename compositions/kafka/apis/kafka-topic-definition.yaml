@@ -1,13 +1,11 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xtopics.kafka.entigo.com
+  name: topics.kafka.entigo.com
 spec:
+  scope: Namespaced
   group: kafka.entigo.com
   names:
-    kind: XTopic
-    plural: xtopics
-  claimNames:
     kind: Topic
     plural: topics
   versions:
