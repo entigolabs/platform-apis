@@ -1,11 +1,13 @@
-name: PR compositions
+name: Pull Request CI
 
 on:
   pull_request:
     branches:
       - main
     paths:
+      - 'functions/**'
       - 'compositions/**'
+      - 'test/**'
   workflow_dispatch:
 
 concurrency:
@@ -14,23 +16,50 @@ concurrency:
 
 jobs:
   detect-changes:
-    uses: ./.github/workflows/detect-composition-changes.yml
+    uses: ./.github/workflows/detect-changes.yml
 
-  test:
+  ensure-test-image:
     needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    uses: ./.github/workflows/ensure-test-image.yml
+    with:
+      force_rebuild: ${{ needs.detect-changes.outputs.test_image_changed == 'true' }}
+    secrets: inherit
+
+  # Functions: test -> build
+  test-functions:
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.has_function_changes == 'true'
+    uses: ./.github/workflows/test-functions.yml
+    with:
+      functions: ${{ needs.detect-changes.outputs.functions }}
+
+  # Compositions: test -> build (after functions)
+  test-compositions:
+    needs: [detect-changes, ensure-test-image]
+    if: always() && needs.detect-changes.outputs.has_composition_changes == 'true' && (needs.build-functions.result == 'success' || needs.build-functions.result == 'skipped')
     uses: ./.github/workflows/test-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
 
-  build:
-    needs: [detect-changes, test]
+  build-functions:
+    needs: [ detect-changes, test-functions ]
+    if: needs.detect-changes.outputs.has_function_changes == 'true'
+    uses: ./.github/workflows/build-functions.yml
+    with:
+      functions: ${{ needs.detect-changes.outputs.functions }}
+    secrets: inherit
+
+  build-compositions:
+    needs: [detect-changes, test-compositions]
+    if: needs.detect-changes.outputs.has_composition_changes == 'true'
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
     secrets: inherit
 
+  # Helm: build after all packages
   helm:
-    needs: [detect-changes, build]
+    needs: [detect-changes, build-functions, build-compositions]
+    if: always() && !cancelled() && (needs.build-functions.result == 'success' || needs.build-functions.result == 'skipped') && (needs.build-compositions.result == 'success' || needs.build-compositions.result == 'skipped')
     uses: ./.github/workflows/build-helm.yml
     secrets: inherit

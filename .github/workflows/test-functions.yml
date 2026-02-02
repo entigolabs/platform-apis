@@ -1,0 +1,61 @@
+name: Test functions
+
+on:
+  workflow_call:
+    inputs:
+      functions:
+        description: 'JSON array of functions to test'
+        required: true
+        type: string
+
+env:
+  GO_VERSION: '1.25'
+  GOLANGCI_VERSION: 'v2.7.2'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        function: ${{ fromJson(inputs.functions) }}
+    name: Lint ${{ matrix.function }}
+    defaults:
+      run:
+        working-directory: functions/${{ matrix.function }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Check go mod tidy
+        run: go mod tidy && git diff --exit-code go.mod go.sum
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: ${{ env.GOLANGCI_VERSION }}
+          working-directory: functions/${{ matrix.function }}
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        function: ${{ fromJson(inputs.functions) }}
+    name: Test ${{ matrix.function }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Run tests
+        env:
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+        run: ./run-tests.sh functions/${{ matrix.function }}
