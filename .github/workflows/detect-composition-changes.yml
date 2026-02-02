@@ -1,0 +1,44 @@
+name: Detect composition changes
+
+on:
+  workflow_call:
+    outputs:
+      compositions:
+        description: 'JSON array of changed compositions'
+        value: ${{ jobs.detect.outputs.compositions }}
+      has_changes:
+        description: 'Whether any compositions changed'
+        value: ${{ jobs.detect.outputs.has_changes }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      compositions: ${{ steps.changes.outputs.compositions }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v42
+        with:
+          base_sha: ${{ github.event.pull_request.base.sha }}
+          sha: ${{ github.event.pull_request.head.sha }}
+
+      - name: Detect changed compositions
+        id: changes
+        run: |
+          COMPOSITIONS=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | grep '^compositions/' | grep -v '/examples/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          echo "Changed compositions: $COMPOSITIONS"
+          echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
+
+          if [ "$COMPOSITIONS" == "[]" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi

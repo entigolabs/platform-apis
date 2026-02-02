@@ -1,0 +1,58 @@
+name: Build compositions
+
+on:
+  workflow_call:
+    inputs:
+      compositions:
+        description: 'JSON array of compositions to build'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        composition: ${{ fromJson(inputs.compositions) }}
+    name: Build ${{ matrix.composition }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+          sudo mv crossplane /usr/local/bin
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove Test and Examples
+        run: rm -rf compositions/${{ matrix.composition }}/test compositions/${{ matrix.composition }}/examples
+
+      - name: Calculate Version
+        run: |
+          VERSION="v0.1.${{ github.run_number }}"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            VERSION="${VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
+          fi
+          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build & Push Package
+        working-directory: compositions/${{ matrix.composition }}
+        run: |
+          PACKAGE_NAME="platform-apis-${{ matrix.composition }}"
+
+          crossplane xpkg build \
+            --package-root=. \
+            --package-file=${PACKAGE_NAME}.xpkg
+
+          crossplane xpkg push \
+            -f ${PACKAGE_NAME}.xpkg \
+            ghcr.io/${{ github.repository_owner }}/${PACKAGE_NAME}:${{ env.PACKAGE_VERSION }}
