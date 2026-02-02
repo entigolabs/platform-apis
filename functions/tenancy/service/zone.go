@@ -283,7 +283,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]runtime.Object, error) {
 	objs := make(map[string]runtime.Object)
 	zoneNs := base.NewSet[string]()
 	for _, ns := range g.zone.Spec.Namespaces {
-		namespace := g.getNamespace(ns.Name)
+		namespace := g.getNamespace(ns)
 		objs[GetNamespaceKey(ns.Name)] = namespace
 		err := g.generateNamespace(objs, ns.Name, ns.Pool)
 		if err != nil {
@@ -336,11 +336,14 @@ func (g zoneGenerator) generateNamespace(objs map[string]runtime.Object, name, p
 	return nil
 }
 
-func (g zoneGenerator) getNamespace(name string) *corev1.Namespace {
+func (g zoneGenerator) getNamespace(ns v1alpha1.Namespace) *corev1.Namespace {
 	labels := map[string]string{
 		ZoneAnnotation:                       g.zone.Name,
 		"pod-security.kubernetes.io/enforce": g.env.PodSecurity,
 		"pod-security.kubernetes.io/warn":    g.env.PodSecurity,
+	}
+	if ns.Pool != "" {
+		labels[PoolLabel] = ns.Pool
 	}
 	if g.env.GranularEgress {
 		labels["istio-injection"] = "enabled"
@@ -351,7 +354,7 @@ func (g zoneGenerator) getNamespace(name string) *corev1.Namespace {
 			Kind:       "Namespace",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
+			Name:        ns.Name,
 			Labels:      labels,
 			Annotations: g.zoneAnnotations,
 		},
