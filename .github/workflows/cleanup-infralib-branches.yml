@@ -1,0 +1,38 @@
+name: Cleanup Infralib Test Branches
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete test branches from entigo-infralib
+        env:
+          GH_TOKEN: ${{ secrets.INFRALIB_PAT }}
+        run: |
+          PR_NUMBER="${{ github.event.number }}"
+          echo "Cleaning up branches for PR #${PR_NUMBER}"
+
+          # List all branches matching the pattern for this PR
+          BRANCHES=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/entigolabs/entigo-infralib/branches?per_page=100" \
+            | jq -r ".[].name | select(test(\"platform-apis-.*-rc\\.${PR_NUMBER}\\.\"))")
+
+          if [ -z "$BRANCHES" ]; then
+            echo "No branches found for PR #${PR_NUMBER}"
+            exit 0
+          fi
+
+          echo "Found branches to delete:"
+          echo "$BRANCHES"
+
+          for BRANCH in $BRANCHES; do
+            echo "Deleting branch: $BRANCH"
+            curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/entigolabs/entigo-infralib/git/refs/heads/${BRANCH}"
+            echo "Deleted: $BRANCH"
+          done
+
+          echo "Cleanup complete"
