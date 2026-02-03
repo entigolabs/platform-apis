@@ -102,7 +102,7 @@ jobs:
   # Step 8: Create test branch in entigo-infralib with updated platform-apis package
   create-infralib-test-branch:
     needs: helm
-    if: needs.helm.result == 'success'
+    if: always() && needs.helm.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout platform-apis
