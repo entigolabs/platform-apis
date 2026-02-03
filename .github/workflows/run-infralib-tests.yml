@@ -1,0 +1,174 @@
+name: Run infralib tests
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'PR number'
+        required: true
+        type: string
+      run_number:
+        description: 'Workflow run number'
+        required: true
+        type: string
+      run_attempt:
+        description: 'Workflow run attempt'
+        required: true
+        type: string
+
+jobs:
+  create-test-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout platform-apis
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: platform-apis-repo
+
+      - name: Checkout entigo-infralib
+        uses: actions/checkout@v4
+        with:
+          repository: entigolabs/entigo-infralib
+          token: ${{ secrets.INFRALIB_PAT }}
+          path: entigo-infralib
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate Helm Version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch latest stable version from GHCR
+          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/platform-apis/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+            | head -n 1 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+            NEXT_PATCH=1
+          else
+            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed 's/0\.1\.//')
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+          fi
+
+          VERSION="0.1.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
+          echo "HELM_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Helm version: $VERSION"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and extract Helm chart
+        run: |
+          mkdir -p helm-chart
+          helm pull oci://ghcr.io/${{ github.repository_owner }}/platform-apis --version ${{ env.HELM_VERSION }} --destination ./helm-chart
+
+      - name: Create test branch and update files
+        working-directory: entigo-infralib
+        run: |
+          BRANCH_NAME="platform-apis-${{ env.HELM_VERSION }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create new branch
+          git checkout -b "$BRANCH_NAME"
+
+          # Replace helm chart
+          rm -rf modules/k8s/platform-apis/charts/*
+          cp -r ../helm-chart/* modules/k8s/platform-apis/charts/
+
+          # Replace test file
+          cp ../platform-apis-repo/test/e2e-tests/k8s_unit_basic_test.go modules/k8s/platform-apis/test/
+
+          # Commit and push
+          git add .
+          git commit -m "Update platform-apis to ${{ env.HELM_VERSION }} for testing"
+          git push origin "$BRANCH_NAME"
+
+          echo "Created branch: $BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: Run tests
+        id: tests
+        working-directory: entigo-infralib/modules/k8s/platform-apis
+        run: |
+          set +e
+          ./test.sh 2>&1 | tee test-output.txt
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+
+          echo "TEST_EXIT_CODE=$TEST_EXIT_CODE" >> $GITHUB_ENV
+
+          # Save output for later steps
+          {
+            echo 'TEST_OUTPUT<<EOF'
+            cat test-output.txt
+            echo 'EOF'
+          } >> $GITHUB_ENV
+
+          exit $TEST_EXIT_CODE
+        continue-on-error: true
+
+      - name: Create job summary
+        run: |
+          echo "## Platform APIs E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Helm Version:** \`${{ env.HELM_VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Infralib Branch:** \`${{ env.BRANCH_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ env.TEST_EXIT_CODE }}" == "0" ]; then
+            echo "### ✅ Tests Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Tests Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "<details>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>Test Output</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ env.TEST_OUTPUT }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const testStatus = '${{ env.TEST_EXIT_CODE }}' === '0' ? 'Passed' : 'Failed';
+            const body = `## Platform APIs E2E Test Results
+
+            **Helm Version:** \`${{ env.HELM_VERSION }}\`
+            **Infralib Branch:** [\`${{ env.BRANCH_NAME }}\`](https://github.com/entigolabs/entigo-infralib/tree/${{ env.BRANCH_NAME }})
+            **Status:** ${testStatus}
+
+            <details>
+            <summary>Test Output</summary>
+
+            \`\`\`
+            ${{ env.TEST_OUTPUT }}
+            \`\`\`
+            </details>
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ inputs.pr_number }},
+              body: body
+            });
+
+      - name: Fail if tests failed
+        if: env.TEST_EXIT_CODE != '0'
+        run: exit 1

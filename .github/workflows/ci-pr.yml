@@ -99,84 +99,13 @@ jobs:
       run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
-  # Step 8: Create test branch in entigo-infralib with updated platform-apis package
-  create-infralib-test-branch:
+  # Step 8: Creates test branch in entigo-infralib with updated platform-apis package and runs tests.
+  run-infralib-tests:
     needs: helm
     if: always() && needs.helm.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout platform-apis
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          path: platform-apis-repo
-
-      - name: Checkout entigo-infralib
-        uses: actions/checkout@v4
-        with:
-          repository: entigolabs/entigo-infralib
-          token: ${{ secrets.INFRALIB_PAT }}
-          path: entigo-infralib
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Calculate Helm Version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Fetch latest stable version from GHCR
-          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/platform-apis/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
-            | head -n 1 2>/dev/null || echo "")
-
-          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
-            NEXT_PATCH=1
-          else
-            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed 's/0\.1\.//')
-            NEXT_PATCH=$((CURRENT_PATCH + 1))
-          fi
-
-          VERSION="0.1.${NEXT_PATCH}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
-          echo "HELM_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Helm version: $VERSION"
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull and extract Helm chart
-        run: |
-          mkdir -p helm-chart
-          helm pull oci://ghcr.io/${{ github.repository_owner }}/platform-apis --version ${{ env.HELM_VERSION }} --destination ./helm-chart
-
-      - name: Create test branch and update files
-        working-directory: entigo-infralib
-        run: |
-          BRANCH_NAME="platform-apis-${{ env.HELM_VERSION }}-test"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Create new branch
-          git checkout -b "$BRANCH_NAME"
-
-          # Replace helm chart
-          rm -rf modules/k8s/platform-apis/charts/*
-          cp -r ../helm-chart/* modules/k8s/platform-apis/charts/
-
-          # Replace test file
-          cp ../platform-apis-repo/test/e2e-tests/k8s_unit_basic_test.go modules/k8s/platform-apis/test/
-
-          # Commit and push
-          git add .
-          git commit -m "Update platform-apis to ${{ env.HELM_VERSION }} for testing"
-          git push origin "$BRANCH_NAME"
-
-          echo "Created branch: $BRANCH_NAME"
+    uses: ./.github/workflows/run-infralib-tests.yml
+    with:
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
+    secrets: inherit
