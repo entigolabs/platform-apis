@@ -51,6 +51,9 @@ func (f *Function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 		response.Fatal(rsp, errors.Wrapf(err, "cannot get observed composite resource from %T", req))
 		return rsp, nil
 	}
+	if f.groupService.SkipGeneration(compositeResource.Resource) {
+		return rsp, nil
+	}
 
 	requiredResources, err := request.GetRequiredResources(req)
 	if err != nil {

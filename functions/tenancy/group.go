@@ -16,12 +16,17 @@ import (
 const (
 	environmentName = "platform-apis-zone"
 	ec2ApiVersion   = "ec2.aws.upbound.io/v1beta1"
+	infralibZone    = "infralib"
 )
 
 type GroupImpl struct {
 }
 
 var _ base.GroupService = &GroupImpl{}
+
+func (g *GroupImpl) SkipGeneration(compositeResource *composite.Unstructured) bool {
+	return compositeResource.GetKind() == apis.XRKindZone && compositeResource.GetName() == infralibZone
+}
 
 func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	return map[string]base.ResourceHandler{

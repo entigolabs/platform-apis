@@ -21,6 +21,10 @@ type GroupImpl struct {
 
 var _ base.GroupService = &GroupImpl{}
 
+func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
+	return false
+}
+
 func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	return map[string]base.ResourceHandler{
 		apis.XRKindWebAccess: {
