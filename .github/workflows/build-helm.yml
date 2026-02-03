@@ -62,15 +62,31 @@ jobs:
 
       - name: Calculate version
         id: version
-        uses: ./.github/actions/calculate-version
-        with:
-          package_name: ${{ env.CHART_NAME }}
-          release_type: ${{ inputs.release_type }}
-          pr_number: ${{ inputs.pr_number }}
-          run_number: ${{ inputs.run_number }}
-          run_attempt: ${{ inputs.run_attempt }}
-          version_prefix: ''
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PKG_NAME="${{ env.CHART_NAME }}"
+
+          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+            | head -n 1 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+            NEXT_PATCH=1
+          else
+            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed 's/0\.1\.//')
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+          fi
+
+          if [ "${{ inputs.release_type }}" == "rc" ]; then
+            VERSION="0.1.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
+          else
+            VERSION="0.1.${NEXT_PATCH}"
+          fi
+
+          echo "Latest: $LATEST_TAG -> New: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Set version filters
         id: filters
