@@ -100,6 +100,10 @@ jobs:
       - name: Run tests
         id: tests
         working-directory: entigo-infralib/modules/k8s/platform-apis
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           set +e
           ./test.sh 2>&1 | tee test-output.txt
