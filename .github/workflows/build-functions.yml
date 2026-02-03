@@ -7,6 +7,10 @@ on:
         description: 'JSON array of functions to build'
         required: true
         type: string
+      version:
+        description: 'Package version (e.g. v0.1.0 or v0.1.0-rc.1.123.1)'
+        required: true
+        type: string
 
 env:
   GO_VERSION: '1.25'
@@ -108,15 +112,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Calculate Version
-        run: |
-          VERSION="v0.1.${{ github.run_number }}"
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            VERSION="${VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
-          fi
-          echo "XPKG_VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Push Multi-Platform Package
         run: |
           XPKG="ghcr.io/${{ github.repository_owner }}/platform-apis-${{ matrix.function }}-fn"
-          ./crossplane --verbose xpkg push --package-files $(echo *.xpkg|tr ' ' ,) ${XPKG,,}:${{ env.XPKG_VERSION }}
+          ./crossplane --verbose xpkg push --package-files $(echo *.xpkg|tr ' ' ,) ${XPKG,,}:${{ inputs.version }}

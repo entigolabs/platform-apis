@@ -2,6 +2,20 @@ name: Build Helm
 
 on:
   workflow_call:
+    inputs:
+      version:
+        description: 'Chart version (e.g. 0.1.0 or 0.1.0-rc.1.123.1)'
+        required: true
+        type: string
+      release_type:
+        description: 'Release type: stable or rc'
+        required: true
+        type: string
+      pr_number:
+        description: 'PR number (required for rc releases)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   test:
@@ -39,24 +53,18 @@ jobs:
 
       - name: Configure Version
         run: |
-          CURRENT_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
-          MAJOR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f1,2)
-          BASE_VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
+          echo "NEW_VERSION=${{ inputs.version }}" >> $GITHUB_ENV
+          echo "Chart Version: ${{ inputs.version }}"
 
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            NEW_VERSION="${BASE_VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
+          if [ "${{ inputs.release_type }}" == "rc" ]; then
             # For PR: match RC tags for this PR, or stable tags
-            echo "JQ_FILTER_RC=test(\"-rc\\\\.${{ github.event.number }}\\\\.\")" >> $GITHUB_ENV
+            echo "JQ_FILTER_RC=test(\"-rc\\\\.${{ inputs.pr_number }}\\\\.\")" >> $GITHUB_ENV
             echo "JQ_FILTER_STABLE=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
             echo "IS_PR=true" >> $GITHUB_ENV
           else
-            NEW_VERSION="${BASE_VERSION}"
             echo "JQ_FILTER_STABLE=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
             echo "IS_PR=false" >> $GITHUB_ENV
           fi
-
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "Chart Version: $NEW_VERSION"
 
       - name: Update Dependencies
         env:

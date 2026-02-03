@@ -7,6 +7,10 @@ on:
         description: 'JSON array of compositions to build'
         required: true
         type: string
+      version:
+        description: 'Package version (e.g. v0.1.0 or v0.1.0-rc.1.123.1)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -36,14 +40,6 @@ jobs:
       - name: Remove Test and Examples
         run: rm -rf compositions/${{ matrix.composition }}/test compositions/${{ matrix.composition }}/examples
 
-      - name: Calculate Version
-        run: |
-          VERSION="v0.1.${{ github.run_number }}"
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            VERSION="${VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
-          fi
-          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Build & Push Package
         working-directory: compositions/${{ matrix.composition }}
         run: |
@@ -55,4 +51,4 @@ jobs:
 
           crossplane xpkg push \
             -f ${PACKAGE_NAME}.xpkg \
-            ghcr.io/${{ github.repository_owner }}/${PACKAGE_NAME}:${{ env.PACKAGE_VERSION }}
+            ghcr.io/${{ github.repository_owner }}/${PACKAGE_NAME}:${{ inputs.version }}

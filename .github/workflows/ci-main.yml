@@ -1,0 +1,107 @@
+name: Main Branch CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/**'
+      - 'compositions/**'
+      - 'test/**'
+      - 'helm/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Step 1: Detects changes in functions, compositions, test common folder, helm
+  detect-changes:
+    uses: ./.github/workflows/detect-changes.yml
+
+  # Step 2: Checks if test runner image exists in docker hub, and it is updated. If image is missing or old, pushes image.
+  ensure-test-image:
+    needs: detect-changes
+    uses: ./.github/workflows/ensure-test-image.yml
+    with:
+      force_rebuild: ${{ needs.detect-changes.outputs.test_image_changed == 'true' }}
+    secrets: inherit
+
+  # Step 3: Tests changed functions.
+  test-functions:
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.has_function_changes == 'true'
+    uses: ./.github/workflows/test-functions.yml
+    with:
+      functions: ${{ needs.detect-changes.outputs.functions }}
+
+  # Step 4: Tests compositions after successful functions tests (if functions were changed also), or after skipped functions test (if no changes in functions detected).
+  test-compositions:
+    needs: [detect-changes, ensure-test-image, test-functions]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_composition_changes == 'true' &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped')
+    uses: ./.github/workflows/test-compositions.yml
+    with:
+      compositions: ${{ needs.detect-changes.outputs.compositions }}
+
+  # Step 5: Calculate version for stable release
+  calculate-version:
+    needs: [test-functions, test-compositions]
+    if: |
+      always() &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
+      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
+    uses: ./.github/workflows/calculate-version.yml
+    with:
+      release_type: stable
+
+  # Step 6: Builds packages for functions (if tests passed)
+  build-functions:
+    needs: [detect-changes, test-functions, test-compositions, calculate-version]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_function_changes == 'true' &&
+      needs.test-functions.result == 'success' &&
+      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped') &&
+      needs.calculate-version.result == 'success'
+    uses: ./.github/workflows/build-functions.yml
+    with:
+      functions: ${{ needs.detect-changes.outputs.functions }}
+      version: ${{ needs.calculate-version.outputs.version }}
+    secrets: inherit
+
+  # Step 7: Builds packages for compositions (if tests passed)
+  build-compositions:
+    needs: [detect-changes, test-functions, test-compositions, calculate-version]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_composition_changes == 'true' &&
+      needs.test-compositions.result == 'success' &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
+      needs.calculate-version.result == 'success'
+    uses: ./.github/workflows/build-compositions.yml
+    with:
+      compositions: ${{ needs.detect-changes.outputs.compositions }}
+      version: ${{ needs.calculate-version.outputs.version }}
+    secrets: inherit
+
+  # Step 8: Tests and builds helm (if any packages built or changes detected in helm itself)
+  helm:
+    needs: [detect-changes, build-functions, build-compositions, calculate-version]
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.calculate-version.result == 'success' &&
+      (
+        needs.build-functions.result == 'success' ||
+        needs.build-compositions.result == 'success' ||
+        needs.detect-changes.outputs.helm_changed == 'true'
+      )
+    uses: ./.github/workflows/build-helm.yml
+    with:
+      version: ${{ needs.calculate-version.outputs.version }}
+      release_type: stable
+    secrets: inherit

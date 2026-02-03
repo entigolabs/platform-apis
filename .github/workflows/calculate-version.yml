@@ -1,0 +1,38 @@
+name: Calculate Version
+
+on:
+  workflow_call:
+    inputs:
+      release_type:
+        description: 'Release type: stable or rc'
+        type: string
+        required: true
+      pr_number:
+        description: 'PR number (required for rc releases)'
+        type: string
+        required: false
+        default: ''
+    outputs:
+      version:
+        description: 'Calculated version string'
+        value: ${{ jobs.calculate.outputs.version }}
+
+jobs:
+  calculate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Calculate Version
+        id: version
+        run: |
+          BASE_VERSION="v0.1.${{ github.run_number }}"
+
+          if [ "${{ inputs.release_type }}" == "rc" ]; then
+            VERSION="${BASE_VERSION}-rc.${{ inputs.pr_number }}.${{ github.run_number }}.${{ github.run_attempt }}"
+          else
+            VERSION="${BASE_VERSION}"
+          fi
+
+          echo "Calculated version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
