@@ -1,0 +1,19 @@
+name: Setup Crossplane CLI
+description: Installs Crossplane CLI
+
+inputs:
+  install_path:
+    description: 'Installation path (leave empty for current directory)'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install Crossplane CLI
+      shell: bash
+      run: |
+        curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+        if [ -n "${{ inputs.install_path }}" ]; then
+          sudo mv crossplane ${{ inputs.install_path }}
+        fi

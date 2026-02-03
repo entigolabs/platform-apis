@@ -1,0 +1,86 @@
+name: Calculate Package Version
+description: Fetches latest version from GHCR and calculates next version
+
+inputs:
+  package_name:
+    description: 'Package name in GHCR (e.g., platform-apis-artifact-fn)'
+    required: true
+  release_type:
+    description: 'Release type: stable or rc'
+    required: true
+  pr_number:
+    description: 'PR number (required for rc releases)'
+    required: false
+    default: ''
+  run_number:
+    description: 'Workflow run number'
+    required: false
+    default: ''
+  run_attempt:
+    description: 'Workflow run attempt'
+    required: false
+    default: ''
+  version_prefix:
+    description: 'Version prefix (e.g., v for v0.1.X or empty for 0.1.X)'
+    required: false
+    default: 'v'
+  github_token:
+    description: 'GitHub token for API access'
+    required: true
+
+outputs:
+  version:
+    description: 'Calculated version'
+    value: ${{ steps.calculate.outputs.version }}
+  latest_tag:
+    description: 'Latest existing tag'
+    value: ${{ steps.calculate.outputs.latest_tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Calculate Version
+      id: calculate
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        PKG_NAME: ${{ inputs.package_name }}
+        RELEASE_TYPE: ${{ inputs.release_type }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        RUN_NUMBER: ${{ inputs.run_number }}
+        RUN_ATTEMPT: ${{ inputs.run_attempt }}
+        VERSION_PREFIX: ${{ inputs.version_prefix }}
+      run: |
+        # Build regex pattern based on version prefix
+        if [ -n "$VERSION_PREFIX" ]; then
+          STABLE_PATTERN="^${VERSION_PREFIX}[0-9]+\\.[0-9]+\\.[0-9]+$"
+        else
+          STABLE_PATTERN="^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        fi
+
+        # Fetch latest stable version from GHCR
+        LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions" \
+          | jq -r --arg pattern "$STABLE_PATTERN" \
+            '[.[] | select(.metadata.container.tags[]? | test($pattern))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test($pattern))' \
+          | head -n 1 2>/dev/null || echo "")
+
+        echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+        if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+          NEXT_PATCH=1
+        else
+          # Extract patch version (handles both v0.1.X and 0.1.X formats)
+          CURRENT_PATCH=$(echo "$LATEST_TAG" | sed "s/${VERSION_PREFIX}0\.1\.//")
+          NEXT_PATCH=$((CURRENT_PATCH + 1))
+        fi
+
+        if [ "$RELEASE_TYPE" == "rc" ]; then
+          VERSION="${VERSION_PREFIX}0.1.${NEXT_PATCH}-rc.${PR_NUMBER}.${RUN_NUMBER}.${RUN_ATTEMPT}"
+        else
+          VERSION="${VERSION_PREFIX}0.1.${NEXT_PATCH}"
+        fi
+
+        echo "Latest tag: $LATEST_TAG"
+        echo "New version: $VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
