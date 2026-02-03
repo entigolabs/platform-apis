@@ -1,16 +1,16 @@
 name: Build Networking Function
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'functions/networking/**'
-      - 'functions/common/base/**'
-  pull_request:
-    paths:
-      - 'functions/networking/**'
-      - 'functions/common/base/**'
+#  push:
+#    branches:
+#      - main
+#    paths:
+#      - 'functions/networking/**'
+#      - 'functions/common/base/**'
+#  pull_request:
+#    paths:
+#      - 'functions/networking/**'
+#      - 'functions/common/base/**'
   workflow_dispatch:
     inputs:
       version:

@@ -1,0 +1,122 @@
+name: Build functions
+
+on:
+  workflow_call:
+    inputs:
+      functions:
+        description: 'JSON array of functions to build'
+        required: true
+        type: string
+
+env:
+  GO_VERSION: '1.25'
+  DOCKER_BUILDX_VERSION: 'v0.26.1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        function: ${{ fromJson(inputs.functions) }}
+        arch: [amd64, arm64]
+    name: Build ${{ matrix.function }} (${{ matrix.arch }})
+    defaults:
+      run:
+        working-directory: functions/${{ matrix.function }}
+    steps:
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: ${{ env.DOCKER_BUILDX_VERSION }}
+          install: true
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Remove Test Files
+        run: rm -f *_test.go run_tests.sh
+
+      - name: Build Runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: functions/
+          file: functions/${{ matrix.function }}/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          target: image
+          build-args: |
+            GO_VERSION=${{ env.GO_VERSION }}
+          outputs: type=docker,dest=functions/${{ matrix.function }}/runtime-${{ matrix.arch }}.tar
+
+      - name: Setup Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+
+      - name: Build Package
+        run: ./crossplane xpkg build --package-file=${{ matrix.arch }}.xpkg --package-root=package/ --embed-runtime-image-tarball=runtime-${{ matrix.arch }}.tar
+
+      - name: Upload Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.function }}-${{ matrix.arch }}
+          path: functions/${{ matrix.function }}/*.xpkg
+          if-no-files-found: error
+          retention-days: 1
+
+  push:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        function: ${{ fromJson(inputs.functions) }}
+    name: Push ${{ matrix.function }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: README.md
+
+      - name: Download amd64 Package
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.function }}-amd64
+          path: .
+
+      - name: Download arm64 Package
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.function }}-arm64
+          path: .
+
+      - name: Setup Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate Version
+        run: |
+          VERSION="v0.1.${{ github.run_number }}"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            VERSION="${VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
+          fi
+          echo "XPKG_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Push Multi-Platform Package
+        run: |
+          XPKG="ghcr.io/${{ github.repository_owner }}/platform-apis-${{ matrix.function }}-fn"
+          ./crossplane --verbose xpkg push --package-files $(echo *.xpkg|tr ' ' ,) ${XPKG,,}:${{ env.XPKG_VERSION }}

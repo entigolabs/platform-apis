@@ -2,15 +2,15 @@ name: Build Repository Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'compositions/repository/**'
-      - '!compositions/repository/examples/**'
-  pull_request:
-    paths:
-      - 'compositions/repository/**'
-      - '!compositions/repository/examples/**'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'compositions/repository/**'
+#      - '!compositions/repository/examples/**'
+#  pull_request:
+#    paths:
+#      - 'compositions/repository/**'
+#      - '!compositions/repository/examples/**'
     
 jobs:
   build:

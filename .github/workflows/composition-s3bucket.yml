@@ -2,13 +2,13 @@ name: Build S3Bucket Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "compositions/s3bucket/**"
-  pull_request:
-    paths:
-      - "compositions/s3bucket/**"
+#  push:
+#    branches: [main]
+#    paths:
+#      - "compositions/s3bucket/**"
+#  pull_request:
+#    paths:
+#      - "compositions/s3bucket/**"
 
 jobs:
   build:

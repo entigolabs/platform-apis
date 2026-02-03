@@ -2,13 +2,13 @@ name: Build Webaccess Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'compositions/webaccess/**'
-  pull_request:
-    paths:
-      - 'compositions/webaccess/**'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'compositions/webaccess/**'
+#  pull_request:
+#    paths:
+#      - 'compositions/webaccess/**'
     
 jobs:
   build:
