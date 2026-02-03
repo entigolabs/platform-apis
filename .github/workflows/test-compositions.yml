@@ -1,0 +1,27 @@
+name: Test compositions
+
+on:
+  workflow_call:
+    inputs:
+      compositions:
+        description: 'JSON array of compositions to test'
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        composition: ${{ fromJson(inputs.compositions) }}
+    name: Test ${{ matrix.composition }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Run tests
+        env:
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+        run: ./run-tests.sh compositions/${{ matrix.composition }}

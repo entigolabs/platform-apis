@@ -2,13 +2,13 @@ name: Build Cronjob Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'compositions/cronjob/**'
-  pull_request:
-    paths:
-      - 'compositions/cronjob/**'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'compositions/cronjob/**'
+#  pull_request:
+#    paths:
+#      - 'compositions/cronjob/**'
     
 jobs:
   build:

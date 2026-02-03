@@ -2,13 +2,13 @@ name: Build Valkey Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "compositions/valkey/**"
-  pull_request:
-    paths:
-      - "compositions/valkey/**"
+#  push:
+#    branches: [main]
+#    paths:
+#      - "compositions/valkey/**"
+#  pull_request:
+#    paths:
+#      - "compositions/valkey/**"
 
 jobs:
   build:

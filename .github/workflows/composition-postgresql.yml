@@ -2,15 +2,15 @@ name: Build PostgreSQL Composition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'compositions/postgresql/**'
-      - '!compositions/postgresql/examples/**'
-  pull_request:
-    paths:
-      - 'compositions/postgresql/**'
-      - '!compositions/postgresql/examples/**'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'compositions/postgresql/**'
+#      - '!compositions/postgresql/examples/**'
+#  pull_request:
+#    paths:
+#      - 'compositions/postgresql/**'
+#      - '!compositions/postgresql/examples/**'
     
 jobs:
   build:
