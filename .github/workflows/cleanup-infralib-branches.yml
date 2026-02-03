@@ -1,24 +1,30 @@
-name: Cleanup Infralib Test Branches
+name: Cleanup Infralib Branches
 
 on:
   pull_request:
     types: [closed]
 
+env:
+  INFRALIB_REPO: entigolabs/entigo-infralib
+
 jobs:
   cleanup:
+    name: Delete Test Branches
     runs-on: ubuntu-latest
     steps:
-      - name: Delete test branches from entigo-infralib
+      - name: Delete test branches
         env:
           GH_TOKEN: ${{ secrets.INFRALIB_PAT }}
+          PR_NUMBER: ${{ github.event.number }}
         run: |
-          PR_NUMBER="${{ github.event.number }}"
           echo "Cleaning up branches for PR #${PR_NUMBER}"
 
-          # List all branches matching the pattern for this PR
+          # Build pattern to match branches for this PR
           PATTERN="platform-apis-.*-rc\\.${PR_NUMBER}\\."
+
+          # List branches matching the pattern
           BRANCHES=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/entigolabs/entigo-infralib/branches?per_page=100" \
+            "https://api.github.com/repos/${{ env.INFRALIB_REPO }}/branches?per_page=100" \
             | jq -r --arg pattern "$PATTERN" '.[].name | select(test($pattern))')
 
           if [ -z "$BRANCHES" ]; then
@@ -32,7 +38,7 @@ jobs:
           for BRANCH in $BRANCHES; do
             echo "Deleting branch: $BRANCH"
             curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
-              "https://api.github.com/repos/entigolabs/entigo-infralib/git/refs/heads/${BRANCH}"
+              "https://api.github.com/repos/${{ env.INFRALIB_REPO }}/git/refs/heads/${BRANCH}"
             echo "Deleted: $BRANCH"
           done
 

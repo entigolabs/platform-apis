@@ -4,51 +4,54 @@ on:
   workflow_call:
     inputs:
       release_type:
-        description: 'Release type: stable or rc'
+        description: stable or rc
         required: true
         type: string
       pr_number:
-        description: 'PR number (required for rc releases)'
+        description: PR number (for rc releases)
         required: false
         type: string
         default: ''
       run_number:
-        description: 'Workflow run number'
+        description: Workflow run number
         required: false
         type: string
         default: ''
       run_attempt:
-        description: 'Workflow run attempt'
+        description: Workflow run attempt
         required: false
         type: string
         default: ''
 
+env:
+  CHART_PATH: helm
+  CHART_NAME: platform-apis
+
 jobs:
   test:
-    runs-on: ubuntu-latest
     name: Test Helm
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Run Helm Tests
+      - name: Run tests
         env:
           GITHUB_EVENT_NUMBER: ${{ github.event.number }}
         run: ./run-tests.sh helm
 
   build:
+    name: Build Helm
     needs: test
     runs-on: ubuntu-latest
-    name: Build Helm
     permissions:
       contents: read
       packages: write
-    env:
-      CHART_PATH: helm
-      CHART_NAME: platform-apis
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -57,44 +60,35 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Calculate Version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Calculate version
+        id: version
+        uses: ./.github/actions/calculate-version
+        with:
+          package_name: ${{ env.CHART_NAME }}
+          release_type: ${{ inputs.release_type }}
+          pr_number: ${{ inputs.pr_number }}
+          run_number: ${{ inputs.run_number }}
+          run_attempt: ${{ inputs.run_attempt }}
+          version_prefix: ''
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set version filters
+        id: filters
         run: |
-          # Fetch latest stable version from GHCR
-          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${{ env.CHART_NAME }}/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
-            | head -n 1 2>/dev/null || echo "")
-
-          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
-            # No existing version, start at 0.1.1
-            NEXT_PATCH=1
-          else
-            # Extract patch version and increment
-            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed 's/0\.1\.//')
-            NEXT_PATCH=$((CURRENT_PATCH + 1))
-          fi
-
           if [ "${{ inputs.release_type }}" == "rc" ]; then
-            VERSION="0.1.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
-            # For PR: match RC tags for this PR, or stable tags
-            echo "JQ_FILTER_RC=test(\"-rc\\\\.${{ inputs.pr_number }}\\\\.\")" >> $GITHUB_ENV
-            echo "JQ_FILTER_STABLE=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
-            echo "IS_PR=true" >> $GITHUB_ENV
+            echo "is_pr=true" >> $GITHUB_OUTPUT
+            echo "rc_filter=test(\"-rc\\\\.${{ inputs.pr_number }}\\\\.\")" >> $GITHUB_OUTPUT
           else
-            VERSION="0.1.${NEXT_PATCH}"
-            echo "JQ_FILTER_STABLE=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
-            echo "IS_PR=false" >> $GITHUB_ENV
+            echo "is_pr=false" >> $GITHUB_OUTPUT
           fi
+          echo "stable_filter=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_OUTPUT
 
-          echo "Latest tag: $LATEST_TAG"
-          echo "New version: $VERSION"
-          echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Update Dependencies
+      - name: Update dependency versions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_PR: ${{ steps.filters.outputs.is_pr }}
+          JQ_FILTER_RC: ${{ steps.filters.outputs.rc_filter }}
+          JQ_FILTER_STABLE: ${{ steps.filters.outputs.stable_filter }}
         run: |
           declare -A PACKAGES=(
             ["artifact"]="platform-apis-artifact-fn"
@@ -117,7 +111,6 @@ jobs:
             PKG_NAME="${PACKAGES[$KEY]}"
             echo "Fetching tag for $PKG_NAME..."
 
-            # Try RC version first (for PR), then fall back to stable
             TAG=""
             if [ "$IS_PR" == "true" ]; then
               TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
@@ -126,7 +119,6 @@ jobs:
                 | head -n 1 2>/dev/null || echo "")
             fi
 
-            # Fall back to stable if no RC found
             if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
               TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/$PKG_NAME/versions" \
@@ -135,29 +127,29 @@ jobs:
             fi
 
             if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
-              echo "Error: Could not find a matching tag for $PKG_NAME"
+              echo "Error: Could not find tag for $PKG_NAME"
               exit 1
             fi
 
             echo "Found tag: $TAG"
 
             if [[ "$PKG_NAME" == *"-fn" ]]; then
-              YQ_PATH=".$KEY.function.tag"
+              yq -i ".$KEY.function.tag = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
             else
-              YQ_PATH=".$KEY.package.tag"
+              yq -i ".$KEY.package.tag = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
             fi
-
-            yq -i "$YQ_PATH = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
           done
 
           echo "Updated values.yaml:"
           cat ${{ env.CHART_PATH }}/values.yaml
 
-      - name: Update Chart Version
+      - name: Update chart version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          sed -i "s/^version:.*/version: ${{ env.NEW_VERSION }}/" ${{ env.CHART_PATH }}/Chart.yaml
+          sed -i "s/^version:.*/version: ${VERSION}/" ${{ env.CHART_PATH }}/Chart.yaml
 
-      - name: Remove Test Files
+      - name: Remove test files
         run: rm -f ${{ env.CHART_PATH }}/run_tests.sh
 
       - name: Login to GHCR
@@ -167,9 +159,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package Helm Chart
-        run: helm package ${{ env.CHART_PATH }}
-
-      - name: Push Helm Chart to GHCR
+      - name: Package and push chart
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          helm push ${{ env.CHART_NAME }}-${{ env.NEW_VERSION }}.tgz oci://ghcr.io/${{ github.repository_owner }}
+          helm package ${{ env.CHART_PATH }}
+          helm push ${{ env.CHART_NAME }}-${VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}

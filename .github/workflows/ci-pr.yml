@@ -1,9 +1,8 @@
-name: Pull Request CI Pipeline
+name: PR CI Pipeline
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'functions/**'
       - 'compositions/**'
@@ -15,28 +14,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Step 1: Detects changes in functions, compositions, test common folder, helm
   detect-changes:
+    name: Detect Changes
     uses: ./.github/workflows/detect-changes.yml
 
-  # Step 2: Checks if test runner image exists in docker hub, and it is updated. If image is missing or old, pushes image.
   ensure-test-image:
+    name: Ensure Test Image
     needs: detect-changes
     uses: ./.github/workflows/ensure-test-image.yml
     with:
       force_rebuild: ${{ needs.detect-changes.outputs.test_image_changed == 'true' }}
     secrets: inherit
 
-  # Step 3: Tests changed functions.
   test-functions:
+    name: Test Functions
     needs: [detect-changes, ensure-test-image]
     if: needs.detect-changes.outputs.has_function_changes == 'true'
     uses: ./.github/workflows/test-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
 
-  # Step 4: Tests compositions after successful functions tests (if functions were changed also), or after skipped functions test (if no changes in functions detected).
   test-compositions:
+    name: Test Compositions
     needs: [detect-changes, ensure-test-image, test-functions]
     if: |
       always() &&
@@ -46,8 +45,8 @@ jobs:
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
 
-  # Step 5: Builds packages for functions (if tests passed)
   build-functions:
+    name: Build Functions
     needs: [detect-changes, test-functions, test-compositions]
     if: |
       always() &&
@@ -63,8 +62,8 @@ jobs:
       run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
-  # Step 6: Builds packages for compositions (if tests passed)
   build-compositions:
+    name: Build Compositions
     needs: [detect-changes, test-functions, test-compositions]
     if: |
       always() &&
@@ -80,8 +79,8 @@ jobs:
       run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
-  # Step 7: Tests and builds helm (if any packages built or changes detected in helm itself)
-  helm:
+  build-helm:
+    name: Lint and Build Helm
     needs: [detect-changes, build-functions, build-compositions]
     if: |
       always() &&
@@ -99,10 +98,10 @@ jobs:
       run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
-  # Step 8: Creates test branch in entigo-infralib with updated platform-apis package and runs tests.
-  run-infralib-tests:
-    needs: helm
-    if: always() && needs.helm.result == 'success'
+  infralib-tests:
+    name: E2E Infralib Tests
+    needs: build-helm
+    if: always() && needs.build-helm.result == 'success'
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
       pr_number: ${{ github.event.number }}
