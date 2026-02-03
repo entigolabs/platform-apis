@@ -16,9 +16,10 @@ jobs:
           echo "Cleaning up branches for PR #${PR_NUMBER}"
 
           # List all branches matching the pattern for this PR
+          PATTERN="platform-apis-.*-rc\\.${PR_NUMBER}\\."
           BRANCHES=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/entigolabs/entigo-infralib/branches?per_page=100" \
-            | jq -r ".[].name | select(test(\"platform-apis-.*-rc\\.${PR_NUMBER}\\.\"))")
+            | jq -r --arg pattern "$PATTERN" '.[].name | select(test($pattern))')
 
           if [ -z "$BRANCHES" ]; then
             echo "No branches found for PR #${PR_NUMBER}"
