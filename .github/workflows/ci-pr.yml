@@ -169,7 +169,7 @@ jobs:
 
           # Replace helm chart
           rm -rf modules/k8s/platform-apis/charts/*
-          cp -r ../helm-chart/platform-apis/* modules/k8s/platform-apis/charts/
+          cp -r ../helm-chart/* modules/k8s/platform-apis/charts/
 
           # Replace test file
           cp ../platform-apis-repo/test/e2e-tests/k8s_unit_basic_test.go modules/k8s/platform-apis/test/
