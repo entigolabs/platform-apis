@@ -491,6 +491,29 @@ spec:
             ] : []
           )
 ---
+apiVersion: tenancy.entigo.com/v1alpha1
+kind: Zone
+metadata:
+  name: infralib
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+spec:
+  namespaces: []
+  pools:
+    - name: default
+      requirements:
+        - key: instance-type
+          values:
+            - t3.large
+        - key: capacity-type
+          value: ON_DEMAND
+        - key: min-size
+          value: 0
+        - key: max-size
+          value: 0
+
+
+---
 apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
 metadata:
