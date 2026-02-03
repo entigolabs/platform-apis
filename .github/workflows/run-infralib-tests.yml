@@ -19,6 +19,9 @@ on:
 jobs:
   run-tests:
     runs-on: ubuntu-latest
+    concurrency:
+      group: infralib-e2e-tests
+      cancel-in-progress: false
     steps:
       - name: Checkout platform-apis
         uses: actions/checkout@v4
