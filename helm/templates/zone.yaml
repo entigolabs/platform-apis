@@ -531,7 +531,7 @@ spec:
         resource.List("tenancy.entigo.com/v1alpha1", "zones", "")
   matchConditions:
     - name: "has-zone-label"
-      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'default'"
+      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != ''"
   validations:
     - expression: >-
         dyn(variables.existingZones.items).exists(zone,

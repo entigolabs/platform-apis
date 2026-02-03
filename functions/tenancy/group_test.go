@@ -523,6 +523,23 @@ func TestZoneFunction(t *testing.T) {
 				},
 			},
 		},
+		"Zone/Infralib: Skip": {
+			Reason: "When reconciling for infralib zone, the function should skip processing and return no desired resources.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`
+{"apiVersion":"tenancy.entigo.com/v1alpha1","kind":"Zone","metadata":{"name":"%s"},"spec":{"clusterPermissions":false,"namespaces":[{"name":"test-app-ns"}],"pools":[{"name":"default"}]}}
+`, infralibZone))},
+					},
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+				},
+			},
+		},
 	}
 
 	newService := func() base.GroupService {
