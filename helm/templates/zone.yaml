@@ -536,5 +536,48 @@ spec:
         {{- end }}
         )
       message: "The 'pod-security.kubernetes.io/warn' label must be set to '{{ .Values.zone.environmentConfig.podSecurity }}' (or stricter)."
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: GeneratingPolicy
+metadata:
+  name: generate-namespace-from-argocd-app
+  annotations:
+    policies.kyverno.io/title: Generate Namespace from ArgoCD Application
+    policies.kyverno.io/category: ArgoCD
+    policies.kyverno.io/description: >-
+      Generates a namespace based on ArgoCD Application's destination if it doesn't exist.
+      The namespace is labeled with tenancy.entigo.com/zone derived from the Application's project.
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["argoproj.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE","UPDATE"]
+        resources: ["applications"]
+  matchConditions:
+    - name: has-destination-namespace
+      expression: >-
+        has(object.spec.destination) &&
+        has(object.spec.destination.namespace) &&
+        object.spec.destination.namespace != ""
+  variables:
+    - name: destNamespace
+      expression: "object.spec.destination.namespace"
+    - name: projectName
+      expression: "object.spec.project"
+  generate:
+    - expression: |
+        generator.Apply("", [
+          {
+            "kind": dyn("Namespace"),
+            "apiVersion": dyn("v1"),
+            "metadata": dyn({
+              "name": dyn(variables.destNamespace),
+              "labels": dyn({
+                "tenancy.entigo.com/zone": dyn(variables.projectName)
+              })
+            })
+          }
+        ])
 
 {{- end }}
