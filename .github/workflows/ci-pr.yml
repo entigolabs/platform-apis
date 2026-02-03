@@ -46,55 +46,46 @@ jobs:
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
 
-  # Step 5: Calculate version for RC release
-  calculate-version:
-    needs: [test-functions, test-compositions]
-    if: |
-      always() &&
-      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
-      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
-    uses: ./.github/workflows/calculate-version.yml
-    with:
-      release_type: rc
-      pr_number: ${{ github.event.number }}
-
-  # Step 6: Builds packages for functions (if tests passed)
+  # Step 5: Builds packages for functions (if tests passed)
   build-functions:
-    needs: [detect-changes, test-functions, test-compositions, calculate-version]
+    needs: [detect-changes, test-functions, test-compositions]
     if: |
       always() &&
       needs.detect-changes.outputs.has_function_changes == 'true' &&
       needs.test-functions.result == 'success' &&
-      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped') &&
-      needs.calculate-version.result == 'success'
+      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
     uses: ./.github/workflows/build-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
-      version: ${{ needs.calculate-version.outputs.version }}
+      release_type: rc
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
-  # Step 7: Builds packages for compositions (if tests passed)
+  # Step 6: Builds packages for compositions (if tests passed)
   build-compositions:
-    needs: [detect-changes, test-functions, test-compositions, calculate-version]
+    needs: [detect-changes, test-functions, test-compositions]
     if: |
       always() &&
       needs.detect-changes.outputs.has_composition_changes == 'true' &&
       needs.test-compositions.result == 'success' &&
-      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
-      needs.calculate-version.result == 'success'
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped')
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
-      version: ${{ needs.calculate-version.outputs.version }}
+      release_type: rc
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
-  # Step 8: Tests and builds helm (if any packages built or changes detected in helm itself)
+  # Step 7: Tests and builds helm (if any packages built or changes detected in helm itself)
   helm:
-    needs: [detect-changes, build-functions, build-compositions, calculate-version]
+    needs: [detect-changes, build-functions, build-compositions]
     if: |
       always() &&
       !cancelled() &&
-      needs.calculate-version.result == 'success' &&
       (
         needs.build-functions.result == 'success' ||
         needs.build-compositions.result == 'success' ||
@@ -102,7 +93,8 @@ jobs:
       )
     uses: ./.github/workflows/build-helm.yml
     with:
-      version: ${{ needs.calculate-version.outputs.version }}
       release_type: rc
       pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit

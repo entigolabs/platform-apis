@@ -3,16 +3,22 @@ name: Build Helm
 on:
   workflow_call:
     inputs:
-      version:
-        description: 'Chart version (e.g. 0.1.0 or 0.1.0-rc.1.123.1)'
-        required: true
-        type: string
       release_type:
         description: 'Release type: stable or rc'
         required: true
         type: string
       pr_number:
         description: 'PR number (required for rc releases)'
+        required: false
+        type: string
+        default: ''
+      run_number:
+        description: 'Workflow run number'
+        required: false
+        type: string
+        default: ''
+      run_attempt:
+        description: 'Workflow run attempt'
         required: false
         type: string
         default: ''
@@ -51,20 +57,40 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Version
+      - name: Calculate Version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "NEW_VERSION=${{ inputs.version }}" >> $GITHUB_ENV
-          echo "Chart Version: ${{ inputs.version }}"
+          # Fetch latest stable version from GHCR
+          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${{ env.CHART_NAME }}/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+            | head -n 1 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+            # No existing version, start at 0.1.1
+            NEXT_PATCH=1
+          else
+            # Extract patch version and increment
+            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed 's/0\.1\.//')
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+          fi
 
           if [ "${{ inputs.release_type }}" == "rc" ]; then
+            VERSION="0.1.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
             # For PR: match RC tags for this PR, or stable tags
             echo "JQ_FILTER_RC=test(\"-rc\\\\.${{ inputs.pr_number }}\\\\.\")" >> $GITHUB_ENV
             echo "JQ_FILTER_STABLE=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
             echo "IS_PR=true" >> $GITHUB_ENV
           else
+            VERSION="0.1.${NEXT_PATCH}"
             echo "JQ_FILTER_STABLE=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_ENV
             echo "IS_PR=false" >> $GITHUB_ENV
           fi
+
+          echo "Latest tag: $LATEST_TAG"
+          echo "New version: $VERSION"
+          echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Update Dependencies
         env:
@@ -95,7 +121,7 @@ jobs:
             TAG=""
             if [ "$IS_PR" == "true" ]; then
               TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-                "https://api.github.com/orgs/entigolabs/packages/container/$PKG_NAME/versions" \
+                "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/$PKG_NAME/versions" \
                 | jq -r "[.[] | select(.metadata.container.tags[]? | $JQ_FILTER_RC)] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select($JQ_FILTER_RC)" \
                 | head -n 1 2>/dev/null || echo "")
             fi
@@ -103,7 +129,7 @@ jobs:
             # Fall back to stable if no RC found
             if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
               TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-                "https://api.github.com/orgs/entigolabs/packages/container/$PKG_NAME/versions" \
+                "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/$PKG_NAME/versions" \
                 | jq -r "[.[] | select(.metadata.container.tags[]? | $JQ_FILTER_STABLE)] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select($JQ_FILTER_STABLE)" \
                 | head -n 1)
             fi

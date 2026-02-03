@@ -7,10 +7,25 @@ on:
         description: 'JSON array of functions to build'
         required: true
         type: string
-      version:
-        description: 'Package version (e.g. v0.1.0 or v0.1.0-rc.1.123.1)'
+      release_type:
+        description: 'Release type: stable or rc'
         required: true
         type: string
+      pr_number:
+        description: 'PR number (required for rc releases)'
+        required: false
+        type: string
+        default: ''
+      run_number:
+        description: 'Workflow run number'
+        required: false
+        type: string
+        default: ''
+      run_attempt:
+        description: 'Workflow run attempt'
+        required: false
+        type: string
+        default: ''
 
 env:
   GO_VERSION: '1.25'
@@ -112,7 +127,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Calculate Version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PKG_NAME="platform-apis-${{ matrix.function }}-fn"
+
+          # Fetch latest stable version from GHCR
+          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+            | head -n 1 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+            # No existing version, start at v0.1.1
+            NEXT_PATCH=1
+          else
+            # Extract patch version and increment
+            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed 's/v0\.1\.//')
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+          fi
+
+          if [ "${{ inputs.release_type }}" == "rc" ]; then
+            VERSION="v0.1.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
+          else
+            VERSION="v0.1.${NEXT_PATCH}"
+          fi
+
+          echo "Latest tag: $LATEST_TAG"
+          echo "New version: $VERSION"
+          echo "XPKG_VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Push Multi-Platform Package
         run: |
           XPKG="ghcr.io/${{ github.repository_owner }}/platform-apis-${{ matrix.function }}-fn"
-          ./crossplane --verbose xpkg push --package-files $(echo *.xpkg|tr ' ' ,) ${XPKG,,}:${{ inputs.version }}
+          ./crossplane --verbose xpkg push --package-files $(echo *.xpkg|tr ' ' ,) ${XPKG,,}:${{ env.XPKG_VERSION }}
