@@ -154,7 +154,7 @@ jobs:
       - name: Pull and extract Helm chart
         run: |
           mkdir -p helm-chart
-          helm pull oci://ghcr.io/${{ github.repository_owner }}/platform-apis --version ${{ env.HELM_VERSION }} --untar --destination ./helm-chart
+          helm pull oci://ghcr.io/${{ github.repository_owner }}/platform-apis --version ${{ env.HELM_VERSION }} --destination ./helm-chart
 
       - name: Create test branch and update files
         working-directory: entigo-infralib
