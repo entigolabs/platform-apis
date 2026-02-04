@@ -2,7 +2,7 @@ load_mocks
 init_test "instance" "/workspace/functions/database"
 setup_resources --env --required
 
-TEMP_INPUT="temp_instance.yaml"
+TEMP_INPUT="temp_instance_1.yaml"
 cp "$INPUT" "$TEMP_INPUT"
 yq -i '
   select(.kind == "PostgreSQLInstance") |
