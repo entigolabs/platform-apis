@@ -720,7 +720,7 @@ spec:
 apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
 metadata:
-  name: platform-apis-zone-namespace-moving
+  name: platform-apis-zone-namespace-maintainer-deny
 spec:
   matchConstraints:
     resourceRules:
@@ -736,5 +736,68 @@ spec:
   validations:
     - expression: "false"
       message: "cannot use infralib zone."
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-maintainer-infralib-zone-deny
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["tenancy.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["zones"]
+  matchConditions:
+    - name: "check-user-group"
+      expression: '"maintainer" in request.userInfo.groups'
+    - name: "is-infralib-zone"
+      expression: "(has(object.metadata) && object.metadata.name == 'infralib') || (has(oldObject.metadata) && oldObject.metadata.name == 'infralib')"
+  validations:
+    - expression: "false"
+      message: "infralib zone is reserved."
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-deletion-check-namespaces
+spec:
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["tenancy.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["zones"]
+  variables:
+    - name: zoneLabel
+      expression: |
+        "tenancy.entigo.com/zone"
+    - name: zoneName
+      expression: |
+        oldObject.metadata.name
+    - name: specNamespaceNames
+      expression: |
+        has(oldObject.spec.namespaces) ? oldObject.spec.namespaces.map(ns, ns.name) : []
+    - name: existingNamespaces
+      expression: |
+        resource.List("v1", "namespaces", "")
+    - name: namespacesInZone
+      expression: |
+        dyn(variables.existingNamespaces.items).filter(ns,
+          has(ns.metadata.labels) &&
+          variables.zoneLabel in ns.metadata.labels &&
+          ns.metadata.labels[variables.zoneLabel] == variables.zoneName &&
+          !(ns.metadata.name in variables.specNamespaceNames)
+        )
+  validations:
+    - expression: |
+        variables.namespacesInZone.size() == 0
+      messageExpression: |
+        "Cannot delete zone '" + variables.zoneName + "': " +
+        string(variables.namespacesInZone.size()) + " namespace(s) still assigned to it (not managed via spec.namespaces): " +
+        variables.namespacesInZone.map(ns, ns.metadata.name).join(", ")
 
 {{- end }}
