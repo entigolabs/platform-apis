@@ -104,7 +104,5 @@ jobs:
     if: always() && needs.build-helm.result == 'success'
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
-      pr_number: ${{ github.event.number }}
-      run_number: ${{ github.run_number }}
-      run_attempt: ${{ github.run_attempt }}
+      helm_version: ${{ needs.build-helm.outputs.version }}
     secrets: inherit

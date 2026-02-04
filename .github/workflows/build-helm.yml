@@ -22,6 +22,10 @@ on:
         required: false
         type: string
         default: ''
+    outputs:
+      version:
+        description: The helm chart version that was built
+        value: ${{ jobs.build.outputs.version }}
 
 env:
   CHART_PATH: helm
@@ -46,6 +50,8 @@ jobs:
     name: Build Helm
     needs: test
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     permissions:
       contents: read
       packages: write
