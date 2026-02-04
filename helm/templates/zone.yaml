@@ -465,6 +465,8 @@ spec:
         operations: ["CREATE", "UPDATE"]
         resources: ["namespaces"]
   matchConditions:
+    - name: "exclude-system-namespaces"
+      expression: "!(object.metadata.name in ['kube-system'])"
     - name: "has-zone-label"
       expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'infralib'"
   mutations:
@@ -497,6 +499,7 @@ metadata:
   name: infralib
   annotations:
     argocd.argoproj.io/sync-wave: "50"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   namespaces: []
   pools:
@@ -528,6 +531,8 @@ spec:
       expression: |
         resource.List("tenancy.entigo.com/v1alpha1", "zones", "")
   matchConditions:
+    - name: "exclude-system-namespaces"
+      expression: "!(object.metadata.name in ['kube-system', 'default', 'kube-public', 'kube-node-lease'])"
     - name: "has-zone-label"
       expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'infralib'"
   validations:
