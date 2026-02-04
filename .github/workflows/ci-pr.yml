@@ -99,7 +99,7 @@ jobs:
     secrets: inherit
 
   infralib-tests:
-    name: E2E Infralib Tests
+    name: Infralib Tests
     needs: build-helm
     if: always() && needs.build-helm.result == 'success'
     uses: ./.github/workflows/run-infralib-tests.yml

@@ -23,7 +23,7 @@ env:
 
 jobs:
   run-tests:
-    name: Run E2E Tests
+    name: Run Tests
     runs-on: ubuntu-latest
     concurrency:
       group: infralib-e2e-tests
