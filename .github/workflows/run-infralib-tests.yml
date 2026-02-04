@@ -76,13 +76,6 @@ jobs:
           echo "Latest: $LATEST_TAG -> New: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Pull Helm chart
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          mkdir -p helm-chart
-          helm pull oci://ghcr.io/${{ github.repository_owner }}/${CHART_NAME} --version ${VERSION} --destination ./helm-chart
-
       - name: Create test branch
         id: branch
         working-directory: infralib
@@ -97,9 +90,14 @@ jobs:
 
           git checkout -b "$BRANCH_NAME"
 
-          # Update helm chart
-          rm -rf ${{ env.INFRALIB_MODULE_PATH }}/charts/*
-          cp -r ../helm-chart/* ${{ env.INFRALIB_MODULE_PATH }}/charts/
+          # Update Chart.yaml with new version using yq
+          CHART_FILE="${{ env.INFRALIB_MODULE_PATH }}/Chart.yaml"
+          yq -i ".version = \"${VERSION}\"" "$CHART_FILE"
+          yq -i ".appVersion = \"${VERSION}\"" "$CHART_FILE"
+          yq -i "(.dependencies[] | select(.name == \"platform-apis\")).version = \"${VERSION}\"" "$CHART_FILE"
+
+          # Run helm dependency update
+          helm dependency update ${{ env.INFRALIB_MODULE_PATH }}
 
           # Update test file
           cp ../platform-apis/test/e2e-tests/k8s_unit_basic_test.go ${{ env.INFRALIB_MODULE_PATH }}/test/
