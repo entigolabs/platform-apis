@@ -11,7 +11,7 @@ MSK="../examples/msk-observer.yaml"
 echo "---" >> $EXTRA_RESOURCES
 cat "$MSK" | mock_observed_resources >> "$EXTRA_RESOURCES"
 
-TEMP_INPUT="temp_input_1.yaml"
+TEMP_INPUT="temp_input.yaml"
 cp "$INPUT" "$TEMP_INPUT"
 yq -i '
   select(.kind == "KafkaUser") |
