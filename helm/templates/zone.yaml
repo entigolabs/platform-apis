@@ -5,6 +5,9 @@ kind: ClusterRole
 metadata:
   name: zone-tenancy-c-maintainer
 rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["create"]
 - apiGroups: ["tenancy.entigo.com"]
   resources: ["zones"]
   verbs: ["*"]
@@ -505,13 +508,6 @@ spec:
   pools:
     - name: default
       requirements:
-        - key: instance-type
-          values:
-            - t3.large
-        - key: capacity-type
-          value: ON_DEMAND
-        - key: min-size
-          value: 0
         - key: max-size
           value: 0
 ---
