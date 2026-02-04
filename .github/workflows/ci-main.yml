@@ -1,0 +1,91 @@
+name: Main CI Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/**'
+      - 'compositions/**'
+      - 'test/**'
+      - 'helm/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    uses: ./.github/workflows/detect-changes.yml
+
+  ensure-test-image:
+    name: Ensure Test Image
+    needs: detect-changes
+    uses: ./.github/workflows/ensure-test-image.yml
+    with:
+      force_rebuild: ${{ needs.detect-changes.outputs.test_image_changed == 'true' }}
+    secrets: inherit
+
+  test-functions:
+    name: Test Functions
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.has_function_changes == 'true'
+    uses: ./.github/workflows/test-functions.yml
+    with:
+      functions: ${{ needs.detect-changes.outputs.functions }}
+
+  test-compositions:
+    name: Test Compositions
+    needs: [detect-changes, ensure-test-image, test-functions]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_composition_changes == 'true' &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped')
+    uses: ./.github/workflows/test-compositions.yml
+    with:
+      compositions: ${{ needs.detect-changes.outputs.compositions }}
+
+  build-functions:
+    name: Build Functions
+    needs: [detect-changes, test-functions, test-compositions]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_function_changes == 'true' &&
+      needs.test-functions.result == 'success' &&
+      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
+    uses: ./.github/workflows/build-functions.yml
+    with:
+      functions: ${{ needs.detect-changes.outputs.functions }}
+      release_type: stable
+    secrets: inherit
+
+  build-compositions:
+    name: Build Compositions
+    needs: [detect-changes, test-functions, test-compositions]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_composition_changes == 'true' &&
+      needs.test-compositions.result == 'success' &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped')
+    uses: ./.github/workflows/build-compositions.yml
+    with:
+      compositions: ${{ needs.detect-changes.outputs.compositions }}
+      release_type: stable
+    secrets: inherit
+
+  build-helm:
+    name: Lint And Build Helm
+    needs: [detect-changes, build-functions, build-compositions]
+    if: |
+      always() &&
+      !cancelled() &&
+      (
+        needs.build-functions.result == 'success' ||
+        needs.build-compositions.result == 'success' ||
+        needs.detect-changes.outputs.helm_changed == 'true'
+      )
+    uses: ./.github/workflows/build-helm.yml
+    with:
+      release_type: stable
+    secrets: inherit

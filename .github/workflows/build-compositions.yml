@@ -1,23 +1,43 @@
-name: Build compositions
+name: Build Compositions
 
 on:
   workflow_call:
     inputs:
       compositions:
-        description: 'JSON array of compositions to build'
+        description: JSON array of compositions to build
         required: true
         type: string
+      release_type:
+        description: 'stable or rc'
+        required: true
+        type: string
+      pr_number:
+        description: PR number (for rc releases)
+        required: false
+        type: string
+        default: ''
+      run_number:
+        description: Workflow run number
+        required: false
+        type: string
+        default: ''
+      run_attempt:
+        description: Workflow run attempt
+        required: false
+        type: string
+        default: ''
 
 jobs:
   build:
+    name: Build ${{ matrix.composition }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         composition: ${{ fromJson(inputs.compositions) }}
-    name: Build ${{ matrix.composition }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -33,26 +53,40 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Remove Test and Examples
+      - name: Remove test and example files
         run: rm -rf compositions/${{ matrix.composition }}/test compositions/${{ matrix.composition }}/examples
 
-      - name: Calculate Version
+      - name: Calculate version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="v0.1.${{ github.run_number }}"
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            VERSION="${VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
-          fi
-          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+          PKG_NAME="platform-apis-${{ matrix.composition }}"
 
-      - name: Build & Push Package
+          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+            | head -n 1 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+            NEXT_PATCH=1
+          else
+            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed 's/v0\.1\.//')
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+          fi
+
+          if [ "${{ inputs.release_type }}" == "rc" ]; then
+            VERSION="v0.1.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
+          else
+            VERSION="v0.1.${NEXT_PATCH}"
+          fi
+
+          echo "Latest: $LATEST_TAG -> New: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build and push package
         working-directory: compositions/${{ matrix.composition }}
         run: |
-          PACKAGE_NAME="platform-apis-${{ matrix.composition }}"
-
-          crossplane xpkg build \
-            --package-root=. \
-            --package-file=${PACKAGE_NAME}.xpkg
-
-          crossplane xpkg push \
-            -f ${PACKAGE_NAME}.xpkg \
-            ghcr.io/${{ github.repository_owner }}/${PACKAGE_NAME}:${{ env.PACKAGE_VERSION }}
+          PKG_NAME="platform-apis-${{ matrix.composition }}"
+          crossplane xpkg build --package-root=. --package-file=${PKG_NAME}.xpkg
+          crossplane xpkg push -f ${PKG_NAME}.xpkg ghcr.io/${{ github.repository_owner }}/${PKG_NAME}:${{ steps.version.outputs.version }}

@@ -1,8 +1,0 @@
-{
-  "label": "Customise the Platform",
-  "position": 7,
-  "link": {
-    "type": "generated-index",
-    "description": "Understand the implementation and make changes to the API behaviour."
-  }
-}
