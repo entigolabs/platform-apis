@@ -1,12 +1,31 @@
-name: Build functions
+name: Build Functions
 
 on:
   workflow_call:
     inputs:
       functions:
-        description: 'JSON array of functions to build'
+        description: JSON array of functions to build
         required: true
         type: string
+      release_type:
+        description: 'stable or rc'
+        required: true
+        type: string
+      pr_number:
+        description: PR number (for rc releases)
+        required: false
+        type: string
+        default: ''
+      run_number:
+        description: Workflow run number
+        required: false
+        type: string
+        default: ''
+      run_attempt:
+        description: Workflow run attempt
+        required: false
+        type: string
+        default: ''
 
 env:
   GO_VERSION: '1.25'
@@ -14,13 +33,13 @@ env:
 
 jobs:
   build:
+    name: Build ${{ matrix.function }} (${{ matrix.arch }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         function: ${{ fromJson(inputs.functions) }}
         arch: [amd64, arm64]
-    name: Build ${{ matrix.function }} (${{ matrix.arch }})
     defaults:
       run:
         working-directory: functions/${{ matrix.function }}
@@ -36,14 +55,15 @@ jobs:
           version: ${{ env.DOCKER_BUILDX_VERSION }}
           install: true
 
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Remove Test Files
+      - name: Remove test files
         run: rm -f *_test.go run_tests.sh
 
-      - name: Build Runtime
+      - name: Build runtime image
         uses: docker/build-push-action@v6
         with:
           context: functions/
@@ -52,18 +72,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           target: image
-          build-args: |
-            GO_VERSION=${{ env.GO_VERSION }}
+          build-args: GO_VERSION=${{ env.GO_VERSION }}
           outputs: type=docker,dest=functions/${{ matrix.function }}/runtime-${{ matrix.arch }}.tar
 
       - name: Setup Crossplane CLI
-        run: |
-          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+        run: curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
 
-      - name: Build Package
+      - name: Build package
         run: ./crossplane xpkg build --package-file=${{ matrix.arch }}.xpkg --package-root=package/ --embed-runtime-image-tarball=runtime-${{ matrix.arch }}.tar
 
-      - name: Upload Package
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.function }}-${{ matrix.arch }}
@@ -72,34 +90,34 @@ jobs:
           retention-days: 1
 
   push:
+    name: Push ${{ matrix.function }}
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         function: ${{ fromJson(inputs.functions) }}
-    name: Push ${{ matrix.function }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          sparse-checkout: README.md
+          sparse-checkout: .github
 
-      - name: Download amd64 Package
+      - name: Download amd64 package
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.function }}-amd64
           path: .
 
-      - name: Download arm64 Package
+      - name: Download arm64 package
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.function }}-arm64
           path: .
 
       - name: Setup Crossplane CLI
-        run: |
-          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+        run: curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -108,15 +126,35 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Calculate Version
+      - name: Calculate version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="v0.1.${{ github.run_number }}"
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            VERSION="${VERSION}-rc.${{ github.event.number }}.${{ github.run_number }}.${{ github.run_attempt }}"
-          fi
-          echo "XPKG_VERSION=$VERSION" >> $GITHUB_ENV
+          PKG_NAME="platform-apis-${{ matrix.function }}-fn"
 
-      - name: Push Multi-Platform Package
+          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions" \
+            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+            | head -n 1 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+            NEXT_PATCH=1
+          else
+            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed 's/v0\.1\.//')
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+          fi
+
+          if [ "${{ inputs.release_type }}" == "rc" ]; then
+            VERSION="v0.1.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
+          else
+            VERSION="v0.1.${NEXT_PATCH}"
+          fi
+
+          echo "Latest: $LATEST_TAG -> New: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Push package
         run: |
           XPKG="ghcr.io/${{ github.repository_owner }}/platform-apis-${{ matrix.function }}-fn"
-          ./crossplane --verbose xpkg push --package-files $(echo *.xpkg|tr ' ' ,) ${XPKG,,}:${{ env.XPKG_VERSION }}
+          ./crossplane --verbose xpkg push --package-files $(echo *.xpkg | tr ' ' ,) ${XPKG,,}:${{ steps.version.outputs.version }}
