@@ -516,6 +516,9 @@ kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-pod-security
 spec:
+  evaluation:
+    background:
+      enabled: false
   matchConstraints:
     resourceRules:
       - apiGroups: [""]
@@ -704,6 +707,9 @@ kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-contributor-deny
 spec:
+  evaluation:
+    background:
+      enabled: false
   matchConstraints:
     resourceRules:
       - apiGroups: [""]
@@ -722,6 +728,9 @@ kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-maintainer-deny
 spec:
+  evaluation:
+    background:
+      enabled: false
   matchConstraints:
     resourceRules:
       - apiGroups: [""]
@@ -742,6 +751,9 @@ kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-maintainer-infralib-zone-deny
 spec:
+  evaluation:
+    background:
+      enabled: false
   matchConstraints:
     resourceRules:
       - apiGroups: ["tenancy.entigo.com"]
