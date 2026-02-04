@@ -67,10 +67,16 @@ jobs:
         run: |
           PKG_NAME="${{ env.CHART_NAME }}"
 
+          # Fetch with pagination (up to 100 results) and extract stable version tags
           LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
-            | head -n 1 2>/dev/null || echo "")
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions?per_page=100" \
+            | jq -r '
+              [.[] | .metadata.container.tags[]? | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))]
+              | map(split(".") | map(tonumber))
+              | sort_by(.[0], .[1], .[2])
+              | .[-1]
+              | if . then map(tostring) | join(".") else empty end
+            ' 2>/dev/null || echo "")
 
           if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
             NEXT_PATCH=1
@@ -127,19 +133,23 @@ jobs:
             PKG_NAME="${PACKAGES[$KEY]}"
             echo "Fetching tag for $PKG_NAME..."
 
+            # Fetch all versions with pagination
+            VERSIONS_JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/$PKG_NAME/versions?per_page=100")
+
             TAG=""
             if [ "$IS_PR" == "true" ]; then
-              TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-                "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/$PKG_NAME/versions" \
-                | jq -r "[.[] | select(.metadata.container.tags[]? | $JQ_FILTER_RC)] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select($JQ_FILTER_RC)" \
-                | head -n 1 2>/dev/null || echo "")
+              # Find latest RC tag for this PR, sorted by semantic version
+              TAG=$(echo "$VERSIONS_JSON" \
+                | jq -r "[.[] | .metadata.container.tags[]? | select($JQ_FILTER_RC)] | sort_by(split(\"-rc.\")[0] | ltrimstr(\"v\") | split(\".\") | map(tonumber)) | .[-1] // empty" \
+                2>/dev/null || echo "")
             fi
 
             if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
-              TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-                "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/$PKG_NAME/versions" \
-                | jq -r "[.[] | select(.metadata.container.tags[]? | $JQ_FILTER_STABLE)] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select($JQ_FILTER_STABLE)" \
-                | head -n 1)
+              # Find latest stable tag, sorted by semantic version
+              TAG=$(echo "$VERSIONS_JSON" \
+                | jq -r "[.[] | .metadata.container.tags[]? | select($JQ_FILTER_STABLE)] | sort_by(ltrimstr(\"v\") | split(\".\") | map(tonumber)) | .[-1] // empty" \
+                2>/dev/null || echo "")
             fi
 
             if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then

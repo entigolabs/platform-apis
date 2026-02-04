@@ -133,10 +133,16 @@ jobs:
         run: |
           PKG_NAME="platform-apis-${{ matrix.function }}-fn"
 
+          # Fetch with pagination and extract stable version tags, sorted by semantic version
           LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions" \
-            | jq -r '[.[] | select(.metadata.container.tags[]? | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(.created_at) | .[-1].metadata.container.tags[]? // empty | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
-            | head -n 1 2>/dev/null || echo "")
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions?per_page=100" \
+            | jq -r '
+              [.[] | .metadata.container.tags[]? | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))]
+              | map(ltrimstr("v") | split(".") | map(tonumber))
+              | sort_by(.[0], .[1], .[2])
+              | .[-1]
+              | if . then "v" + (map(tostring) | join(".")) else empty end
+            ' 2>/dev/null || echo "")
 
           if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
             NEXT_PATCH=1
