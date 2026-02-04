@@ -667,8 +667,8 @@ spec:
                 path: "/metadata/labels",
                 value: {
                   "tenancy.entigo.com/zone": variables.selectedZone,
-                  "pod-security.kubernetes.io/enforce": "{{ .Values.zone.environmentConfig.podSecurity }}",
-                  "pod-security.kubernetes.io/warn": "{{ .Values.zone.environmentConfig.podSecurity }}"
+                  "pod-security.kubernetes.io/enforce": dyn("{{ .Values.zone.environmentConfig.podSecurity }}"),
+                  "pod-security.kubernetes.io/warn": dyn("{{ .Values.zone.environmentConfig.podSecurity }}")
                 }
               }
             ] :
