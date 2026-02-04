@@ -466,7 +466,7 @@ spec:
         resources: ["namespaces"]
   matchConditions:
     - name: "has-zone-label"
-      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'default'"
+      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'infralib'"
   mutations:
     - patchType: JSONPatch
       jsonPatch:
@@ -511,8 +511,6 @@ spec:
           value: 0
         - key: max-size
           value: 0
-
-
 ---
 apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
@@ -531,7 +529,7 @@ spec:
         resource.List("tenancy.entigo.com/v1alpha1", "zones", "")
   matchConditions:
     - name: "has-zone-label"
-      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != ''"
+      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'infralib'"
   validations:
     - expression: >-
         dyn(variables.existingZones.items).exists(zone,
@@ -585,7 +583,9 @@ spec:
       expression: >-
         has(object.spec.destination) &&
         has(object.spec.destination.namespace) &&
-        object.spec.destination.namespace != ""
+        object.spec.destination.namespace != "" &&
+        object.spec.project != "default" &&
+        object.spec.project != "infralib"
   variables:
     - name: destNamespace
       expression: "object.spec.destination.namespace"
