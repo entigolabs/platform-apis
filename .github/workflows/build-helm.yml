@@ -90,9 +90,13 @@ jobs:
 
           if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
             NEXT_PATCH=1
-          else
-            CURRENT_PATCH=$(echo "$LATEST_TAG" | sed "s/${MAJOR_MINOR}\.//")
+          elif [[ "$LATEST_TAG" == ${MAJOR_MINOR}.* ]]; then
+            # Latest tag matches current major.minor, increment patch
+            CURRENT_PATCH=$(echo "$LATEST_TAG" | cut -d. -f3)
             NEXT_PATCH=$((CURRENT_PATCH + 1))
+          else
+            # Major.minor changed, start fresh at patch 1
+            NEXT_PATCH=1
           fi
 
           if [ "${{ inputs.release_type }}" == "rc" ]; then
