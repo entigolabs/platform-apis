@@ -28,19 +28,37 @@ jobs:
   detect:
     runs-on: ubuntu-latest
     outputs:
-      functions: ${{ steps.changes.outputs.functions }}
-      has_function_changes: ${{ steps.changes.outputs.has_function_changes }}
-      compositions: ${{ steps.changes.outputs.compositions }}
-      has_composition_changes: ${{ steps.changes.outputs.has_composition_changes }}
-      test_image_changed: ${{ steps.changes.outputs.test_image_changed }}
-      helm_changed: ${{ steps.changes.outputs.helm_changed }}
+      functions: ${{ steps.force-all.outputs.functions || steps.changes.outputs.functions }}
+      has_function_changes: ${{ steps.force-all.outputs.has_function_changes || steps.changes.outputs.has_function_changes }}
+      compositions: ${{ steps.force-all.outputs.compositions || steps.changes.outputs.compositions }}
+      has_composition_changes: ${{ steps.force-all.outputs.has_composition_changes || steps.changes.outputs.has_composition_changes }}
+      test_image_changed: ${{ steps.force-all.outputs.test_image_changed || steps.changes.outputs.test_image_changed }}
+      helm_changed: ${{ steps.force-all.outputs.helm_changed || steps.changes.outputs.helm_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Force test and build all
+        if: github.event_name == 'workflow_dispatch'
+        id: force-all
+        run: |
+          FUNCTIONS=$(ls -d functions/*/ | xargs -I{} basename {} | grep -v '^common$' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+          echo "has_function_changes=true" >> $GITHUB_OUTPUT
+          echo "All functions: $FUNCTIONS"
+
+          COMPOSITIONS=$(ls -d compositions/*/ | xargs -I{} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
+          echo "has_composition_changes=true" >> $GITHUB_OUTPUT
+          echo "All compositions: $COMPOSITIONS"
+
+          echo "test_image_changed=false" >> $GITHUB_OUTPUT
+          echo "helm_changed=true" >> $GITHUB_OUTPUT
+
       - name: Get changed files
+        if: github.event_name != 'workflow_dispatch'
         id: changed-files
         uses: tj-actions/changed-files@v42
         with:
@@ -48,6 +66,7 @@ jobs:
           sha: ${{ github.event.pull_request.head.sha }}
 
       - name: Detect changes
+        if: github.event_name != 'workflow_dispatch'
         id: changes
         run: |
           ALL_FILES="${{ steps.changed-files.outputs.all_changed_files }}"

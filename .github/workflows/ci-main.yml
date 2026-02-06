@@ -37,11 +37,8 @@ jobs:
 
   test-compositions:
     name: Test Compositions
-    needs: [detect-changes, ensure-test-image, test-functions]
-    if: |
-      always() &&
-      needs.detect-changes.outputs.has_composition_changes == 'true' &&
-      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped')
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.has_composition_changes == 'true'
     uses: ./.github/workflows/test-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
@@ -75,17 +72,48 @@ jobs:
     secrets: inherit
 
   build-helm:
-    name: Lint And Build Helm
-    needs: [detect-changes, build-functions, build-compositions]
+    name: Lint and Build Helm
+    needs: [detect-changes, test-functions, test-compositions, build-functions, build-compositions]
     if: |
       always() &&
       !cancelled() &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
+      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped') &&
       (
         needs.build-functions.result == 'success' ||
         needs.build-compositions.result == 'success' ||
-        needs.detect-changes.outputs.helm_changed == 'true'
+        (needs.detect-changes.outputs.helm_changed == 'true' && needs.build-functions.result == 'skipped' && needs.build-compositions.result == 'skipped')
       )
     uses: ./.github/workflows/build-helm.yml
     with:
       release_type: stable
     secrets: inherit
+
+  infralib-tests:
+    name: Infralib Tests
+    needs: build-helm
+    if: always() && needs.build-helm.result == 'success'
+    uses: ./.github/workflows/run-infralib-tests.yml
+    with:
+      helm_version: ${{ needs.build-helm.outputs.version }}
+    secrets: inherit
+
+  create-infralib-pr:
+    name: Create Infralib PR
+    needs: [build-helm, infralib-tests]
+    if: always() && needs.infralib-tests.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      INFRALIB_REPO: entigolabs/entigo-infralib
+    steps:
+      - name: Create PR in entigo-infralib
+        env:
+          GH_TOKEN: ${{ secrets.INFRALIB_PAT }}
+          VERSION: ${{ needs.build-helm.outputs.version }}
+        run: |
+          gh pr create \
+            --repo "$INFRALIB_REPO" \
+            --base main \
+            --head "platform-apis-${VERSION}" \
+            --title "platform-apis ${VERSION} stable release" \
+            --body "Automated PR for platform-apis ${VERSION} stable release."
