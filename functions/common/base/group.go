@@ -46,6 +46,7 @@ func NewSequence(regex bool, stepObjects ...[]string) Sequence {
 }
 
 type GroupService interface {
+	SkipGeneration(compositeResource *composite.Unstructured) bool
 	GetResourceHandlers() map[string]ResourceHandler
 	// GetSequence Objects not listed in the sequence are created during the first step.
 	GetSequence(object runtime.Object) Sequence
