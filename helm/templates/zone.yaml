@@ -5,6 +5,9 @@ kind: ClusterRole
 metadata:
   name: zone-tenancy-c-maintainer
 rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["create"]
 - apiGroups: ["tenancy.entigo.com"]
   resources: ["zones"]
   verbs: ["*"]
@@ -370,6 +373,9 @@ rules:
   verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["namespaces"]
+  verbs: ["get", "list", "watch", "create", "update"]
+- apiGroups: ["argoproj.io"]
+  resources: ["applications"]
   verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -449,5 +455,361 @@ spec:
           "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels[variables.zoneLabel]
           : "no zone label - must be labeled manually first")
       ).join(", ")
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: MutatingPolicy
+metadata:
+  name: platform-apis-zone-namespace-pod-security
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["namespaces"]
+  matchConditions:
+    - name: "exclude-system-namespaces"
+      expression: "!(object.metadata.name in ['kube-system'])"
+    - name: "has-zone-label"
+      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'infralib'"
+  mutations:
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          (
+            !('pod-security.kubernetes.io/enforce' in object.metadata.labels) ?
+            [
+              JSONPatch{
+                op: "add",
+                path: "/metadata/labels/pod-security.kubernetes.io~1enforce",
+                value: "{{ .Values.zone.environmentConfig.podSecurity }}"
+              }
+            ] : []
+          ) + (
+            !('pod-security.kubernetes.io/warn' in object.metadata.labels) ?
+            [
+              JSONPatch{
+                op: "add",
+                path: "/metadata/labels/pod-security.kubernetes.io~1warn",
+                value: "{{ .Values.zone.environmentConfig.podSecurity }}"
+              }
+            ] : []
+          )
+---
+apiVersion: tenancy.entigo.com/v1alpha1
+kind: Zone
+metadata:
+  name: infralib
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  namespaces: []
+  pools:
+    - name: default
+      requirements:
+        - key: max-size
+          value: 0
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-namespace-pod-security
+spec:
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["namespaces"]
+  variables:
+    - name: existingZones
+      expression: |
+        resource.List("tenancy.entigo.com/v1alpha1", "zones", "")
+  matchConditions:
+    - name: "exclude-system-namespaces"
+      expression: "!(object.metadata.name in ['kube-system', 'default', 'kube-public', 'kube-node-lease'])"
+    - name: "has-no-infralib-zone-label"
+      expression: "!has(object.metadata.labels) || !('tenancy.entigo.com/zone' in object.metadata.labels) || object.metadata.labels['tenancy.entigo.com/zone'] != 'infralib'"
+  validations:
+    - expression: >-
+        has(object.metadata.labels) &&
+        'tenancy.entigo.com/zone' in object.metadata.labels &&
+        object.metadata.labels['tenancy.entigo.com/zone'] != ''
+      message: "The namespace must have a 'tenancy.entigo.com/zone' label."
+    - expression: >-
+        !has(object.metadata.labels) ||
+        !('tenancy.entigo.com/zone' in object.metadata.labels) ||
+        dyn(variables.existingZones.items).exists(zone,
+          zone.metadata.name == object.metadata.labels['tenancy.entigo.com/zone']
+        )
+      message: "The namespace 'tenancy.entigo.com/zone' label must reference an existing Zone."
+    - expression: >-
+        !has(object.metadata.labels) ||
+        ('pod-security.kubernetes.io/enforce' in object.metadata.labels &&
+        (
+        {{- if eq .Values.zone.environmentConfig.podSecurity "restricted" }}
+          object.metadata.labels['pod-security.kubernetes.io/enforce'] == 'restricted'
+        {{- else if eq .Values.zone.environmentConfig.podSecurity "baseline" }}
+          object.metadata.labels['pod-security.kubernetes.io/enforce'] in ['baseline', 'restricted']
+        {{- else }}
+          object.metadata.labels['pod-security.kubernetes.io/enforce'] in ['baseline', 'restricted', 'privileged']
+        {{- end }}
+        ))
+      message: "The 'pod-security.kubernetes.io/enforce' label must be set to '{{ .Values.zone.environmentConfig.podSecurity }}' (or stricter)."
+    - expression: >-
+        !has(object.metadata.labels) ||
+        ('pod-security.kubernetes.io/warn' in object.metadata.labels &&
+        (
+        {{- if eq .Values.zone.environmentConfig.podSecurity "restricted" }}
+          object.metadata.labels['pod-security.kubernetes.io/warn'] == 'restricted'
+        {{- else if eq .Values.zone.environmentConfig.podSecurity "baseline" }}
+          object.metadata.labels['pod-security.kubernetes.io/warn'] in ['baseline', 'restricted']
+        {{- else }}
+          object.metadata.labels['pod-security.kubernetes.io/warn'] in ['baseline', 'restricted', 'privileged']
+        {{- end }}
+        ))
+      message: "The 'pod-security.kubernetes.io/warn' label must be set to '{{ .Values.zone.environmentConfig.podSecurity }}' (or stricter)."
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: GeneratingPolicy
+metadata:
+  name: generate-namespace-from-argocd-app
+  annotations:
+    policies.kyverno.io/title: Generate Namespace from ArgoCD Application
+    policies.kyverno.io/category: ArgoCD
+    policies.kyverno.io/description: >-
+      Generates a namespace based on ArgoCD Application's destination if it doesn't exist.
+      The namespace is labeled with tenancy.entigo.com/zone derived from the Application's project.
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["argoproj.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE","UPDATE"]
+        resources: ["applications"]
+  matchConditions:
+    - name: has-destination-namespace
+      expression: >-
+        has(object.spec.destination) &&
+        has(object.spec.destination.namespace) &&
+        object.spec.destination.namespace != "" &&
+        object.spec.project != "default" &&
+        object.spec.project != "infralib"
+  variables:
+    - name: destNamespace
+      expression: "object.spec.destination.namespace"
+    - name: projectName
+      expression: "object.spec.project"
+  generate:
+    - expression: |
+        generator.Apply("", [
+          {
+            "kind": dyn("Namespace"),
+            "apiVersion": dyn("v1"),
+            "metadata": dyn({
+              "name": dyn(variables.destNamespace),
+              "labels": dyn({
+                "tenancy.entigo.com/zone": dyn(variables.projectName),
+                "pod-security.kubernetes.io/enforce": dyn("{{ .Values.zone.environmentConfig.podSecurity }}"),
+                "pod-security.kubernetes.io/warn": dyn("{{ .Values.zone.environmentConfig.podSecurity }}")
+              })
+            })
+          }
+        ])
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: MutatingPolicy
+metadata:
+  name: platform-apis-namespace-add-missing-zone-label
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["namespaces"]
+  matchConditions:
+    - name: "exclude-system-namespaces"
+      expression: "!(object.metadata.name in ['kube-system', 'default', 'kube-public', 'kube-node-lease'])"
+    - name: "has-no-zone-label"
+      expression: "!has(object.metadata.labels) || !('tenancy.entigo.com/zone' in object.metadata.labels) || object.metadata.labels['tenancy.entigo.com/zone'] == ''"
+  variables:
+    - name: existingZones
+      expression: |
+        resource.List("tenancy.entigo.com/v1alpha1", "zones", "")
+    - name: defaultZoneName
+      expression: >-
+        dyn(variables.existingZones.items)
+        .filter(z, has(z.metadata.labels) &&
+          'tenancy.entigo.com/default-zone' in z.metadata.labels &&
+          z.metadata.labels['tenancy.entigo.com/default-zone'] == 'true')
+        .map(z, z.metadata.name)
+    - name: fallbackZoneName
+      expression: >-
+        dyn(variables.existingZones.items)
+          .filter(z, z.metadata.name != 'infralib')
+          .map(z, z.metadata.name)
+    - name: selectedZone
+      expression: >-
+        variables.defaultZoneName.size() > 0 ? variables.defaultZoneName[0] :
+          (variables.fallbackZoneName.size() > 0 ? variables.fallbackZoneName[0] : '')
+  mutations:
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.selectedZone == '' ? [] :
+          (
+            !has(object.metadata.labels) ?
+            [
+              JSONPatch{
+                op: "add",
+                path: "/metadata/labels",
+                value: {
+                  "tenancy.entigo.com/zone": variables.selectedZone,
+                  "pod-security.kubernetes.io/enforce": dyn("{{ .Values.zone.environmentConfig.podSecurity }}"),
+                  "pod-security.kubernetes.io/warn": dyn("{{ .Values.zone.environmentConfig.podSecurity }}")
+                }
+              }
+            ] :
+            ([
+              JSONPatch{
+                op: "add",
+                path: "/metadata/labels/tenancy.entigo.com~1zone",
+                value: variables.selectedZone
+              }
+            ]) + (
+              !('pod-security.kubernetes.io/enforce' in object.metadata.labels) ?
+              [
+                JSONPatch{
+                  op: "add",
+                  path: "/metadata/labels/pod-security.kubernetes.io~1enforce",
+                  value: "{{ .Values.zone.environmentConfig.podSecurity }}"
+                }
+              ] : []
+            ) + (
+              !('pod-security.kubernetes.io/warn' in object.metadata.labels) ?
+              [
+                JSONPatch{
+                  op: "add",
+                  path: "/metadata/labels/pod-security.kubernetes.io~1warn",
+                  value: "{{ .Values.zone.environmentConfig.podSecurity }}"
+                }
+              ] : []
+            )
+          )
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-namespace-contributor-deny
+spec:
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["UPDATE", "DELETE"]
+        resources: ["namespaces"]
+  matchConditions:
+    - name: "check-user-group"
+      expression: '"contributor" in request.userInfo.groups'
+  validations:
+    - expression: "false"
+      message: "contributor cannot modify namespaces."
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-namespace-maintainer-deny
+spec:
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["namespaces"]
+  matchConditions:
+    - name: "check-user-group"
+      expression: '"maintainer" in request.userInfo.groups'
+    - name: "has-infralib-zone-label"
+      expression: "has(object.metadata.labels) && ('tenancy.entigo.com/zone' in object.metadata.labels) && object.metadata.labels['tenancy.entigo.com/zone'] == 'infralib'"
+  validations:
+    - expression: "false"
+      message: "cannot use infralib zone."
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-maintainer-infralib-zone-deny
+spec:
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["tenancy.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["zones"]
+  matchConditions:
+    - name: "check-user-group"
+      expression: '"maintainer" in request.userInfo.groups'
+    - name: "is-infralib-zone"
+      expression: "(has(object.metadata) && object.metadata.name == 'infralib') || (has(oldObject.metadata) && oldObject.metadata.name == 'infralib')"
+  validations:
+    - expression: "false"
+      message: "infralib zone is reserved."
+---
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-deletion-check-namespaces
+spec:
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["tenancy.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["zones"]
+  variables:
+    - name: zoneLabel
+      expression: |
+        "tenancy.entigo.com/zone"
+    - name: zoneName
+      expression: |
+        oldObject.metadata.name
+    - name: specNamespaceNames
+      expression: |
+        has(oldObject.spec.namespaces) ? oldObject.spec.namespaces.map(ns, ns.name) : []
+    - name: existingNamespaces
+      expression: |
+        resource.List("v1", "namespaces", "")
+    - name: namespacesInZone
+      expression: |
+        dyn(variables.existingNamespaces.items).filter(ns,
+          has(ns.metadata.labels) &&
+          variables.zoneLabel in ns.metadata.labels &&
+          ns.metadata.labels[variables.zoneLabel] == variables.zoneName &&
+          !(ns.metadata.name in variables.specNamespaceNames)
+        )
+  validations:
+    - expression: |
+        variables.namespacesInZone.size() == 0
+      messageExpression: |
+        "Cannot delete zone '" + variables.zoneName + "': " +
+        string(variables.namespacesInZone.size()) + " namespace(s) still assigned to it (not managed via spec.namespaces): " +
+        variables.namespacesInZone.map(ns, ns.metadata.name).join(", ")
 
 {{- end }}

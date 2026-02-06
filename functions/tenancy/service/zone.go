@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,9 +34,11 @@ import (
 )
 
 const (
-	zoneAnnotation     = "tenancy.entigo.com/zone"
+	ZoneAnnotation     = "tenancy.entigo.com/zone"
 	zonePoolAnnotation = "tenancy.entigo.com/zone-pool"
+	PoolLabel          = "tenancy.entigo.com/pool"
 
+	NamespaceKey      = "Namespaces"
 	VPCKey            = "VPC"
 	KMSDataAliasKey   = "KMSDataAlias"
 	SecurityGroupKey  = "NodeSecurityGroup"
@@ -57,6 +60,7 @@ type zoneGenerator struct {
 	required map[string][]resource.Required
 	env      apis.Environment
 	// Dependencies
+	namespaces     []*corev1.Namespace
 	vpc            ec2v1beta1.VPC
 	kmsDataAlias   kmsv1beta1.Alias
 	securityGroup  ec2v1beta1.SecurityGroup
@@ -69,6 +73,7 @@ type zoneGenerator struct {
 	zoneAnnotations map[string]string
 	zoneTags        map[string]*string
 	egressExclude   base.Set[string]
+	uqNamespaces    []string
 }
 
 func GenerateZoneObjects(
@@ -86,6 +91,10 @@ func GenerateZoneObjects(
 	var securityGroup ec2v1beta1.SecurityGroup
 	var cluster eksv1beta1.Cluster
 
+	namespaces, err := base.ExtractResources[*corev1.Namespace](required, NamespaceKey)
+	if err != nil {
+		return nil, err
+	}
 	if err := base.ExtractRequiredResource(required, VPCKey, &vpc); err != nil {
 		return nil, err
 	}
@@ -115,7 +124,7 @@ func GenerateZoneObjects(
 		return nil, err
 	}
 	tags := map[string]*string{
-		zoneAnnotation: &zone.Name,
+		ZoneAnnotation: &zone.Name,
 	}
 	maps.Copy(tags, env.Tags)
 	generator := zoneGenerator{
@@ -123,6 +132,7 @@ func GenerateZoneObjects(
 		observed:       observed,
 		required:       required,
 		env:            env,
+		namespaces:     namespaces,
 		vpc:            vpc,
 		kmsDataAlias:   kmsDataAlias,
 		securityGroup:  securityGroup,
@@ -132,12 +142,27 @@ func GenerateZoneObjects(
 		publicSubnets:  publicSubnets,
 		controlSubnets: controlSubnets,
 		zoneAnnotations: map[string]string{
-			zoneAnnotation: zone.Name,
+			ZoneAnnotation: zone.Name,
 		},
 		zoneTags:      tags,
 		egressExclude: base.NewSet(env.GranularEgressExclude...),
+		uqNamespaces:  GetUniqueNamespaces(zone, namespaces),
 	}
 	return generator.generate()
+}
+
+func GetUniqueNamespaces(zone v1alpha1.Zone, namespaces []*corev1.Namespace) []string {
+	uqNs := base.NewSet[string]()
+	for _, ns := range namespaces {
+		uqNs.Add(ns.Name)
+	}
+	for _, ns := range zone.Spec.Namespaces {
+		uqNs.Add(ns.Name)
+	}
+	// Alphabetical order for consistency
+	list := uqNs.ToSlice()
+	slices.Sort(list)
+	return list
 }
 
 func (g zoneGenerator) generate() (map[string]runtime.Object, error) {
@@ -256,43 +281,69 @@ func GetTargetNetworkPolicyKey(namespace, ingress, service string, port intstr.I
 
 func (g zoneGenerator) generateNamespaces() (map[string]runtime.Object, error) {
 	objs := make(map[string]runtime.Object)
+	zoneNs := base.NewSet[string]()
 	for _, ns := range g.zone.Spec.Namespaces {
-		namespace := g.getNamespace(ns.Name)
+		namespace := g.getNamespace(ns)
 		objs[GetNamespaceKey(ns.Name)] = namespace
-		if g.env.GranularEgress {
-			sidecar, err := g.getSidecar(ns.Name)
-			if err != nil {
-				return nil, err
-			}
-			objs[GetSidecarKey(g.zone.Name, ns.Name)] = sidecar
+		err := g.generateNamespace(objs, ns.Name, ns.Pool)
+		if err != nil {
+			return nil, err
 		}
-		networkPolicy := g.getNetworkPolicy(ns.Name)
-		objs[GetNetworkPolicyKey(g.zone.Name, ns.Name)] = networkPolicy
-		allRole := g.getAllRole(ns.Name)
-		objs[GetRBACRoleAllKey(g.zone.Name, ns.Name)] = allRole
-		readRole := g.getReadRole(ns.Name)
-		objs[GetRBACRoleReadKey(g.zone.Name, ns.Name)] = readRole
-		contributorBinding := g.getRoleBinding(ns.Name, ns.Name+"-contributor", allRole.Name, "contributor")
-		objs[GetRBContributorKey(g.zone.Name, ns.Name)] = contributorBinding
-		maintainerBinding := g.getRoleBinding(ns.Name, ns.Name+"-maintainer", allRole.Name, "maintainer")
-		objs[GetRBMaintainerKey(g.zone.Name, ns.Name)] = maintainerBinding
-		observerBinding := g.getRoleBinding(ns.Name, ns.Name+"-observer", readRole.Name, "observer")
-		objs[GetRBObserverKey(g.zone.Name, ns.Name)] = observerBinding
-		mutatingPolicy := g.getMutatingPolicy(ns.Name, ns.Pool)
-		objs[GetMutatingPolicyKey(g.zone.Name, ns.Name)] = mutatingPolicy
-		labelsMutatingPolicy := g.getLabelsMutatingPolicy(ns.Name)
-		objs[GetLabelsMutatingPolicyKey(g.zone.Name, ns.Name)] = labelsMutatingPolicy
-		validatingPolicy := g.getValidatingPolicy(ns.Name)
-		objs[GetValidatingPolicyKey(g.zone.Name, ns.Name)] = validatingPolicy
+		zoneNs.Add(ns.Name)
+	}
+	for _, ns := range g.namespaces {
+		if zoneNs.Contains(ns.Name) {
+			continue
+		}
+		var pool string
+		if ns.Labels != nil {
+			pool = ns.Labels[PoolLabel]
+		}
+		err := g.generateNamespace(objs, ns.Name, pool)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return objs, nil
 }
 
-func (g zoneGenerator) getNamespace(name string) *corev1.Namespace {
+func (g zoneGenerator) generateNamespace(objs map[string]runtime.Object, name, pool string) error {
+	if g.env.GranularEgress {
+		sidecar, err := g.getSidecar(name)
+		if err != nil {
+			return err
+		}
+		objs[GetSidecarKey(g.zone.Name, name)] = sidecar
+	}
+	networkPolicy := g.getNetworkPolicy(name)
+	objs[GetNetworkPolicyKey(g.zone.Name, name)] = networkPolicy
+	allRole := g.getAllRole(name)
+	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
+	readRole := g.getReadRole(name)
+	objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
+	contributorBinding := g.getRoleBinding(name, name+"-contributor", allRole.Name, "contributor")
+	objs[GetRBContributorKey(g.zone.Name, name)] = contributorBinding
+	maintainerBinding := g.getRoleBinding(name, name+"-maintainer", allRole.Name, "maintainer")
+	objs[GetRBMaintainerKey(g.zone.Name, name)] = maintainerBinding
+	observerBinding := g.getRoleBinding(name, name+"-observer", readRole.Name, "observer")
+	objs[GetRBObserverKey(g.zone.Name, name)] = observerBinding
+	mutatingPolicy := g.getMutatingPolicy(name, pool)
+	objs[GetMutatingPolicyKey(g.zone.Name, name)] = mutatingPolicy
+	labelsMutatingPolicy := g.getLabelsMutatingPolicy(name)
+	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = labelsMutatingPolicy
+	validatingPolicy := g.getValidatingPolicy(name)
+	objs[GetValidatingPolicyKey(g.zone.Name, name)] = validatingPolicy
+	return nil
+}
+
+func (g zoneGenerator) getNamespace(ns v1alpha1.Namespace) *corev1.Namespace {
 	labels := map[string]string{
-		zoneAnnotation:                       g.zone.Name,
+		ZoneAnnotation:                       g.zone.Name,
 		"pod-security.kubernetes.io/enforce": g.env.PodSecurity,
 		"pod-security.kubernetes.io/warn":    g.env.PodSecurity,
+	}
+	if ns.Pool != "" {
+		labels[PoolLabel] = ns.Pool
 	}
 	if g.env.GranularEgress {
 		labels["istio-injection"] = "enabled"
@@ -303,7 +354,7 @@ func (g zoneGenerator) getNamespace(name string) *corev1.Namespace {
 			Kind:       "Namespace",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
+			Name:        ns.Name,
 			Labels:      labels,
 			Annotations: g.zoneAnnotations,
 		},
@@ -316,8 +367,8 @@ func (g zoneGenerator) getSidecar(name string) (runtime.Object, error) {
 		"istio-system/*",
 		"kube-system/kube-dns.kube-system.svc.cluster.local",
 	}
-	for _, ns := range g.zone.Spec.Namespaces {
-		hosts = append(hosts, ns.Name+"/*")
+	for _, ns := range g.uqNamespaces {
+		hosts = append(hosts, ns+"/*")
 	}
 	modeStr := istiov1alpha3.OutboundTrafficPolicy_Mode_name[int32(istiov1alpha3.OutboundTrafficPolicy_REGISTRY_ONLY)]
 	if g.egressExclude.Contains(g.zone.Name) {
@@ -362,7 +413,7 @@ func (g zoneGenerator) getNetworkPolicy(nsName string) *networkingv1.NetworkPoli
 			Namespace:   nsName,
 			Annotations: g.zoneAnnotations,
 			Labels: map[string]string{
-				zoneAnnotation: g.zone.Name,
+				ZoneAnnotation: g.zone.Name,
 			},
 		},
 		Spec: networkingv1.NetworkPolicySpec{
@@ -374,7 +425,7 @@ func (g zoneGenerator) getNetworkPolicy(nsName string) *networkingv1.NetworkPoli
 						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{
-									zoneAnnotation: g.zone.Name,
+									ZoneAnnotation: g.zone.Name,
 								},
 							},
 						},
@@ -639,7 +690,7 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]runtime.Object {
 	objs := make(map[string]runtime.Object)
 	zoneName := g.zone.GetName()
 	labels := map[string]string{
-		zoneAnnotation: zoneName,
+		ZoneAnnotation: zoneName,
 	}
 	emptyString := ""
 
@@ -650,7 +701,7 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]runtime.Object {
 		}
 		maps.Copy(annotations, g.zoneAnnotations)
 		tags := map[string]*string{
-			zoneAnnotation:     &zoneName,
+			ZoneAnnotation:     &zoneName,
 			zonePoolAnnotation: &zonePool,
 		}
 		maps.Copy(tags, g.env.Tags)
@@ -952,12 +1003,12 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 	}
 	maps.Copy(annotations, g.zoneAnnotations)
 	tags := map[string]*string{
-		zoneAnnotation:     &zoneName,
+		ZoneAnnotation:     &zoneName,
 		zonePoolAnnotation: &zonePool,
 	}
 	maps.Copy(tags, g.env.Tags)
 	eksLabels := map[string]*string{
-		zoneAnnotation:     &zoneName,
+		ZoneAnnotation:     &zoneName,
 		zonePoolAnnotation: &zonePool,
 	}
 
@@ -1046,13 +1097,11 @@ func toInstanceTypePointers(types []string) []*string {
 
 func (g zoneGenerator) getAppProject() runtime.Object {
 	var destinations []argov1alpha1.ApplicationDestination
-	var namespaces []string
-	for _, ns := range g.zone.Spec.Namespaces {
+	for _, ns := range g.uqNamespaces {
 		destinations = append(destinations, argov1alpha1.ApplicationDestination{
-			Namespace: ns.Name,
+			Namespace: ns,
 			Server:    "https://kubernetes.default.svc",
 		})
-		namespaces = append(namespaces, ns.Name)
 	}
 
 	var whitelist, blacklist []metav1.GroupKind
@@ -1082,7 +1131,7 @@ func (g zoneGenerator) getAppProject() runtime.Object {
 			Description:              "Security zone for isolated team deployment",
 			Destinations:             destinations,
 			SourceRepos:              []string{"*"},
-			SourceNamespaces:         namespaces,
+			SourceNamespaces:         g.uqNamespaces,
 			ClusterResourceWhitelist: whitelist,
 			ClusterResourceBlacklist: blacklist,
 			NamespaceResourceBlacklist: []metav1.GroupKind{
@@ -1144,15 +1193,15 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 	controlBlocks := getSubnetsBlocks(g.controlSubnets)
 	protocol := corev1.ProtocolTCP
 	objs := make(map[string]runtime.Object)
-	for _, ns := range g.zone.Spec.Namespaces {
-		if ns.Name == "" {
+	for _, ns := range g.uqNamespaces {
+		if ns == "" {
 			continue
 		}
-		ingresses, err := base.ExtractResources[*networkingv1.Ingress](g.required, ns.Name+IngressKey)
+		ingresses, err := base.ExtractResources[*networkingv1.Ingress](g.required, ns+IngressKey)
 		if err != nil {
 			return nil, err
 		}
-		services, err := base.ExtractResources[*corev1.Service](g.required, ns.Name+ServiceKey)
+		services, err := base.ExtractResources[*corev1.Service](g.required, ns+ServiceKey)
 		if err != nil {
 			return nil, err
 		}
@@ -1198,14 +1247,14 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 						// TODO Improved ALB support based on annotations
 						blocks = controlBlocks
 					}
-					objs[GetTargetNetworkPolicyKey(ns.Name, ingress.Name, serviceName, targetPort)] = &networkingv1.NetworkPolicy{
+					objs[GetTargetNetworkPolicyKey(ns, ingress.Name, serviceName, targetPort)] = &networkingv1.NetworkPolicy{
 						TypeMeta: metav1.TypeMeta{
 							APIVersion: "networking.k8s.io/v1",
 							Kind:       "NetworkPolicy",
 						},
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      fmt.Sprintf("%s-%s-%s", ingress.Name, serviceName, targetPort.String()),
-							Namespace: ns.Name,
+							Namespace: ns,
 						},
 						Spec: networkingv1.NetworkPolicySpec{
 							PodSelector: metav1.LabelSelector{MatchLabels: matchLabels},
