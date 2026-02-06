@@ -109,7 +109,7 @@ jobs:
           PKG_NAME="platform-apis-${{ matrix.function }}-fn"
 
           # Get major.minor from Chart.yaml
-          CHART_VERSION=$(grep '^version:' helm/Chart.yaml | awk '{print $2}')
+          CHART_VERSION=$(grep '^version:' ${{ github.workspace }}/helm/Chart.yaml | awk '{print $2}')
           MAJOR_MINOR=$(echo "$CHART_VERSION" | cut -d. -f1,2)
 
           # Fetch with pagination and extract stable version tags, sorted by semantic version
