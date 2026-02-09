@@ -71,6 +71,10 @@ jobs:
 
           # Update test file
           cp ../platform-apis/test/e2e-tests/k8s_unit_basic_test.go ${{ env.INFRALIB_MODULE_PATH }}/test/
+          cp ../platform-apis/test/e2e-tests/templates/* ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
+          
+          #TODO: REMOVE WHEN ZONES UPDATE READY
+          cp ../platform-apis/test/e2e-tests/argo-apps.yaml ${{ env.INFRALIB_MODULE_PATH }}/test/
 
           git add .
           git commit -m "Update ${CHART_NAME} to ${VERSION} for testing"
