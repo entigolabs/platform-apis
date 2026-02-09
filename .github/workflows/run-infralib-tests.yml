@@ -71,6 +71,7 @@ jobs:
 
           # Update test file
           cp ../platform-apis/test/e2e-tests/k8s_unit_basic_test.go ${{ env.INFRALIB_MODULE_PATH }}/test/
+          mkdir -p ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
           cp ../platform-apis/test/e2e-tests/templates/* ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
           
           #TODO: REMOVE WHEN ZONES UPDATE READY
