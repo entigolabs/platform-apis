@@ -115,5 +115,5 @@ jobs:
             --repo "$INFRALIB_REPO" \
             --base main \
             --head "platform-apis-${VERSION}" \
-            --title "platform-apis ${VERSION} stable release" \
+            --title "Update k8s/platform-apis to ${VERSION}" \
             --body "Automated PR for platform-apis ${VERSION} stable release."
