@@ -642,6 +642,11 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) *policyv1.Valid
 			Annotations: g.zoneAnnotations,
 		},
 		Spec: policyv1.ValidatingPolicySpec{
+			EvaluationConfiguration: &policyv1.EvaluationConfiguration{
+				Admission:  &policyv1.AdmissionConfiguration{Enabled: base.BoolPtr(true)},
+				Background: &policyv1.BackgroundConfiguration{Enabled: base.BoolPtr(false)},
+			},
+			ValidationAction: []admissionregistrationv1.ValidationAction{admissionregistrationv1.Deny},
 			MatchConstraints: &admissionregistrationv1.MatchResources{
 				NamespaceSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
