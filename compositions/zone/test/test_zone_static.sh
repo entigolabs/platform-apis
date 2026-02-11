@@ -4,16 +4,16 @@ load_mocks
 init_test "zone" "/workspace/functions/tenancy"
 setup_resources --env --required
 
-echo "TEST 1: rendering AppProject,  MutatingPolicy, ValidatingPolicy, LaunchTemplate, Namespace resources..."
+echo "TEST 1: rendering AppProject,  MutatingPolicy, LaunchTemplate, Namespace resources..."
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
-assert_counts "$OUTPUT" "AppProject" 1 "MutatingPolicy" 4 "ValidatingPolicy" 2 "LaunchTemplate" 2 "Namespace" 2
+assert_counts "$OUTPUT" "AppProject" 1 "MutatingPolicy" 4 "LaunchTemplate" 2 "Namespace" 2
 
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_observed_resources | start_observed
 
-echo "TEST 2: rendering NetworkPolicy, Role resources..."
+echo "TEST 2: rendering NetworkPolicy, Role resources, ValidatingPolicy..."
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
-assert_counts "$OUTPUT" "NetworkPolicy" 2 "Role" 1
+assert_counts "$OUTPUT" "NetworkPolicy" 2 "Role" 1 "ValidatingPolicy" 2
 
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_observed_resources | start_observed
