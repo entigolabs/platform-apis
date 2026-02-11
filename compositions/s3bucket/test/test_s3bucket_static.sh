@@ -1,7 +1,7 @@
 #!/bin/bash
 
 load_mocks
-init_test "s3bucket"
+init_test "s3bucket" "/workspace/functions/storage"
 setup_resources --env --required
 
 # Remove sequence-creation step for testing
