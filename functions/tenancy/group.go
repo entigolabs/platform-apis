@@ -44,7 +44,7 @@ func (g *GroupImpl) generateZone(obj runtime.Object, required map[string][]resou
 func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
 	switch object.GetObjectKind().GroupVersionKind().Kind {
 	case apis.XRKindZone:
-		return base.NewSequence(true, []string{"namespace-.*", "launchtemplate-.*"}, []string{"netpol-.*", "role-.*", "sidecar-.*"},
+		return base.NewSequence(true, []string{"namespace-.*", "launchtemplate-.*", "kyverno-mutate-.*"}, []string{"netpol-.*", "role-.*", "sidecar-.*", "kyverno-validate-.*"},
 			[]string{"rbacrole-.*", "rpa-.*", "ae-.*"}, []string{"rb-.*", "nodepool-.*"})
 	default:
 		return base.Sequence{}
