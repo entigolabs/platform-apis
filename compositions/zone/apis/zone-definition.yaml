@@ -93,5 +93,4 @@ spec:
                                 type: string
                                 minLength: 1
               required:
-                - namespaces
                 - pools
