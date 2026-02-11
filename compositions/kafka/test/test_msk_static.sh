@@ -5,7 +5,7 @@ init_test "msk-observer"
 COMPOSITION="../apis/msk-observer-composition.yaml"  # override default
 setup_resources --env --required
 
-TEMP_INPUT="temp_input_test.yaml"
+TEMP_INPUT="temp_input.yaml"
 cp "$INPUT" "$TEMP_INPUT"
 yq -i '
   select(.kind == "MSK") |
