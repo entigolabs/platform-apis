@@ -401,6 +401,8 @@ apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-ownership
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   evaluation:
     background:
