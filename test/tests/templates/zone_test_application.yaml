@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-of-zone
+  name: app-of-zones
 spec:
   destination:
     server: https://kubernetes.default.svc

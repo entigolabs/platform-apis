@@ -31,7 +31,7 @@ const (
 	//zone
 	AppProjectName        = "zone"
 	NamespaceZoneLabelKey = "app.kubernetes.io/name"
-	ZoneApplicationName   = "app-of-zone"
+	ZoneApplicationName   = "app-of-zones"
 	ZoneAName             = "a"
 	ZoneBName             = "b"
 	ZoneConfigurationName = "platform-apis-zone"
