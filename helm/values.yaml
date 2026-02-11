@@ -42,7 +42,9 @@ repository:
     tag: v0.0.0
 
 storage:
-  install: true
+  function:
+    image: ghcr.io/entigolabs/platform-apis-storage-fn
+    tag: v0.0.0
   environmentConfig:
     awsProvider: "crossplane-aws"
     dataKMSKey: data

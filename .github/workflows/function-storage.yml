@@ -1,16 +1,16 @@
 name: Build Storage Function
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'functions/storage/**'
-      - 'functions/common/base/**'
-  pull_request:
-    paths:
-      - 'functions/storage/**'
-      - 'functions/common/base/**'
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'functions/storage/**'
+  #     - 'functions/common/base/**'
+  # pull_request:
+  #   paths:
+  #     - 'functions/storage/**'
+  #     - 'functions/common/base/**'
   workflow_dispatch:
     inputs:
       version:
