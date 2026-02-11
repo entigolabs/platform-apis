@@ -2,6 +2,15 @@ apiVersion: eks.aws.upbound.io/v1beta1
 kind: Cluster
 metadata:
   name: eks
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
 status:
   atProvider:
     arn: arn:aws:eks:eu-north-1:012345678901:cluster/eks
@@ -9,53 +18,51 @@ status:
     identity:
       - oidc:
           - issuer: https://oidc.eks.eu-north-1.amazonaws.com/id/EXAMPLE123
-  conditions:
-    - lastTransitionTime: "2025-01-01T00:00:00Z"
-      reason: ReconcileSuccess
-      status: "True"
-      type: Synced
-    - lastTransitionTime: "2025-01-01T00:00:00Z"
-      reason: Available
-      status: "True"
-      type: Ready
+
 ---
 apiVersion: kms.aws.upbound.io/v1beta1
 kind: Alias
 metadata:
   name: data
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
 status:
   atProvider:
-    targetKeyArn: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
     arn: arn:aws:kms:eu-north-1:012345678901:alias/data
     id: alias/data
-  conditions:
-    - lastTransitionTime: "2025-01-01T00:00:00Z"
-      reason: ReconcileSuccess
-      status: "True"
-      type: Synced
-    - lastTransitionTime: "2025-01-01T00:00:00Z"
-      reason: Available
-      status: "True"
-      type: Ready
+    region: eu-north-1
+    targetKeyArn: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
+
 ---
 apiVersion: kms.aws.upbound.io/v1beta1
 kind: Alias
 metadata:
   name: config
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
 status:
   atProvider:
-    targetKeyArn: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
     arn: arn:aws:kms:eu-north-1:012345678901:alias/config
     id: alias/config
-  conditions:
-    - lastTransitionTime: "2025-01-01T00:00:00Z"
-      reason: ReconcileSuccess
-      status: "True"
-      type: Synced
-    - lastTransitionTime: "2025-01-01T00:00:00Z"
-      reason: Available
-      status: "True"
-      type: Ready
+    region: eu-north-1
+    targetKeyArn: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
+
 ---
 apiVersion: v1
 kind: Namespace
