@@ -515,6 +515,8 @@ apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-pod-security
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   evaluation:
     background:
@@ -706,6 +708,8 @@ apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-contributor-deny
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   evaluation:
     background:
@@ -727,6 +731,8 @@ apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-maintainer-deny
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   evaluation:
     background:
@@ -750,6 +756,8 @@ apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-maintainer-infralib-zone-deny
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   evaluation:
     background:
@@ -773,6 +781,8 @@ apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-deletion-check-namespaces
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   evaluation:
     background:
