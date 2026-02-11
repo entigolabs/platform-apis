@@ -421,6 +421,8 @@ spec:
     expression: |
       "tenancy.entigo.com/zone"
   validations:
+  - expression: "(has(object.metadata) && object.metadata.name == 'default')"
+    message: "'default' zone cannot be created"
   - expression: |
       object.spec.namespaces.all(requestedNs,
         !dyn(variables.existingNamespaces.items).exists(existingNs,
