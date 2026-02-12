@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"strings"
 
-	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common"
+	xpcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
+	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
 	kmsv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/kms/v1beta1"
+	iamv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/iam/v1beta1"
+	s3v1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/s3/v1beta1"
+	smv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/secretsmanager/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -146,9 +149,8 @@ func GenerateS3BucketObjects(
 }
 
 func addBucketResources(objects map[string]runtime.Object, p *s3BucketParams) {
-	providerConfigRef := &xpv2.ProviderConfigReference{Name: p.ProviderConfigRef, Kind: "ClusterProviderConfig"}
+	providerConfigRef := &xpcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: p.ProviderConfigRef}
 
-	// Tags
 	tags := make(map[string]*string)
 	for k, v := range p.Tags {
 		tags[k] = v
@@ -158,107 +160,116 @@ func addBucketResources(objects map[string]runtime.Object, p *s3BucketParams) {
 		tags[apis.TenancyZoneLabel] = base.StringPtr(p.TenancyZone)
 	}
 
-	// Labels
 	var labels map[string]string
 	if p.TenancyZone != "" {
 		labels = map[string]string{apis.TenancyZoneLabel: p.TenancyZone}
 	}
 
 	// Bucket
-	bucketObj := newUnstructured(apis.BucketApiVersion, apis.BucketKind, p.BucketName, p.Namespace)
-	bucketObj.Object["metadata"].(map[string]interface{})["annotations"] = map[string]interface{}{
-		apis.AnnotationKMSDataKeyAlias: p.KMSDataKeyAliasID,
-		apis.AnnotationServiceAccount:  p.ServiceAccountName,
-	}
-	if labels != nil {
-		bucketObj.Object["metadata"].(map[string]interface{})["labels"] = toInterfaceMap(labels)
-	}
-	bucketSpec := map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"region": p.Region,
-			"tags":   toInterfaceMapPtr(tags),
+	objects["bucket"] = &s3v1beta1.Bucket{
+		TypeMeta: metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketKind},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      p.BucketName,
+			Namespace: p.Namespace,
+			Annotations: map[string]string{
+				apis.AnnotationKMSDataKeyAlias: p.KMSDataKeyAliasID,
+				apis.AnnotationServiceAccount:  p.ServiceAccountName,
+			},
+			Labels: labels,
 		},
-		"writeConnectionSecretToRef": map[string]interface{}{
-			"name": p.BucketName + "-bucket",
+		Spec: s3v1beta1.BucketSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{
+				ProviderConfigReference:          providerConfigRef,
+				WriteConnectionSecretToReference: &xpcommon.LocalSecretReference{Name: p.BucketName + "-bucket"},
+			},
+			ForProvider: s3v1beta1.BucketParameters{
+				Region: &p.Region,
+				Tags:   tags,
+			},
 		},
 	}
-	bucketObj.Object["spec"] = bucketSpec
-	objects["bucket"] = bucketObj
 
 	// BucketPublicAccessBlock
-	pab := newUnstructured(apis.BucketApiVersion, apis.BucketPublicAccessBlockKind, p.BucketName, "")
-	pab.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"bucketRef":             map[string]interface{}{"name": p.BucketName},
-			"blockPublicAcls":       true,
-			"blockPublicPolicy":     true,
-			"ignorePublicAcls":      true,
-			"restrictPublicBuckets": true,
-			"region":                p.Region,
+	objects["bucket-public-access-block"] = &s3v1beta1.BucketPublicAccessBlock{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketPublicAccessBlockKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: s3v1beta1.BucketPublicAccessBlockSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: s3v1beta1.BucketPublicAccessBlockParameters{
+				BucketRef:             &xpcommon.NamespacedReference{Name: p.BucketName},
+				BlockPublicAcls:       base.BoolPtr(true),
+				BlockPublicPolicy:     base.BoolPtr(true),
+				IgnorePublicAcls:      base.BoolPtr(true),
+				RestrictPublicBuckets: base.BoolPtr(true),
+				Region:                &p.Region,
+			},
 		},
 	}
-	objects["bucket-public-access-block"] = pab
 
 	// BucketServerSideEncryptionConfiguration
-	sse := newUnstructured(apis.BucketApiVersion, apis.BucketServerSideEncryptionConfigurationKind, p.BucketName, "")
-	sseDefault := map[string]interface{}{
-		"sseAlgorithm": "aws:kms",
+	sseDefault := &s3v1beta1.RuleApplyServerSideEncryptionByDefaultParameters{
+		SseAlgorithm: base.StringPtr("aws:kms"),
 	}
 	if p.KMSDataKeyArn != "" {
-		sseDefault["kmsMasterKeyId"] = p.KMSDataKeyArn
+		sseDefault.KMSMasterKeyID = &p.KMSDataKeyArn
 	}
-	sse.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"bucketRef": map[string]interface{}{"name": p.BucketName},
-			"region":    p.Region,
-			"rule": []interface{}{
-				map[string]interface{}{
-					"applyServerSideEncryptionByDefault": sseDefault,
-					"bucketKeyEnabled":                   true,
+	objects["bucket-server-side-encryption-configuration"] = &s3v1beta1.BucketServerSideEncryptionConfiguration{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketServerSideEncryptionConfigurationKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: s3v1beta1.BucketServerSideEncryptionConfigurationSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: s3v1beta1.BucketServerSideEncryptionConfigurationParameters{
+				BucketRef: &xpcommon.NamespacedReference{Name: p.BucketName},
+				Region:    &p.Region,
+				Rule: []s3v1beta1.BucketServerSideEncryptionConfigurationRuleParameters{
+					{
+						ApplyServerSideEncryptionByDefault: sseDefault,
+						BucketKeyEnabled:                   base.BoolPtr(true),
+					},
 				},
 			},
 		},
 	}
-	objects["bucket-server-side-encryption-configuration"] = sse
 
 	// BucketVersioning
 	versioningStatus := "Suspended"
 	if p.EnableVersioning {
 		versioningStatus = "Enabled"
 	}
-	bv := newUnstructured(apis.BucketApiVersion, apis.BucketVersioningKind, p.BucketName, "")
-	bv.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"bucketRef": map[string]interface{}{"name": p.BucketName},
-			"region":    p.Region,
-			"versioningConfiguration": map[string]interface{}{
-				"status": versioningStatus,
+	objects["bucket-versioning"] = &s3v1beta1.BucketVersioning{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketVersioningKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: s3v1beta1.BucketVersioningSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: s3v1beta1.BucketVersioningParameters{
+				BucketRef: &xpcommon.NamespacedReference{Name: p.BucketName},
+				Region:    &p.Region,
+				VersioningConfiguration: &s3v1beta1.VersioningConfigurationParameters{
+					Status: &versioningStatus,
+				},
 			},
 		},
 	}
-	objects["bucket-versioning"] = bv
 
 	// BucketOwnershipControls
-	boc := newUnstructured(apis.BucketApiVersion, apis.BucketOwnershipControlsKind, p.BucketName, "")
-	boc.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"bucketRef": map[string]interface{}{"name": p.BucketName},
-			"region":    p.Region,
-			"rule": map[string]interface{}{
-				"objectOwnership": "BucketOwnerEnforced",
+	objects["bucket-ownership-controls"] = &s3v1beta1.BucketOwnershipControls{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketOwnershipControlsKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: s3v1beta1.BucketOwnershipControlsSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: s3v1beta1.BucketOwnershipControlsParameters{
+				BucketRef: &xpcommon.NamespacedReference{Name: p.BucketName},
+				Region:    &p.Region,
+				Rule: &s3v1beta1.BucketOwnershipControlsRuleParameters{
+					ObjectOwnership: base.StringPtr("BucketOwnerEnforced"),
+				},
 			},
 		},
 	}
-	objects["bucket-ownership-controls"] = boc
 }
 
 func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
-	providerConfigRef := &xpv2.ProviderConfigReference{Name: p.ProviderConfigRef, Kind: "ClusterProviderConfig"}
+	providerConfigRef := &xpcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: p.ProviderConfigRef}
 
 	tags := make(map[string]*string)
 	for k, v := range p.Tags {
@@ -267,50 +278,58 @@ func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
 	tags["Name"] = base.StringPtr(p.BucketName)
 
 	// IAM User
-	user := newUnstructured(apis.IAMApiVersion, apis.IAMUserKind, p.BucketName, "")
-	user.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"tags": toInterfaceMapPtr(tags),
+	objects["iam-user"] = &iamv1beta1.User{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMUserKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: iamv1beta1.UserSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: iamv1beta1.UserParameters{
+				Tags: tags,
+			},
 		},
 	}
-	objects["iam-user"] = user
 
 	// IAM Policy
-	policy := newUnstructured(apis.IAMApiVersion, apis.IAMPolicyKind, p.BucketName, "")
 	policyDoc := buildIAMPolicyDocument(p.BucketName, p.KMSDataKeyArn)
-	policy.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"policy": policyDoc,
-			"tags":   toInterfaceMapPtr(tags),
+	objects["iam-policy"] = &iamv1beta1.Policy{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMPolicyKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: iamv1beta1.PolicySpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: iamv1beta1.PolicyParameters{
+				Policy: &policyDoc,
+				Tags:   tags,
+			},
 		},
 	}
-	objects["iam-policy"] = policy
 
 	// UserPolicyAttachment
-	upa := newUnstructured(apis.IAMApiVersion, apis.IAMUserPolicyAttachmentKind, p.BucketName, "")
-	upa.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"policyArnRef": map[string]interface{}{"name": p.BucketName},
-			"userRef":      map[string]interface{}{"name": p.BucketName},
+	objects["iam-user-policy-attachment"] = &iamv1beta1.UserPolicyAttachment{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMUserPolicyAttachmentKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: iamv1beta1.UserPolicyAttachmentSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: iamv1beta1.UserPolicyAttachmentParameters{
+				PolicyArnRef: &xpcommon.NamespacedReference{Name: p.BucketName},
+				UserRef:      &xpcommon.NamespacedReference{Name: p.BucketName},
+			},
 		},
 	}
-	objects["iam-user-policy-attachment"] = upa
 
 	// AccessKey
-	ak := newUnstructured(apis.IAMApiVersion, apis.IAMAccessKeyKind, p.BucketName, "")
-	ak.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"userRef": map[string]interface{}{"name": p.BucketName},
-		},
-		"writeConnectionSecretToRef": map[string]interface{}{
-			"name": p.BucketName + "-access-key",
+	objects["iam-access-key"] = &iamv1beta1.AccessKey{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMAccessKeyKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: iamv1beta1.AccessKeySpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{
+				ProviderConfigReference:          providerConfigRef,
+				WriteConnectionSecretToReference: &xpcommon.LocalSecretReference{Name: p.BucketName + "-access-key"},
+			},
+			ForProvider: iamv1beta1.AccessKeyParameters{
+				UserRef: &xpcommon.NamespacedReference{Name: p.BucketName},
+			},
 		},
 	}
-	objects["iam-access-key"] = ak
 
 	// IAM Role (IRSA)
 	roleTags := make(map[string]*string)
@@ -319,31 +338,36 @@ func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
 	}
 	roleTags["Name"] = base.StringPtr(p.BucketName)
 
-	role := newUnstructured(apis.IAMApiVersion, apis.IAMRoleKind, p.BucketName, "")
 	assumeRolePolicy := buildAssumeRolePolicy(p.AWSAccount, p.ClusterOIDC, p.Namespace, p.ServiceAccountName)
-	role.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"tags":             toInterfaceMapPtr(roleTags),
-			"assumeRolePolicy": assumeRolePolicy,
+	objects["iam-role"] = &iamv1beta1.Role{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMRoleKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: iamv1beta1.RoleSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: iamv1beta1.RoleParameters{
+				AssumeRolePolicy: &assumeRolePolicy,
+				Tags:             roleTags,
+			},
 		},
 	}
-	objects["iam-role"] = role
 
 	// RolePolicyAttachment
-	rpa := newUnstructured(apis.IAMApiVersion, apis.IAMRolePolicyAttachmentKind, p.BucketName, "")
-	rpa.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"policyArn": fmt.Sprintf("arn:aws:iam::%s:policy/%s", p.AWSAccount, p.BucketName),
-			"roleRef":   map[string]interface{}{"name": p.BucketName},
+	policyArn := fmt.Sprintf("arn:aws:iam::%s:policy/%s", p.AWSAccount, p.BucketName)
+	objects["iam-role-policy-attachment"] = &iamv1beta1.RolePolicyAttachment{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMRolePolicyAttachmentKind},
+		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
+		Spec: iamv1beta1.RolePolicyAttachmentSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: iamv1beta1.RolePolicyAttachmentParameters{
+				PolicyArn: &policyArn,
+				RoleRef:   &xpcommon.NamespacedReference{Name: p.BucketName},
+			},
 		},
 	}
-	objects["iam-role-policy-attachment"] = rpa
 }
 
 func addSecretsManagerResources(objects map[string]runtime.Object, p *s3BucketParams) {
-	providerConfigRef := &xpv2.ProviderConfigReference{Name: p.ProviderConfigRef, Kind: "ClusterProviderConfig"}
+	providerConfigRef := &xpcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: p.ProviderConfigRef}
 
 	tags := make(map[string]*string)
 	for k, v := range p.Tags {
@@ -352,39 +376,45 @@ func addSecretsManagerResources(objects map[string]runtime.Object, p *s3BucketPa
 	tags["Name"] = base.StringPtr(p.BucketName + "-credentials")
 
 	secretName := p.BucketName + "-credentials"
+	description := fmt.Sprintf("Credentials for bucket %s", p.BucketName)
+	recoveryWindow := float64(0)
 
 	// Secrets Manager Secret
-	smSecret := newUnstructured(apis.SecretsManagerApiVersion, apis.SecretsManagerSecretKind, secretName, "")
-	forProvider := map[string]interface{}{
-		"name":                 secretName,
-		"region":               p.Region,
-		"description":          fmt.Sprintf("Credentials for bucket %s", p.BucketName),
-		"recoveryWindowInDays": float64(0),
-		"tags":                 toInterfaceMapPtr(tags),
+	smSecretParams := smv1beta1.SecretParameters{
+		Name:                 &secretName,
+		Region:               &p.Region,
+		Description:          &description,
+		RecoveryWindowInDays: &recoveryWindow,
+		Tags:                 tags,
 	}
 	if p.KMSConfigKeyArn != "" {
-		forProvider["kmsKeyId"] = p.KMSConfigKeyArn
+		smSecretParams.KMSKeyID = &p.KMSConfigKeyArn
 	}
-	smSecret.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider":       forProvider,
+	objects["secrets-manager-secret"] = &smv1beta1.Secret{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.SecretsManagerApiVersion, Kind: apis.SecretsManagerSecretKind},
+		ObjectMeta: metav1.ObjectMeta{Name: secretName},
+		Spec: smv1beta1.SecretSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider:         smSecretParams,
+		},
 	}
-	objects["secrets-manager-secret"] = smSecret
 
 	// Secrets Manager SecretVersion
-	smSecretVersion := newUnstructured(apis.SecretsManagerApiVersion, apis.SecretsManagerSecretVersionKind, secretName, "")
-	smSecretVersion.Object["spec"] = map[string]interface{}{
-		"providerConfigRef": providerConfigRefMap(providerConfigRef),
-		"forProvider": map[string]interface{}{
-			"region":      p.Region,
-			"secretIdRef": map[string]interface{}{"name": secretName},
-			"secretStringSecretRef": map[string]interface{}{
-				"name": secretName,
-				"key":  "credentials.json",
+	objects["secrets-manager-secret-version"] = &smv1beta1.SecretVersion{
+		TypeMeta:   metav1.TypeMeta{APIVersion: apis.SecretsManagerApiVersion, Kind: apis.SecretsManagerSecretVersionKind},
+		ObjectMeta: metav1.ObjectMeta{Name: secretName},
+		Spec: smv1beta1.SecretVersionSpec{
+			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ForProvider: smv1beta1.SecretVersionParameters{
+				Region:      &p.Region,
+				SecretIDRef: &xpcommon.NamespacedReference{Name: secretName},
+				SecretStringSecretRef: &xpcommon.LocalSecretKeySelector{
+					LocalSecretReference: xpcommon.LocalSecretReference{Name: secretName},
+					Key:                  "credentials.json",
+				},
 			},
 		},
 	}
-	objects["secrets-manager-secret-version"] = smSecretVersion
 }
 
 func addServiceAccount(objects map[string]runtime.Object, p *s3BucketParams) {
@@ -517,47 +547,4 @@ func buildAssumeRolePolicy(awsAccount, clusterOIDC, namespace, serviceAccountNam
 	}
 	b, _ := json.Marshal(doc)
 	return string(b)
-}
-
-// Helper functions
-
-func newUnstructured(apiVersion, kind, name, namespace string) *unstructured.Unstructured {
-	obj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": apiVersion,
-			"kind":       kind,
-			"metadata": map[string]interface{}{
-				"name": name,
-			},
-		},
-	}
-	if namespace != "" {
-		obj.Object["metadata"].(map[string]interface{})["namespace"] = namespace
-	}
-	return obj
-}
-
-func providerConfigRefMap(ref *xpv2.ProviderConfigReference) map[string]interface{} {
-	return map[string]interface{}{
-		"name": ref.Name,
-		"kind": ref.Kind,
-	}
-}
-
-func toInterfaceMap(m map[string]string) map[string]interface{} {
-	result := make(map[string]interface{}, len(m))
-	for k, v := range m {
-		result[k] = v
-	}
-	return result
-}
-
-func toInterfaceMapPtr(m map[string]*string) map[string]interface{} {
-	result := make(map[string]interface{}, len(m))
-	for k, v := range m {
-		if v != nil {
-			result[k] = *v
-		}
-	}
-	return result
 }
