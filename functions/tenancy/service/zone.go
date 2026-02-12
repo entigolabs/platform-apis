@@ -513,15 +513,6 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) *policy
 				MutateExistingConfiguration: &policyv1.MutateExistingConfiguration{Enabled: base.BoolPtr(false)},
 			},
 			MatchConstraints: &admissionregistrationv1.MatchResources{
-				NamespaceSelector: &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{
-						{
-							Key:      "kubernetes.io/metadata.name",
-							Operator: metav1.LabelSelectorOpIn,
-							Values:   []string{namespaceName},
-						},
-					},
-				},
 				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{{
 					RuleWithOperations: admissionregistrationv1.RuleWithOperations{
 						Rule: admissionregistrationv1.Rule{
@@ -533,6 +524,10 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) *policy
 					},
 				}},
 			},
+			MatchConditions: []admissionregistrationv1.MatchCondition{{
+				Name:       "namespace-filter",
+				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
+			}},
 			Mutations: []admissionregistrationv1alpha1.Mutation{
 				{
 					PatchType: admissionregistrationv1alpha1.PatchTypeJSONPatch,
@@ -569,15 +564,6 @@ func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) *policyv1.M
 				MutateExistingConfiguration: &policyv1.MutateExistingConfiguration{Enabled: base.BoolPtr(false)},
 			},
 			MatchConstraints: &admissionregistrationv1.MatchResources{
-				NamespaceSelector: &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{
-						{
-							Key:      "kubernetes.io/metadata.name",
-							Operator: metav1.LabelSelectorOpIn,
-							Values:   []string{namespaceName},
-						},
-					},
-				},
 				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{{
 					RuleWithOperations: admissionregistrationv1.RuleWithOperations{
 						Rule: admissionregistrationv1.Rule{
@@ -598,6 +584,10 @@ func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) *policyv1.M
 					},
 				}},
 			},
+			MatchConditions: []admissionregistrationv1.MatchCondition{{
+				Name:       "namespace-filter",
+				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
+			}},
 			Mutations: []admissionregistrationv1alpha1.Mutation{
 				{
 					PatchType: admissionregistrationv1alpha1.PatchTypeJSONPatch,
@@ -648,15 +638,6 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) *policyv1.Valid
 			},
 			ValidationAction: []admissionregistrationv1.ValidationAction{admissionregistrationv1.Deny},
 			MatchConstraints: &admissionregistrationv1.MatchResources{
-				NamespaceSelector: &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{
-						{
-							Key:      "kubernetes.io/metadata.name",
-							Operator: metav1.LabelSelectorOpIn,
-							Values:   []string{namespaceName},
-						},
-					},
-				},
 				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{{
 					RuleWithOperations: admissionregistrationv1.RuleWithOperations{
 						Rule: admissionregistrationv1.Rule{
@@ -668,6 +649,10 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) *policyv1.Valid
 					},
 				}},
 			},
+			MatchConditions: []admissionregistrationv1.MatchCondition{{
+				Name:       "namespace-filter",
+				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
+			}},
 			Validations: []admissionregistrationv1.Validation{
 				{
 					Expression: `has(object.spec.nodeSelector) &&
