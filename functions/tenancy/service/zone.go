@@ -327,11 +327,20 @@ func (g zoneGenerator) generateNamespace(objs map[string]runtime.Object, name, p
 	objs[GetRBMaintainerKey(g.zone.Name, name)] = maintainerBinding
 	observerBinding := g.getRoleBinding(name, name+"-observer", readRole.Name, "observer")
 	objs[GetRBObserverKey(g.zone.Name, name)] = observerBinding
-	mutatingPolicy := g.getMutatingPolicy(name, pool)
+	mutatingPolicy, err := g.getMutatingPolicy(name, pool)
+	if err != nil {
+		return err
+	}
 	objs[GetMutatingPolicyKey(g.zone.Name, name)] = mutatingPolicy
-	labelsMutatingPolicy := g.getLabelsMutatingPolicy(name)
+	labelsMutatingPolicy, err := g.getLabelsMutatingPolicy(name)
+	if err != nil {
+		return err
+	}
 	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = labelsMutatingPolicy
-	validatingPolicy := g.getValidatingPolicy(name)
+	validatingPolicy, err := g.getValidatingPolicy(name)
+	if err != nil {
+		return err
+	}
 	objs[GetValidatingPolicyKey(g.zone.Name, name)] = validatingPolicy
 	return nil
 }
@@ -495,9 +504,9 @@ func (g zoneGenerator) getRoleBinding(nsName, bindingName, roleName, group strin
 	}
 }
 
-func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) *policyv1.MutatingPolicy {
+func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) (runtime.Object, error) {
 	poolName = g.getPoolName(poolName)
-	return &policyv1.MutatingPolicy{
+	policy := &policyv1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
 			Kind:       "MutatingPolicy",
@@ -545,10 +554,20 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) *policy
 			},
 		},
 	}
+	u, err := base.ToUnstructured(policy)
+	if err != nil {
+		return nil, err
+	}
+	// This is normally removed by omitempty
+	err = unstructured.SetNestedSlice(u.Object, []interface{}{}, "spec", "autogen", "podControllers", "controllers")
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
-func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) *policyv1.MutatingPolicy {
-	return &policyv1.MutatingPolicy{
+func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) (runtime.Object, error) {
+	policy := &policyv1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
 			Kind:       "MutatingPolicy",
@@ -614,15 +633,25 @@ func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) *policyv1.M
 			},
 		},
 	}
+	u, err := base.ToUnstructured(policy)
+	if err != nil {
+		return nil, err
+	}
+	// This is normally removed by omitempty
+	err = unstructured.SetNestedSlice(u.Object, []interface{}{}, "spec", "autogen", "podControllers", "controllers")
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
-func (g zoneGenerator) getValidatingPolicy(namespaceName string) *policyv1.ValidatingPolicy {
+func (g zoneGenerator) getValidatingPolicy(namespaceName string) (runtime.Object, error) {
 	var poolExprList, poolMsgList []string
 	for _, pool := range g.zone.Spec.Pools {
 		poolExprList = append(poolExprList, `"`+g.zone.Name+`-`+pool.Name+`"`)
 		poolMsgList = append(poolMsgList, g.zone.Name+`-`+pool.Name)
 	}
-	return &policyv1.ValidatingPolicy{
+	policy := &policyv1.ValidatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
 			Kind:       "ValidatingPolicy",
@@ -663,6 +692,16 @@ object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [` + strings.Join(po
 			},
 		},
 	}
+	u, err := base.ToUnstructured(policy)
+	if err != nil {
+		return nil, err
+	}
+	// This is normally removed by omitempty
+	err = unstructured.SetNestedSlice(u.Object, []interface{}{}, "spec", "autogen", "podControllers", "controllers")
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 func (g zoneGenerator) getPoolName(poolName string) string {
