@@ -36,9 +36,10 @@ spec:
                 cpu: 2000m
                 memory: 1024Mi
             securityContext:
-                runAsNonRoot: true
-                seccompProfile:
-                  type: RuntimeDefault
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
           securityContext:
             fsGroup: 2000
             runAsNonRoot: true
