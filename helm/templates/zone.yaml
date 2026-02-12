@@ -602,7 +602,7 @@ spec:
     resourceRules:
       - apiGroups: ["argoproj.io"]
         apiVersions: ["v1alpha1"]
-        operations: ["CREATE","UPDATE"]
+        operations: ["CREATE"]
         resources: ["applications"]
   matchConditions:
     - name: has-destination-namespace
