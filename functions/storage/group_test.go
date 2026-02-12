@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -12,7 +13,32 @@ import (
 	"github.com/entigolabs/function-base/test"
 	"github.com/entigolabs/platform-apis/service"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/structpb"
+)
+
+const (
+	requiredEKSJson = `{
+		"apiVersion": "eks.aws.m.upbound.io/v1beta1", "kind": "Cluster",
+		"metadata": {"name": "eks"},
+		"status": {"atProvider": {
+			"region": "eu-north-1",
+			"arn": "arn:aws:eks:eu-north-1:111111111111:cluster/eks",
+			"identity": [{"oidc": [{"issuer": "https://oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890"}]}]
+		}}
+	}`
+	requiredKMSDataKeyJson = `{
+		"apiVersion": "kms.aws.m.upbound.io/v1beta1", "kind": "Key",
+		"metadata": {"name": "data"},
+		"status": {"atProvider": {"arn": "arn:aws:kms:eu-north-1:111111111111:key/mrk-data123"}}
+	}`
+	requiredKMSConfigKeyJson = `{
+		"apiVersion": "kms.aws.m.upbound.io/v1beta1", "kind": "Key",
+		"metadata": {"name": "config"},
+		"status": {"atProvider": {"arn": "arn:aws:kms:eu-north-1:111111111111:key/mrk-config456"}}
+	}`
+	requiredNamespaceJson = `{
+		"apiVersion": "v1", "kind": "Namespace",
+		"metadata": {"name": "default", "labels": {"tenancy.entigo.com/zone": "zone-a"}}
+	}`
 )
 
 const s3bucketJson = `{
@@ -60,68 +86,6 @@ const s3bucketNoSAJson = `{
 	}
 }`
 
-func eksRequiredResource() *fnv1.Resources {
-	s, err := structpb.NewStruct(map[string]interface{}{
-		"apiVersion": "eks.aws.upbound.io/v1beta1",
-		"kind":       "Cluster",
-		"metadata":   map[string]interface{}{"name": "eks"},
-		"status": map[string]interface{}{
-			"atProvider": map[string]interface{}{
-				"region": "eu-north-1",
-				"arn":    "arn:aws:eks:eu-north-1:111111111111:cluster/eks",
-				"identity": []interface{}{
-					map[string]interface{}{
-						"oidc": []interface{}{
-							map[string]interface{}{
-								"issuer": "https://oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890",
-							},
-						},
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-	return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: s}}}
-}
-
-func kmsAliasRequiredResource(name, targetKeyArn, arn, id string) *fnv1.Resources {
-	s, err := structpb.NewStruct(map[string]interface{}{
-		"apiVersion": "kms.aws.upbound.io/v1beta1",
-		"kind":       "Alias",
-		"metadata":   map[string]interface{}{"name": name},
-		"status": map[string]interface{}{
-			"atProvider": map[string]interface{}{
-				"targetKeyArn": targetKeyArn,
-				"arn":          arn,
-				"id":           id,
-			},
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-	return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: s}}}
-}
-
-func namespaceRequiredResource(name string, labels map[string]interface{}) *fnv1.Resources {
-	metadata := map[string]interface{}{"name": name}
-	if labels != nil {
-		metadata["labels"] = labels
-	}
-	s, err := structpb.NewStruct(map[string]interface{}{
-		"apiVersion": "v1",
-		"kind":       "Namespace",
-		"metadata":   metadata,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: s}}}
-}
-
 func allRequiredResources() map[string]*fnv1.Resources {
 	return map[string]*fnv1.Resources{
 		base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
@@ -129,31 +93,19 @@ func allRequiredResources() map[string]*fnv1.Resources {
 			"dataKMSKey":   "data",
 			"configKMSKey": "config",
 		}),
-		service.EKSKey:            eksRequiredResource(),
-		service.KMSDataAliasKey:   kmsAliasRequiredResource("data", "arn:aws:kms:eu-north-1:111111111111:key/mrk-data123", "arn:aws:kms:eu-north-1:111111111111:alias/data", "alias/data"),
-		service.KMSConfigAliasKey: kmsAliasRequiredResource("config", "arn:aws:kms:eu-north-1:111111111111:key/mrk-config456", "arn:aws:kms:eu-north-1:111111111111:alias/config", "alias/config"),
-		service.NamespaceKey:      namespaceRequiredResource("default", map[string]interface{}{"tenancy.entigo.com/zone": "zone-a"}),
+		service.EKSKey:       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredEKSJson)}}},
+		service.KMSDataKey:   {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
+		service.KMSConfigKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
+		service.NamespaceKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredNamespaceJson)}}},
 	}
 }
 
 func observedReadyResource(apiVersion, kind, name string) *fnv1.Resource {
-	s, err := structpb.NewStruct(map[string]interface{}{
-		"apiVersion": apiVersion,
-		"kind":       kind,
-		"metadata":   map[string]interface{}{"name": name},
-		"status": map[string]interface{}{
-			"conditions": []interface{}{
-				map[string]interface{}{
-					"type":   "Ready",
-					"status": "True",
-				},
-			},
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-	return &fnv1.Resource{Resource: s}
+	return &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{
+		"apiVersion": %q, "kind": %q,
+		"metadata": {"name": %q},
+		"status": {"conditions": [{"type": "Ready", "status": "True"}]}
+	}`, apiVersion, kind, name))}
 }
 
 func observedReadyResourceWithConnectionDetails(apiVersion, kind, name string, details map[string][]byte) *fnv1.Resource {
@@ -229,6 +181,7 @@ func TestS3BucketPhaseTwo(t *testing.T) {
 		"dataKMSKey":   "data",
 		"configKMSKey": "config",
 	}
+	awsProvider := environmentData["awsProvider"].(string)
 
 	cases := map[string]test.Case{
 		"RequestAllResources": {
@@ -251,19 +204,12 @@ func TestS3BucketPhaseTwo(t *testing.T) {
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
 							service.EKSKey: {
 								Kind:       "Cluster",
-								ApiVersion: "eks.aws.upbound.io/v1beta1",
+								ApiVersion: "eks.aws.m.upbound.io/v1beta1",
 								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "eks"},
+								Namespace:  &awsProvider,
 							},
-							service.KMSDataAliasKey: {
-								Kind:       "Alias",
-								ApiVersion: "kms.aws.upbound.io/v1beta1",
-								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "data"},
-							},
-							service.KMSConfigAliasKey: {
-								Kind:       "Alias",
-								ApiVersion: "kms.aws.upbound.io/v1beta1",
-								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "config"},
-							},
+							service.KMSDataKey:   base.RequiredKMSKey(environmentData["dataKMSKey"].(string), awsProvider),
+							service.KMSConfigKey: base.RequiredKMSKey(environmentData["configKMSKey"].(string), awsProvider),
 							service.NamespaceKey: {
 								Kind:       "Namespace",
 								ApiVersion: "v1",

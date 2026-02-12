@@ -79,19 +79,12 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		ns := compositeResource.GetNamespace()
 		resources[service.EKSKey] = &fnv1.ResourceSelector{
 			Kind:       "Cluster",
-			ApiVersion: "eks.aws.upbound.io/v1beta1",
+			ApiVersion: "eks.aws.m.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: "eks"},
+			Namespace:  &env.AWSProvider,
 		}
-		resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
-			Kind:       "Alias",
-			ApiVersion: "kms.aws.upbound.io/v1beta1",
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSKey},
-		}
-		resources[service.KMSConfigAliasKey] = &fnv1.ResourceSelector{
-			Kind:       "Alias",
-			ApiVersion: "kms.aws.upbound.io/v1beta1",
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.ConfigKMSKey},
-		}
+		resources[service.KMSDataKey] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
+		resources[service.KMSConfigKey] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
 		resources[service.NamespaceKey] = &fnv1.ResourceSelector{
 			Kind:       "Namespace",
 			ApiVersion: "v1",
@@ -143,9 +136,6 @@ func getBucketStatus(observed *composed.Unstructured) (map[string]interface{}, e
 
 	annotations := observed.GetAnnotations()
 	if annotations != nil {
-		if aliasID, ok := annotations[service.AnnotationKMSDataKeyAlias]; ok {
-			status["kmsKeyAlias"] = strings.TrimPrefix(aliasID, "alias/")
-		}
 		if saName, ok := annotations[service.AnnotationServiceAccount]; ok {
 			status["serviceAccountName"] = saName
 		}

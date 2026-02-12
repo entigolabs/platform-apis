@@ -11,9 +11,9 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
-	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
-	kmsv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/kms/v1beta1"
+	eksmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/eks/v1beta1"
 	iamv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/iam/v1beta1"
+	kmsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/kms/v1beta1"
 	s3v1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/s3/v1beta1"
 	smv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/secretsmanager/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,14 +22,13 @@ import (
 )
 
 const (
-	EKSKey            = "EKS"
-	KMSDataAliasKey   = "KMSDataAlias"
-	KMSConfigAliasKey = "KMSConfigAlias"
-	NamespaceKey      = "Namespace"
+	EKSKey       = "EKS"
+	KMSDataKey   = "KMSDataKey"
+	KMSConfigKey = "KMSConfigKey"
+	NamespaceKey = "Namespace"
 
-	AnnotationKMSDataKeyAlias = "storage.entigo.com/kms-data-key-alias"
-	AnnotationServiceAccount  = "storage.entigo.com/service-account-name"
-	TenancyZoneLabel          = "tenancy.entigo.com/zone"
+	AnnotationServiceAccount = "storage.entigo.com/service-account-name"
+	TenancyZoneLabel         = "tenancy.entigo.com/zone"
 )
 
 type s3BucketParams struct {
@@ -38,7 +37,6 @@ type s3BucketParams struct {
 	ProviderConfigRef  string
 	Region             string
 	KMSDataKeyArn      string
-	KMSDataKeyAliasID  string
 	KMSConfigKeyArn    string
 	ClusterOIDC        string
 	AWSAccount         string
@@ -59,18 +57,18 @@ func GenerateS3BucketObjects(
 		return nil, err
 	}
 
-	var cluster eksv1beta1.Cluster
+	var cluster eksmv1beta1.Cluster
 	if err := base.ExtractRequiredResource(required, EKSKey, &cluster); err != nil {
 		return nil, err
 	}
 
-	var kmsDataAlias kmsv1beta1.Alias
-	if err := base.ExtractRequiredResource(required, KMSDataAliasKey, &kmsDataAlias); err != nil {
+	var kmsDataKey kmsmv1beta1.Key
+	if err := base.ExtractRequiredResource(required, KMSDataKey, &kmsDataKey); err != nil {
 		return nil, err
 	}
 
-	var kmsConfigAlias kmsv1beta1.Alias
-	if err := base.ExtractRequiredResource(required, KMSConfigAliasKey, &kmsConfigAlias); err != nil {
+	var kmsConfigKey kmsmv1beta1.Key
+	if err := base.ExtractRequiredResource(required, KMSConfigKey, &kmsConfigKey); err != nil {
 		return nil, err
 	}
 
@@ -113,18 +111,13 @@ func GenerateS3BucketObjects(
 	}
 
 	kmsDataKeyArn := ""
-	if kmsDataAlias.Status.AtProvider.TargetKeyArn != nil {
-		kmsDataKeyArn = *kmsDataAlias.Status.AtProvider.TargetKeyArn
-	}
-
-	kmsDataKeyAliasID := ""
-	if kmsDataAlias.Status.AtProvider.ID != nil {
-		kmsDataKeyAliasID = *kmsDataAlias.Status.AtProvider.ID
+	if kmsDataKey.Status.AtProvider.Arn != nil {
+		kmsDataKeyArn = *kmsDataKey.Status.AtProvider.Arn
 	}
 
 	kmsConfigKeyArn := ""
-	if kmsConfigAlias.Status.AtProvider.Arn != nil {
-		kmsConfigKeyArn = *kmsConfigAlias.Status.AtProvider.Arn
+	if kmsConfigKey.Status.AtProvider.Arn != nil {
+		kmsConfigKeyArn = *kmsConfigKey.Status.AtProvider.Arn
 	}
 
 	params := &s3BucketParams{
@@ -133,7 +126,6 @@ func GenerateS3BucketObjects(
 		ProviderConfigRef:  env.AWSProvider,
 		Region:             region,
 		KMSDataKeyArn:      kmsDataKeyArn,
-		KMSDataKeyAliasID:  kmsDataKeyAliasID,
 		KMSConfigKeyArn:    kmsConfigKeyArn,
 		ClusterOIDC:        clusterOIDC,
 		AWSAccount:         awsAccount,
@@ -183,8 +175,7 @@ func addBucketResources(objects map[string]runtime.Object, p *s3BucketParams) {
 			Name:      p.BucketName,
 			Namespace: p.Namespace,
 			Annotations: map[string]string{
-				AnnotationKMSDataKeyAlias: p.KMSDataKeyAliasID,
-				AnnotationServiceAccount:  p.ServiceAccountName,
+				AnnotationServiceAccount: p.ServiceAccountName,
 			},
 			Labels: labels,
 		},
