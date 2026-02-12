@@ -61,14 +61,6 @@ func testK8sPlatformApis(t *testing.T, cloudName string, envName string) {
 
 	clusterOptions := terrak8s.NewKubectlOptions(kubectlOptions.ContextName, kubectlOptions.ConfigPath, "")
 
-	testPlatformApisZone(t, argocdNamespace, clusterOptions, argocdOptions)
-	testPlatformApisPostgresql(t, argocdNamespace, clusterOptions)
-}
-
-//---- POSTGRESQL TESTS ----
-
-func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
-
 	defer func() {
 		if t.Failed() {
 			fmt.Printf("[%s] Cleanup: skipping cleanup due to test failure\n", argocdNamespace)
@@ -77,6 +69,11 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 		fmt.Printf("[%s] Cleanup: deleting test resources\n", argocdNamespace)
 		nsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, NamespaceName)
 
+		// Cleanup zone resources
+		fmt.Printf("[%s] Cleanup: deleting Zone Application '%s'\n", argocdNamespace, ZoneApplicationName)
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "delete", "application", ZoneApplicationName, "-n", argocdNamespace, "--ignore-not-found")
+
+		// Cleanup postgresql resources
 		fmt.Printf("[%s] Cleanup: deleting PostgreSQL User '%s'\n", argocdNamespace, PostgresqlUserName)
 		_, _ = terrak8s.RunKubectlAndGetOutputE(t, nsOptions, "delete", PostgresqlUserKind, PostgresqlUserName, "-n", NamespaceName, "--ignore-not-found")
 
@@ -118,6 +115,13 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 		fmt.Printf("[%s] Cleanup: done\n", argocdNamespace)
 	}()
 
+	testPlatformApisZone(t, argocdNamespace, clusterOptions, argocdOptions)
+	testPlatformApisPostgresql(t, argocdNamespace, clusterOptions)
+}
+
+//---- POSTGRESQL TESTS ----
+
+func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
 	test0PlatformApisPostgresqlConfigurationDeployed(t, argocdNamespace, clusterOptions)
 	test1PlatformApisDatabaseFunctionDeployed(t, argocdNamespace, clusterOptions)
 	test2TestNamespaceCreated(t, argocdNamespace, clusterOptions)
@@ -554,18 +558,6 @@ func test16AllCompositionResourcesSyncedAndReady(t *testing.T, argocdNamespace s
 //---- ZONE TESTS ----
 
 func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, argocdOptions *terrak8s.KubectlOptions) {
-
-	defer func() {
-		if t.Failed() {
-			fmt.Printf("[%s] Cleanup: skipping cleanup due to test failure\n", argocdNamespace)
-			return
-		}
-		fmt.Printf("[%s] Cleanup: deleting test resources\n", argocdNamespace)
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "delete", "application", ZoneApplicationName, "-n", argocdNamespace)
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "delete", "namespace", NamespaceName)
-		fmt.Printf("[%s] Cleanup: done\n", argocdNamespace)
-	}()
-
 	test0PlatformApisZoneConfigurationDeployed(t, argocdNamespace, clusterOptions)
 	test1AppProjectExists(t, argocdNamespace, argocdOptions)
 	test2ZoneApplicationApplied(t, argocdNamespace, argocdOptions)
