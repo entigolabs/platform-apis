@@ -7,13 +7,14 @@ spec:
   forProvider:
     region: eu-north-1
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     name: crossplane-aws
 status:
   atProvider:
     arn: arn:aws:eks:eu-north-1:012345678901:cluster/eks
     region: eu-north-1
+    version: "1.33"
     identity:
       - oidc:
           - issuer: https://oidc.eks.eu-north-1.amazonaws.com/id/EXAMPLE123
@@ -22,37 +23,91 @@ status:
 apiVersion: kms.aws.m.upbound.io/v1beta1
 kind: Key
 metadata:
+  annotations:
+    crossplane.io/external-name: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
   name: data
   namespace: crossplane-aws
 spec:
+  deletionPolicy: Orphan
   forProvider:
+    enabled: true
+    policy: |-
+      {}
     region: eu-north-1
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     name: crossplane-aws
 status:
   atProvider:
     arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
-    region: eu-north-1
+    awsAccountID: "012345678901"
+    creationDate: "2025-01-01T00:00:00Z"
+    enabled: true
+    encryptionAlgorithms:
+      - SYMMETRIC_DEFAULT
+    keyID: mrk-0
+    keyManager: CUSTOMER
+    keyState: Enabled
+    multiRegionConfiguration:
+      multiRegionKeyType: PRIMARY
+      primaryKey:
+        arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
+        region: eu-north-1
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready
 
 ---
 apiVersion: kms.aws.m.upbound.io/v1beta1
 kind: Key
 metadata:
+  annotations:
+    crossplane.io/external-name: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
   name: config
   namespace: crossplane-aws
 spec:
+  deletionPolicy: Orphan
   forProvider:
+    enabled: true
+    policy: |-
+      {}
     region: eu-north-1
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     name: crossplane-aws
 status:
   atProvider:
     arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
-    region: eu-north-1
+    awsAccountID: "012345678901"
+    creationDate: "2025-01-01T00:00:00Z"
+    enabled: true
+    encryptionAlgorithms:
+      - SYMMETRIC_DEFAULT
+    keyID: mrk-1
+    keyManager: CUSTOMER
+    keyState: Enabled
+    multiRegionConfiguration:
+      multiRegionKeyType: PRIMARY
+      primaryKey:
+        arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
+        region: eu-north-1
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready
 
 ---
 apiVersion: v1
