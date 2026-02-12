@@ -10,6 +10,8 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
+	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
+	kmsv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/kms/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,23 +45,23 @@ func GenerateS3BucketObjects(
 		return nil, err
 	}
 
-	eksData, err := extractEKSData(required)
-	if err != nil {
+	var cluster eksv1beta1.Cluster
+	if err := base.ExtractRequiredResource(required, apis.EKSKey, &cluster); err != nil {
 		return nil, err
 	}
 
-	kmsDataAlias, err := extractKMSAlias(required, apis.KMSDataAliasKey)
-	if err != nil {
+	var kmsDataAlias kmsv1beta1.Alias
+	if err := base.ExtractRequiredResource(required, apis.KMSDataAliasKey, &kmsDataAlias); err != nil {
 		return nil, err
 	}
 
-	kmsConfigAlias, err := extractKMSAlias(required, apis.KMSConfigAliasKey)
-	if err != nil {
+	var kmsConfigAlias kmsv1beta1.Alias
+	if err := base.ExtractRequiredResource(required, apis.KMSConfigAliasKey, &kmsConfigAlias); err != nil {
 		return nil, err
 	}
 
-	ns, err := extractNamespace(required)
-	if err != nil {
+	var ns corev1.Namespace
+	if err := base.ExtractRequiredResource(required, apis.NamespaceKey, &ns); err != nil {
 		return nil, err
 	}
 
@@ -74,16 +76,53 @@ func GenerateS3BucketObjects(
 		tenancyZone = ns.Labels[apis.TenancyZoneLabel]
 	}
 
+	// Extract OIDC issuer from cluster identity
+	clusterOIDC := ""
+	if len(cluster.Status.AtProvider.Identity) > 0 && len(cluster.Status.AtProvider.Identity[0].Oidc) > 0 {
+		if issuer := cluster.Status.AtProvider.Identity[0].Oidc[0].Issuer; issuer != nil {
+			clusterOIDC = strings.TrimPrefix(*issuer, "https://")
+		}
+	}
+
+	// Extract AWS account from cluster ARN
+	awsAccount := ""
+	if cluster.Status.AtProvider.Arn != nil {
+		parts := strings.Split(*cluster.Status.AtProvider.Arn, ":")
+		if len(parts) > 4 {
+			awsAccount = parts[4]
+		}
+	}
+
+	region := ""
+	if cluster.Status.AtProvider.Region != nil {
+		region = *cluster.Status.AtProvider.Region
+	}
+
+	kmsDataKeyArn := ""
+	if kmsDataAlias.Status.AtProvider.TargetKeyArn != nil {
+		kmsDataKeyArn = *kmsDataAlias.Status.AtProvider.TargetKeyArn
+	}
+
+	kmsDataKeyAliasID := ""
+	if kmsDataAlias.Status.AtProvider.ID != nil {
+		kmsDataKeyAliasID = *kmsDataAlias.Status.AtProvider.ID
+	}
+
+	kmsConfigKeyArn := ""
+	if kmsConfigAlias.Status.AtProvider.Arn != nil {
+		kmsConfigKeyArn = *kmsConfigAlias.Status.AtProvider.Arn
+	}
+
 	params := &s3BucketParams{
 		BucketName:         bucketName,
 		Namespace:          bucket.GetNamespace(),
 		ProviderConfigRef:  env.AWSProvider,
-		Region:             eksData.region,
-		KMSDataKeyArn:      kmsDataAlias.targetKeyArn,
-		KMSDataKeyAliasID:  kmsDataAlias.id,
-		KMSConfigKeyArn:    kmsConfigAlias.arn,
-		ClusterOIDC:        eksData.clusterOIDC,
-		AWSAccount:         eksData.awsAccount,
+		Region:             region,
+		KMSDataKeyArn:      kmsDataKeyArn,
+		KMSDataKeyAliasID:  kmsDataKeyAliasID,
+		KMSConfigKeyArn:    kmsConfigKeyArn,
+		ClusterOIDC:        clusterOIDC,
+		AWSAccount:         awsAccount,
 		EnableVersioning:   bucket.Spec.EnableVersioning,
 		CreateSA:           bucket.Spec.CreateServiceAccount,
 		ServiceAccountName: serviceAccountName,
@@ -421,91 +460,6 @@ func GetEnvironment(required map[string][]resource.Required) (apis.Environment, 
 	var env apis.Environment
 	err := base.GetEnvironment(base.EnvironmentKey, required, &env)
 	return env, err
-}
-
-// EKS data extracted from required resource
-type eksData struct {
-	region      string
-	clusterOIDC string
-	awsAccount  string
-}
-
-func extractEKSData(required map[string][]resource.Required) (*eksData, error) {
-	if len(required[apis.EKSKey]) == 0 {
-		return nil, fmt.Errorf("EKS cluster not found in required resources")
-	}
-	eksResource := required[apis.EKSKey][0].Resource
-
-	region, _, _ := unstructured.NestedString(eksResource.Object, "status", "atProvider", "region")
-	if region == "" {
-		return nil, fmt.Errorf("EKS cluster region not available")
-	}
-
-	// Extract OIDC issuer
-	clusterOIDC := ""
-	identity, found, _ := unstructured.NestedSlice(eksResource.Object, "status", "atProvider", "identity")
-	if found && len(identity) > 0 {
-		if identityMap, ok := identity[0].(map[string]interface{}); ok {
-			if oidcList, ok := identityMap["oidc"].([]interface{}); ok && len(oidcList) > 0 {
-				if oidcMap, ok := oidcList[0].(map[string]interface{}); ok {
-					if issuer, ok := oidcMap["issuer"].(string); ok {
-						clusterOIDC = strings.TrimPrefix(issuer, "https://")
-					}
-				}
-			}
-		}
-	}
-
-	// Extract AWS Account from ARN
-	awsAccount := ""
-	arn, _, _ := unstructured.NestedString(eksResource.Object, "status", "atProvider", "arn")
-	if arn != "" {
-		parts := strings.Split(arn, ":")
-		if len(parts) > 4 {
-			awsAccount = parts[4]
-		}
-	}
-
-	return &eksData{
-		region:      region,
-		clusterOIDC: clusterOIDC,
-		awsAccount:  awsAccount,
-	}, nil
-}
-
-// KMS Alias data extracted from required resource
-type kmsAliasData struct {
-	targetKeyArn string
-	arn          string
-	id           string
-}
-
-func extractKMSAlias(required map[string][]resource.Required, key string) (*kmsAliasData, error) {
-	if len(required[key]) == 0 {
-		return nil, fmt.Errorf("KMS alias %s not found in required resources", key)
-	}
-	aliasResource := required[key][0].Resource
-
-	targetKeyArn, _, _ := unstructured.NestedString(aliasResource.Object, "status", "atProvider", "targetKeyArn")
-	arn, _, _ := unstructured.NestedString(aliasResource.Object, "status", "atProvider", "arn")
-	id, _, _ := unstructured.NestedString(aliasResource.Object, "status", "atProvider", "id")
-
-	return &kmsAliasData{
-		targetKeyArn: targetKeyArn,
-		arn:          arn,
-		id:           id,
-	}, nil
-}
-
-func extractNamespace(required map[string][]resource.Required) (*corev1.Namespace, error) {
-	if len(required[apis.NamespaceKey]) == 0 {
-		return nil, fmt.Errorf("namespace not found in required resources")
-	}
-	var ns corev1.Namespace
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(required[apis.NamespaceKey][0].Resource.Object, &ns); err != nil {
-		return nil, fmt.Errorf("cannot convert namespace: %w", err)
-	}
-	return &ns, nil
 }
 
 func buildIAMPolicyDocument(bucketName, kmsDataKeyArn string) string {
