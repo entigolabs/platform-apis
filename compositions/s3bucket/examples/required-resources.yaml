@@ -1,4 +1,4 @@
-apiVersion: eks.aws.upbound.io/v1beta1
+apiVersion: eks.aws.m.upbound.io/v1beta1
 kind: Cluster
 metadata:
   name: eks
@@ -9,7 +9,6 @@ spec:
   managementPolicies:
   - Observe
   providerConfigRef:
-    kind: ClusterProviderConfig
     name: crossplane-aws
 status:
   atProvider:
@@ -20,48 +19,40 @@ status:
           - issuer: https://oidc.eks.eu-north-1.amazonaws.com/id/EXAMPLE123
 
 ---
-apiVersion: kms.aws.upbound.io/v1beta1
-kind: Alias
+apiVersion: kms.aws.m.upbound.io/v1beta1
+kind: Key
 metadata:
   name: data
   namespace: crossplane-aws
 spec:
   forProvider:
     region: eu-north-1
-  initProvider: {}
   managementPolicies:
   - Observe
   providerConfigRef:
-    kind: ClusterProviderConfig
     name: crossplane-aws
 status:
   atProvider:
-    arn: arn:aws:kms:eu-north-1:012345678901:alias/data
-    id: alias/data
+    arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
     region: eu-north-1
-    targetKeyArn: arn:aws:kms:eu-north-1:012345678901:key/mrk-0
 
 ---
-apiVersion: kms.aws.upbound.io/v1beta1
-kind: Alias
+apiVersion: kms.aws.m.upbound.io/v1beta1
+kind: Key
 metadata:
   name: config
   namespace: crossplane-aws
 spec:
   forProvider:
     region: eu-north-1
-  initProvider: {}
   managementPolicies:
   - Observe
   providerConfigRef:
-    kind: ClusterProviderConfig
     name: crossplane-aws
 status:
   atProvider:
-    arn: arn:aws:kms:eu-north-1:012345678901:alias/config
-    id: alias/config
+    arn: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
     region: eu-north-1
-    targetKeyArn: arn:aws:kms:eu-north-1:012345678901:key/mrk-1
 
 ---
 apiVersion: v1
