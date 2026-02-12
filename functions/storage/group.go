@@ -77,14 +77,14 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			return nil, err
 		}
 		ns := compositeResource.GetNamespace()
+		resources[service.KMSDataKey] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
+		resources[service.KMSConfigKey] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
 		resources[service.EKSKey] = &fnv1.ResourceSelector{
 			Kind:       "Cluster",
 			ApiVersion: "eks.aws.m.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: "eks"},
 			Namespace:  &env.AWSProvider,
 		}
-		resources[service.KMSDataKey] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
-		resources[service.KMSConfigKey] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
 		resources[service.NamespaceKey] = &fnv1.ResourceSelector{
 			Kind:       "Namespace",
 			ApiVersion: "v1",

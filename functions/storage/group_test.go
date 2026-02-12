@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/response"
@@ -14,6 +12,12 @@ import (
 	"github.com/entigolabs/platform-apis/service"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
+
+var defaultEnvironmentData = map[string]interface{}{
+	"awsProvider":  "aws-provider",
+	"dataKMSKey":   "data",
+	"configKMSKey": "config",
+}
 
 const (
 	requiredEKSJson = `{
@@ -41,7 +45,8 @@ const (
 	}`
 )
 
-const s3bucketJson = `{
+const (
+	s3bucketJson = `{
 	"apiVersion": "storage.entigo.com/v1alpha1",
 	"kind": "S3Bucket",
 	"metadata": {"name":"test-bucket","namespace":"default"},
@@ -56,7 +61,7 @@ const s3bucketJson = `{
 	}
 }`
 
-const s3bucketCustomSAJson = `{
+	s3bucketCustomSAJson = `{
 	"apiVersion": "storage.entigo.com/v1alpha1",
 	"kind": "S3Bucket",
 	"metadata": {"name":"test-bucket","namespace":"default"},
@@ -71,7 +76,7 @@ const s3bucketCustomSAJson = `{
 	}
 }`
 
-const s3bucketNoSAJson = `{
+	s3bucketNoSAJson = `{
 	"apiVersion": "storage.entigo.com/v1alpha1",
 	"kind": "S3Bucket",
 	"metadata": {"name":"test-bucket","namespace":"default"},
@@ -85,14 +90,29 @@ const s3bucketNoSAJson = `{
 		}
 	}
 }`
+)
 
-func allRequiredResources() map[string]*fnv1.Resources {
+const (
+	bucketResJson                  = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"Bucket","metadata":{"annotations":{"storage.entigo.com/service-account-name":"%s"},"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"default"},"spec":{"forProvider":{"region":"eu-north-1","tags":{"Name":"%s","tenancy.entigo.com/zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s-bucket"}},"status":{"atProvider":{}}}`
+	bucketPublicAccessBlockResJson = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketPublicAccessBlock","metadata":{"name":"%s"},"spec":{"forProvider":{"blockPublicAcls":true,"blockPublicPolicy":true,"bucketRef":{"name":"%s"},"ignorePublicAcls":true,"region":"eu-north-1","restrictPublicBuckets":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	bucketSSEResJson               = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketServerSideEncryptionConfiguration","metadata":{"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","rule":[{"applyServerSideEncryptionByDefault":{"kmsMasterKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","sseAlgorithm":"aws:kms"},"bucketKeyEnabled":true}]},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	bucketVersioningResJson        = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketVersioning","metadata":{"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","versioningConfiguration":{"status":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	bucketOwnershipResJson         = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketOwnershipControls","metadata":{"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","rule":{"objectOwnership":"BucketOwnerEnforced"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamUserResJson                 = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"User","metadata":{"name":"%s"},"spec":{"forProvider":{"tags":{"Name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamPolicyResJson               = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"Policy","metadata":{"name":"%s"},"spec":{"forProvider":{"policy":"{\"Statement\":[{\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\",\"kms:ReEncrypt*\",\"kms:GenerateDataKey*\",\"kms:DescribeKey\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123\"]},{\"Action\":\"s3:*\",\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::%s\",\"arn:aws:s3:::%s/*\"]}],\"Version\":\"2012-10-17\"}","tags":{"Name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamUserPolicyAttachmentResJson = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"UserPolicyAttachment","metadata":{"name":"%s"},"spec":{"forProvider":{"policyArnRef":{"name":"%s"},"userRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamAccessKeyResJson            = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"AccessKey","metadata":{"name":"%s"},"spec":{"forProvider":{"userRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s-access-key"}},"status":{"atProvider":{}}}`
+	iamRoleResJson                 = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"Role","metadata":{"name":"%s"},"spec":{"forProvider":{"assumeRolePolicy":"{\"Statement\":[{\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890:aud\":\"sts.amazonaws.com\",\"oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890:sub\":\"system:serviceaccount:default:%s\"}},\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"arn:aws:iam::111111111111:oidc-provider/oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890\"}}],\"Version\":\"2012-10-17\"}","tags":{"Name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamRolePolicyAttachmentResJson = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"RolePolicyAttachment","metadata":{"name":"%s"},"spec":{"forProvider":{"policyArn":"arn:aws:iam::111111111111:policy/%s","roleRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	serviceAccountResJson          = `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"annotations":{"eks.amazonaws.com/role-arn":"arn:aws:iam::111111111111:role/%s"},"name":"%s","namespace":"default"}}`
+	smSecretResJson                = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"Secret","metadata":{"name":"%s-credentials"},"spec":{"forProvider":{"description":"Credentials for bucket %s","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-config456","name":"%s-credentials","recoveryWindowInDays":0,"region":"eu-north-1","tags":{"Name":"%s-credentials"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	smSecretVersionResJson         = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"SecretVersion","metadata":{"name":"%s-credentials"},"spec":{"forProvider":{"region":"eu-north-1","secretIdRef":{"name":"%s-credentials"},"secretStringSecretRef":{"key":"credentials.json","name":"%s-credentials"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	credentialsResJson             = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"%s-credentials","namespace":"default"},"stringData":{"AWS_ACCESS_KEY_ID":"AKIAIOSFODNN7EXAMPLE","AWS_SECRET_ACCESS_KEY":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY","BUCKET_ARN":"arn:aws:s3:::%s","BUCKET_NAME":"%s","BUCKET_REGION":"eu-north-1","credentials.json":"{\"AWS_ACCESS_KEY_ID\":\"AKIAIOSFODNN7EXAMPLE\",\"AWS_SECRET_ACCESS_KEY\":\"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\"BUCKET_ARN\":\"arn:aws:s3:::%s\",\"BUCKET_NAME\":\"%s\",\"BUCKET_REGION\":\"eu-north-1\"}"},"type":"Opaque"}`
+)
+
+func allRequiredResources(environmentData map[string]interface{}) map[string]*fnv1.Resources {
 	return map[string]*fnv1.Resources{
-		base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
-			"awsProvider":  "aws-provider",
-			"dataKMSKey":   "data",
-			"configKMSKey": "config",
-		}),
+		base.EnvironmentKey:  test.EnvironmentConfigResourceWithData(environmentName, environmentData),
 		service.EKSKey:       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredEKSJson)}}},
 		service.KMSDataKey:   {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
 		service.KMSConfigKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
@@ -146,6 +166,47 @@ func allObservedComposedResources() map[string]*fnv1.Resource {
 	}
 }
 
+func expectedRequirements(awsProvider string, environmentData map[string]interface{}) *fnv1.Requirements {
+	return &fnv1.Requirements{
+		Resources: map[string]*fnv1.ResourceSelector{
+			base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+			service.EKSKey: {
+				Kind:       "Cluster",
+				ApiVersion: "eks.aws.m.upbound.io/v1beta1",
+				Match:      &fnv1.ResourceSelector_MatchName{MatchName: "eks"},
+				Namespace:  &awsProvider,
+			},
+			service.KMSDataKey:   base.RequiredKMSKey(environmentData["dataKMSKey"].(string), awsProvider),
+			service.KMSConfigKey: base.RequiredKMSKey(environmentData["configKMSKey"].(string), awsProvider),
+			service.NamespaceKey: {
+				Kind:       "Namespace",
+				ApiVersion: "v1",
+				Match:      &fnv1.ResourceSelector_MatchName{MatchName: "default"},
+			},
+		},
+	}
+}
+
+func desiredResources(bucketName, saName, versioningStatus string) map[string]*fnv1.Resource {
+	return map[string]*fnv1.Resource{
+		"bucket":                     {Resource: resource.MustStructJSON(fmt.Sprintf(bucketResJson, saName, bucketName, bucketName, bucketName)), Ready: 1},
+		"bucket-public-access-block": {Resource: resource.MustStructJSON(fmt.Sprintf(bucketPublicAccessBlockResJson, bucketName, bucketName)), Ready: 1},
+		"bucket-server-side-encryption-configuration": {Resource: resource.MustStructJSON(fmt.Sprintf(bucketSSEResJson, bucketName, bucketName)), Ready: 1},
+		"bucket-versioning":                           {Resource: resource.MustStructJSON(fmt.Sprintf(bucketVersioningResJson, bucketName, bucketName, versioningStatus)), Ready: 1},
+		"bucket-ownership-controls":                   {Resource: resource.MustStructJSON(fmt.Sprintf(bucketOwnershipResJson, bucketName, bucketName)), Ready: 1},
+		"iam-user":                                    {Resource: resource.MustStructJSON(fmt.Sprintf(iamUserResJson, bucketName, bucketName)), Ready: 1},
+		"iam-policy":                                  {Resource: resource.MustStructJSON(fmt.Sprintf(iamPolicyResJson, bucketName, bucketName, bucketName, bucketName)), Ready: 1},
+		"iam-user-policy-attachment":                  {Resource: resource.MustStructJSON(fmt.Sprintf(iamUserPolicyAttachmentResJson, bucketName, bucketName, bucketName)), Ready: 1},
+		"iam-access-key":                              {Resource: resource.MustStructJSON(fmt.Sprintf(iamAccessKeyResJson, bucketName, bucketName, bucketName)), Ready: 1},
+		"iam-role":                                    {Resource: resource.MustStructJSON(fmt.Sprintf(iamRoleResJson, bucketName, saName, bucketName)), Ready: 1},
+		"iam-role-policy-attachment":                  {Resource: resource.MustStructJSON(fmt.Sprintf(iamRolePolicyAttachmentResJson, bucketName, bucketName, bucketName)), Ready: 1},
+		"service-account":                             {Resource: resource.MustStructJSON(fmt.Sprintf(serviceAccountResJson, bucketName, saName)), Ready: 1},
+		"secrets-manager-secret":                      {Resource: resource.MustStructJSON(fmt.Sprintf(smSecretResJson, bucketName, bucketName, bucketName, bucketName)), Ready: 1},
+		"secrets-manager-secret-version":              {Resource: resource.MustStructJSON(fmt.Sprintf(smSecretVersionResJson, bucketName, bucketName, bucketName)), Ready: 1},
+		"credentials":                                 {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, bucketName, bucketName, bucketName, bucketName, bucketName))},
+	}
+}
+
 func TestS3BucketPhaseOne(t *testing.T) {
 	xr := resource.MustStructJSON(s3bucketJson)
 
@@ -176,11 +237,7 @@ func TestS3BucketPhaseOne(t *testing.T) {
 
 func TestS3BucketPhaseTwo(t *testing.T) {
 	xr := resource.MustStructJSON(s3bucketJson)
-	environmentData := map[string]interface{}{
-		"awsProvider":  "aws-provider",
-		"dataKMSKey":   "data",
-		"configKMSKey": "config",
-	}
+	environmentData := defaultEnvironmentData
 	awsProvider := environmentData["awsProvider"].(string)
 
 	cases := map[string]test.Case{
@@ -198,25 +255,8 @@ func TestS3BucketPhaseTwo(t *testing.T) {
 			},
 			Want: test.Want{
 				Rsp: &fnv1.RunFunctionResponse{
-					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
-					Requirements: &fnv1.Requirements{
-						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							service.EKSKey: {
-								Kind:       "Cluster",
-								ApiVersion: "eks.aws.m.upbound.io/v1beta1",
-								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "eks"},
-								Namespace:  &awsProvider,
-							},
-							service.KMSDataKey:   base.RequiredKMSKey(environmentData["dataKMSKey"].(string), awsProvider),
-							service.KMSConfigKey: base.RequiredKMSKey(environmentData["configKMSKey"].(string), awsProvider),
-							service.NamespaceKey: {
-								Kind:       "Namespace",
-								ApiVersion: "v1",
-								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "default"},
-							},
-						},
-					},
+					Meta:         &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Requirements: expectedRequirements(awsProvider, environmentData),
 				},
 			},
 		},
@@ -224,168 +264,107 @@ func TestS3BucketPhaseTwo(t *testing.T) {
 	test.RunFunctionCases(t, func() base.GroupService { return &GroupImpl{} }, cases)
 }
 
-func TestS3BucketFullGeneration(t *testing.T) {
-	xr := resource.MustStructJSON(s3bucketJson)
+func TestS3BucketGeneration(t *testing.T) {
+	environmentData := defaultEnvironmentData
+	awsProvider := environmentData["awsProvider"].(string)
+	bucketName := "test-bucket"
 
-	req := &fnv1.RunFunctionRequest{
-		Observed: &fnv1.State{
-			Composite: &fnv1.Resource{Resource: xr},
-			Resources: allObservedComposedResources(),
+	allDesired := desiredResources(bucketName, bucketName, "Suspended")
+
+	noSADesired := desiredResources(bucketName, bucketName, "Enabled")
+	delete(noSADesired, "service-account")
+
+	step1Desired := make(map[string]*fnv1.Resource)
+	for _, key := range []string{"bucket", "iam-user", "iam-role", "service-account"} {
+		step1Desired[key] = &fnv1.Resource{Resource: allDesired[key].Resource}
+	}
+
+	customSADesired := desiredResources(bucketName, "my-custom-sa", "Suspended")
+
+	cases := map[string]test.Case{
+		"FullGeneration": {
+			Reason: "All observed resources present, should generate all 15 desired resources",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketJson)},
+						Resources: allObservedComposedResources(),
+					},
+					RequiredResources: allRequiredResources(environmentData),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: allDesired,
+					},
+					Requirements: expectedRequirements(awsProvider, environmentData),
+				},
+			},
 		},
-		RequiredResources: allRequiredResources(),
-	}
-
-	f := base.NewFunction(logging.NewNopLogger(), &GroupImpl{})
-	rsp, err := f.RunFunction(context.Background(), req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if len(rsp.GetResults()) > 0 && rsp.GetResults()[0].GetSeverity() == fnv1.Severity_SEVERITY_FATAL {
-		t.Fatalf("Response failure: %v", rsp.GetResults()[0].GetMessage())
-	}
-
-	desired := rsp.GetDesired().GetResources()
-
-	expectedResources := []string{
-		"bucket", "bucket-public-access-block", "bucket-server-side-encryption-configuration",
-		"bucket-versioning", "bucket-ownership-controls",
-		"iam-user", "iam-policy", "iam-user-policy-attachment", "iam-access-key",
-		"iam-role", "iam-role-policy-attachment",
-		"service-account",
-		"secrets-manager-secret", "secrets-manager-secret-version",
-		"credentials",
-	}
-
-	if len(desired) != len(expectedResources) {
-		t.Errorf("Expected %d desired resources, got %d", len(expectedResources), len(desired))
-		for name := range desired {
-			t.Logf("  Got resource: %s", name)
-		}
-	}
-
-	for _, name := range expectedResources {
-		if _, ok := desired[name]; !ok {
-			t.Errorf("Missing expected resource: %s", name)
-		}
-	}
-}
-
-func TestS3BucketNoServiceAccount(t *testing.T) {
-	xr := resource.MustStructJSON(s3bucketNoSAJson)
-
-	req := &fnv1.RunFunctionRequest{
-		Observed: &fnv1.State{
-			Composite: &fnv1.Resource{Resource: xr},
-			Resources: allObservedComposedResources(),
+		"NoServiceAccount": {
+			Reason: "Should not create service-account when createServiceAccount=false, versioning=Enabled",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketNoSAJson)},
+						Resources: allObservedComposedResources(),
+					},
+					RequiredResources: allRequiredResources(environmentData),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: noSADesired,
+					},
+					Requirements: expectedRequirements(awsProvider, environmentData),
+				},
+			},
 		},
-		RequiredResources: allRequiredResources(),
-	}
-
-	f := base.NewFunction(logging.NewNopLogger(), &GroupImpl{})
-	rsp, err := f.RunFunction(context.Background(), req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if len(rsp.GetResults()) > 0 && rsp.GetResults()[0].GetSeverity() == fnv1.Severity_SEVERITY_FATAL {
-		t.Fatalf("Response failure: %v", rsp.GetResults()[0].GetMessage())
-	}
-
-	desired := rsp.GetDesired().GetResources()
-
-	// Should NOT have service-account when createServiceAccount=false
-	if _, ok := desired["service-account"]; ok {
-		t.Error("service-account should not be created when createServiceAccount=false")
-	}
-
-	// Should still have credentials
-	if _, ok := desired["credentials"]; !ok {
-		t.Error("credentials secret should still be created")
-	}
-
-	// Should have 14 resources (15 minus service-account)
-	if len(desired) != 14 {
-		t.Errorf("Expected 14 desired resources, got %d", len(desired))
-		for name := range desired {
-			t.Logf("  Got resource: %s", name)
-		}
-	}
-}
-
-func TestS3BucketNoCredentialsWithoutObserved(t *testing.T) {
-	xr := resource.MustStructJSON(s3bucketJson)
-
-	// No observed composed resources - only composite
-	req := &fnv1.RunFunctionRequest{
-		Observed: &fnv1.State{
-			Composite: &fnv1.Resource{Resource: xr},
+		"NoCredentialsWithoutObserved": {
+			Reason: "Without observed resources, only step 1 resources should be generated",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketJson)},
+					},
+					RequiredResources: allRequiredResources(environmentData),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: step1Desired,
+					},
+					Requirements: expectedRequirements(awsProvider, environmentData),
+				},
+			},
 		},
-		RequiredResources: allRequiredResources(),
-	}
-
-	f := base.NewFunction(logging.NewNopLogger(), &GroupImpl{})
-	rsp, err := f.RunFunction(context.Background(), req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if len(rsp.GetResults()) > 0 && rsp.GetResults()[0].GetSeverity() == fnv1.Severity_SEVERITY_FATAL {
-		t.Fatalf("Response failure: %v", rsp.GetResults()[0].GetMessage())
-	}
-
-	desired := rsp.GetDesired().GetResources()
-
-	// credentials should NOT exist since no observed connection details
-	if _, ok := desired["credentials"]; ok {
-		t.Error("credentials should not be created without observed connection details")
-	}
-
-	// Step 1 resources + service-account should be present (first reconciliation)
-	for _, name := range []string{"bucket", "iam-user", "iam-role", "service-account"} {
-		if _, ok := desired[name]; !ok {
-			t.Errorf("Missing expected resource: %s", name)
-		}
-	}
-}
-
-func TestS3BucketCustomServiceAccountName(t *testing.T) {
-	xr := resource.MustStructJSON(s3bucketCustomSAJson)
-
-	req := &fnv1.RunFunctionRequest{
-		Observed: &fnv1.State{
-			Composite: &fnv1.Resource{Resource: xr},
-			Resources: allObservedComposedResources(),
+		"CustomServiceAccountName": {
+			Reason: "Should use custom service account name in SA, bucket annotation, and IAM role policy",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketCustomSAJson)},
+						Resources: allObservedComposedResources(),
+					},
+					RequiredResources: allRequiredResources(environmentData),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: customSADesired,
+					},
+					Requirements: expectedRequirements(awsProvider, environmentData),
+				},
+			},
 		},
-		RequiredResources: allRequiredResources(),
 	}
-
-	f := base.NewFunction(logging.NewNopLogger(), &GroupImpl{})
-	rsp, err := f.RunFunction(context.Background(), req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if len(rsp.GetResults()) > 0 && rsp.GetResults()[0].GetSeverity() == fnv1.Severity_SEVERITY_FATAL {
-		t.Fatalf("Response failure: %v", rsp.GetResults()[0].GetMessage())
-	}
-
-	desired := rsp.GetDesired().GetResources()
-
-	// Service account should use custom name
-	sa, ok := desired["service-account"]
-	if !ok {
-		t.Fatal("Missing service-account resource")
-	}
-	saName := sa.GetResource().GetFields()["metadata"].GetStructValue().GetFields()["name"].GetStringValue()
-	if saName != "my-custom-sa" {
-		t.Errorf("Expected service account name 'my-custom-sa', got '%s'", saName)
-	}
-
-	// Bucket annotation should reference the custom SA name
-	bucket, ok := desired["bucket"]
-	if !ok {
-		t.Fatal("Missing bucket resource")
-	}
-	annotations := bucket.GetResource().GetFields()["metadata"].GetStructValue().GetFields()["annotations"].GetStructValue().GetFields()
-	if annotations[service.AnnotationServiceAccount].GetStringValue() != "my-custom-sa" {
-		t.Errorf("Expected bucket annotation %s='my-custom-sa', got '%s'",
-			service.AnnotationServiceAccount, annotations[service.AnnotationServiceAccount].GetStringValue())
-	}
+	test.RunFunctionCases(t, func() base.GroupService { return &GroupImpl{} }, cases)
 }
