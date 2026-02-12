@@ -23,10 +23,12 @@ const (
 	PostgresqlDatabaseKind      = "postgresqldatabase.database.entigo.com"
 	SqlDatabaseKind             = "database.postgresql.sql.m.crossplane.io"
 	SqlGrantKind                = "grant.postgresql.sql.m.crossplane.io"
-	PostgresqlUserName          = "user-test"
+	PostgresqlAdminUserName     = "test-admin"
+	PostgresqlAdminUserKind     = "postgresqluser.database.entigo.com"
+	PostgresqlAdminUserSpecName = "test_admin"
+	PostgresqlUserName          = "test-user"
 	PostgresqlUserKind          = "postgresqluser.database.entigo.com"
 	SqlRoleKind                 = "role.postgresql.sql.m.crossplane.io"
-	PostgresqlUserSpecName      = "user_test"
 
 	//zone
 	AppProjectName        = "zone"
@@ -78,6 +80,9 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 		fmt.Printf("[%s] Cleanup: deleting PostgreSQL User '%s'\n", argocdNamespace, PostgresqlUserName)
 		_, _ = terrak8s.RunKubectlAndGetOutputE(t, nsOptions, "delete", PostgresqlUserKind, PostgresqlUserName, "-n", NamespaceName, "--ignore-not-found")
 
+		fmt.Printf("[%s] Cleanup: deleting PostgreSQL Admin User '%s'\n", argocdNamespace, PostgresqlAdminUserName)
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, nsOptions, "delete", PostgresqlAdminUserKind, PostgresqlAdminUserName, "-n", NamespaceName, "--ignore-not-found")
+
 		fmt.Printf("[%s] Cleanup: deleting PostgreSQL Database '%s'\n", argocdNamespace, PostgresqlDatabaseName)
 		_, _ = terrak8s.RunKubectlAndGetOutputE(t, nsOptions, "delete", PostgresqlDatabaseKind, PostgresqlDatabaseName, "-n", NamespaceName, "--ignore-not-found")
 
@@ -121,16 +126,16 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 	test4PostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	test5RdsInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	test6RdsInstanceFieldsVerified(t, argocdNamespace, namespaceOptions)
-	test7PostgresqlDatabaseApplied(t, argocdNamespace, namespaceOptions)
-	test8PostgresqlDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	test9SqlDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	test10SqlDatabaseFieldsVerified(t, argocdNamespace, namespaceOptions)
-	test11SqlGrantSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	test12PostgresqlUserApplied(t, argocdNamespace, namespaceOptions)
-	test13PostgresqlUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	test14SqlRoleSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	test15SqlRoleExternalNameVerified(t, argocdNamespace, namespaceOptions)
-	test16UserSqlGrantSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	test7AdminUserApplied(t, argocdNamespace, namespaceOptions)
+	test8AdminUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	test9AdminRoleSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	test10AdminRoleExternalNameVerified(t, argocdNamespace, namespaceOptions)
+	test11UserApplied(t, argocdNamespace, namespaceOptions)
+	test12UserSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	test13DatabaseApplied(t, argocdNamespace, namespaceOptions)
+	test14DatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	test15DatabaseFieldsVerified(t, argocdNamespace, namespaceOptions)
+	test16AllCompositionResourcesSyncedAndReady(t, argocdNamespace, namespaceOptions)
 }
 
 func test0PlatformApisPostgresqlConfigurationDeployed(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
@@ -270,15 +275,118 @@ func test6RdsInstanceFieldsVerified(t *testing.T, argocdNamespace string, namesp
 	fmt.Printf("[%s] Step 6: PASSED - RDS Instance fields verified (allocatedStorage=20, engineVersion=17.2, instanceClass=db.t3.micro)\n", argocdNamespace)
 }
 
-func test7PostgresqlDatabaseApplied(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 7: Applying PostgreSQL Database '%s' to namespace '%s'\n", argocdNamespace, PostgresqlDatabaseName, NamespaceName)
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_database.yaml", "-n", NamespaceName)
-	require.NoError(t, err, fmt.Sprintf("[%s] Applying PostgreSQL Database error", argocdNamespace))
-	fmt.Printf("[%s] Step 7: PASSED - PostgreSQL Database applied\n", argocdNamespace)
+func test7AdminUserApplied(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 7: Applying PostgreSQL Admin User '%s' to namespace '%s'\n", argocdNamespace, PostgresqlAdminUserName, NamespaceName)
+	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_admin_user.yaml", "-n", NamespaceName)
+	require.NoError(t, err, fmt.Sprintf("[%s] Applying PostgreSQL Admin User error", argocdNamespace))
+	fmt.Printf("[%s] Step 7: PASSED - PostgreSQL Admin User applied\n", argocdNamespace)
 }
 
-func test8PostgresqlDatabaseSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 8: Waiting for PostgreSQL Database '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlDatabaseName)
+func test8AdminUserSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 8: Waiting for PostgreSQL Admin User '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlAdminUserName)
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for PostgreSQL Admin User '%s' to be Synced and Ready", argocdNamespace, PostgresqlAdminUserName), 60, 10*time.Second, func() (string, error) {
+		syncStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlAdminUserKind, PostgresqlAdminUserName, "-o", `jsonpath={.status.conditions[?(@.type=="Synced")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if syncStatus != "True" {
+			return "", fmt.Errorf("PostgreSQL Admin User '%s' not synced yet, condition: %s", PostgresqlAdminUserName, syncStatus)
+		}
+		readyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlAdminUserKind, PostgresqlAdminUserName, "-o", `jsonpath={.status.conditions[?(@.type=="Ready")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if readyStatus != "True" {
+			return "", fmt.Errorf("PostgreSQL Admin User '%s' not ready yet, condition: %s", PostgresqlAdminUserName, readyStatus)
+		}
+		return "Synced+Ready", nil
+	})
+	require.NoError(t, err, fmt.Sprintf("[%s] PostgreSQL Admin User '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlAdminUserName))
+	fmt.Printf("[%s] Step 8: PASSED - PostgreSQL Admin User '%s' is Synced and Ready\n", argocdNamespace, PostgresqlAdminUserName)
+}
+
+func test9AdminRoleSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 9: Waiting for SQL Role related to admin user '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlAdminUserName)
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SQL Role related to '%s'", argocdNamespace, PostgresqlAdminUserName), 60, 10*time.Second, func() (string, error) {
+		roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlAdminUserName), "-o", "jsonpath={.items[0].metadata.name}")
+		if err != nil {
+			return "", err
+		}
+		if roleName == "" {
+			return "", fmt.Errorf("no SQL Role found for composite '%s'", PostgresqlAdminUserName)
+		}
+		syncStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", `jsonpath={.status.conditions[?(@.type=="Synced")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if syncStatus != "True" {
+			return "", fmt.Errorf("SQL Role '%s' not synced yet, condition: %s", roleName, syncStatus)
+		}
+		readyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", `jsonpath={.status.conditions[?(@.type=="Ready")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if readyStatus != "True" {
+			return "", fmt.Errorf("SQL Role '%s' not ready yet, condition: %s", roleName, readyStatus)
+		}
+		return "Synced+Ready", nil
+	})
+	require.NoError(t, err, fmt.Sprintf("[%s] SQL Role for admin user '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlAdminUserName))
+	fmt.Printf("[%s] Step 9: PASSED - Admin SQL Role is Synced and Ready\n", argocdNamespace)
+}
+
+func test10AdminRoleExternalNameVerified(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 10: Verifying SQL Role crossplane.io/external-name annotation for admin user '%s'\n", argocdNamespace, PostgresqlAdminUserName)
+	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlAdminUserName), "-o", "jsonpath={.items[0].metadata.name}")
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to find SQL Role", argocdNamespace))
+	require.NotEmpty(t, roleName, fmt.Sprintf("[%s] No SQL Role found for composite '%s'", argocdNamespace, PostgresqlAdminUserName))
+
+	externalName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", `jsonpath={.metadata.annotations.crossplane\.io/external-name}`)
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get crossplane.io/external-name annotation", argocdNamespace))
+	require.Equal(t, PostgresqlAdminUserSpecName, externalName, fmt.Sprintf("[%s] SQL Role '%s' crossplane.io/external-name expected '%s', got '%s'", argocdNamespace, roleName, PostgresqlAdminUserSpecName, externalName))
+
+	fmt.Printf("[%s] Step 10: PASSED - Admin SQL Role crossplane.io/external-name=%s\n", argocdNamespace, PostgresqlAdminUserSpecName)
+}
+
+func test11UserApplied(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 11: Applying PostgreSQL User '%s' to namespace '%s'\n", argocdNamespace, PostgresqlUserName, NamespaceName)
+	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_user.yaml", "-n", NamespaceName)
+	require.NoError(t, err, fmt.Sprintf("[%s] Applying PostgreSQL User error", argocdNamespace))
+	fmt.Printf("[%s] Step 11: PASSED - PostgreSQL User applied\n", argocdNamespace)
+}
+
+func test12UserSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 12: Waiting for PostgreSQL User '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlUserName)
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for PostgreSQL User '%s' to be Synced and Ready", argocdNamespace, PostgresqlUserName), 60, 10*time.Second, func() (string, error) {
+		syncStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlUserKind, PostgresqlUserName, "-o", `jsonpath={.status.conditions[?(@.type=="Synced")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if syncStatus != "True" {
+			return "", fmt.Errorf("PostgreSQL User '%s' not synced yet, condition: %s", PostgresqlUserName, syncStatus)
+		}
+		readyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlUserKind, PostgresqlUserName, "-o", `jsonpath={.status.conditions[?(@.type=="Ready")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if readyStatus != "True" {
+			return "", fmt.Errorf("PostgreSQL User '%s' not ready yet, condition: %s", PostgresqlUserName, readyStatus)
+		}
+		return "Synced+Ready", nil
+	})
+	require.NoError(t, err, fmt.Sprintf("[%s] PostgreSQL User '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlUserName))
+	fmt.Printf("[%s] Step 12: PASSED - PostgreSQL User '%s' is Synced and Ready\n", argocdNamespace, PostgresqlUserName)
+}
+
+func test13DatabaseApplied(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 13: Applying PostgreSQL Database '%s' to namespace '%s'\n", argocdNamespace, PostgresqlDatabaseName, NamespaceName)
+	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_database.yaml", "-n", NamespaceName)
+	require.NoError(t, err, fmt.Sprintf("[%s] Applying PostgreSQL Database error", argocdNamespace))
+	fmt.Printf("[%s] Step 13: PASSED - PostgreSQL Database applied\n", argocdNamespace)
+}
+
+func test14DatabaseSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 14: Waiting for PostgreSQL Database '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlDatabaseName)
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for PostgreSQL Database '%s' to be Synced and Ready", argocdNamespace, PostgresqlDatabaseName), 60, 10*time.Second, func() (string, error) {
 		syncStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlDatabaseKind, PostgresqlDatabaseName, "-o", `jsonpath={.status.conditions[?(@.type=="Synced")].status}`)
 		if err != nil {
@@ -297,11 +405,38 @@ func test8PostgresqlDatabaseSyncedAndReady(t *testing.T, argocdNamespace string,
 		return "Synced+Ready", nil
 	})
 	require.NoError(t, err, fmt.Sprintf("[%s] PostgreSQL Database '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlDatabaseName))
-	fmt.Printf("[%s] Step 8: PASSED - PostgreSQL Database '%s' is Synced and Ready\n", argocdNamespace, PostgresqlDatabaseName)
+	fmt.Printf("[%s] Step 14: PASSED - PostgreSQL Database '%s' is Synced and Ready\n", argocdNamespace, PostgresqlDatabaseName)
 }
 
-func test9SqlDatabaseSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 9: Waiting for SQL Database resource related to '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlDatabaseName)
+func test15DatabaseFieldsVerified(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 15: Verifying SQL Database fields for '%s'\n", argocdNamespace, PostgresqlDatabaseName)
+	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to find SQL Database", argocdNamespace))
+	require.NotEmpty(t, dbName, fmt.Sprintf("[%s] No SQL Database found for composite '%s'", argocdNamespace, PostgresqlDatabaseName))
+
+	encoding, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.encoding}")
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get encoding", argocdNamespace))
+	require.Equal(t, "UTF8", encoding, fmt.Sprintf("[%s] SQL Database '%s' encoding mismatch", argocdNamespace, dbName))
+
+	lcCType, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCType}")
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get lcCType", argocdNamespace))
+	require.Equal(t, "et_EE.UTF-8", lcCType, fmt.Sprintf("[%s] SQL Database '%s' lcCType mismatch", argocdNamespace, dbName))
+
+	lcCollate, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCollate}")
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get lcCollate", argocdNamespace))
+	require.Equal(t, "et_EE.UTF-8", lcCollate, fmt.Sprintf("[%s] SQL Database '%s' lcCollate mismatch", argocdNamespace, dbName))
+
+	template, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.template}")
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get template", argocdNamespace))
+	require.Equal(t, "template0", template, fmt.Sprintf("[%s] SQL Database '%s' template mismatch", argocdNamespace, dbName))
+
+	fmt.Printf("[%s] Step 15: PASSED - SQL Database fields verified (encoding=UTF8, lcCType=et_EE.UTF-8, lcCollate=et_EE.UTF-8, template=template0)\n", argocdNamespace)
+}
+
+func test16AllCompositionResourcesSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] Step 16: Verifying all composition resources are Synced and Ready\n", argocdNamespace)
+
+	// Check SQL Database from database composition
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SQL Database related to '%s'", argocdNamespace, PostgresqlDatabaseName), 60, 10*time.Second, func() (string, error) {
 		dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
@@ -327,37 +462,10 @@ func test9SqlDatabaseSyncedAndReady(t *testing.T, argocdNamespace string, namesp
 		return "Synced+Ready", nil
 	})
 	require.NoError(t, err, fmt.Sprintf("[%s] SQL Database for '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlDatabaseName))
-	fmt.Printf("[%s] Step 9: PASSED - SQL Database is Synced and Ready\n", argocdNamespace)
-}
+	fmt.Printf("[%s] Step 16a: SQL Database is Synced and Ready\n", argocdNamespace)
 
-func test10SqlDatabaseFieldsVerified(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 10: Verifying SQL Database fields for '%s'\n", argocdNamespace, PostgresqlDatabaseName)
-	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to find SQL Database", argocdNamespace))
-	require.NotEmpty(t, dbName, fmt.Sprintf("[%s] No SQL Database found for composite '%s'", argocdNamespace, PostgresqlDatabaseName))
-
-	encoding, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.encoding}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get encoding", argocdNamespace))
-	require.Equal(t, "UTF8", encoding, fmt.Sprintf("[%s] SQL Database '%s' encoding mismatch", argocdNamespace, dbName))
-
-	lcCType, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCType}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get lcCType", argocdNamespace))
-	require.Equal(t, "et_EE.UTF-8", lcCType, fmt.Sprintf("[%s] SQL Database '%s' lcCType mismatch", argocdNamespace, dbName))
-
-	lcCollate, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCollate}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get lcCollate", argocdNamespace))
-	require.Equal(t, "et_EE.UTF-8", lcCollate, fmt.Sprintf("[%s] SQL Database '%s' lcCollate mismatch", argocdNamespace, dbName))
-
-	template, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.template}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get template", argocdNamespace))
-	require.Equal(t, "template0", template, fmt.Sprintf("[%s] SQL Database '%s' template mismatch", argocdNamespace, dbName))
-
-	fmt.Printf("[%s] Step 10: PASSED - SQL Database fields verified (encoding=UTF8, lcCType=et_EE.UTF-8, lcCollate=et_EE.UTF-8, template=template0)\n", argocdNamespace)
-}
-
-func test11SqlGrantSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 11: Waiting for SQL Grant resource related to '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlDatabaseName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SQL Grant related to '%s'", argocdNamespace, PostgresqlDatabaseName), 60, 10*time.Second, func() (string, error) {
+	// Check SQL Grant from database composition
+	_, err = retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SQL Grant related to database '%s'", argocdNamespace, PostgresqlDatabaseName), 60, 10*time.Second, func() (string, error) {
 		grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
 			return "", err
@@ -381,43 +489,11 @@ func test11SqlGrantSyncedAndReady(t *testing.T, argocdNamespace string, namespac
 		}
 		return "Synced+Ready", nil
 	})
-	require.NoError(t, err, fmt.Sprintf("[%s] SQL Grant for '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlDatabaseName))
-	fmt.Printf("[%s] Step 11: PASSED - SQL Grant is Synced and Ready\n", argocdNamespace)
-}
+	require.NoError(t, err, fmt.Sprintf("[%s] SQL Grant for database '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlDatabaseName))
+	fmt.Printf("[%s] Step 16b: Database SQL Grant is Synced and Ready\n", argocdNamespace)
 
-func test12PostgresqlUserApplied(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 12: Applying PostgreSQL User '%s' to namespace '%s'\n", argocdNamespace, PostgresqlUserName, NamespaceName)
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_user.yaml", "-n", NamespaceName)
-	require.NoError(t, err, fmt.Sprintf("[%s] Applying PostgreSQL User error", argocdNamespace))
-	fmt.Printf("[%s] Step 12: PASSED - PostgreSQL User applied\n", argocdNamespace)
-}
-
-func test13PostgresqlUserSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 13: Waiting for PostgreSQL User '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlUserName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for PostgreSQL User '%s' to be Synced and Ready", argocdNamespace, PostgresqlUserName), 60, 10*time.Second, func() (string, error) {
-		syncStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlUserKind, PostgresqlUserName, "-o", `jsonpath={.status.conditions[?(@.type=="Synced")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if syncStatus != "True" {
-			return "", fmt.Errorf("PostgreSQL User '%s' not synced yet, condition: %s", PostgresqlUserName, syncStatus)
-		}
-		readyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlUserKind, PostgresqlUserName, "-o", `jsonpath={.status.conditions[?(@.type=="Ready")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if readyStatus != "True" {
-			return "", fmt.Errorf("PostgreSQL User '%s' not ready yet, condition: %s", PostgresqlUserName, readyStatus)
-		}
-		return "Synced+Ready", nil
-	})
-	require.NoError(t, err, fmt.Sprintf("[%s] PostgreSQL User '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlUserName))
-	fmt.Printf("[%s] Step 13: PASSED - PostgreSQL User '%s' is Synced and Ready\n", argocdNamespace, PostgresqlUserName)
-}
-
-func test14SqlRoleSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 14: Waiting for SQL Role related to '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlUserName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SQL Role related to '%s'", argocdNamespace, PostgresqlUserName), 60, 10*time.Second, func() (string, error) {
+	// Check SQL Role from user composition
+	_, err = retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SQL Role related to user '%s'", argocdNamespace, PostgresqlUserName), 60, 10*time.Second, func() (string, error) {
 		roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlUserName), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
 			return "", err
@@ -441,26 +517,11 @@ func test14SqlRoleSyncedAndReady(t *testing.T, argocdNamespace string, namespace
 		}
 		return "Synced+Ready", nil
 	})
-	require.NoError(t, err, fmt.Sprintf("[%s] SQL Role for '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlUserName))
-	fmt.Printf("[%s] Step 14: PASSED - SQL Role is Synced and Ready\n", argocdNamespace)
-}
+	require.NoError(t, err, fmt.Sprintf("[%s] SQL Role for user '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlUserName))
+	fmt.Printf("[%s] Step 16c: User SQL Role is Synced and Ready\n", argocdNamespace)
 
-func test15SqlRoleExternalNameVerified(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 15: Verifying SQL Role crossplane.io/external-name annotation for '%s'\n", argocdNamespace, PostgresqlUserName)
-	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlUserName), "-o", "jsonpath={.items[0].metadata.name}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to find SQL Role", argocdNamespace))
-	require.NotEmpty(t, roleName, fmt.Sprintf("[%s] No SQL Role found for composite '%s'", argocdNamespace, PostgresqlUserName))
-
-	externalName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", `jsonpath={.metadata.annotations.crossplane\.io/external-name}`)
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get crossplane.io/external-name annotation", argocdNamespace))
-	require.Equal(t, PostgresqlUserSpecName, externalName, fmt.Sprintf("[%s] SQL Role '%s' crossplane.io/external-name expected '%s', got '%s'", argocdNamespace, roleName, PostgresqlUserSpecName, externalName))
-
-	fmt.Printf("[%s] Step 15: PASSED - SQL Role crossplane.io/external-name=%s\n", argocdNamespace, PostgresqlUserSpecName)
-}
-
-func test16UserSqlGrantSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 16: Waiting for SQL Grant related to user '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlUserName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SQL Grant related to user '%s'", argocdNamespace, PostgresqlUserName), 60, 10*time.Second, func() (string, error) {
+	// Check SQL Grant from user composition (grant role test_admin)
+	_, err = retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SQL Grant related to user '%s'", argocdNamespace, PostgresqlUserName), 60, 10*time.Second, func() (string, error) {
 		grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlUserName), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
 			return "", err
@@ -485,7 +546,9 @@ func test16UserSqlGrantSyncedAndReady(t *testing.T, argocdNamespace string, name
 		return "Synced+Ready", nil
 	})
 	require.NoError(t, err, fmt.Sprintf("[%s] SQL Grant for user '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlUserName))
-	fmt.Printf("[%s] Step 16: PASSED - User SQL Grant is Synced and Ready\n", argocdNamespace)
+	fmt.Printf("[%s] Step 16d: User SQL Grant is Synced and Ready\n", argocdNamespace)
+
+	fmt.Printf("[%s] Step 16: PASSED - All composition resources are Synced and Ready\n", argocdNamespace)
 }
 
 //---- ZONE TESTS ----
