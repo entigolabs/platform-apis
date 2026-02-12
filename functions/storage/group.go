@@ -77,22 +77,22 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			return nil, err
 		}
 		ns := compositeResource.GetNamespace()
-		resources[apis.EKSKey] = &fnv1.ResourceSelector{
+		resources[service.EKSKey] = &fnv1.ResourceSelector{
 			Kind:       "Cluster",
 			ApiVersion: "eks.aws.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: "eks"},
 		}
-		resources[apis.KMSDataAliasKey] = &fnv1.ResourceSelector{
+		resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
 			Kind:       "Alias",
 			ApiVersion: "kms.aws.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSKey},
 		}
-		resources[apis.KMSConfigAliasKey] = &fnv1.ResourceSelector{
+		resources[service.KMSConfigAliasKey] = &fnv1.ResourceSelector{
 			Kind:       "Alias",
 			ApiVersion: "kms.aws.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.ConfigKMSKey},
 		}
-		resources[apis.NamespaceKey] = &fnv1.ResourceSelector{
+		resources[service.NamespaceKey] = &fnv1.ResourceSelector{
 			Kind:       "Namespace",
 			ApiVersion: "v1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: ns},
@@ -108,13 +108,13 @@ func (g *GroupImpl) GetObservedStatus(observed *composed.Unstructured) (map[stri
 	kind := observed.GetKind()
 
 	switch {
-	case kind == apis.BucketKind && strings.HasPrefix(apiVersion, "s3.aws.m.upbound.io"):
+	case kind == "Bucket" && strings.HasPrefix(apiVersion, "s3.aws.m.upbound.io"):
 		return getBucketStatus(observed)
-	case kind == apis.BucketServerSideEncryptionConfigurationKind && strings.HasPrefix(apiVersion, "s3.aws.m.upbound.io"):
+	case kind == "BucketServerSideEncryptionConfiguration" && strings.HasPrefix(apiVersion, "s3.aws.m.upbound.io"):
 		return getSSEStatus(observed)
-	case kind == apis.BucketPublicAccessBlockKind && strings.HasPrefix(apiVersion, "s3.aws.m.upbound.io"):
+	case kind == "BucketPublicAccessBlock" && strings.HasPrefix(apiVersion, "s3.aws.m.upbound.io"):
 		return getPublicAccessBlockStatus(observed)
-	case kind == apis.BucketOwnershipControlsKind && strings.HasPrefix(apiVersion, "s3.aws.m.upbound.io"):
+	case kind == "BucketOwnershipControls" && strings.HasPrefix(apiVersion, "s3.aws.m.upbound.io"):
 		return getOwnershipControlsStatus(observed)
 	default:
 		return nil, nil
@@ -143,10 +143,10 @@ func getBucketStatus(observed *composed.Unstructured) (map[string]interface{}, e
 
 	annotations := observed.GetAnnotations()
 	if annotations != nil {
-		if aliasID, ok := annotations[apis.AnnotationKMSDataKeyAlias]; ok {
+		if aliasID, ok := annotations[service.AnnotationKMSDataKeyAlias]; ok {
 			status["kmsKeyAlias"] = strings.TrimPrefix(aliasID, "alias/")
 		}
-		if saName, ok := annotations[apis.AnnotationServiceAccount]; ok {
+		if saName, ok := annotations[service.AnnotationServiceAccount]; ok {
 			status["serviceAccountName"] = saName
 		}
 	}

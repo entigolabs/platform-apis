@@ -10,7 +10,7 @@ import (
 	"github.com/crossplane/function-sdk-go/response"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/function-base/test"
-	"github.com/entigolabs/platform-apis/apis"
+	"github.com/entigolabs/platform-apis/service"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -129,10 +129,10 @@ func allRequiredResources() map[string]*fnv1.Resources {
 			"dataKMSKey":   "data",
 			"configKMSKey": "config",
 		}),
-		apis.EKSKey:            eksRequiredResource(),
-		apis.KMSDataAliasKey:   kmsAliasRequiredResource("data", "arn:aws:kms:eu-north-1:111111111111:key/mrk-data123", "arn:aws:kms:eu-north-1:111111111111:alias/data", "alias/data"),
-		apis.KMSConfigAliasKey: kmsAliasRequiredResource("config", "arn:aws:kms:eu-north-1:111111111111:key/mrk-config456", "arn:aws:kms:eu-north-1:111111111111:alias/config", "alias/config"),
-		apis.NamespaceKey:      namespaceRequiredResource("default", map[string]interface{}{"tenancy.entigo.com/zone": "zone-a"}),
+		service.EKSKey:            eksRequiredResource(),
+		service.KMSDataAliasKey:   kmsAliasRequiredResource("data", "arn:aws:kms:eu-north-1:111111111111:key/mrk-data123", "arn:aws:kms:eu-north-1:111111111111:alias/data", "alias/data"),
+		service.KMSConfigAliasKey: kmsAliasRequiredResource("config", "arn:aws:kms:eu-north-1:111111111111:key/mrk-config456", "arn:aws:kms:eu-north-1:111111111111:alias/config", "alias/config"),
+		service.NamespaceKey:      namespaceRequiredResource("default", map[string]interface{}{"tenancy.entigo.com/zone": "zone-a"}),
 	}
 }
 
@@ -165,32 +165,32 @@ func observedReadyResourceWithConnectionDetails(apiVersion, kind, name string, d
 func allObservedComposedResources() map[string]*fnv1.Resource {
 	return map[string]*fnv1.Resource{
 		"bucket": observedReadyResourceWithConnectionDetails(
-			apis.BucketApiVersion, apis.BucketKind, "test-bucket",
+			"s3.aws.m.upbound.io/v1beta1", "Bucket", "test-bucket",
 			map[string][]byte{
 				"region": []byte("eu-north-1"),
 				"arn":    []byte("arn:aws:s3:::test-bucket"),
 				"id":     []byte("test-bucket"),
 			},
 		),
-		"bucket-public-access-block":                  observedReadyResource(apis.BucketApiVersion, apis.BucketPublicAccessBlockKind, "test-bucket"),
-		"bucket-server-side-encryption-configuration": observedReadyResource(apis.BucketApiVersion, apis.BucketServerSideEncryptionConfigurationKind, "test-bucket"),
-		"bucket-versioning":                           observedReadyResource(apis.BucketApiVersion, apis.BucketVersioningKind, "test-bucket"),
-		"bucket-ownership-controls":                   observedReadyResource(apis.BucketApiVersion, apis.BucketOwnershipControlsKind, "test-bucket"),
-		"iam-user":                                    observedReadyResource(apis.IAMApiVersion, apis.IAMUserKind, "test-bucket"),
-		"iam-policy":                                  observedReadyResource(apis.IAMApiVersion, apis.IAMPolicyKind, "test-bucket"),
-		"iam-user-policy-attachment":                  observedReadyResource(apis.IAMApiVersion, apis.IAMUserPolicyAttachmentKind, "test-bucket"),
+		"bucket-public-access-block":                  observedReadyResource("s3.aws.m.upbound.io/v1beta1", "BucketPublicAccessBlock", "test-bucket"),
+		"bucket-server-side-encryption-configuration": observedReadyResource("s3.aws.m.upbound.io/v1beta1", "BucketServerSideEncryptionConfiguration", "test-bucket"),
+		"bucket-versioning":                           observedReadyResource("s3.aws.m.upbound.io/v1beta1", "BucketVersioning", "test-bucket"),
+		"bucket-ownership-controls":                   observedReadyResource("s3.aws.m.upbound.io/v1beta1", "BucketOwnershipControls", "test-bucket"),
+		"iam-user":                                    observedReadyResource("iam.aws.m.upbound.io/v1beta1", "User", "test-bucket"),
+		"iam-policy":                                  observedReadyResource("iam.aws.m.upbound.io/v1beta1", "Policy", "test-bucket"),
+		"iam-user-policy-attachment":                  observedReadyResource("iam.aws.m.upbound.io/v1beta1", "UserPolicyAttachment", "test-bucket"),
 		"iam-access-key": observedReadyResourceWithConnectionDetails(
-			apis.IAMApiVersion, apis.IAMAccessKeyKind, "test-bucket",
+			"iam.aws.m.upbound.io/v1beta1", "AccessKey", "test-bucket",
 			map[string][]byte{
 				"username": []byte("AKIAIOSFODNN7EXAMPLE"),
 				"password": []byte("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"),
 			},
 		),
-		"iam-role":                       observedReadyResource(apis.IAMApiVersion, apis.IAMRoleKind, "test-bucket"),
-		"iam-role-policy-attachment":     observedReadyResource(apis.IAMApiVersion, apis.IAMRolePolicyAttachmentKind, "test-bucket"),
+		"iam-role":                       observedReadyResource("iam.aws.m.upbound.io/v1beta1", "Role", "test-bucket"),
+		"iam-role-policy-attachment":     observedReadyResource("iam.aws.m.upbound.io/v1beta1", "RolePolicyAttachment", "test-bucket"),
 		"service-account":                observedReadyResource("v1", "ServiceAccount", "test-bucket"),
-		"secrets-manager-secret":         observedReadyResource(apis.SecretsManagerApiVersion, apis.SecretsManagerSecretKind, "test-bucket-credentials"),
-		"secrets-manager-secret-version": observedReadyResource(apis.SecretsManagerApiVersion, apis.SecretsManagerSecretVersionKind, "test-bucket-credentials"),
+		"secrets-manager-secret":         observedReadyResource("secretsmanager.aws.m.upbound.io/v1beta1", "Secret", "test-bucket-credentials"),
+		"secrets-manager-secret-version": observedReadyResource("secretsmanager.aws.m.upbound.io/v1beta1", "SecretVersion", "test-bucket-credentials"),
 	}
 }
 
@@ -249,22 +249,22 @@ func TestS3BucketPhaseTwo(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							apis.EKSKey: {
+							service.EKSKey: {
 								Kind:       "Cluster",
 								ApiVersion: "eks.aws.upbound.io/v1beta1",
 								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "eks"},
 							},
-							apis.KMSDataAliasKey: {
+							service.KMSDataAliasKey: {
 								Kind:       "Alias",
 								ApiVersion: "kms.aws.upbound.io/v1beta1",
 								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "data"},
 							},
-							apis.KMSConfigAliasKey: {
+							service.KMSConfigAliasKey: {
 								Kind:       "Alias",
 								ApiVersion: "kms.aws.upbound.io/v1beta1",
 								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "config"},
 							},
-							apis.NamespaceKey: {
+							service.NamespaceKey: {
 								Kind:       "Namespace",
 								ApiVersion: "v1",
 								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "default"},
@@ -438,8 +438,8 @@ func TestS3BucketCustomServiceAccountName(t *testing.T) {
 		t.Fatal("Missing bucket resource")
 	}
 	annotations := bucket.GetResource().GetFields()["metadata"].GetStructValue().GetFields()["annotations"].GetStructValue().GetFields()
-	if annotations[apis.AnnotationServiceAccount].GetStringValue() != "my-custom-sa" {
+	if annotations[service.AnnotationServiceAccount].GetStringValue() != "my-custom-sa" {
 		t.Errorf("Expected bucket annotation %s='my-custom-sa', got '%s'",
-			apis.AnnotationServiceAccount, annotations[apis.AnnotationServiceAccount].GetStringValue())
+			service.AnnotationServiceAccount, annotations[service.AnnotationServiceAccount].GetStringValue())
 	}
 }

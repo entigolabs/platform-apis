@@ -21,6 +21,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const (
+	EKSKey            = "EKS"
+	KMSDataAliasKey   = "KMSDataAlias"
+	KMSConfigAliasKey = "KMSConfigAlias"
+	NamespaceKey      = "Namespace"
+
+	AnnotationKMSDataKeyAlias = "storage.entigo.com/kms-data-key-alias"
+	AnnotationServiceAccount  = "storage.entigo.com/service-account-name"
+	TenancyZoneLabel          = "tenancy.entigo.com/zone"
+)
+
 type s3BucketParams struct {
 	BucketName         string
 	Namespace          string
@@ -49,22 +60,22 @@ func GenerateS3BucketObjects(
 	}
 
 	var cluster eksv1beta1.Cluster
-	if err := base.ExtractRequiredResource(required, apis.EKSKey, &cluster); err != nil {
+	if err := base.ExtractRequiredResource(required, EKSKey, &cluster); err != nil {
 		return nil, err
 	}
 
 	var kmsDataAlias kmsv1beta1.Alias
-	if err := base.ExtractRequiredResource(required, apis.KMSDataAliasKey, &kmsDataAlias); err != nil {
+	if err := base.ExtractRequiredResource(required, KMSDataAliasKey, &kmsDataAlias); err != nil {
 		return nil, err
 	}
 
 	var kmsConfigAlias kmsv1beta1.Alias
-	if err := base.ExtractRequiredResource(required, apis.KMSConfigAliasKey, &kmsConfigAlias); err != nil {
+	if err := base.ExtractRequiredResource(required, KMSConfigAliasKey, &kmsConfigAlias); err != nil {
 		return nil, err
 	}
 
 	var ns corev1.Namespace
-	if err := base.ExtractRequiredResource(required, apis.NamespaceKey, &ns); err != nil {
+	if err := base.ExtractRequiredResource(required, NamespaceKey, &ns); err != nil {
 		return nil, err
 	}
 
@@ -76,7 +87,7 @@ func GenerateS3BucketObjects(
 
 	tenancyZone := ""
 	if ns.Labels != nil {
-		tenancyZone = ns.Labels[apis.TenancyZoneLabel]
+		tenancyZone = ns.Labels[TenancyZoneLabel]
 	}
 
 	// Extract OIDC issuer from cluster identity
@@ -157,23 +168,23 @@ func addBucketResources(objects map[string]runtime.Object, p *s3BucketParams) {
 	}
 	tags["Name"] = base.StringPtr(p.BucketName)
 	if p.TenancyZone != "" {
-		tags[apis.TenancyZoneLabel] = base.StringPtr(p.TenancyZone)
+		tags[TenancyZoneLabel] = base.StringPtr(p.TenancyZone)
 	}
 
 	var labels map[string]string
 	if p.TenancyZone != "" {
-		labels = map[string]string{apis.TenancyZoneLabel: p.TenancyZone}
+		labels = map[string]string{TenancyZoneLabel: p.TenancyZone}
 	}
 
 	// Bucket
 	objects["bucket"] = &s3v1beta1.Bucket{
-		TypeMeta: metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketKind},
+		TypeMeta: metav1.TypeMeta{APIVersion: "s3.aws.m.upbound.io/v1beta1", Kind: "Bucket"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      p.BucketName,
 			Namespace: p.Namespace,
 			Annotations: map[string]string{
-				apis.AnnotationKMSDataKeyAlias: p.KMSDataKeyAliasID,
-				apis.AnnotationServiceAccount:  p.ServiceAccountName,
+				AnnotationKMSDataKeyAlias: p.KMSDataKeyAliasID,
+				AnnotationServiceAccount:  p.ServiceAccountName,
 			},
 			Labels: labels,
 		},
@@ -191,7 +202,7 @@ func addBucketResources(objects map[string]runtime.Object, p *s3BucketParams) {
 
 	// BucketPublicAccessBlock
 	objects["bucket-public-access-block"] = &s3v1beta1.BucketPublicAccessBlock{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketPublicAccessBlockKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "s3.aws.m.upbound.io/v1beta1", Kind: "BucketPublicAccessBlock"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: s3v1beta1.BucketPublicAccessBlockSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -214,7 +225,7 @@ func addBucketResources(objects map[string]runtime.Object, p *s3BucketParams) {
 		sseDefault.KMSMasterKeyID = &p.KMSDataKeyArn
 	}
 	objects["bucket-server-side-encryption-configuration"] = &s3v1beta1.BucketServerSideEncryptionConfiguration{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketServerSideEncryptionConfigurationKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "s3.aws.m.upbound.io/v1beta1", Kind: "BucketServerSideEncryptionConfiguration"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: s3v1beta1.BucketServerSideEncryptionConfigurationSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -237,7 +248,7 @@ func addBucketResources(objects map[string]runtime.Object, p *s3BucketParams) {
 		versioningStatus = "Enabled"
 	}
 	objects["bucket-versioning"] = &s3v1beta1.BucketVersioning{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketVersioningKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "s3.aws.m.upbound.io/v1beta1", Kind: "BucketVersioning"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: s3v1beta1.BucketVersioningSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -253,7 +264,7 @@ func addBucketResources(objects map[string]runtime.Object, p *s3BucketParams) {
 
 	// BucketOwnershipControls
 	objects["bucket-ownership-controls"] = &s3v1beta1.BucketOwnershipControls{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.BucketApiVersion, Kind: apis.BucketOwnershipControlsKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "s3.aws.m.upbound.io/v1beta1", Kind: "BucketOwnershipControls"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: s3v1beta1.BucketOwnershipControlsSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -279,7 +290,7 @@ func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
 
 	// IAM User
 	objects["iam-user"] = &iamv1beta1.User{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMUserKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "iam.aws.m.upbound.io/v1beta1", Kind: "User"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: iamv1beta1.UserSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -292,7 +303,7 @@ func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
 	// IAM Policy
 	policyDoc := buildIAMPolicyDocument(p.BucketName, p.KMSDataKeyArn)
 	objects["iam-policy"] = &iamv1beta1.Policy{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMPolicyKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "iam.aws.m.upbound.io/v1beta1", Kind: "Policy"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: iamv1beta1.PolicySpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -305,7 +316,7 @@ func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
 
 	// UserPolicyAttachment
 	objects["iam-user-policy-attachment"] = &iamv1beta1.UserPolicyAttachment{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMUserPolicyAttachmentKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "iam.aws.m.upbound.io/v1beta1", Kind: "UserPolicyAttachment"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: iamv1beta1.UserPolicyAttachmentSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -318,7 +329,7 @@ func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
 
 	// AccessKey
 	objects["iam-access-key"] = &iamv1beta1.AccessKey{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMAccessKeyKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "iam.aws.m.upbound.io/v1beta1", Kind: "AccessKey"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: iamv1beta1.AccessKeySpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{
@@ -340,7 +351,7 @@ func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
 
 	assumeRolePolicy := buildAssumeRolePolicy(p.AWSAccount, p.ClusterOIDC, p.Namespace, p.ServiceAccountName)
 	objects["iam-role"] = &iamv1beta1.Role{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMRoleKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "iam.aws.m.upbound.io/v1beta1", Kind: "Role"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: iamv1beta1.RoleSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -354,7 +365,7 @@ func addIAMResources(objects map[string]runtime.Object, p *s3BucketParams) {
 	// RolePolicyAttachment
 	policyArn := fmt.Sprintf("arn:aws:iam::%s:policy/%s", p.AWSAccount, p.BucketName)
 	objects["iam-role-policy-attachment"] = &iamv1beta1.RolePolicyAttachment{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.IAMApiVersion, Kind: apis.IAMRolePolicyAttachmentKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "iam.aws.m.upbound.io/v1beta1", Kind: "RolePolicyAttachment"},
 		ObjectMeta: metav1.ObjectMeta{Name: p.BucketName},
 		Spec: iamv1beta1.RolePolicyAttachmentSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -391,7 +402,7 @@ func addSecretsManagerResources(objects map[string]runtime.Object, p *s3BucketPa
 		smSecretParams.KMSKeyID = &p.KMSConfigKeyArn
 	}
 	objects["secrets-manager-secret"] = &smv1beta1.Secret{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.SecretsManagerApiVersion, Kind: apis.SecretsManagerSecretKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "secretsmanager.aws.m.upbound.io/v1beta1", Kind: "Secret"},
 		ObjectMeta: metav1.ObjectMeta{Name: secretName},
 		Spec: smv1beta1.SecretSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
@@ -401,7 +412,7 @@ func addSecretsManagerResources(objects map[string]runtime.Object, p *s3BucketPa
 
 	// Secrets Manager SecretVersion
 	objects["secrets-manager-secret-version"] = &smv1beta1.SecretVersion{
-		TypeMeta:   metav1.TypeMeta{APIVersion: apis.SecretsManagerApiVersion, Kind: apis.SecretsManagerSecretVersionKind},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "secretsmanager.aws.m.upbound.io/v1beta1", Kind: "SecretVersion"},
 		ObjectMeta: metav1.ObjectMeta{Name: secretName},
 		Spec: smv1beta1.SecretVersionSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
