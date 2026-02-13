@@ -18,6 +18,7 @@ const (
 	ZoneBName             = "b"
 	ZoneConfigurationName = "platform-apis-zone"
 	ZoneKind              = "zone.tenancy.entigo.com"
+	ZoneNamespaceName     = "test-zone"
 )
 
 //---- ZONE TESTS ----

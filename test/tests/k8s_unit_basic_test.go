@@ -9,9 +9,7 @@ import (
 )
 
 const (
-	ConfigurationKind       = "configuration.pkg.crossplane.io"
-	PostgresqlNamespaceName = "test-postgresql"
-	ZoneNamespaceName       = "test-zone"
+	ConfigurationKind = "configuration.pkg.crossplane.io"
 )
 
 func TestK8sPlatformApisAWSBiz(t *testing.T) {
@@ -42,6 +40,6 @@ func testK8sPlatformApis(t *testing.T, cloudName string, envName string) {
 		fmt.Printf("[%s] Cleanup: done\n", argocdNamespace)
 	}()
 
-	testPlatformApisPostgresql(t, argocdNamespace, clusterOptions)
 	testPlatformApisZone(t, argocdNamespace, clusterOptions, argocdOptions)
+	testPlatformApisPostgresql(t, argocdNamespace, clusterOptions)
 }

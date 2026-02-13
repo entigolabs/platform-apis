@@ -27,6 +27,7 @@ const (
 	PostgresqlUserName          = "test-user"
 	PostgresqlUserKind          = "postgresqluser.database.entigo.com"
 	SqlRoleKind                 = "role.postgresql.sql.m.crossplane.io"
+	PostgresqlNamespaceName     = "test-postgresql"
 )
 
 //---- POSTGRESQL TESTS ----
