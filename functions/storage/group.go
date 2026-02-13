@@ -44,10 +44,11 @@ func (g *GroupImpl) generateS3Bucket(obj runtime.Object, required map[string][]r
 func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
 	return base.NewSequence(false,
 		[]string{"bucket", "iam-user", "iam-role"},
-		[]string{"bucket-versioning", "iam-access-key", "iam-policy"},
-		[]string{"bucket-ownership-controls", "iam-user-policy-attachment", "iam-role-policy-attachment"},
-		[]string{"bucket-public-access-block", "credentials", "secrets-manager-secret"},
-		[]string{"bucket-server-side-encryption-configuration", "secrets-manager-secret-version"},
+		[]string{"iam-access-key", "iam-policy"},
+		[]string{"credentials", "secrets-manager-secret"},
+		[]string{"secrets-manager-secret-version", "iam-user-policy-attachment", "iam-role-policy-attachment"},
+		[]string{"bucket-versioning", "bucket-ownership-controls"},
+		[]string{"bucket-public-access-block", "bucket-server-side-encryption-configuration"},
 	)
 }
 
