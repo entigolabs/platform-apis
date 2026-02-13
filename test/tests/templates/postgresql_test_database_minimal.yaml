@@ -4,6 +4,6 @@ metadata:
   name: database-minimal-test
   namespace: test-postgresql
 spec:
-  owner: test_admin
+  owner: test-user
   instanceRef:
     name: postgresql-instance-test

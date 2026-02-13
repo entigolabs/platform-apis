@@ -179,10 +179,10 @@ func testMinimalDatabaseDefaultsVerified(t *testing.T, argocdNamespace string, n
 	require.NoError(t, err, fmt.Sprintf("[%s] Failed to find SQL Database for minimal", argocdNamespace))
 	require.NotEmpty(t, dbName, fmt.Sprintf("[%s] No SQL Database found for composite '%s'", argocdNamespace, MinimalDatabaseName))
 
-	// Owner should still be set
+	// Owner should still be set (test-user for minimal database)
 	owner, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.owner}")
 	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get owner", argocdNamespace))
-	require.Equal(t, PostgresqlAdminUserSpecName, owner, fmt.Sprintf("[%s] SQL Database '%s' owner mismatch", argocdNamespace, dbName))
+	require.Equal(t, PostgresqlRegularUserName, owner, fmt.Sprintf("[%s] SQL Database '%s' owner mismatch", argocdNamespace, dbName))
 
 	// Optional fields should be empty (not set in the composition when not provided)
 	encoding, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.encoding}")
