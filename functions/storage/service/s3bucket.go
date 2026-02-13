@@ -408,8 +408,8 @@ func addSecretsManagerResources(objects map[string]runtime.Object, p *s3BucketPa
 		Spec: smv1beta1.SecretVersionSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
 			ForProvider: smv1beta1.SecretVersionParameters{
-				Region:   &p.Region,
-				SecretID: &secretName,
+				Region:      &p.Region,
+				SecretIDRef: &xpcommon.NamespacedReference{Name: secretName},
 				SecretStringSecretRef: &xpcommon.LocalSecretKeySelector{
 					LocalSecretReference: xpcommon.LocalSecretReference{Name: secretName},
 					Key:                  "credentials.json",
