@@ -195,8 +195,8 @@ func test9NamespaceHasValidZoneLabel(t *testing.T, argocdNamespace string, clust
 //---- CLEANUP FUNCTIONS ----
 
 func cleanupZoneResources(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions, clusterOptions *terrak8s.KubectlOptions) {
-	//fmt.Printf("[%s] Cleanup: deleting namespace '%s'\n", argocdNamespace, ZoneNamespaceName)
-	//_, _ = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "delete", "namespace", ZoneNamespaceName, "--ignore-not-found")
+	fmt.Printf("[%s] Cleanup: deleting namespace '%s'\n", argocdNamespace, ZoneNamespaceName)
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "delete", "namespace", ZoneNamespaceName, "--ignore-not-found")
 
 	fmt.Printf("[%s] Cleanup: deleting Zone Application '%s'\n", argocdNamespace, ZoneApplicationName)
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "delete", "application", ZoneApplicationName, "-n", argocdNamespace, "--ignore-not-found")

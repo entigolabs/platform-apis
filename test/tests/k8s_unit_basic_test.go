@@ -35,7 +35,7 @@ func testK8sPlatformApis(t *testing.T, cloudName string, envName string) {
 			return
 		}
 		fmt.Printf("[%s] Cleanup: deleting test resources\n", argocdNamespace)
-		cleanupZoneResources(t, argocdNamespace, argocdOptions, clusterOptions)
+		//cleanupZoneResources(t, argocdNamespace, argocdOptions, clusterOptions)
 		cleanupPostgresqlResources(t, argocdNamespace, clusterOptions)
 		fmt.Printf("[%s] Cleanup: done\n", argocdNamespace)
 	}()
