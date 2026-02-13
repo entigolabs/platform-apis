@@ -23,7 +23,7 @@ spec:
           metadata:
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: grant-owner-to-dbadmin
-            name: {{ .observed.composite.resource.spec.owner }}-to-dbadmin-grant
+            name: {{ .observed.composite.resource.spec.owner | replace "_" "-" }}-to-dbadmin-grant
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
             forProvider:
