@@ -20,12 +20,9 @@ const (
 	PostgresqlDatabaseName      = "database-test"
 	PostgresqlDatabaseKind      = "postgresqldatabase.database.entigo.com"
 	SqlDatabaseKind             = "database.postgresql.sql.m.crossplane.io"
-	SqlGrantKind                = "grant.postgresql.sql.m.crossplane.io"
 	PostgresqlAdminUserName     = "test-admin"
 	PostgresqlAdminUserKind     = "postgresqluser.database.entigo.com"
 	PostgresqlAdminUserSpecName = "test_admin"
-	PostgresqlUserName          = "test-user"
-	PostgresqlUserKind          = "postgresqluser.database.entigo.com"
 	SqlRoleKind                 = "role.postgresql.sql.m.crossplane.io"
 	PostgresqlNamespaceName     = "test-postgresql"
 )
@@ -321,9 +318,6 @@ func test15DatabaseFieldsVerified(t *testing.T, argocdNamespace string, namespac
 
 func cleanupPostgresqlResources(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
 	pgNsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
-
-	fmt.Printf("[%s] Cleanup: deleting PostgreSQL User '%s'\n", argocdNamespace, PostgresqlUserName)
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNsOptions, "delete", PostgresqlUserKind, PostgresqlUserName, "-n", PostgresqlNamespaceName, "--ignore-not-found")
 
 	fmt.Printf("[%s] Cleanup: deleting PostgreSQL Admin User '%s'\n", argocdNamespace, PostgresqlAdminUserName)
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNsOptions, "delete", PostgresqlAdminUserKind, PostgresqlAdminUserName, "-n", PostgresqlNamespaceName, "--ignore-not-found")
