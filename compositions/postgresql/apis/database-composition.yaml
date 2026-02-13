@@ -28,8 +28,7 @@ spec:
           spec:
             forProvider:
               role: "dbadmin"
-              memberOfRef:
-                name: "{{ .observed.composite.resource.spec.owner }}"
+               memberOf: "{{ .observed.composite.resource.spec.owner }}"
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
