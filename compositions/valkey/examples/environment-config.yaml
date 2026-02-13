@@ -4,9 +4,11 @@ metadata:
   name: platform-apis-database
 data:
   awsProvider: crossplane-aws
+  vpc: vpc
   dataKMSKey: data
   configKMSKey: config
   subnetGroup: database
   elasticacheSubnetGroup: elasticache
+  esClusterSecretStore: cluster-secret-store
   tags:
     foo: bar
