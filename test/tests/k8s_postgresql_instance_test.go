@@ -27,7 +27,7 @@ func runPostgresqlInstanceTests(t *testing.T, argocdNamespace string, namespaceO
 	testPostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testSecurityGroupSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testSecurityGroupRulesSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testExternalSecretSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	testExternalSecretReady(t, argocdNamespace, namespaceOptions)
 	testProviderConfigExists(t, argocdNamespace, namespaceOptions)
 	testRdsInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testRdsInstanceFieldsVerified(t, argocdNamespace, namespaceOptions)
@@ -149,8 +149,8 @@ func testSecurityGroupRulesSyncedAndReady(t *testing.T, argocdNamespace string, 
 	fmt.Printf("[%s] TEST PASSED - SecurityGroupRules (ingress + egress) are Synced and Ready\n", argocdNamespace)
 }
 
-func testExternalSecretSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] TEST: Waiting for ExternalSecret related to '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlInstanceName)
+func testExternalSecretReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] TEST: Waiting for ExternalSecret related to '%s' to be Ready\n", argocdNamespace, PostgresqlInstanceName)
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for ExternalSecret related to '%s'", argocdNamespace, PostgresqlInstanceName), 60, 10*time.Second, func() (string, error) {
 		esName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
@@ -163,13 +163,6 @@ func testExternalSecretSyncedAndReady(t *testing.T, argocdNamespace string, name
 		if !strings.HasPrefix(esName, expectedPrefix) {
 			return "", fmt.Errorf("ExternalSecret name '%s' does not start with expected prefix '%s'", esName, expectedPrefix)
 		}
-		syncStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, esName, "-o", `jsonpath={.status.conditions[?(@.type=="Synced")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if syncStatus != "True" {
-			return "", fmt.Errorf("ExternalSecret '%s' not synced yet, condition: %s", esName, syncStatus)
-		}
 		readyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, esName, "-o", `jsonpath={.status.conditions[?(@.type=="Ready")].status}`)
 		if err != nil {
 			return "", err
@@ -179,7 +172,7 @@ func testExternalSecretSyncedAndReady(t *testing.T, argocdNamespace string, name
 		}
 		return esName, nil
 	})
-	require.NoError(t, err, fmt.Sprintf("[%s] ExternalSecret for '%s' failed to become Synced and Ready", argocdNamespace, PostgresqlInstanceName))
+	require.NoError(t, err, fmt.Sprintf("[%s] ExternalSecret for '%s' failed to become Ready", argocdNamespace, PostgresqlInstanceName))
 
 	// Verify ExternalSecret target template contains the username key (non-password key)
 	esName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
@@ -189,7 +182,7 @@ func testExternalSecretSyncedAndReady(t *testing.T, argocdNamespace string, name
 	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get ExternalSecret target.template.data.username", argocdNamespace))
 	require.Equal(t, "dbadmin", username, fmt.Sprintf("[%s] ExternalSecret '%s' username mismatch", argocdNamespace, esName))
 
-	fmt.Printf("[%s] TEST PASSED - ExternalSecret '%s' is Synced and Ready, username=dbadmin\n", argocdNamespace, esName)
+	fmt.Printf("[%s] TEST PASSED - ExternalSecret '%s' is Ready, username=dbadmin\n", argocdNamespace, esName)
 }
 
 func testProviderConfigExists(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
