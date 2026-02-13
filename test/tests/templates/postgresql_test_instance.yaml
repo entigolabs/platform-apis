@@ -7,3 +7,4 @@ spec:
   allocatedStorage: 20
   engineVersion: "17.2"
   instanceType: db.t3.micro
+  deletionProtection: false
