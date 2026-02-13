@@ -23,12 +23,7 @@ spec:
           metadata:
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: role
-              crossplane.io/external-name: 
-                {{- if .observed.composite.resource.spec.name -}}
-                  {{- .observed.composite.resource.spec.name -}}
-                {{- else -}}
-                  {{- .observed.composite.resource.metadata.name -}}
-                {{- end -}}
+              crossplane.io/external-name: "{{- if .observed.composite.resource.spec.name -}}{{- .observed.composite.resource.spec.name -}}{{- else -}}{{- .observed.composite.resource.metadata.name -}}{{- end -}}"
             name: {{ .observed.composite.resource.metadata.name }}
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
