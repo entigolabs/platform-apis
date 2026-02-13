@@ -2,7 +2,7 @@ apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLDatabase
 metadata:
   name: database-test
-  namespace: test-namespace
+  namespace: test-postgresql
 spec:
   owner: test_admin
   encoding: "UTF8"
