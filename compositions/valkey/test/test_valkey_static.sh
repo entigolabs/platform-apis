@@ -1,15 +1,45 @@
 #!/bin/bash
 
 load_mocks
-init_test "valkey"
-INPUT="test-input.yaml"  # override default input
+init_test "valkey" "/workspace/functions/database"
+INPUT="test-input.yaml"
 setup_resources --env --required
 
-# Remove sequence-creation step for testing
-TEMP_COMPOSITION="temp_composition.yaml"
-cp "$COMPOSITION" "$TEMP_COMPOSITION"
-yq -i 'del(.spec.pipeline[] | select(.step == "sequence-creation"))' "$TEMP_COMPOSITION"
+echo "TEST 1: rendering step 1 resources (SecurityGroup)"
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
+assert_counts "$OUTPUT" "SecurityGroup" 1
 
-echo "TEST 1: rendering ReplicationGroup, Secret, SecretVersion, SecurityGroup resources..."
-OUTPUT=$(run_render "$INPUT" "$TEMP_COMPOSITION" "$FUNC_CONFIG")
-assert_counts "$OUTPUT" "ReplicationGroup" 1 "Secret" 1 "SecretVersion" 1 "SecurityGroup" 1
+echo "Mocking observed resources"
+echo "$OUTPUT" | mock_observed_resources | start_observed
+
+echo "TEST 2: rendering step 2 resources (ReplicationGroup)"
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
+assert_counts "$OUTPUT" "ReplicationGroup" 1
+
+echo "Mocking observed resources"
+echo "$OUTPUT" | mock_observed_resources | start_observed
+
+echo "TEST 3: rendering step 3 resources (SecurityGroupRule)"
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
+assert_counts "$OUTPUT" "SecurityGroupRule" 1
+
+echo "Mocking observed resources"
+echo "$OUTPUT" | mock_observed_resources | start_observed
+
+echo "TEST 4: rendering step 4 resources (Secret: secrets-manager-secret)"
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
+assert_counts "$OUTPUT" "Secret" 1
+
+echo "Mocking observed resources"
+echo "$OUTPUT" | mock_observed_resources | start_observed
+
+echo "TEST 5: rendering step 5 resources (SecretVersion)"
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
+assert_counts "$OUTPUT" "SecretVersion" 1
+
+echo "Mocking observed resources"
+echo "$OUTPUT" | mock_observed_resources | start_observed
+
+echo "TEST 6: Checking ValkeyInstance Readiness"
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
+assert_ready "$OUTPUT" "ValkeyInstance"
