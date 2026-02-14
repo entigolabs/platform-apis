@@ -614,7 +614,7 @@ func valkeyObservedReady(apiVersion, kind, name string) *fnv1.Resource {
 func TestValkeyInstanceFunction(t *testing.T) {
 	cases := map[string]test.Case{
 		"ValkeyInstance/Stage 1: Create SecurityGroup": {
-			Reason: "With no observed resources, SecurityGroup and SecretsManager Secret should be desired.",
+			Reason: "With no observed resources, SecurityGroup should be desired.",
 			Args: test.Args{
 				Req: &fnv1.RunFunctionRequest{
 					Observed: &fnv1.State{
@@ -628,8 +628,7 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"security-group":         {Resource: resource.MustStructJSON(valkeySGResJson)},
-							"secrets-manager-secret": {Resource: resource.MustStructJSON(valkeySMSecretResJson)},
+							"security-group": {Resource: resource.MustStructJSON(valkeySGResJson)},
 						},
 					},
 					Requirements: valkeyExpectedRequirements(),
@@ -654,9 +653,8 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"security-group":         {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
-							"replication-group":      {Resource: resource.MustStructJSON(valkeyRGResJson)},
-							"secrets-manager-secret": {Resource: resource.MustStructJSON(valkeySMSecretResJson)},
+							"security-group":    {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"replication-group": {Resource: resource.MustStructJSON(valkeyRGResJson)},
 						},
 					},
 					Requirements: valkeyExpectedRequirements(),

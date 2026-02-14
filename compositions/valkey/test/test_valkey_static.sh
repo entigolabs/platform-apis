@@ -19,7 +19,7 @@ assert_counts "$OUTPUT" "ReplicationGroup" 1
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_observed_resources | start_observed
 
-echo "TEST 3: rendering step 3 resources (Secret: secrets-manager-secret)"
+echo "TEST 3: rendering step 3 resources (Secret: secrets-manager-secret, credentials)"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 assert_counts "$OUTPUT" "Secret" 1
 

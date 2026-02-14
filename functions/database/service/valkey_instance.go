@@ -339,10 +339,12 @@ func addValkeyCredentialsSecret(objects map[string]runtime.Object, p *valkeyInst
 		"READER_ENDPOINT":  readerEndpoint,
 	})
 
+	secretName := p.Name + "-credentials"
+
 	objects["credentials"] = &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      p.Name + "-credentials",
+			Name:      secretName,
 			Namespace: p.Namespace,
 		},
 		Type: corev1.SecretTypeOpaque,
@@ -385,8 +387,8 @@ func GetValkeyStatusFromReplicationGroup(rg elasticachemv1beta1.ReplicationGroup
 	return status
 }
 
-func GetValkeySecurityGroupStatus(sg ec2mv1beta1.SecurityGroup) v1alpha1.ValkeyInstanceSecurityGroup {
-	sgStatus := v1alpha1.ValkeyInstanceSecurityGroup{}
+func GetValkeySecurityGroupStatus(sg ec2mv1beta1.SecurityGroup) *v1alpha1.ValkeyInstanceSecurityGroup {
+	sgStatus := &v1alpha1.ValkeyInstanceSecurityGroup{}
 
 	if sg.Status.AtProvider.Tags != nil {
 		if name, ok := sg.Status.AtProvider.Tags["Name"]; ok && name != nil {

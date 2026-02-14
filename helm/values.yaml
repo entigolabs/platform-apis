@@ -150,10 +150,6 @@ functions:
     install: true
     image: xpkg.upbound.io/crossplane-contrib/function-sequencer
     tag: v0.3.0
-  function-kcl:
-    install: true
-    image: xpkg.upbound.io/crossplane-contrib/function-kcl
-    tag: v0.11.6
   function-patch-and-transform:
     install: true
     image: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform

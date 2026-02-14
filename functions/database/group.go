@@ -67,8 +67,7 @@ func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
 			[]string{"security-group"},
 			[]string{"replication-group"},
 			[]string{"sg-.*"},
-			[]string{"credentials"},
-			[]string{"secrets-manager-secret"},
+			[]string{"secrets-manager-secret", "credentials"},
 			[]string{"secrets-manager-secret-version"},
 		)
 	default:
