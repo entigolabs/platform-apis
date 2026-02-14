@@ -93,9 +93,6 @@ spec:
                       type: string
                     port:
                       type: number
-                  required:
-                    - address
-                    - port
                 autoMinorVersionUpgrade:
                   type: boolean
                 kmsKeyId:
