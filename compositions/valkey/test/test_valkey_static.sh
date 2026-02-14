@@ -28,7 +28,7 @@ echo "$OUTPUT" | mock_observed_resources | start_observed
 
 echo "TEST 4: rendering step 4 resources (Secret: secrets-manager-secret, credentials)"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
-assert_counts "$OUTPUT" "Secret" 1
+assert_counts "$OUTPUT" "Secret" 2
 
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_observed_resources | start_observed

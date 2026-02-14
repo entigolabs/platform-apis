@@ -126,7 +126,7 @@ func GenerateValkeyInstanceObjects(
 	addValkeyReplicationGroup(objects, params)
 	addValkeySecurityGroup(objects, params)
 	addValkeySecurityGroupRules(objects, params)
-	addValkeySecretsManagerResources(objects, params)
+	addValkeySecretsManagerResources(objects, params, observed)
 	addValkeyCredentialsSecret(objects, params, observed)
 
 	return objects, nil
@@ -263,7 +263,7 @@ func addValkeySecurityGroupRules(objects map[string]runtime.Object, p *valkeyIns
 	}
 }
 
-func addValkeySecretsManagerResources(objects map[string]runtime.Object, p *valkeyInstanceParams) {
+func addValkeySecretsManagerResources(objects map[string]runtime.Object, p *valkeyInstanceParams, observed map[resource.Name]resource.ObservedComposed) {
 	providerConfigRef := &xpvcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: p.ProviderConfigRef}
 
 	tags := make(map[string]*string)
@@ -294,6 +294,10 @@ func addValkeySecretsManagerResources(objects map[string]runtime.Object, p *valk
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
 			ForProvider:         smSecretParams,
 		},
+	}
+
+	if _, ok := observed["credentials"]; !ok {
+		return
 	}
 
 	objects["secrets-manager-secret-version"] = &smv1beta1.SecretVersion{
