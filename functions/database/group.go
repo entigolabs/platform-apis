@@ -223,3 +223,38 @@ func getSecurityGroupStatus(observed *composed.Unstructured) (map[string]interfa
 		"securityGroup": sgStatus,
 	})
 }
+
+func (g *GroupImpl) PostProcessStatus(status map[string]interface{}, observed map[resource.Name]resource.ObservedComposed) (map[string]interface{}, error) {
+	// Aggregate SecurityGroupRules into securityGroup.rules
+	sgInterface, ok := status["securityGroup"]
+	if !ok {
+		return status, nil
+	}
+
+	sg, ok := sgInterface.(map[string]interface{})
+	if !ok {
+		return status, nil
+	}
+
+	var rules []interface{}
+	for _, observedResource := range observed {
+		res := observedResource.Resource
+		if res.GetKind() != "SecurityGroupRule" || !strings.HasPrefix(res.GetAPIVersion(), "ec2.aws.m.upbound.io") {
+			continue
+		}
+
+		var sgr ec2mv1beta1.SecurityGroupRule
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(res.Object, &sgr); err != nil {
+			continue
+		}
+
+		rule := service.GetValkeySecurityGroupRuleStatus(sgr)
+		rules = append(rules, rule)
+	}
+
+	if len(rules) > 0 {
+		sg["rules"] = rules
+	}
+
+	return status, nil
+}

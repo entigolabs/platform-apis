@@ -407,3 +407,29 @@ func GetValkeySecurityGroupStatus(sg ec2mv1beta1.SecurityGroup) *v1alpha1.Valkey
 
 	return sgStatus
 }
+
+func GetValkeySecurityGroupRuleStatus(sgr ec2mv1beta1.SecurityGroupRule) v1alpha1.ValkeyInstanceSecurityGroupRule {
+	rule := v1alpha1.ValkeyInstanceSecurityGroupRule{}
+
+	if sgr.Status.AtProvider.CidrBlocks != nil {
+		for _, cidr := range sgr.Status.AtProvider.CidrBlocks {
+			if cidr != nil {
+				rule.CidrBlocks = append(rule.CidrBlocks, *cidr)
+			}
+		}
+	}
+	base.SetString(sgr.Status.AtProvider.Description, &rule.Description)
+	base.SetString(sgr.Status.AtProvider.Protocol, &rule.Protocol)
+	base.SetString(sgr.Status.AtProvider.Type, &rule.Type)
+	if sgr.Status.AtProvider.FromPort != nil {
+		rule.FromPort = int(*sgr.Status.AtProvider.FromPort)
+	}
+	if sgr.Status.AtProvider.ToPort != nil {
+		rule.ToPort = int(*sgr.Status.AtProvider.ToPort)
+	}
+	if sgr.Status.AtProvider.Self != nil {
+		rule.Self = *sgr.Status.AtProvider.Self
+	}
+
+	return rule
+}

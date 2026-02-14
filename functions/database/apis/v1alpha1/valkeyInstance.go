@@ -58,8 +58,19 @@ type ValkeyInstanceEndpoint struct {
 }
 
 type ValkeyInstanceSecurityGroup struct {
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	ID          string `json:"id,omitempty"`
-	Arn         string `json:"arn,omitempty"`
+	Name        string                            `json:"name,omitempty"`
+	Description string                            `json:"description,omitempty"`
+	ID          string                            `json:"id,omitempty"`
+	Arn         string                            `json:"arn,omitempty"`
+	Rules       []ValkeyInstanceSecurityGroupRule `json:"rules,omitempty"`
+}
+
+type ValkeyInstanceSecurityGroupRule struct {
+	CidrBlocks  []string `json:"cidrBlocks,omitempty"`
+	Description string   `json:"description,omitempty"`
+	FromPort    int      `json:"fromPort,omitempty"`
+	ToPort      int      `json:"toPort,omitempty"`
+	Protocol    string   `json:"protocol,omitempty"`
+	Self        bool     `json:"self,omitempty"`
+	Type        string   `json:"type,omitempty"`
 }
