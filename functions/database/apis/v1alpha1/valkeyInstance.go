@@ -43,7 +43,7 @@ type ValkeyInstanceSpec struct {
 }
 
 type ValkeyInstanceStatus struct {
-	Endpoint                ValkeyInstanceEndpoint       `json:"endpoint,omitempty"`
+	Endpoint                *ValkeyInstanceEndpoint      `json:"endpoint,omitempty"`
 	AutoMinorVersionUpgrade bool                         `json:"autoMinorVersionUpgrade,omitempty"`
 	KMSKeyID                string                       `json:"kmsKeyId,omitempty"`
 	KMSKeyAlias             string                       `json:"kmsKeyAlias,omitempty"`
