@@ -12,6 +12,7 @@ import (
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
+	ec2mv1beta1 "github.com/upbound/provider-aws/apis/namespaced/ec2/v1beta1"
 	elasticachemv1beta1 "github.com/upbound/provider-aws/apis/namespaced/elasticache/v1beta1"
 	rdsmv1beta1 "github.com/upbound/provider-aws/apis/namespaced/rds/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -182,6 +183,8 @@ func (g *GroupImpl) GetObservedStatus(observed *composed.Unstructured) (map[stri
 		return getDBInstanceStatus(observed)
 	case observed.GetKind() == "ReplicationGroup" && strings.HasPrefix(observed.GetAPIVersion(), "elasticache.aws.m.upbound.io"):
 		return getReplicationGroupStatus(observed)
+	case observed.GetKind() == "SecurityGroup" && strings.HasPrefix(observed.GetAPIVersion(), "ec2.aws.m.upbound.io"):
+		return getSecurityGroupStatus(observed)
 	default:
 		return nil, nil
 	}
@@ -203,4 +206,20 @@ func getReplicationGroupStatus(observed *composed.Unstructured) (map[string]inte
 	}
 	status := service.GetValkeyStatusFromReplicationGroup(rg)
 	return runtime.DefaultUnstructuredConverter.ToUnstructured(&status)
+}
+
+func getSecurityGroupStatus(observed *composed.Unstructured) (map[string]interface{}, error) {
+	annotations := observed.GetAnnotations()
+	if annotations == nil || annotations["crossplane.io/composition-resource-name"] != "security-group" {
+		return nil, nil
+	}
+
+	var sg ec2mv1beta1.SecurityGroup
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(observed.Object, &sg); err != nil {
+		return nil, fmt.Errorf("cannot convert SecurityGroup: %w", err)
+	}
+	sgStatus := service.GetValkeySecurityGroupStatus(sg)
+	return runtime.DefaultUnstructuredConverter.ToUnstructured(&map[string]interface{}{
+		"securityGroup": sgStatus,
+	})
 }
