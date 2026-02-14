@@ -383,10 +383,12 @@ func GetValkeyStatusFromReplicationGroup(rg elasticachemv1beta1.ReplicationGroup
 	base.SetBool(rg.Status.AtProvider.MultiAzEnabled, &status.MultiAZEnabled)
 	base.SetString(rg.Status.AtProvider.ParameterGroupName, &status.ParameterGroupName)
 
-	endpoint := &v1alpha1.ValkeyInstanceEndpoint{}
-	base.SetString(rg.Status.AtProvider.PrimaryEndpointAddress, &endpoint.Address)
-	base.SetFloat64(rg.Status.AtProvider.Port, &endpoint.Port)
-	status.Endpoint = endpoint
+	if rg.Status.AtProvider.PrimaryEndpointAddress != nil && rg.Status.AtProvider.Port != nil {
+		status.Endpoint = &v1alpha1.ValkeyInstanceEndpoint{
+			Address: *rg.Status.AtProvider.PrimaryEndpointAddress,
+			Port:    *rg.Status.AtProvider.Port,
+		}
+	}
 
 	return status
 }
