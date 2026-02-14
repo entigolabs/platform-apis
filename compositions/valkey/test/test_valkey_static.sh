@@ -26,20 +26,13 @@ assert_counts "$OUTPUT" "SecurityGroupRule" 1
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_observed_resources | start_observed
 
-echo "TEST 4: rendering step 4 resources (Secret: secrets-manager-secret, credentials)"
+echo "TEST 4: rendering step 4 resources (Secret: secrets-manager-secret)"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 assert_counts "$OUTPUT" "Secret" 1
 
 echo "Mocking observed resources"
 echo "$OUTPUT" | mock_observed_resources | start_observed
 
-echo "TEST 5: rendering step 5 resources (SecretVersion)"
-OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
-assert_counts "$OUTPUT" "SecretVersion" 1
-
-echo "Mocking observed resources"
-echo "$OUTPUT" | mock_observed_resources | start_observed
-
-echo "TEST 6: Checking ValkeyInstance Readiness"
+echo "TEST 5: Checking ValkeyInstance Readiness"
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 assert_ready "$OUTPUT" "ValkeyInstance"
