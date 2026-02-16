@@ -249,7 +249,11 @@ func (g *GroupImpl) PostProcessStatus(status map[string]interface{}, observed ma
 		}
 
 		rule := service.GetValkeySecurityGroupRuleStatus(sgr)
-		rules = append(rules, rule)
+		ruleMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&rule)
+		if err != nil {
+			continue
+		}
+		rules = append(rules, ruleMap)
 	}
 
 	if len(rules) > 0 {
