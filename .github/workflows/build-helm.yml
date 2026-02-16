@@ -154,7 +154,7 @@ jobs:
 
             TAG=""
             if [ "$IS_PR" == "true" ]; then
-              # Find latest RC tag for this PR, sorted by base version and RC components (pr.run.attempt)
+              # Find latest RC tag for this PR, sorted by semantic version
               TAG=$(echo "$VERSIONS_JSON" \
                 | jq -r "[.[] | .metadata.container.tags[]? | select($JQ_FILTER_RC)] | sort_by(ltrimstr(\"v\") | split(\"-rc.\") | [(.[0] | split(\".\") | map(tonumber)), (.[1] | split(\".\") | map(tonumber))] | flatten) | .[-1] // empty" \
                 2>/dev/null || echo "")
