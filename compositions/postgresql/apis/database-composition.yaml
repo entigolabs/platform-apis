@@ -98,7 +98,7 @@ spec:
       inline:
         template: |
           ---
-          apiVersion: apiextensions.crossplane.io/v1alpha1
+          apiVersion: protection.crossplane.io/v1alpha1
           kind: Usage
           metadata:
             annotations:
