@@ -174,7 +174,7 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]runti
 		Spec: elasticachemv1beta1.ReplicationGroupSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference:          g.providerConfigRef(),
-				WriteConnectionSecretToReference: &xpvcommon.LocalSecretReference{Name: name},
+				WriteConnectionSecretToReference: &xpv2v1.LocalSecretReference{Name: name},
 			},
 			ForProvider: elasticachemv1beta1.ReplicationGroupParameters{
 				Region:                   &g.region,
@@ -318,9 +318,9 @@ func (g *valkeyInstanceGenerator) buildSecretsManagerResources(objects map[strin
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: smv1beta1.SecretVersionParameters{
 				Region:      &g.region,
-				SecretIDRef: &xpvcommon.NamespacedReference{Name: secretName},
-				SecretStringSecretRef: &xpvcommon.LocalSecretKeySelector{
-					LocalSecretReference: xpvcommon.LocalSecretReference{Name: secretName},
+				SecretIDRef: &xpv2v1.NamespacedReference{Name: secretName},
+				SecretStringSecretRef: &xpv2v1.LocalSecretKeySelector{
+					LocalSecretReference: xpv2v1.LocalSecretReference{Name: secretName},
 					Key:                  "credentials.json",
 				},
 			},
