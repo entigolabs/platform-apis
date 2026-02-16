@@ -23,6 +23,7 @@ spec:
           metadata:
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: role
+              crossplane.io/external-name: "{{- if .observed.composite.resource.spec.name -}}{{- .observed.composite.resource.spec.name -}}{{- else -}}{{- .observed.composite.resource.metadata.name -}}{{- end -}}"
             name: {{ .observed.composite.resource.metadata.name }}
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
@@ -43,9 +44,9 @@ spec:
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Grant
           metadata:
-            name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
+            name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName | replace "_" "-" }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
             annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
+              gotemplating.fn.crossplane.io/composition-resource-name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName | replace "_" "-" }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
           spec:
             forProvider:
               role: {{ $.observed.composite.resource.metadata.name }}

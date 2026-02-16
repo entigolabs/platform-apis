@@ -22,6 +22,18 @@ spec:
                 owner:
                   description: Owner role name
                   type: string
+                encoding:
+                  description: Character set encoding to use in the new database. Specify a string constant (e.g., 'SQL_ASCII'), or an integer encoding number, or DEFAULT to use the default encoding (namely, the encoding of the template database).
+                  type: string
+                lcCType:
+                  description: Character classification (LC_CTYPE) to use in the new database. This affects the categorization of characters, e.g. lower, upper and digit. The default is to use the character classification of the template database.
+                  type: string
+                lcCollate:
+                  description: Collation order (LC_COLLATE) to use in the new database. This affects the sort order applied to strings, e.g. in queries with ORDER BY, as well as the order used in indexes on text columns. The default is to use the collation order of the template database.
+                  type: string
+                dbTemplate:
+                  description: The name of the template from which to create the new database
+                  type: string
                 instanceRef:
                   type: object
                   properties:
