@@ -23,13 +23,12 @@ spec:
           metadata:
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: grant-owner-to-dbadmin
-            name: {{ .observed.composite.resource.spec.owner }}-to-dbadmin-grant
+            name: {{ .observed.composite.resource.spec.owner | replace "_" "-" }}-to-dbadmin-grant
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
             forProvider:
               role: "dbadmin"
-              memberOfRef:
-                name: "{{ .observed.composite.resource.spec.owner }}"
+              memberOf: "{{ .observed.composite.resource.spec.owner }}"
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
@@ -42,6 +41,10 @@ spec:
       source: Inline
       inline:
         template: |
+          {{- $encoding := .observed.composite.resource.spec.encoding -}}
+          {{- $lcCType := .observed.composite.resource.spec.lcCType -}}
+          {{- $lcCollate := .observed.composite.resource.spec.lcCollate -}}
+          {{- $dbTemplate := .observed.composite.resource.spec.dbTemplate -}}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Database
@@ -53,6 +56,18 @@ spec:
           spec:
             forProvider:
               owner: {{ .observed.composite.resource.spec.owner }}
+            {{- if $encoding }}
+              encoding: {{ $encoding }}
+            {{- end }}
+            {{- if $lcCType }}
+              lcCType: {{ $lcCType }}
+            {{- end }}
+            {{- if $lcCollate }}
+              lcCollate: {{ $lcCollate }}
+            {{- end }}
+            {{- if $dbTemplate }}
+              template: {{ $dbTemplate }}
+            {{- end }}
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig

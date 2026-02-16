@@ -19,6 +19,9 @@ spec:
           spec:
             type: object
             properties:
+              name:
+                type: string
+                description: Alternative, i.e. non kubernetes compliant name
               instanceRef:
                 type: object
                 properties:
