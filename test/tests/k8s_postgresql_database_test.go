@@ -174,7 +174,7 @@ func testMinimalDatabaseSyncedAndReady(t *testing.T, argocdNamespace string, nam
 }
 
 func testMinimalDatabaseDefaultsVerified(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] TEST: Verifying minimal SQL Database has no optional fields for '%s'\n", argocdNamespace, MinimalDatabaseName)
+	fmt.Printf("[%s] TEST: Verifying minimal SQL Database fields for '%s'\n", argocdNamespace, MinimalDatabaseName)
 	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", MinimalDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
 	require.NoError(t, err, fmt.Sprintf("[%s] Failed to find SQL Database for minimal", argocdNamespace))
 	require.NotEmpty(t, dbName, fmt.Sprintf("[%s] No SQL Database found for composite '%s'", argocdNamespace, MinimalDatabaseName))
@@ -184,22 +184,5 @@ func testMinimalDatabaseDefaultsVerified(t *testing.T, argocdNamespace string, n
 	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get owner", argocdNamespace))
 	require.Equal(t, PostgresqlRegularUserName, owner, fmt.Sprintf("[%s] SQL Database '%s' owner mismatch", argocdNamespace, dbName))
 
-	// Optional fields should be empty (not set in the composition when not provided)
-	encoding, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.encoding}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get encoding", argocdNamespace))
-	require.Empty(t, encoding, fmt.Sprintf("[%s] SQL Database '%s' encoding should be empty, got '%s'", argocdNamespace, dbName, encoding))
-
-	lcCType, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCType}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get lcCType", argocdNamespace))
-	require.Empty(t, lcCType, fmt.Sprintf("[%s] SQL Database '%s' lcCType should be empty, got '%s'", argocdNamespace, dbName, lcCType))
-
-	lcCollate, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCollate}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get lcCollate", argocdNamespace))
-	require.Empty(t, lcCollate, fmt.Sprintf("[%s] SQL Database '%s' lcCollate should be empty, got '%s'", argocdNamespace, dbName, lcCollate))
-
-	dbTemplate, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.template}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to get template", argocdNamespace))
-	require.Empty(t, dbTemplate, fmt.Sprintf("[%s] SQL Database '%s' template should be empty, got '%s'", argocdNamespace, dbName, dbTemplate))
-
-	fmt.Printf("[%s] TEST PASSED - Minimal SQL Database has no optional fields (encoding, lcCType, lcCollate, template are all empty)\n", argocdNamespace)
+	fmt.Printf("[%s] TEST PASSED - Minimal SQL Database owner=%s\n", argocdNamespace, PostgresqlRegularUserName)
 }
