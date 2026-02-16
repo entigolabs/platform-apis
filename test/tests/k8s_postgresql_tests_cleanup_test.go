@@ -13,39 +13,50 @@ import (
 func cleanupPostgresqlResources(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
 	pgNsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
-	// Phase 1: Delete databases (children that depend on the instance via ProviderConfig)
-	fmt.Printf("[%s] Cleanup Phase 1: Deleting databases\n", argocdNamespace)
+	// Phase 1: Delete SQL Database child MRs first, while Grants still give dbadmin owner membership.
+	// Foreground cascade on the XR may delete the Grant before the Database, causing
+	// "must be owner of database" errors. So we delete Database children explicitly first.
+	fmt.Printf("[%s] Cleanup Phase 1: Deleting SQL Database children\n", argocdNamespace)
+	cleanupDeleteChildrenByKind(t, argocdNamespace, pgNsOptions, SqlDatabaseKind, PostgresqlDatabaseName)
+	cleanupDeleteChildrenByKind(t, argocdNamespace, pgNsOptions, SqlDatabaseKind, MinimalDatabaseName)
+
+	// Phase 2: Delete PostgreSQLDatabase XRs (only Grants remain as children)
+	fmt.Printf("[%s] Cleanup Phase 2: Deleting PostgreSQLDatabase XRs\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName, 30)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 30)
 
-	// Phase 2: Delete users (children that depend on the instance via ProviderConfig)
-	fmt.Printf("[%s] Cleanup Phase 2: Deleting users\n", argocdNamespace)
+	// Phase 3: Delete users (Roles can now be dropped since databases are gone)
+	fmt.Printf("[%s] Cleanup Phase 3: Deleting users\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName, 30)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 30)
 
-	// Phase 3: Check for leftover Grants and Roles, delete if any
-	fmt.Printf("[%s] Cleanup Phase 3: Checking for leftover Grants and Roles\n", argocdNamespace)
+	// Phase 4: Check for leftover Grants and Roles, delete if any
+	fmt.Printf("[%s] Cleanup Phase 4: Checking for leftover Grants and Roles\n", argocdNamespace)
 	cleanupDeleteAllOfKind(t, argocdNamespace, pgNsOptions, SqlGrantKind, "Grants")
 	cleanupDeleteAllOfKind(t, argocdNamespace, pgNsOptions, SqlRoleKind, "Roles")
 
-	// Phase 4: Disable deletion protection on PostgreSQLInstance and wait for propagation
-	fmt.Printf("[%s] Cleanup Phase 4: Handling deletion protection\n", argocdNamespace)
+	// Phase 5: Disable deletion protection on PostgreSQLInstance and wait for propagation
+	fmt.Printf("[%s] Cleanup Phase 5: Handling deletion protection\n", argocdNamespace)
 	cleanupDisableDeletionProtection(t, argocdNamespace, pgNsOptions)
 
-	fmt.Printf("[%s] Cleanup Phase 5: Deleting PostgreSQL Instance\n", argocdNamespace)
+	// Phase 6: Delete PostgreSQLInstance, then immediately patch RDS to skip final snapshot.
+	// The skipFinalSnapshot patch must happen AFTER initiating the XR deletion, otherwise
+	// the composition function reconciles and overwrites it back to false.
+	fmt.Printf("[%s] Cleanup Phase 6: Deleting PostgreSQL Instance\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName)
+	cleanupPatchSkipFinalSnapshot(t, argocdNamespace, pgNsOptions)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 60)
 
-	// Phase 6: Verify all instance-generated resources are gone
-	fmt.Printf("[%s] Cleanup Phase 6: Verifying generated resources deleted\n", argocdNamespace)
+	// Phase 7: Verify all instance-generated resources are gone
+	fmt.Printf("[%s] Cleanup Phase 7: Verifying generated resources deleted\n", argocdNamespace)
 	cleanupWaitForGeneratedResources(t, argocdNamespace, pgNsOptions)
 
-	// Phase 7: Check namespace for leftovers, clean up, delete namespace
-	fmt.Printf("[%s] Cleanup Phase 7: Cleaning namespace\n", argocdNamespace)
+	// Phase 8: Check namespace for leftovers, clean up, delete namespace
+	fmt.Printf("[%s] Cleanup Phase 8: Cleaning namespace\n", argocdNamespace)
 	cleanupNamespace(t, argocdNamespace, pgNsOptions, clusterOptions)
 }
 
@@ -68,6 +79,22 @@ func cleanupWaitForDeletion(t *testing.T, argocdNamespace string, opts *terrak8s
 		return "deleted", nil
 	})
 	fmt.Printf("[%s] Cleanup: %s '%s' deleted\n", argocdNamespace, kind, name)
+}
+
+// cleanupDeleteChildrenByKind deletes child MRs of a specific kind owned by a composite, and waits for them to be gone.
+func cleanupDeleteChildrenByKind(t *testing.T, argocdNamespace string, opts *terrak8s.KubectlOptions, childKind string, compositeName string) {
+	output, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", childKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", compositeName), "-n", PostgresqlNamespaceName, "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
+	if err != nil || output == "" {
+		return
+	}
+	names := strings.Fields(output)
+	for _, name := range names {
+		fmt.Printf("[%s] Cleanup: deleting child %s '%s' (composite=%s)\n", argocdNamespace, childKind, name, compositeName)
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", childKind, name, "-n", PostgresqlNamespaceName, "--wait=false", "--ignore-not-found")
+	}
+	for _, name := range names {
+		cleanupWaitForDeletion(t, argocdNamespace, opts, childKind, name, 30)
+	}
 }
 
 // cleanupDeleteAllOfKind finds and deletes all resources of a given kind in the namespace.
@@ -122,6 +149,17 @@ func cleanupDisableDeletionProtection(t *testing.T, argocdNamespace string, opts
 		fmt.Printf("[%s] Cleanup: deletionProtection already disabled on PostgreSQL Instance\n", argocdNamespace)
 	}
 
+}
+
+// cleanupPatchSkipFinalSnapshot patches the RDS instance to skip final snapshot creation.
+// Must be called AFTER the PostgreSQLInstance XR deletion is initiated, so the composition
+// function no longer reconciles and overwrites this value back to false.
+func cleanupPatchSkipFinalSnapshot(t *testing.T, argocdNamespace string, opts *terrak8s.KubectlOptions) {
+	rdsName, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}", "--ignore-not-found")
+	if err == nil && rdsName != "" {
+		fmt.Printf("[%s] Cleanup: setting skipFinalSnapshot on RDS Instance '%s'\n", argocdNamespace, rdsName)
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", RdsInstanceKind, rdsName, "-n", PostgresqlNamespaceName, "--type", "merge", "-p", `{"spec":{"forProvider":{"skipFinalSnapshot":true}}}`)
+	}
 }
 
 // cleanupWaitForGeneratedResources waits for all instance-generated resources to be deleted.
