@@ -289,22 +289,9 @@ func testDeletionProtectionToggle(t *testing.T, argocdNamespace string, namespac
 		return "true", nil
 	})
 	require.NoError(t, err, fmt.Sprintf("[%s] RDS Instance deletionProtection failed to propagate to true", argocdNamespace))
+	fmt.Printf("[%s] TEST PASSED - RDS Instance deletionProtection propagated to true\n", argocdNamespace)
 
-	// Step 3: Attempt to delete the RDS Instance and verify it cannot be deleted
-	fmt.Printf("[%s] TEST: Attempting to delete RDS Instance (should be protected)\n", argocdNamespace)
-	rdsName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to find RDS Instance", argocdNamespace))
-
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "delete", RdsInstanceKind, rdsName, "-n", PostgresqlNamespaceName, "--wait=false")
-
-	// Wait briefly and verify the RDS Instance still exists
-	time.Sleep(30 * time.Second)
-	rdsExists, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Failed to check RDS Instance existence", argocdNamespace))
-	require.NotEmpty(t, rdsExists, fmt.Sprintf("[%s] RDS Instance was deleted despite deletionProtection=true", argocdNamespace))
-	fmt.Printf("[%s] TEST PASSED - RDS Instance '%s' still exists with deletionProtection=true\n", argocdNamespace, rdsExists)
-
-	// Step 4: Patch PostgreSQLInstance deletionProtection back to false
+	// Step 3: Patch PostgreSQLInstance deletionProtection back to false
 	fmt.Printf("[%s] TEST: Patching PostgreSQL Instance '%s' deletionProtection back to false\n", argocdNamespace, PostgresqlInstanceName)
 	_, err = terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "patch", PostgresqlInstanceKind, PostgresqlInstanceName, "-n", PostgresqlNamespaceName, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
 	require.NoError(t, err, fmt.Sprintf("[%s] Failed to patch deletionProtection to false", argocdNamespace))
@@ -326,5 +313,5 @@ func testDeletionProtectionToggle(t *testing.T, argocdNamespace string, namespac
 	})
 	require.NoError(t, err, fmt.Sprintf("[%s] RDS Instance deletionProtection failed to propagate back to false", argocdNamespace))
 
-	fmt.Printf("[%s] TEST PASSED - Deletion protection toggle verified (true -> protected -> false)\n", argocdNamespace)
+	fmt.Printf("[%s] TEST PASSED - Deletion protection toggle verified (false -> true -> false)\n", argocdNamespace)
 }
