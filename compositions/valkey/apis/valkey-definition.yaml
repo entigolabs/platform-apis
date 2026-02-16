@@ -133,6 +133,8 @@ spec:
                             type: string
                           self:
                             type: boolean
+                          type:
+                            type: string
 
           required:
             - spec
