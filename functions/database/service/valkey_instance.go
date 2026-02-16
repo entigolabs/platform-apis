@@ -347,12 +347,14 @@ func (g *valkeyInstanceGenerator) buildCredentialsSecret(objects map[string]runt
 		return
 	}
 
-	credJSON, _ := json.Marshal(map[string]string{
-		"AUTH_TOKEN":       authToken,
-		"PORT":             port,
-		"PRIMARY_ENDPOINT": primaryEndpoint,
-		"READER_ENDPOINT":  readerEndpoint,
-	})
+	// Format must match old KCL output exactly: spaces after colons, specific key order
+	credJSON := fmt.Sprintf(
+		`{"AUTH_TOKEN": %s, "PORT": %s, "PRIMARY_ENDPOINT": %s, "READER_ENDPOINT": %s}`,
+		mustJSONString(authToken),
+		mustJSONString(port),
+		mustJSONString(primaryEndpoint),
+		mustJSONString(readerEndpoint),
+	)
 
 	name := g.instance.GetName()
 	secretName := name + "-credentials"
@@ -369,7 +371,7 @@ func (g *valkeyInstanceGenerator) buildCredentialsSecret(objects map[string]runt
 			"PORT":             port,
 			"PRIMARY_ENDPOINT": primaryEndpoint,
 			"READER_ENDPOINT":  readerEndpoint,
-			"credentials.json": string(credJSON),
+			"credentials.json": credJSON,
 		},
 	}
 }
@@ -444,4 +446,9 @@ func GetValkeySecurityGroupRuleStatus(sgr ec2mv1beta1.SecurityGroupRule) v1alpha
 	}
 
 	return rule
+}
+
+func mustJSONString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }

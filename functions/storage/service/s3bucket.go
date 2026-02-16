@@ -466,13 +466,14 @@ func (g *s3BucketGenerator) buildCredentialsSecret(objects map[string]runtime.Ob
 		return
 	}
 
-	credJSON, _ := json.Marshal(map[string]string{
-		"AWS_ACCESS_KEY_ID":     accessKeyID,
-		"AWS_SECRET_ACCESS_KEY": secretAccessKey,
-		"BUCKET_REGION":         bucketRegion,
-		"BUCKET_ARN":            bucketArn,
-		"BUCKET_NAME":           bucketNameVal,
-	})
+	credJSON := fmt.Sprintf(
+		`{"AWS_ACCESS_KEY_ID": %s, "AWS_SECRET_ACCESS_KEY": %s, "BUCKET_REGION": %s, "BUCKET_ARN": %s, "BUCKET_NAME": %s}`,
+		mustJSONString(accessKeyID),
+		mustJSONString(secretAccessKey),
+		mustJSONString(bucketRegion),
+		mustJSONString(bucketArn),
+		mustJSONString(bucketNameVal),
+	)
 
 	objects["credentials"] = &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -490,7 +491,7 @@ func (g *s3BucketGenerator) buildCredentialsSecret(objects map[string]runtime.Ob
 			"BUCKET_REGION":         bucketRegion,
 			"BUCKET_ARN":            bucketArn,
 			"BUCKET_NAME":           bucketNameVal,
-			"credentials.json":      string(credJSON),
+			"credentials.json":      credJSON,
 		},
 	}
 }
@@ -555,5 +556,10 @@ func (g *s3BucketGenerator) buildAssumeRolePolicy() string {
 		},
 	}
 	b, _ := json.Marshal(doc)
+	return string(b)
+}
+
+func mustJSONString(s string) string {
+	b, _ := json.Marshal(s)
 	return string(b)
 }
