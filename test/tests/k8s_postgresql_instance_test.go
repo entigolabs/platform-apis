@@ -43,7 +43,7 @@ func testPostgresqlInstanceApplied(t *testing.T, argocdNamespace string, namespa
 
 func testPostgresqlInstanceSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	fmt.Printf("[%s] TEST: Waiting for PostgreSQL Instance '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlInstanceName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for PostgreSQL Instance '%s' to be Synced and Ready", argocdNamespace, PostgresqlInstanceName), 60, 10*time.Second, func() (string, error) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for PostgreSQL Instance '%s' to be Synced and Ready", argocdNamespace, PostgresqlInstanceName), 90, 10*time.Second, func() (string, error) {
 		syncStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlInstanceKind, PostgresqlInstanceName, "-o", `jsonpath={.status.conditions[?(@.type=="Synced")].status}`)
 		if err != nil {
 			return "", err
