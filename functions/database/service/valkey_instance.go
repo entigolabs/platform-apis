@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -10,6 +11,7 @@ import (
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
+	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	ec2mv1beta1 "github.com/upbound/provider-aws/apis/namespaced/ec2/v1beta1"
 	elasticachemv1beta1 "github.com/upbound/provider-aws/apis/namespaced/elasticache/v1beta1"
@@ -30,20 +32,23 @@ const (
 	secretsmanagerApiVersion = "secretsmanager.aws.m.upbound.io/v1beta1"
 )
 
-type valkeyInstanceParams struct {
-	Name              string
-	Namespace         string
-	ProviderConfigRef string
-	Region            string
-	VPCID             string
-	VPCName           string
-	VPCNamespace      string
-	SubnetGroupName   string
-	KMSDataKeyArn     string
-	KMSConfigKeyArn   string
-	Tags              map[string]*string
-	Spec              v1alpha1.ValkeyInstanceSpec
-	ComputeSubnets    []*ec2mv1beta1.Subnet
+type valkeyInstanceGenerator struct {
+	// Inputs
+	instance v1alpha1.ValkeyInstance
+	observed map[resource.Name]resource.ObservedComposed
+	env      apis.Environment
+	// Dependencies
+	vpc                    ec2mv1beta1.VPC
+	elasticacheSubnetGroup elasticachemv1beta1.SubnetGroup
+	kmsDataKey             kmsmv1beta1.Key
+	kmsConfigKey           kmsmv1beta1.Key
+	computeSubnets         []*ec2mv1beta1.Subnet
+	// Derived values
+	region          string
+	vpcID           string
+	subnetGroupName string
+	kmsDataKeyArn   string
+	kmsConfigKeyArn string
 }
 
 func GenerateValkeyInstanceObjects(
@@ -51,6 +56,18 @@ func GenerateValkeyInstanceObjects(
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
 ) (map[string]runtime.Object, error) {
+	g, err := newValkeyInstanceGenerator(instance, required, observed)
+	if err != nil {
+		return nil, err
+	}
+	return g.generate()
+}
+
+func newValkeyInstanceGenerator(
+	instance v1alpha1.ValkeyInstance,
+	required map[string][]resource.Required,
+	observed map[resource.Name]resource.ObservedComposed,
+) (*valkeyInstanceGenerator, error) {
 	env, err := GetEnvironment(required)
 	if err != nil {
 		return nil, err
@@ -81,87 +98,91 @@ func GenerateValkeyInstanceObjects(
 		return nil, err
 	}
 
-	region := ""
-	if vpc.Spec.ForProvider.Region != nil {
-		region = *vpc.Spec.ForProvider.Region
+	g := &valkeyInstanceGenerator{
+		instance:               instance,
+		observed:               observed,
+		env:                    env,
+		vpc:                    vpc,
+		elasticacheSubnetGroup: elasticacheSubnetGroup,
+		kmsDataKey:             kmsDataKey,
+		kmsConfigKey:           kmsConfigKey,
+		computeSubnets:         computeSubnets,
 	}
 
-	vpcID := ""
-	if vpc.Status.AtProvider.ID != nil {
-		vpcID = *vpc.Status.AtProvider.ID
+	g.computeDerivedValues()
+	return g, nil
+}
+
+func (g *valkeyInstanceGenerator) computeDerivedValues() {
+	if g.vpc.Spec.ForProvider.Region != nil {
+		g.region = *g.vpc.Spec.ForProvider.Region
 	}
 
-	subnetGroupName := ""
-	if elasticacheSubnetGroup.Status.AtProvider.ID != nil {
-		subnetGroupName = *elasticacheSubnetGroup.Status.AtProvider.ID
+	if g.vpc.Status.AtProvider.ID != nil {
+		g.vpcID = *g.vpc.Status.AtProvider.ID
 	}
 
-	kmsDataKeyArn := ""
-	if kmsDataKey.Status.AtProvider.Arn != nil {
-		kmsDataKeyArn = *kmsDataKey.Status.AtProvider.Arn
+	if g.elasticacheSubnetGroup.Status.AtProvider.ID != nil {
+		g.subnetGroupName = *g.elasticacheSubnetGroup.Status.AtProvider.ID
 	}
 
-	kmsConfigKeyArn := ""
-	if kmsConfigKey.Status.AtProvider.Arn != nil {
-		kmsConfigKeyArn = *kmsConfigKey.Status.AtProvider.Arn
+	if g.kmsDataKey.Status.AtProvider.Arn != nil {
+		g.kmsDataKeyArn = *g.kmsDataKey.Status.AtProvider.Arn
 	}
 
-	params := &valkeyInstanceParams{
-		Name:              instance.GetName(),
-		Namespace:         instance.GetNamespace(),
-		ProviderConfigRef: env.AWSProvider,
-		Region:            region,
-		VPCID:             vpcID,
-		VPCName:           vpc.Name,
-		VPCNamespace:      vpc.Namespace,
-		SubnetGroupName:   subnetGroupName,
-		KMSDataKeyArn:     kmsDataKeyArn,
-		KMSConfigKeyArn:   kmsConfigKeyArn,
-		Tags:              env.Tags,
-		Spec:              instance.Spec,
-		ComputeSubnets:    computeSubnets,
+	if g.kmsConfigKey.Status.AtProvider.Arn != nil {
+		g.kmsConfigKeyArn = *g.kmsConfigKey.Status.AtProvider.Arn
 	}
+}
 
+func (g *valkeyInstanceGenerator) generate() (map[string]runtime.Object, error) {
 	objects := make(map[string]runtime.Object)
-	addValkeyReplicationGroup(objects, params)
-	addValkeySecurityGroup(objects, params)
-	addValkeySecurityGroupRules(objects, params)
-	addValkeySecretsManagerResources(objects, params, observed)
-	addValkeyCredentialsSecret(objects, params, observed)
+
+	g.buildReplicationGroup(objects)
+	g.buildSecurityGroup(objects)
+	g.buildSecurityGroupRules(objects)
+	g.buildSecretsManagerResources(objects)
+	g.buildCredentialsSecret(objects)
 
 	return objects, nil
 }
 
-func addValkeyReplicationGroup(objects map[string]runtime.Object, p *valkeyInstanceParams) {
-	providerConfigRef := &xpvcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: p.ProviderConfigRef}
+func (g *valkeyInstanceGenerator) providerConfigRef() *xpvcommon.ProviderConfigReference {
+	return &xpvcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: g.env.AWSProvider}
+}
 
+func (g *valkeyInstanceGenerator) buildTags() map[string]*string {
 	tags := make(map[string]*string)
-	for k, v := range p.Tags {
-		tags[k] = v
-	}
-	tags["Name"] = base.StringPtr(p.Name)
+	maps.Copy(tags, g.env.Tags)
+	tags["Name"] = base.StringPtr(g.instance.GetName())
+	return tags
+}
+
+func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]runtime.Object) {
+	name := g.instance.GetName()
+	tags := g.buildTags()
 
 	atRestEncryption := "true"
-	autoMinorVersionUpgrade := fmt.Sprintf("%t", p.Spec.AutoMinorVersionUpgrade)
+	autoMinorVersionUpgrade := fmt.Sprintf("%t", g.instance.Spec.AutoMinorVersionUpgrade)
 	engine := "valkey"
 	authTokenUpdateStrategy := "SET"
-	finalSnapshotIdentifier := p.Name + "-final-snapshot"
+	finalSnapshotIdentifier := name + "-final-snapshot"
 
 	rg := &elasticachemv1beta1.ReplicationGroup{
 		TypeMeta:   metav1.TypeMeta{APIVersion: elasticacheApiVersion, Kind: "ReplicationGroup"},
-		ObjectMeta: metav1.ObjectMeta{Name: p.Name},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Spec: elasticachemv1beta1.ReplicationGroupSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
-				ProviderConfigReference:          providerConfigRef,
-				WriteConnectionSecretToReference: &xpvcommon.LocalSecretReference{Name: p.Name},
+				ProviderConfigReference:          g.providerConfigRef(),
+				WriteConnectionSecretToReference: &xpvcommon.LocalSecretReference{Name: name},
 			},
 			ForProvider: elasticachemv1beta1.ReplicationGroupParameters{
-				Region:                   &p.Region,
+				Region:                   &g.region,
 				Engine:                   &engine,
-				Description:              &p.Name,
-				EngineVersion:            &p.Spec.EngineVersion,
-				NodeType:                 &p.Spec.InstanceType,
-				NumCacheClusters:         &p.Spec.NumCacheClusters,
+				Description:              &name,
+				EngineVersion:            &g.instance.Spec.EngineVersion,
+				NodeType:                 &g.instance.Spec.InstanceType,
+				NumCacheClusters:         &g.instance.Spec.NumCacheClusters,
 				AutomaticFailoverEnabled: base.BoolPtr(true),
 				MultiAzEnabled:           base.BoolPtr(true),
 				ApplyImmediately:         base.BoolPtr(true),
@@ -169,63 +190,58 @@ func addValkeyReplicationGroup(objects map[string]runtime.Object, p *valkeyInsta
 				AtRestEncryptionEnabled:  &atRestEncryption,
 				TransitEncryptionEnabled: base.BoolPtr(true),
 				AuthTokenSecretRef: &xpv2v1.LocalSecretKeySelector{
-					LocalSecretReference: xpv2v1.LocalSecretReference{Name: p.Name + "-auth-token"},
+					LocalSecretReference: xpv2v1.LocalSecretReference{Name: name + "-auth-token"},
 					Key:                  "auth-token",
 				},
 				AutoGenerateAuthToken:   base.BoolPtr(true),
 				AuthTokenUpdateStrategy: &authTokenUpdateStrategy,
-				KMSKeyID:                &p.KMSDataKeyArn,
+				KMSKeyID:                &g.kmsDataKeyArn,
 				FinalSnapshotIdentifier: &finalSnapshotIdentifier,
-				MaintenanceWindow:       &p.Spec.MaintenanceWindow,
-				SnapshotWindow:          &p.Spec.SnapshotWindow,
-				SnapshotRetentionLimit:  &p.Spec.SnapshotRetentionLimit,
-				SubnetGroupName:         &p.SubnetGroupName,
+				MaintenanceWindow:       &g.instance.Spec.MaintenanceWindow,
+				SnapshotWindow:          &g.instance.Spec.SnapshotWindow,
+				SnapshotRetentionLimit:  &g.instance.Spec.SnapshotRetentionLimit,
+				SubnetGroupName:         &g.subnetGroupName,
 				SecurityGroupIDRefs: []xpv2v1.NamespacedReference{
-					{Name: p.Name},
+					{Name: name},
 				},
 				Tags: tags,
 			},
 		},
 	}
 
-	if p.Spec.ParameterGroupName != "" {
-		rg.Spec.ForProvider.ParameterGroupName = &p.Spec.ParameterGroupName
+	if g.instance.Spec.ParameterGroupName != "" {
+		rg.Spec.ForProvider.ParameterGroupName = &g.instance.Spec.ParameterGroupName
 	}
 
 	objects["replication-group"] = rg
 }
 
-func addValkeySecurityGroup(objects map[string]runtime.Object, p *valkeyInstanceParams) {
-	providerConfigRef := &xpvcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: p.ProviderConfigRef}
-	description := fmt.Sprintf("Security group for Valkey %s", p.Name)
-
-	tags := make(map[string]*string)
-	for k, v := range p.Tags {
-		tags[k] = v
-	}
-	tags["Name"] = base.StringPtr(p.Name)
+func (g *valkeyInstanceGenerator) buildSecurityGroup(objects map[string]runtime.Object) {
+	name := g.instance.GetName()
+	description := fmt.Sprintf("Security group for Valkey %s", name)
+	tags := g.buildTags()
 
 	objects["security-group"] = &ec2mv1beta1.SecurityGroup{
 		TypeMeta:   metav1.TypeMeta{APIVersion: ec2ApiVersion, Kind: "SecurityGroup"},
-		ObjectMeta: metav1.ObjectMeta{Name: p.Name},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Spec: ec2mv1beta1.SecurityGroupSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
-				ProviderConfigReference: providerConfigRef,
+				ProviderConfigReference: g.providerConfigRef(),
 			},
 			ForProvider: ec2mv1beta1.SecurityGroupParameters_2{
-				Region:      &p.Region,
+				Region:      &g.region,
 				Description: &description,
-				VPCIDRef:    &xpv2v1.NamespacedReference{Name: p.VPCName, Namespace: p.VPCNamespace},
+				VPCIDRef:    &xpv2v1.NamespacedReference{Name: g.vpc.Name, Namespace: g.vpc.Namespace},
 				Tags:        tags,
 			},
 		},
 	}
 }
 
-func addValkeySecurityGroupRules(objects map[string]runtime.Object, p *valkeyInstanceParams) {
-	providerConfigRef := &xpvcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: p.ProviderConfigRef}
+func (g *valkeyInstanceGenerator) buildSecurityGroupRules(objects map[string]runtime.Object) {
+	name := g.instance.GetName()
 
-	for _, subnet := range p.ComputeSubnets {
+	for _, subnet := range g.computeSubnets {
 		cidrBlock := ""
 		if subnet.Status.AtProvider.CidrBlock != nil {
 			cidrBlock = *subnet.Status.AtProvider.CidrBlock
@@ -235,7 +251,7 @@ func addValkeySecurityGroupRules(objects map[string]runtime.Object, p *valkeyIns
 		}
 
 		subnetName := subnet.GetName()
-		ruleName := fmt.Sprintf("%s-ingress-%s", p.Name, subnetName)
+		ruleName := fmt.Sprintf("%s-ingress-%s", name, subnetName)
 		ingressType := "ingress"
 		protocol := "tcp"
 		port := float64(6379)
@@ -246,12 +262,12 @@ func addValkeySecurityGroupRules(objects map[string]runtime.Object, p *valkeyIns
 			ObjectMeta: metav1.ObjectMeta{Name: ruleName},
 			Spec: ec2mv1beta1.SecurityGroupRuleSpec{
 				ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
-					ProviderConfigReference: providerConfigRef,
+					ProviderConfigReference: g.providerConfigRef(),
 				},
 				ForProvider: ec2mv1beta1.SecurityGroupRuleParameters_2{
-					Region:             &p.Region,
+					Region:             &g.region,
 					Type:               &ingressType,
-					SecurityGroupIDRef: &xpv2v1.NamespacedReference{Name: p.Name},
+					SecurityGroupIDRef: &xpv2v1.NamespacedReference{Name: name},
 					Protocol:           &protocol,
 					FromPort:           &port,
 					ToPort:             &port,
@@ -263,40 +279,35 @@ func addValkeySecurityGroupRules(objects map[string]runtime.Object, p *valkeyIns
 	}
 }
 
-func addValkeySecretsManagerResources(objects map[string]runtime.Object, p *valkeyInstanceParams, observed map[resource.Name]resource.ObservedComposed) {
-	providerConfigRef := &xpvcommon.ProviderConfigReference{Kind: "ClusterProviderConfig", Name: p.ProviderConfigRef}
+func (g *valkeyInstanceGenerator) buildSecretsManagerResources(objects map[string]runtime.Object) {
+	name := g.instance.GetName()
+	tags := g.buildTags()
 
-	tags := make(map[string]*string)
-	for k, v := range p.Tags {
-		tags[k] = v
-	}
-	tags["Name"] = base.StringPtr(p.Name)
-
-	secretName := p.Name + "-credentials"
-	description := fmt.Sprintf("Valkey connection credentials for %s", p.Name)
+	secretName := name + "-credentials"
+	description := fmt.Sprintf("Valkey connection credentials for %s", name)
 	recoveryWindow := float64(0)
 
 	smSecretParams := smv1beta1.SecretParameters{
 		Name:                 &secretName,
-		Region:               &p.Region,
+		Region:               &g.region,
 		RecoveryWindowInDays: &recoveryWindow,
 		Description:          &description,
 		Tags:                 tags,
 	}
-	if p.KMSConfigKeyArn != "" {
-		smSecretParams.KMSKeyID = &p.KMSConfigKeyArn
+	if g.kmsConfigKeyArn != "" {
+		smSecretParams.KMSKeyID = &g.kmsConfigKeyArn
 	}
 
 	objects["secrets-manager-secret"] = &smv1beta1.Secret{
 		TypeMeta:   metav1.TypeMeta{APIVersion: secretsmanagerApiVersion, Kind: "Secret"},
 		ObjectMeta: metav1.ObjectMeta{Name: secretName},
 		Spec: smv1beta1.SecretSpec{
-			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider:         smSecretParams,
 		},
 	}
 
-	if _, ok := observed["credentials"]; !ok {
+	if _, ok := g.observed["credentials"]; !ok {
 		return
 	}
 
@@ -304,9 +315,9 @@ func addValkeySecretsManagerResources(objects map[string]runtime.Object, p *valk
 		TypeMeta:   metav1.TypeMeta{APIVersion: secretsmanagerApiVersion, Kind: "SecretVersion"},
 		ObjectMeta: metav1.ObjectMeta{Name: secretName},
 		Spec: smv1beta1.SecretVersionSpec{
-			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: providerConfigRef},
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: smv1beta1.SecretVersionParameters{
-				Region:      &p.Region,
+				Region:      &g.region,
 				SecretIDRef: &xpvcommon.NamespacedReference{Name: secretName},
 				SecretStringSecretRef: &xpvcommon.LocalSecretKeySelector{
 					LocalSecretReference: xpvcommon.LocalSecretReference{Name: secretName},
@@ -317,8 +328,8 @@ func addValkeySecretsManagerResources(objects map[string]runtime.Object, p *valk
 	}
 }
 
-func addValkeyCredentialsSecret(objects map[string]runtime.Object, p *valkeyInstanceParams, observed map[resource.Name]resource.ObservedComposed) {
-	rgObserved, ok := observed["replication-group"]
+func (g *valkeyInstanceGenerator) buildCredentialsSecret(objects map[string]runtime.Object) {
+	rgObserved, ok := g.observed["replication-group"]
 	if !ok {
 		return
 	}
@@ -343,13 +354,14 @@ func addValkeyCredentialsSecret(objects map[string]runtime.Object, p *valkeyInst
 		"READER_ENDPOINT":  readerEndpoint,
 	})
 
-	secretName := p.Name + "-credentials"
+	name := g.instance.GetName()
+	secretName := name + "-credentials"
 
 	objects["credentials"] = &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
-			Namespace: p.Namespace,
+			Namespace: g.instance.GetNamespace(),
 		},
 		Type: corev1.SecretTypeOpaque,
 		StringData: map[string]string{
