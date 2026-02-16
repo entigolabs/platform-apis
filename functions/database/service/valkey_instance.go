@@ -347,7 +347,6 @@ func (g *valkeyInstanceGenerator) buildCredentialsSecret(objects map[string]runt
 		return
 	}
 
-	// Format must match old KCL output exactly: spaces after colons, specific key order
 	credJSON := fmt.Sprintf(
 		`{"AUTH_TOKEN": %s, "PORT": %s, "PRIMARY_ENDPOINT": %s, "READER_ENDPOINT": %s}`,
 		mustJSONString(authToken),
