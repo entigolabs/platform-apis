@@ -96,12 +96,6 @@ jobs:
 
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
 
-          {
-            echo 'output<<EOF'
-            cat test-output.txt
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-
           exit $EXIT_CODE
         continue-on-error: true
 
@@ -110,7 +104,7 @@ jobs:
           VERSION: ${{ inputs.helm_version }}
           BRANCH: ${{ steps.branch.outputs.name }}
           EXIT_CODE: ${{ steps.tests.outputs.exit_code }}
-          OUTPUT: ${{ steps.tests.outputs.output }}
+        working-directory: infralib/${{ env.INFRALIB_MODULE_PATH }}
         run: |
           {
             echo "## Platform APIs E2E Test Results"
@@ -128,7 +122,7 @@ jobs:
             echo "<summary>Test Output</summary>"
             echo ""
             echo '```'
-            echo "$OUTPUT"
+            cat test-output.txt
             echo '```'
             echo "</details>"
           } >> $GITHUB_STEP_SUMMARY
@@ -140,10 +134,11 @@ jobs:
           VERSION: ${{ inputs.helm_version }}
           BRANCH: ${{ steps.branch.outputs.name }}
           EXIT_CODE: ${{ steps.tests.outputs.exit_code }}
-          OUTPUT: ${{ steps.tests.outputs.output }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('infralib/${{ env.INFRALIB_MODULE_PATH }}/test-output.txt', 'utf8');
             const status = process.env.EXIT_CODE === '0' ? 'Passed' : 'Failed';
             const body = `## Platform APIs E2E Test Results
 
@@ -155,7 +150,7 @@ jobs:
             <summary>Test Output</summary>
 
             \`\`\`
-            ${process.env.OUTPUT}
+            ${output}
             \`\`\`
             </details>
             `;
