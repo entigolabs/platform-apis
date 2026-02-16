@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
+	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
@@ -206,7 +207,7 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]runtime.Obje
 		Spec: s3v1beta1.BucketSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference:          g.providerConfigRef(),
-				WriteConnectionSecretToReference: &xpvcommon.LocalSecretReference{Name: g.bucketName + "-bucket"},
+				WriteConnectionSecretToReference: &xpv2v1.LocalSecretReference{Name: g.bucketName + "-bucket"},
 			},
 			ForProvider: s3v1beta1.BucketParameters{
 				Region: &g.region,
@@ -222,7 +223,7 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]runtime.Obje
 		Spec: s3v1beta1.BucketPublicAccessBlockSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: s3v1beta1.BucketPublicAccessBlockParameters{
-				BucketRef:             &xpvcommon.NamespacedReference{Name: g.bucketName},
+				BucketRef:             &xpv2v1.NamespacedReference{Name: g.bucketName},
 				BlockPublicAcls:       base.BoolPtr(true),
 				BlockPublicPolicy:     base.BoolPtr(true),
 				IgnorePublicAcls:      base.BoolPtr(true),
@@ -245,7 +246,7 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]runtime.Obje
 		Spec: s3v1beta1.BucketServerSideEncryptionConfigurationSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: s3v1beta1.BucketServerSideEncryptionConfigurationParameters{
-				BucketRef: &xpvcommon.NamespacedReference{Name: g.bucketName},
+				BucketRef: &xpv2v1.NamespacedReference{Name: g.bucketName},
 				Region:    &g.region,
 				Rule: []s3v1beta1.BucketServerSideEncryptionConfigurationRuleParameters{
 					{
@@ -268,7 +269,7 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]runtime.Obje
 		Spec: s3v1beta1.BucketVersioningSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: s3v1beta1.BucketVersioningParameters{
-				BucketRef: &xpvcommon.NamespacedReference{Name: g.bucketName},
+				BucketRef: &xpv2v1.NamespacedReference{Name: g.bucketName},
 				Region:    &g.region,
 				VersioningConfiguration: &s3v1beta1.VersioningConfigurationParameters{
 					Status: &versioningStatus,
@@ -284,7 +285,7 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]runtime.Obje
 		Spec: s3v1beta1.BucketOwnershipControlsSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: s3v1beta1.BucketOwnershipControlsParameters{
-				BucketRef: &xpvcommon.NamespacedReference{Name: g.bucketName},
+				BucketRef: &xpv2v1.NamespacedReference{Name: g.bucketName},
 				Region:    &g.region,
 				Rule: &s3v1beta1.BucketOwnershipControlsRuleParameters{
 					ObjectOwnership: base.StringPtr("BucketOwnerEnforced"),
@@ -330,8 +331,8 @@ func (g *s3BucketGenerator) buildIAMResources(objects map[string]runtime.Object)
 		Spec: iamv1beta1.UserPolicyAttachmentSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: iamv1beta1.UserPolicyAttachmentParameters{
-				PolicyArnRef: &xpvcommon.NamespacedReference{Name: g.bucketName},
-				UserRef:      &xpvcommon.NamespacedReference{Name: g.bucketName},
+				PolicyArnRef: &xpv2v1.NamespacedReference{Name: g.bucketName},
+				UserRef:      &xpv2v1.NamespacedReference{Name: g.bucketName},
 			},
 		},
 	}
@@ -343,10 +344,10 @@ func (g *s3BucketGenerator) buildIAMResources(objects map[string]runtime.Object)
 		Spec: iamv1beta1.AccessKeySpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference:          g.providerConfigRef(),
-				WriteConnectionSecretToReference: &xpvcommon.LocalSecretReference{Name: g.bucketName + "-access-key"},
+				WriteConnectionSecretToReference: &xpv2v1.LocalSecretReference{Name: g.bucketName + "-access-key"},
 			},
 			ForProvider: iamv1beta1.AccessKeyParameters{
-				UserRef: &xpvcommon.NamespacedReference{Name: g.bucketName},
+				UserRef: &xpv2v1.NamespacedReference{Name: g.bucketName},
 			},
 		},
 	}
@@ -374,7 +375,7 @@ func (g *s3BucketGenerator) buildIAMResources(objects map[string]runtime.Object)
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: iamv1beta1.RolePolicyAttachmentParameters{
 				PolicyArn: &policyArn,
-				RoleRef:   &xpvcommon.NamespacedReference{Name: g.bucketName},
+				RoleRef:   &xpv2v1.NamespacedReference{Name: g.bucketName},
 			},
 		},
 	}
@@ -417,9 +418,9 @@ func (g *s3BucketGenerator) buildSecretsManagerResources(objects map[string]runt
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{ProviderConfigReference: g.providerConfigRef()},
 			ForProvider: smv1beta1.SecretVersionParameters{
 				Region:      &g.region,
-				SecretIDRef: &xpvcommon.NamespacedReference{Name: secretName},
-				SecretStringSecretRef: &xpvcommon.LocalSecretKeySelector{
-					LocalSecretReference: xpvcommon.LocalSecretReference{Name: secretName},
+				SecretIDRef: &xpv2v1.NamespacedReference{Name: secretName},
+				SecretStringSecretRef: &xpv2v1.LocalSecretKeySelector{
+					LocalSecretReference: xpv2v1.LocalSecretReference{Name: secretName},
 					Key:                  "credentials.json",
 				},
 			},
