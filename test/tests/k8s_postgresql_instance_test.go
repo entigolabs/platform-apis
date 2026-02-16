@@ -25,8 +25,8 @@ const (
 func runPostgresqlInstanceTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	testPostgresqlInstanceApplied(t, argocdNamespace, namespaceOptions)
 	testPostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testSecurityGroupSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testSecurityGroupRulesSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	testSecurityGroupSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testExternalSecretReady(t, argocdNamespace, namespaceOptions)
 	testProviderConfigExists(t, argocdNamespace, namespaceOptions)
 	testRdsInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)

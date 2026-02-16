@@ -35,7 +35,6 @@ func cleanupPostgresqlResources(t *testing.T, argocdNamespace string, clusterOpt
 	// Phase 4: Disable deletion protection on PostgreSQLInstance and wait for propagation
 	fmt.Printf("[%s] Cleanup Phase 4: Handling deletion protection\n", argocdNamespace)
 	cleanupDisableDeletionProtection(t, argocdNamespace, pgNsOptions)
-	cleanupPatchSkipFinalSnapshot(t, argocdNamespace, pgNsOptions)
 
 	fmt.Printf("[%s] Cleanup Phase 5: Deleting PostgreSQL Instance\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName)
@@ -123,15 +122,6 @@ func cleanupDisableDeletionProtection(t *testing.T, argocdNamespace string, opts
 		fmt.Printf("[%s] Cleanup: deletionProtection already disabled on PostgreSQL Instance\n", argocdNamespace)
 	}
 
-}
-
-// cleanupPatchSkipFinalSnapshot patches the RDS instance to skip final snapshot creation.
-func cleanupPatchSkipFinalSnapshot(t *testing.T, argocdNamespace string, opts *terrak8s.KubectlOptions) {
-	rdsName, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}", "--ignore-not-found")
-	if err == nil && rdsName != "" {
-		fmt.Printf("[%s] Cleanup: setting skipFinalSnapshot on RDS Instance '%s'\n", argocdNamespace, rdsName)
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", RdsInstanceKind, rdsName, "-n", PostgresqlNamespaceName, "--type", "merge", "-p", `{"spec":{"forProvider":{"skipFinalSnapshot":true}}}`)
-	}
 }
 
 // cleanupWaitForGeneratedResources waits for all instance-generated resources to be deleted.
