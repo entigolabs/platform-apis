@@ -27,8 +27,9 @@ func cleanupPostgresqlResources(t *testing.T, argocdNamespace string, clusterOpt
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 30)
 
-	// Phase 3: Check for leftover Grants and Roles, delete if any
-	fmt.Printf("[%s] Cleanup Phase 3: Checking for leftover Grants and Roles\n", argocdNamespace)
+	// Phase 3: Check for leftover Grants, Roles, and Usages, delete if any
+	fmt.Printf("[%s] Cleanup Phase 3: Checking for leftover Grants, Roles, and Usages\n", argocdNamespace)
+	cleanupDeleteAllOfKind(t, argocdNamespace, pgNsOptions, UsageKind, "Usages")
 	cleanupDeleteAllOfKind(t, argocdNamespace, pgNsOptions, SqlGrantKind, "Grants")
 	cleanupDeleteAllOfKind(t, argocdNamespace, pgNsOptions, SqlRoleKind, "Roles")
 
