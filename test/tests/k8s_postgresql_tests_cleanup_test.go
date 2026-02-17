@@ -13,14 +13,8 @@ import (
 func cleanupPostgresqlResources(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
 	pgNsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
-	// Phase 1: Reassign database ownership to dbadmin, then delete.
-	// PostgreSQL only allows the owner to DROP a database. The composition creates a Grant
-	// giving dbadmin membership in the owner role, but foreground cascade may delete the
-	// Grant before the Database child, causing "must be owner" errors.
-	// Changing the owner to dbadmin ensures the DROP succeeds regardless of deletion order.
-	fmt.Printf("[%s] Cleanup Phase 1: Reassigning database ownership and deleting\n", argocdNamespace)
-	cleanupReassignDatabaseOwner(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseName)
-	cleanupReassignDatabaseOwner(t, argocdNamespace, pgNsOptions, MinimalDatabaseName)
+	// Phase 1: Delete databases (Usage resources ensure Grant is not deleted before Database)
+	fmt.Printf("[%s] Cleanup Phase 1: Deleting databases\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName, 30)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName)
@@ -75,29 +69,6 @@ func cleanupWaitForDeletion(t *testing.T, argocdNamespace string, opts *terrak8s
 		return "deleted", nil
 	})
 	fmt.Printf("[%s] Cleanup: %s '%s' deleted\n", argocdNamespace, kind, name)
-}
-
-// cleanupReassignDatabaseOwner patches the PostgreSQLDatabase XR owner to dbadmin and waits
-// for the change to propagate to the SQL Database child resource.
-func cleanupReassignDatabaseOwner(t *testing.T, argocdNamespace string, opts *terrak8s.KubectlOptions, name string) {
-	exists, _ := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", PostgresqlDatabaseKind, name, "-n", PostgresqlNamespaceName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
-	if exists == "" {
-		return
-	}
-	fmt.Printf("[%s] Cleanup: reassigning database '%s' owner to dbadmin\n", argocdNamespace, name)
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", PostgresqlDatabaseKind, name, "-n", PostgresqlNamespaceName, "--type", "merge", "-p", `{"spec":{"owner":"dbadmin"}}`)
-
-	// Wait for owner change to propagate to the SQL Database child
-	_, _ = retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for database '%s' owner=dbadmin", argocdNamespace, name), 15, 10*time.Second, func() (string, error) {
-		owner, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", name), "-o", "jsonpath={.items[0].spec.forProvider.owner}", "--ignore-not-found")
-		if err != nil {
-			return "", err
-		}
-		if owner != "dbadmin" {
-			return "", fmt.Errorf("database '%s' owner is '%s', waiting for 'dbadmin'", name, owner)
-		}
-		return "propagated", nil
-	})
 }
 
 // cleanupDeleteAllOfKind finds and deletes all resources of a given kind in the namespace.
