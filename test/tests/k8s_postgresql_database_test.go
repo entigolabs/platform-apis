@@ -15,9 +15,13 @@ const (
 	PostgresqlDatabaseKind = "postgresqldatabase.database.entigo.com"
 	SqlDatabaseKind        = "database.postgresql.sql.m.crossplane.io"
 	SqlRoleKind            = "role.postgresql.sql.m.crossplane.io"
+	UsageKind              = "usage.protection.crossplane.io"
 	MinimalDatabaseName    = "database-minimal-test"
 	// Grant name from composition: {owner | replace "_" "-"}-to-dbadmin-grant
 	DatabaseGrantExpectedName = "test-admin-to-dbadmin-grant"
+	// Usage name from composition: {metadata.name}-grant-usage
+	DatabaseUsageExpectedName        = PostgresqlDatabaseName + "-grant-usage"
+	MinimalDatabaseUsageExpectedName = MinimalDatabaseName + "-grant-usage"
 )
 
 func runPostgresqlDatabaseTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
@@ -27,9 +31,12 @@ func runPostgresqlDatabaseTests(t *testing.T, argocdNamespace string, namespaceO
 	testDatabaseGrantOwnerToDbadmin(t, argocdNamespace, namespaceOptions)
 	testDatabaseOwnerFieldVerified(t, argocdNamespace, namespaceOptions)
 	testDatabaseFieldsVerified(t, argocdNamespace, namespaceOptions)
+	testDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
 	testMinimalDatabaseApplied(t, argocdNamespace, namespaceOptions)
 	testMinimalDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testMinimalDatabaseDefaultsVerified(t, argocdNamespace, namespaceOptions)
+	testMinimalDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
+	testDatabaseUsagePreventsGrantDeletion(t, argocdNamespace, namespaceOptions)
 }
 
 func testDatabaseApplied(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
@@ -185,4 +192,92 @@ func testMinimalDatabaseDefaultsVerified(t *testing.T, argocdNamespace string, n
 	require.Equal(t, PostgresqlRegularUserName, owner, fmt.Sprintf("[%s] SQL Database '%s' owner mismatch", argocdNamespace, dbName))
 
 	fmt.Printf("[%s] TEST PASSED - Minimal SQL Database owner=%s\n", argocdNamespace, PostgresqlRegularUserName)
+}
+
+func testDatabaseUsageVerified(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] TEST: Verifying Usage '%s' protects Grant from premature deletion\n", argocdNamespace, DatabaseUsageExpectedName)
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for Usage '%s'", argocdNamespace, DatabaseUsageExpectedName), 30, 10*time.Second, func() (string, error) {
+		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.metadata.name}")
+		if err != nil {
+			return "", err
+		}
+		if name == "" {
+			return "", fmt.Errorf("Usage '%s' not found", DatabaseUsageExpectedName)
+		}
+		return name, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("[%s] Usage '%s' not found", argocdNamespace, DatabaseUsageExpectedName))
+
+	// Verify spec.of references the Grant
+	ofKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.of.kind}")
+	require.NoError(t, err)
+	require.Equal(t, "Grant", ofKind)
+
+	ofName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.of.resourceRef.name}")
+	require.NoError(t, err)
+	require.Equal(t, DatabaseGrantExpectedName, ofName)
+
+	// Verify spec.by references the Database
+	byKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.by.kind}")
+	require.NoError(t, err)
+	require.Equal(t, "Database", byKind)
+
+	byName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.by.resourceRef.name}")
+	require.NoError(t, err)
+	require.Equal(t, PostgresqlDatabaseName, byName)
+
+	// Verify replayDeletion is enabled
+	replayDeletion, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.replayDeletion}")
+	require.NoError(t, err)
+	require.Equal(t, "true", replayDeletion)
+
+	fmt.Printf("[%s] TEST PASSED - Usage '%s' verified (of=Grant/%s, by=Database/%s, replayDeletion=true)\n", argocdNamespace, DatabaseUsageExpectedName, DatabaseGrantExpectedName, PostgresqlDatabaseName)
+}
+
+func testMinimalDatabaseUsageVerified(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] TEST: Verifying Usage '%s' for minimal database\n", argocdNamespace, MinimalDatabaseUsageExpectedName)
+
+	// Minimal database owner is "test-user", so grant name is "test-user-to-dbadmin-grant"
+	expectedGrantName := "test-user-to-dbadmin-grant"
+
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for Usage '%s'", argocdNamespace, MinimalDatabaseUsageExpectedName), 30, 10*time.Second, func() (string, error) {
+		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, MinimalDatabaseUsageExpectedName, "-o", "jsonpath={.metadata.name}")
+		if err != nil {
+			return "", err
+		}
+		if name == "" {
+			return "", fmt.Errorf("Usage '%s' not found", MinimalDatabaseUsageExpectedName)
+		}
+		return name, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("[%s] Usage '%s' not found", argocdNamespace, MinimalDatabaseUsageExpectedName))
+
+	ofName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, MinimalDatabaseUsageExpectedName, "-o", "jsonpath={.spec.of.resourceRef.name}")
+	require.NoError(t, err)
+	require.Equal(t, expectedGrantName, ofName)
+
+	byName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, MinimalDatabaseUsageExpectedName, "-o", "jsonpath={.spec.by.resourceRef.name}")
+	require.NoError(t, err)
+	require.Equal(t, MinimalDatabaseName, byName)
+
+	fmt.Printf("[%s] TEST PASSED - Minimal database Usage '%s' verified (of=Grant/%s, by=Database/%s)\n", argocdNamespace, MinimalDatabaseUsageExpectedName, expectedGrantName, MinimalDatabaseName)
+}
+
+// testDatabaseUsagePreventsGrantDeletion verifies that the Usage resource blocks
+// deletion of the Grant while the Database still exists.
+func testDatabaseUsagePreventsGrantDeletion(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] TEST: Verifying Usage prevents Grant '%s' from being deleted while Database exists\n", argocdNamespace, DatabaseGrantExpectedName)
+
+	// Attempt to delete the Grant directly - Usage should block this
+	output, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "delete", SqlGrantKind, DatabaseGrantExpectedName, "--wait=false")
+	fmt.Printf("[%s] Delete attempt output: %s (err: %v)\n", argocdNamespace, output, err)
+
+	// Wait briefly and verify the Grant still exists (protected by Usage)
+	time.Sleep(10 * time.Second)
+
+	grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to check Grant existence", argocdNamespace))
+	require.Equal(t, DatabaseGrantExpectedName, grantName, fmt.Sprintf("[%s] Grant '%s' was deleted despite Usage protection", argocdNamespace, DatabaseGrantExpectedName))
+
+	fmt.Printf("[%s] TEST PASSED - Usage prevented deletion of Grant '%s' while Database exists\n", argocdNamespace, DatabaseGrantExpectedName)
 }

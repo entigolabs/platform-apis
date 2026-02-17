@@ -3,6 +3,7 @@ kind: CompositeResourceDefinition
 metadata:
   name: postgresqldatabases.database.entigo.com
 spec:
+  defaultCompositeDeletePolicy: Foreground
   scope: Namespaced
   group: database.entigo.com
   names:

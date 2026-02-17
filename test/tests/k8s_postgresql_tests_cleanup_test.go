@@ -13,39 +13,41 @@ import (
 func cleanupPostgresqlResources(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
 	pgNsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
-	// Phase 1: Delete databases (children that depend on the instance via ProviderConfig)
+	// Phase 1: Delete databases (Usage resources ensure Grant is not deleted before Database)
 	fmt.Printf("[%s] Cleanup Phase 1: Deleting databases\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName)
-	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName, 30)
+	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 30)
 
-	// Phase 2: Delete users (children that depend on the instance via ProviderConfig)
+	// Phase 2: Delete users (Roles can now be dropped since databases are gone)
 	fmt.Printf("[%s] Cleanup Phase 2: Deleting users\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName)
-	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName, 30)
+	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 30)
 
-	// Phase 3: Check for leftover Grants and Roles, delete if any
-	fmt.Printf("[%s] Cleanup Phase 3: Checking for leftover Grants and Roles\n", argocdNamespace)
+	// Phase 3: Check for leftover Grants, Roles, and Usages, delete if any
+	fmt.Printf("[%s] Cleanup Phase 3: Checking for leftover Grants, Roles, and Usages\n", argocdNamespace)
+	cleanupDeleteAllOfKind(t, argocdNamespace, pgNsOptions, UsageKind, "Usages")
 	cleanupDeleteAllOfKind(t, argocdNamespace, pgNsOptions, SqlGrantKind, "Grants")
 	cleanupDeleteAllOfKind(t, argocdNamespace, pgNsOptions, SqlRoleKind, "Roles")
 
-	// Phase 4: Disable deletion protection on PostgreSQLInstance and wait for propagation
-	fmt.Printf("[%s] Cleanup Phase 4: Handling deletion protection\n", argocdNamespace)
+	// Phase 5: Disable deletion protection on PostgreSQLInstance and wait for propagation
+	fmt.Printf("[%s] Cleanup Phase 5: Handling deletion protection\n", argocdNamespace)
 	cleanupDisableDeletionProtection(t, argocdNamespace, pgNsOptions)
 
-	fmt.Printf("[%s] Cleanup Phase 5: Deleting PostgreSQL Instance\n", argocdNamespace)
+	// Phase 6: Delete PostgreSQLInstance, then immediately patch RDS to skip final snapshot.
+	fmt.Printf("[%s] Cleanup Phase 6: Deleting PostgreSQL Instance\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 60)
 
-	// Phase 6: Verify all instance-generated resources are gone
-	fmt.Printf("[%s] Cleanup Phase 6: Verifying generated resources deleted\n", argocdNamespace)
+	// Phase 7: Verify all instance-generated resources are gone
+	fmt.Printf("[%s] Cleanup Phase 7: Verifying generated resources deleted\n", argocdNamespace)
 	cleanupWaitForGeneratedResources(t, argocdNamespace, pgNsOptions)
 
-	// Phase 7: Check namespace for leftovers, clean up, delete namespace
-	fmt.Printf("[%s] Cleanup Phase 7: Cleaning namespace\n", argocdNamespace)
+	// Phase 8: Check namespace for leftovers, clean up, delete namespace
+	fmt.Printf("[%s] Cleanup Phase 8: Cleaning namespace\n", argocdNamespace)
 	cleanupNamespace(t, argocdNamespace, pgNsOptions, clusterOptions)
 }
 

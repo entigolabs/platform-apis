@@ -54,6 +54,26 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ $.observed.composite.resource.spec.instanceRef.name }}-providerconfig
+          ---
+          apiVersion: protection.crossplane.io/v1beta1
+          kind: Usage
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: usage-grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName | replace "_" "-" }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
+            name: usage-grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName | replace "_" "-" }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
+            namespace: {{ $.observed.composite.resource.metadata.namespace }}
+          spec:
+            replayDeletion: true
+            of:
+              apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+              kind: Role
+              resourceRef:
+                name: {{ $.observed.composite.resource.metadata.name }}
+            by:
+              apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+              kind: Grant
+              resourceRef:
+                name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName | replace "_" "-" }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
             {{ end }}
           {{ end }}
 
