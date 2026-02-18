@@ -24,8 +24,6 @@ const (
 
 func runPostgresqlInstanceTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	testPostgresqlInstanceApplied(t, argocdNamespace, namespaceOptions)
-	testPostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
-
 	// Parallel composed resource check
 	t.Run("sub-resources", func(t *testing.T) {
 		t.Run("security-group-rules", func(t *testing.T) {
@@ -53,7 +51,7 @@ func runPostgresqlInstanceTests(t *testing.T, argocdNamespace string, namespaceO
 	if t.Failed() {
 		return
 	}
-
+	testPostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testRdsInstanceFieldsVerified(t, argocdNamespace, namespaceOptions)
 	testDeletionProtectionToggle(t, argocdNamespace, namespaceOptions)
 }
