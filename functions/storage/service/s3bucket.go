@@ -93,7 +93,9 @@ func newS3BucketGenerator(
 	}
 
 	var ns corev1.Namespace
-	_ = base.ExtractRequiredResource(required, NamespaceKey, &ns)
+	if err := base.ExtractRequiredResource(required, NamespaceKey, &ns); err != nil {
+		log.Printf("Namespace not found, tenancy zone label will not be set: %v", err)
+	}
 
 	g := &s3BucketGenerator{
 		bucket:       bucket,
