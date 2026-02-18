@@ -154,6 +154,9 @@ func GenerateZoneObjects(
 func GetUniqueNamespaces(zone v1alpha1.Zone, namespaces []*corev1.Namespace) []string {
 	uqNs := base.NewSet[string]()
 	for _, ns := range namespaces {
+		if ns.DeletionTimestamp != nil {
+			continue
+		}
 		uqNs.Add(ns.Name)
 	}
 	for _, ns := range zone.Spec.Namespaces {
