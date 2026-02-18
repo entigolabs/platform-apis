@@ -29,8 +29,13 @@ const (
 func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	// Phase 1: Admin user
 	testAdminUserApplied(t, argocdNamespace, namespaceOptions)
-	testAdminUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testAdminRoleSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	runParallel(t, "admin-user-and-role",
+		check("user-synced-ready", testAdminUserSyncedAndReady, argocdNamespace, namespaceOptions),
+		check("role-synced-ready", testAdminRoleSyncedAndReady, argocdNamespace, namespaceOptions),
+	)
+	if t.Failed() {
+		return
+	}
 	testAdminRoleExternalNameVerified(t, argocdNamespace, namespaceOptions)
 
 	// Phase 2: Regular user and database in parallel
@@ -38,22 +43,36 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, nam
 		t.Run("regular-user", func(t *testing.T) {
 			t.Parallel()
 			testRegularUserApplied(t, argocdNamespace, namespaceOptions)
-			testRegularUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
-			testRegularUserGrantVerified(t, argocdNamespace, namespaceOptions)
-			testRegularUserUsageVerified(t, argocdNamespace, namespaceOptions)
+
+			runParallel(t, "ready-checks",
+				check("user-synced-ready", testRegularUserSyncedAndReady, argocdNamespace, namespaceOptions),
+				check("grant", testRegularUserGrantVerified, argocdNamespace, namespaceOptions),
+				check("usage", testRegularUserUsageVerified, argocdNamespace, namespaceOptions),
+				check("connection-secret", testRegularUserConnectionSecretCreated, argocdNamespace, namespaceOptions),
+			)
+			if t.Failed() {
+				return
+			}
+			// Sequential: checks without retry that need resources to exist
 			testUserUsagePreventsRoleDeletion(t, argocdNamespace, namespaceOptions)
 			testRegularUserExternalNameFallback(t, argocdNamespace, namespaceOptions)
 			testRegularUserPrivilegesVerified(t, argocdNamespace, namespaceOptions)
-			testRegularUserConnectionSecretCreated(t, argocdNamespace, namespaceOptions)
 		})
 		t.Run("database", func(t *testing.T) {
 			t.Parallel()
 			testDatabaseApplied(t, argocdNamespace, namespaceOptions)
-			testDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
-			testDatabaseGrantOwnerToDbadmin(t, argocdNamespace, namespaceOptions)
+
+			runParallel(t, "ready-checks",
+				check("db-synced-ready", testDatabaseSyncedAndReady, argocdNamespace, namespaceOptions),
+				check("grant", testDatabaseGrantOwnerToDbadmin, argocdNamespace, namespaceOptions),
+				check("usage", testDatabaseUsageVerified, argocdNamespace, namespaceOptions),
+			)
+			if t.Failed() {
+				return
+			}
+			// Sequential: checks without retry that need SQL Database to exist
 			testDatabaseOwnerFieldVerified(t, argocdNamespace, namespaceOptions)
 			testDatabaseFieldsVerified(t, argocdNamespace, namespaceOptions)
-			testDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
 		})
 	})
 
@@ -63,9 +82,20 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, nam
 
 	// Phase 3: Minimal database (depends on regular user being ready as owner)
 	testMinimalDatabaseApplied(t, argocdNamespace, namespaceOptions)
-	testMinimalDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	t.Run("minimal-db-ready-checks", func(t *testing.T) {
+		t.Run("db-synced-ready", func(t *testing.T) {
+			t.Parallel()
+			testMinimalDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
+		})
+		t.Run("usage", func(t *testing.T) {
+			t.Parallel()
+			testMinimalDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
+		})
+	})
+	if t.Failed() {
+		return
+	}
 	testMinimalDatabaseDefaultsVerified(t, argocdNamespace, namespaceOptions)
-	testMinimalDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
 	testDatabaseUsagePreventsGrantDeletion(t, argocdNamespace, namespaceOptions)
 }
 

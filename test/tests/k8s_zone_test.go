@@ -36,16 +36,10 @@ func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *
 
 	// Configuration and function checks in parallel
 	setupStart := time.Now()
-	t.Run("setup", func(t *testing.T) {
-		t.Run("configuration", func(t *testing.T) {
-			t.Parallel()
-			test0PlatformApisZoneConfigurationDeployed(t, argocdNamespace, clusterOptions)
-		})
-		t.Run("function", func(t *testing.T) {
-			t.Parallel()
-			testPlatformApisTenancyFunctionDeployed(t, argocdNamespace, clusterOptions)
-		})
-	})
+	runParallel(t, "setup",
+		check("configuration", test0PlatformApisZoneConfigurationDeployed, argocdNamespace, clusterOptions),
+		check("function", testPlatformApisTenancyFunctionDeployed, argocdNamespace, clusterOptions),
+	)
 	fmt.Printf("[%s] TIMING: Zone setup (configuration + function) took %s\n", argocdNamespace, time.Since(setupStart))
 	if t.Failed() {
 		return
