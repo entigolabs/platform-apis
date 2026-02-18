@@ -17,7 +17,9 @@ const (
 	PostgresqlRegularUserName   = "test-user"
 	SqlGrantKind                = "grant.postgresql.sql.m.crossplane.io"
 	// Grant name from composition: grant-{metadata.name}-{roleName | replace "_" "-"}-{instanceRef.name}
-	RegularUserExpectedGrantName  = "grant-" + PostgresqlRegularUserName + "-test-admin-" + PostgresqlInstanceName
+	RegularUserExpectedGrantName = "grant-" + PostgresqlRegularUserName + "-test-admin-" + PostgresqlInstanceName
+	// Usage name from composition: usage-grant-{metadata.name}-{roleName | replace "_" "-"}-{instanceRef.name}
+	RegularUserExpectedUsageName  = "usage-" + RegularUserExpectedGrantName
 	RegularUserExpectedSecretName = PostgresqlInstanceName + "-" + PostgresqlRegularUserName
 )
 
@@ -30,6 +32,8 @@ func runPostgresqlUserTests(t *testing.T, argocdNamespace string, namespaceOptio
 	testRegularUserApplied(t, argocdNamespace, namespaceOptions)
 	testRegularUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testRegularUserGrantVerified(t, argocdNamespace, namespaceOptions)
+	testRegularUserUsageVerified(t, argocdNamespace, namespaceOptions)
+	testUserUsagePreventsRoleDeletion(t, argocdNamespace, namespaceOptions)
 	testRegularUserExternalNameFallback(t, argocdNamespace, namespaceOptions)
 	testRegularUserPrivilegesVerified(t, argocdNamespace, namespaceOptions)
 	testRegularUserConnectionSecretCreated(t, argocdNamespace, namespaceOptions)
@@ -234,4 +238,68 @@ func testRegularUserConnectionSecretCreated(t *testing.T, argocdNamespace string
 	})
 	require.NoError(t, err, fmt.Sprintf("[%s] Connection secret '%s' not found", argocdNamespace, RegularUserExpectedSecretName))
 	fmt.Printf("[%s] TEST PASSED - Connection secret '%s' exists\n", argocdNamespace, RegularUserExpectedSecretName)
+}
+
+func testRegularUserUsageVerified(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] TEST: Verifying Usage '%s' protects Role from premature deletion\n", argocdNamespace, RegularUserExpectedUsageName)
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for Usage '%s'", argocdNamespace, RegularUserExpectedUsageName), 30, 10*time.Second, func() (string, error) {
+		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.metadata.name}")
+		if err != nil {
+			return "", err
+		}
+		if name == "" {
+			return "", fmt.Errorf("Usage '%s' not found", RegularUserExpectedUsageName)
+		}
+		return name, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("[%s] Usage '%s' not found", argocdNamespace, RegularUserExpectedUsageName))
+
+	// Verify spec.of references the Role
+	ofKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.of.kind}")
+	require.NoError(t, err)
+	require.Equal(t, "Role", ofKind)
+
+	ofName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.of.resourceRef.name}")
+	require.NoError(t, err)
+	require.Equal(t, PostgresqlRegularUserName, ofName)
+
+	// Verify spec.by references the Grant
+	byKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.by.kind}")
+	require.NoError(t, err)
+	require.Equal(t, "Grant", byKind)
+
+	byName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.by.resourceRef.name}")
+	require.NoError(t, err)
+	require.Equal(t, RegularUserExpectedGrantName, byName)
+
+	// Verify replayDeletion is enabled
+	replayDeletion, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.replayDeletion}")
+	require.NoError(t, err)
+	require.Equal(t, "true", replayDeletion)
+
+	fmt.Printf("[%s] TEST PASSED - Usage '%s' verified (of=Role/%s, by=Grant/%s, replayDeletion=true)\n", argocdNamespace, RegularUserExpectedUsageName, PostgresqlRegularUserName, RegularUserExpectedGrantName)
+}
+
+// testUserUsagePreventsRoleDeletion verifies that the Usage resource blocks
+// deletion of the Role while the Grant still exists.
+func testUserUsagePreventsRoleDeletion(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	// Find the Role resource name for the regular user
+	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlRegularUserName), "-o", "jsonpath={.items[0].metadata.name}")
+	require.NoError(t, err)
+	require.NotEmpty(t, roleName)
+
+	fmt.Printf("[%s] TEST: Verifying Usage prevents Role '%s' from being deleted while Grant exists\n", argocdNamespace, roleName)
+
+	// Attempt to delete the Role directly - Usage should block this
+	output, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "delete", SqlRoleKind, roleName, "--wait=false")
+	fmt.Printf("[%s] Delete attempt output: %s (err: %v)\n", argocdNamespace, output, err)
+
+	// Wait briefly and verify the Role still exists (protected by Usage)
+	time.Sleep(10 * time.Second)
+
+	existingRole, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+	require.NoError(t, err, fmt.Sprintf("[%s] Failed to check Role existence", argocdNamespace))
+	require.Equal(t, roleName, existingRole, fmt.Sprintf("[%s] Role '%s' was deleted despite Usage protection", argocdNamespace, roleName))
+
+	fmt.Printf("[%s] TEST PASSED - Usage prevented deletion of Role '%s' while Grant exists\n", argocdNamespace, roleName)
 }

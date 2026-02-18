@@ -5,6 +5,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.18.0
   name: pginstances.database.entigo.com
 spec:
+  defaultCompositeDeletePolicy: Foreground
   group: database.entigo.com
   scope: Namespaced
   names:
