@@ -1,6 +1,6 @@
 module github.com/entigolabs/platform-apis
 
-go 1.24.9
+go 1.25.7
 
 // This is from upbound/provider-aws, to avoid dependency error
 replace github.com/hashicorp/terraform-provider-aws => github.com/upbound/terraform-provider-aws v0.0.0-20250919132046-4b6f0a4eae76
