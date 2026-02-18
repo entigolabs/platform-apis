@@ -24,18 +24,18 @@ const (
 
 func runPostgresqlInstanceTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	testPostgresqlInstanceApplied(t, argocdNamespace, namespaceOptions)
-	t.Run("instance-and-sub-resources", func(t *testing.T) {
-		testPostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	t.Run("sub-resources-ready", func(t *testing.T) {
+		t.Parallel()
 		testSecurityGroupRulesSyncedAndReady(t, argocdNamespace, namespaceOptions)
 		testSecurityGroupSyncedAndReady(t, argocdNamespace, namespaceOptions)
 		testExternalSecretReady(t, argocdNamespace, namespaceOptions)
 		testProviderConfigExists(t, argocdNamespace, namespaceOptions)
 		testRdsInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	})
-
 	if t.Failed() {
 		return
 	}
+	testPostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testRdsInstanceFieldsVerified(t, argocdNamespace, namespaceOptions)
 	testDeletionProtectionToggle(t, argocdNamespace, namespaceOptions)
 }

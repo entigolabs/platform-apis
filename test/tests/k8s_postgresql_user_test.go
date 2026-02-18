@@ -47,6 +47,7 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, nam
 			testRegularUserApplied(t, argocdNamespace, namespaceOptions)
 
 			t.Run("resources-ready", func(t *testing.T) {
+				t.Parallel()
 				testRegularUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
 				testRegularUserGrantVerified(t, argocdNamespace, namespaceOptions)
 				testRegularUserUsageVerified(t, argocdNamespace, namespaceOptions)
@@ -66,6 +67,7 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, nam
 			testDatabaseApplied(t, argocdNamespace, namespaceOptions)
 
 			t.Run("resources-ready", func(t *testing.T) {
+				t.Parallel()
 				testDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
 				testDatabaseGrantOwnerToDbadmin(t, argocdNamespace, namespaceOptions)
 				testDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
