@@ -1,0 +1,76 @@
+name: Prepare Infralib Test Branch
+
+on:
+  workflow_call:
+    inputs:
+      helm_version:
+        description: "Helm chart version to use"
+        required: true
+        type: string
+    outputs:
+      branch_name:
+        description: "The name of the created branch"
+        value: ${{ jobs.prepare.outputs.branch_name }}
+
+env:
+  CHART_NAME: platform-apis
+  INFRALIB_REPO: entigolabs/entigo-infralib
+  INFRALIB_MODULE_PATH: modules/k8s/platform-apis
+
+jobs:
+  prepare:
+    name: Create Branch
+    runs-on: ubuntu-latest
+    outputs:
+      branch_name: ${{ steps.branch.outputs.name }}
+    steps:
+      - name: Checkout platform-apis (Source)
+        uses: actions/checkout@v4
+        with:
+          path: platform-apis
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Checkout entigo-infralib (Target)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.INFRALIB_REPO }}
+          token: ${{ secrets.INFRALIB_PAT }}
+          path: infralib
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and Push Branch
+        id: branch
+        working-directory: infralib
+        env:
+          VERSION: ${{ inputs.helm_version }}
+        run: |
+          BRANCH_NAME="${CHART_NAME}-${VERSION}"
+          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH_NAME"
+
+          # Update Chart.yaml versions
+          CHART_FILE="${{ env.INFRALIB_MODULE_PATH }}/Chart.yaml"
+          yq -i ".version = \"${VERSION}\"" "$CHART_FILE"
+          yq -i ".appVersion = \"${VERSION}\"" "$CHART_FILE"
+          yq -i "(.dependencies[] | select(.name == \"platform-apis\")).version = \"${VERSION}\"" "$CHART_FILE"
+
+          # Update dependencies
+          helm dependency update ${{ env.INFRALIB_MODULE_PATH }}
+
+          # Copy Test Files from platform-apis to infralib
+          cp ../platform-apis/test/tests/*.go ${{ env.INFRALIB_MODULE_PATH }}/test/
+          cp ../platform-apis/test/tests/config/*.yaml ${{ env.INFRALIB_MODULE_PATH }}/test/
+          mkdir -p ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
+          cp ../platform-apis/test/tests/templates/* ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
+
+          git add .
+          git commit -m "Update ${CHART_NAME} to ${VERSION} for testing"
+          git push --force origin "$BRANCH_NAME"

@@ -89,19 +89,29 @@ jobs:
       release_type: stable
     secrets: inherit
 
-  infralib-tests:
-    name: Infralib Tests
+  prepare-infralib-branch:
+    name: Prepare Infralib Branch
     needs: build-helm
     if: always() && needs.build-helm.result == 'success'
+    uses: ./.github/workflows/prepare-infralib-branch.yml
+    with:
+      helm_version: ${{ needs.build-helm.outputs.version }}
+    secrets: inherit
+
+  run-infralib-tests:
+    name: Run Infralib Tests
+    needs: [ build-helm, prepare-infralib-branch ]
+    if: always() && needs.prepare-infralib-branch.result == 'success'
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
+      branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
       helm_version: ${{ needs.build-helm.outputs.version }}
     secrets: inherit
 
   create-infralib-pr:
     name: Create Infralib PR
-    needs: [build-helm, infralib-tests]
-    if: always() && needs.infralib-tests.result == 'success'
+    needs: [build-helm, run-infralib-tests]
+    if: always() && needs.run-infralib-tests.result == 'success'
     runs-on: ubuntu-latest
     env:
       INFRALIB_REPO: entigolabs/entigo-infralib
