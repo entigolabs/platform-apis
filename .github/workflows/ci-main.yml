@@ -45,30 +45,31 @@ jobs:
 
   build-functions:
     name: Build Functions
-    needs: [detect-changes, test-functions, test-compositions]
-    if: |
-      always() &&
-      needs.detect-changes.outputs.has_function_changes == 'true' &&
-      needs.test-functions.result == 'success' &&
-      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.has_function_changes == 'true'
     uses: ./.github/workflows/build-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
-      release_type: stable
+      release_type: rc
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
   build-compositions:
     name: Build Compositions
-    needs: [detect-changes, test-functions, test-compositions]
+    needs: [detect-changes, test-compositions]
     if: |
       always() &&
       needs.detect-changes.outputs.has_composition_changes == 'true' &&
-      needs.test-compositions.result == 'success' &&
-      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped')
+      needs.test-compositions.result == 'success'
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
-      release_type: stable
+      release_type: rc
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
   build-helm:
@@ -86,7 +87,10 @@ jobs:
       )
     uses: ./.github/workflows/build-helm.yml
     with:
-      release_type: stable
+      release_type: rc
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
   prepare-infralib-branch:

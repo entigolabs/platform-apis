@@ -44,12 +44,8 @@ jobs:
 
   build-functions:
     name: Build Functions
-    needs: [detect-changes]
-    if: |
-      always() &&
-      needs.detect-changes.outputs.has_function_changes == 'true' &&
-      needs.test-functions.result == 'success' &&
-      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.has_function_changes == 'true'
     uses: ./.github/workflows/build-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
@@ -65,8 +61,7 @@ jobs:
     if: |
       always() &&
       needs.detect-changes.outputs.has_composition_changes == 'true' &&
-      needs.test-compositions.result == 'success' &&
-      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped')
+      needs.test-compositions.result == 'success'
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
