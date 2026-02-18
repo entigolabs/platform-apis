@@ -35,10 +35,12 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 
 	// Configuration and function checks in parallel
 	setupStart := time.Now()
-	runParallel(t, "setup",
-		check("configuration", testPlatformApisPostgresqlConfigurationDeployed, argocdNamespace, clusterOptions),
-		check("function", testPlatformApisDatabaseFunctionDeployed, argocdNamespace, clusterOptions),
-	)
+	t.Run("setup", func(t *testing.T) {
+		t.Parallel()
+		testPlatformApisPostgresqlConfigurationDeployed(t, argocdNamespace, clusterOptions)
+		testPlatformApisDatabaseFunctionDeployed(t, argocdNamespace, clusterOptions)
+	})
+
 	fmt.Printf("[%s] TIMING: PostgreSQL setup (configuration + function) took %s\n", argocdNamespace, time.Since(setupStart))
 	if t.Failed() {
 		return

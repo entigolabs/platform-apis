@@ -29,10 +29,12 @@ const (
 func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	// Phase 1: Admin user
 	testAdminUserApplied(t, argocdNamespace, namespaceOptions)
-	runParallel(t, "admin-user-and-role",
-		check("user-synced-ready", testAdminUserSyncedAndReady, argocdNamespace, namespaceOptions),
-		check("role-synced-ready", testAdminRoleSyncedAndReady, argocdNamespace, namespaceOptions),
-	)
+
+	t.Run("resources-ready", func(t *testing.T) {
+		testAdminUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
+		testAdminRoleSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	})
+
 	if t.Failed() {
 		return
 	}
@@ -44,16 +46,17 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, nam
 			t.Parallel()
 			testRegularUserApplied(t, argocdNamespace, namespaceOptions)
 
-			runParallel(t, "ready-checks",
-				check("user-synced-ready", testRegularUserSyncedAndReady, argocdNamespace, namespaceOptions),
-				check("grant", testRegularUserGrantVerified, argocdNamespace, namespaceOptions),
-				check("usage", testRegularUserUsageVerified, argocdNamespace, namespaceOptions),
-				check("connection-secret", testRegularUserConnectionSecretCreated, argocdNamespace, namespaceOptions),
-			)
+			t.Run("resources-ready", func(t *testing.T) {
+				testRegularUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
+				testRegularUserGrantVerified(t, argocdNamespace, namespaceOptions)
+				testRegularUserUsageVerified(t, argocdNamespace, namespaceOptions)
+				testRegularUserConnectionSecretCreated(t, argocdNamespace, namespaceOptions)
+			})
+
 			if t.Failed() {
 				return
 			}
-			// Sequential: checks without retry that need resources to exist
+
 			testUserUsagePreventsRoleDeletion(t, argocdNamespace, namespaceOptions)
 			testRegularUserExternalNameFallback(t, argocdNamespace, namespaceOptions)
 			testRegularUserPrivilegesVerified(t, argocdNamespace, namespaceOptions)
@@ -62,11 +65,12 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, nam
 			t.Parallel()
 			testDatabaseApplied(t, argocdNamespace, namespaceOptions)
 
-			runParallel(t, "ready-checks",
-				check("db-synced-ready", testDatabaseSyncedAndReady, argocdNamespace, namespaceOptions),
-				check("grant", testDatabaseGrantOwnerToDbadmin, argocdNamespace, namespaceOptions),
-				check("usage", testDatabaseUsageVerified, argocdNamespace, namespaceOptions),
-			)
+			t.Run("resources-ready", func(t *testing.T) {
+				testDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
+				testDatabaseGrantOwnerToDbadmin(t, argocdNamespace, namespaceOptions)
+				testDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
+			})
+
 			if t.Failed() {
 				return
 			}

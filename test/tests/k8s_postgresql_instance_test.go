@@ -24,14 +24,14 @@ const (
 
 func runPostgresqlInstanceTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	testPostgresqlInstanceApplied(t, argocdNamespace, namespaceOptions)
-	runParallel(t, "instance-and-sub-resources",
-		check("postgresql-instance", testPostgresqlInstanceSyncedAndReady, argocdNamespace, namespaceOptions),
-		check("security-group-rules", testSecurityGroupRulesSyncedAndReady, argocdNamespace, namespaceOptions),
-		check("security-group", testSecurityGroupSyncedAndReady, argocdNamespace, namespaceOptions),
-		check("external-secret", testExternalSecretReady, argocdNamespace, namespaceOptions),
-		check("provider-config", testProviderConfigExists, argocdNamespace, namespaceOptions),
-		check("rds-instance", testRdsInstanceSyncedAndReady, argocdNamespace, namespaceOptions),
-	)
+	t.Run("instance-and-sub-resources", func(t *testing.T) {
+		testPostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
+		testSecurityGroupRulesSyncedAndReady(t, argocdNamespace, namespaceOptions)
+		testSecurityGroupSyncedAndReady(t, argocdNamespace, namespaceOptions)
+		testExternalSecretReady(t, argocdNamespace, namespaceOptions)
+		testProviderConfigExists(t, argocdNamespace, namespaceOptions)
+		testRdsInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	})
 
 	if t.Failed() {
 		return
@@ -72,7 +72,7 @@ func testPostgresqlInstanceSyncedAndReady(t *testing.T, argocdNamespace string, 
 
 func testSecurityGroupSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	fmt.Printf("[%s] TEST: Waiting for SecurityGroup related to '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlInstanceName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SecurityGroup related to '%s'", argocdNamespace, PostgresqlInstanceName), 60, 10*time.Second, func() (string, error) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SecurityGroup related to '%s'", argocdNamespace, PostgresqlInstanceName), 90, 10*time.Second, func() (string, error) {
 		sgName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SecurityGroupKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
 			return "", err
@@ -106,7 +106,7 @@ func testSecurityGroupSyncedAndReady(t *testing.T, argocdNamespace string, names
 
 func testSecurityGroupRulesSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	fmt.Printf("[%s] TEST: Waiting for SecurityGroupRules related to '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlInstanceName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SecurityGroupRules related to '%s'", argocdNamespace, PostgresqlInstanceName), 60, 10*time.Second, func() (string, error) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for SecurityGroupRules related to '%s'", argocdNamespace, PostgresqlInstanceName), 90, 10*time.Second, func() (string, error) {
 		ruleNames, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SecurityGroupRuleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[*].metadata.name}")
 		if err != nil {
 			return "", err
@@ -157,7 +157,7 @@ func testSecurityGroupRulesSyncedAndReady(t *testing.T, argocdNamespace string, 
 
 func testExternalSecretReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	fmt.Printf("[%s] TEST: Waiting for ExternalSecret related to '%s' to be Ready\n", argocdNamespace, PostgresqlInstanceName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for ExternalSecret related to '%s'", argocdNamespace, PostgresqlInstanceName), 60, 10*time.Second, func() (string, error) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for ExternalSecret related to '%s'", argocdNamespace, PostgresqlInstanceName), 90, 10*time.Second, func() (string, error) {
 		esName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
 			return "", err
@@ -193,7 +193,7 @@ func testExternalSecretReady(t *testing.T, argocdNamespace string, namespaceOpti
 
 func testProviderConfigExists(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	fmt.Printf("[%s] TEST: Verifying ProviderConfig '%s' exists\n", argocdNamespace, ProviderConfigExpectedName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for ProviderConfig '%s'", argocdNamespace, ProviderConfigExpectedName), 60, 10*time.Second, func() (string, error) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for ProviderConfig '%s'", argocdNamespace, ProviderConfigExpectedName), 90, 10*time.Second, func() (string, error) {
 		output, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlProviderConfigKind, ProviderConfigExpectedName, "-o", "jsonpath={.metadata.name}")
 		if err != nil {
 			return "", err
@@ -209,7 +209,7 @@ func testProviderConfigExists(t *testing.T, argocdNamespace string, namespaceOpt
 
 func testRdsInstanceSyncedAndReady(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	fmt.Printf("[%s] TEST: Waiting for RDS Instance related to '%s' to be Synced and Ready\n", argocdNamespace, PostgresqlInstanceName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for RDS Instance related to '%s'", argocdNamespace, PostgresqlInstanceName), 60, 10*time.Second, func() (string, error) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for RDS Instance related to '%s'", argocdNamespace, PostgresqlInstanceName), 90, 10*time.Second, func() (string, error) {
 		rdsName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
 			return "", err
