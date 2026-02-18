@@ -93,9 +93,7 @@ func newS3BucketGenerator(
 	}
 
 	var ns corev1.Namespace
-	if err := base.ExtractRequiredResource(required, NamespaceKey, &ns); err != nil {
-		return nil, err
-	}
+	_ = base.ExtractRequiredResource(required, NamespaceKey, &ns)
 
 	g := &s3BucketGenerator{
 		bucket:       bucket,
