@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"maps"
 	"strings"
 
@@ -560,6 +561,10 @@ func (g *s3BucketGenerator) buildAssumeRolePolicy() string {
 }
 
 func mustJSONString(s string) string {
-	b, _ := json.Marshal(s)
+	b, err := json.Marshal(s)
+	if err != nil {
+		log.Printf("mustJSONString: failed to marshal string: %v", err)
+		return ""
+	}
 	return string(b)
 }

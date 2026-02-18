@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"maps"
 
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
@@ -448,6 +449,10 @@ func GetValkeySecurityGroupRuleStatus(sgr ec2mv1beta1.SecurityGroupRule) v1alpha
 }
 
 func mustJSONString(s string) string {
-	b, _ := json.Marshal(s)
+	b, err := json.Marshal(s)
+	if err != nil {
+		log.Printf("mustJSONString: failed to marshal string: %v", err)
+		return ""
+	}
 	return string(b)
 }
