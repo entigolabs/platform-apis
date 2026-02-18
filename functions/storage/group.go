@@ -53,14 +53,6 @@ func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
 }
 
 func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Ready {
-	// Credentials secret should always be considered ready
-	if observed.GetKind() == "Secret" && observed.GetAPIVersion() == "v1" {
-		return resource.ReadyTrue
-	}
-	// ServiceAccount should always be considered ready
-	if observed.GetKind() == "ServiceAccount" && observed.GetAPIVersion() == "v1" {
-		return resource.ReadyTrue
-	}
 	return ""
 }
 

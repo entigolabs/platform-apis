@@ -82,11 +82,6 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 		return service.GetRDSInstanceReadyStatus(observed)
 	case "ReplicationGroup":
 		return service.GetValkeyReplicationGroupReadyStatus(observed)
-	case "Secret":
-		if observed.GetAPIVersion() == "v1" {
-			return resource.ReadyTrue
-		}
-		return ""
 	default:
 		return ""
 	}
