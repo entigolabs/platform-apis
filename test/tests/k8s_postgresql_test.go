@@ -28,11 +28,13 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 			return
 		}
 		fmt.Printf("[%s] Cleanup: deleting test resources\n", argocdNamespace)
+		cleanupStart := time.Now()
 		cleanupPostgresqlResources(t, argocdNamespace, clusterOptions)
-		fmt.Printf("[%s] Cleanup: done\n", argocdNamespace)
+		fmt.Printf("[%s] TIMING: Cleanup took %s\n", argocdNamespace, time.Since(cleanupStart))
 	}()
 
 	// Configuration and function checks in parallel
+	setupStart := time.Now()
 	t.Run("setup", func(t *testing.T) {
 		t.Run("configuration", func(t *testing.T) {
 			t.Parallel()
@@ -43,6 +45,7 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 			testPlatformApisDatabaseFunctionDeployed(t, argocdNamespace, clusterOptions)
 		})
 	})
+	fmt.Printf("[%s] TIMING: PostgreSQL setup (configuration + function) took %s\n", argocdNamespace, time.Since(setupStart))
 	if t.Failed() {
 		return
 	}
@@ -53,8 +56,13 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 
 	namespaceOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
+	instanceStart := time.Now()
 	runPostgresqlInstanceTests(t, argocdNamespace, namespaceOptions)
+	fmt.Printf("[%s] TIMING: PostgreSQL instance tests took %s\n", argocdNamespace, time.Since(instanceStart))
+
+	userDbStart := time.Now()
 	runPostgresqlUserAndDatabaseTests(t, argocdNamespace, namespaceOptions)
+	fmt.Printf("[%s] TIMING: User and database tests took %s\n", argocdNamespace, time.Since(userDbStart))
 }
 
 func testPlatformApisPostgresqlConfigurationDeployed(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
