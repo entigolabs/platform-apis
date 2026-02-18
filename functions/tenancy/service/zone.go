@@ -154,6 +154,9 @@ func GenerateZoneObjects(
 func GetUniqueNamespaces(zone v1alpha1.Zone, namespaces []*corev1.Namespace) []string {
 	uqNs := base.NewSet[string]()
 	for _, ns := range namespaces {
+		if ns.DeletionTimestamp != nil {
+			continue
+		}
 		uqNs.Add(ns.Name)
 	}
 	for _, ns := range zone.Spec.Namespaces {
@@ -292,7 +295,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]runtime.Object, error) {
 		zoneNs.Add(ns.Name)
 	}
 	for _, ns := range g.namespaces {
-		if zoneNs.Contains(ns.Name) {
+		if zoneNs.Contains(ns.Name) || ns.DeletionTimestamp != nil {
 			continue
 		}
 		var pool string
@@ -1215,7 +1218,7 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 					continue
 				}
 				for _, path := range rule.HTTP.Paths {
-					targetPort := intstr.FromInt32(path.Backend.Service.Port.Number)
+					var targetPort *intstr.IntOrString
 					serviceName := path.Backend.Service.Name
 					var service corev1.Service
 					for _, svc := range services {
@@ -1224,13 +1227,14 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 						}
 						service = *svc
 						for _, port := range svc.Spec.Ports {
-							if port.Port != targetPort.IntVal {
-								continue
+							if path.Backend.Service.Port.Name != "" && port.Name == path.Backend.Service.Port.Name ||
+								path.Backend.Service.Port.Number != 0 && port.Port == path.Backend.Service.Port.Number {
+								targetPort = &port.TargetPort
+								break
 							}
-							targetPort = port.TargetPort
 						}
 					}
-					if service.Name == "" {
+					if service.Name == "" || targetPort == nil {
 						continue
 					}
 					matchLabels := make(map[string]string)
@@ -1247,7 +1251,7 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 						// TODO Improved ALB support based on annotations
 						blocks = controlBlocks
 					}
-					objs[GetTargetNetworkPolicyKey(ns, ingress.Name, serviceName, targetPort)] = &networkingv1.NetworkPolicy{
+					objs[GetTargetNetworkPolicyKey(ns, ingress.Name, serviceName, *targetPort)] = &networkingv1.NetworkPolicy{
 						TypeMeta: metav1.TypeMeta{
 							APIVersion: "networking.k8s.io/v1",
 							Kind:       "NetworkPolicy",
@@ -1263,7 +1267,7 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]runtime.Objec
 								From: blocks,
 								Ports: []networkingv1.NetworkPolicyPort{{
 									Protocol: &protocol,
-									Port:     &targetPort,
+									Port:     targetPort,
 								}},
 							}},
 						},
