@@ -11,7 +11,9 @@ import (
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
 )
 
-const ConfigurationKind = "configuration.pkg.crossplane.io"
+const (
+	ConfigurationKind = "configuration.pkg.crossplane.io"
+)
 
 func TestK8sPlatformApisAWSBiz(t *testing.T) {
 	testK8sPlatformApis(t, "aws", "biz")
