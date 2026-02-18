@@ -603,14 +603,6 @@ func valkeyExpectedRequirements() *fnv1.Requirements {
 	}
 }
 
-func valkeyObservedReady(apiVersion, kind, name string) *fnv1.Resource {
-	return &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{
-		"apiVersion": %q, "kind": %q,
-		"metadata": {"name": %q},
-		"status": {"conditions": [{"type": "Ready", "status": "True"}]}
-	}`, apiVersion, kind, name))}
-}
-
 func TestValkeyInstanceFunction(t *testing.T) {
 	cases := map[string]test.Case{
 		"ValkeyInstance/Stage 1: Create SecurityGroup": {
@@ -642,7 +634,7 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							"security-group": valkeyObservedReady("ec2.aws.m.upbound.io/v1beta1", "SecurityGroup", "test-valkey"),
+							"security-group": withReadyStatus(valkeySGResJson),
 						},
 					},
 					RequiredResources: valkeyRequiredResources(),
@@ -668,7 +660,7 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							"security-group": valkeyObservedReady("ec2.aws.m.upbound.io/v1beta1", "SecurityGroup", "test-valkey"),
+							"security-group": withReadyStatus(valkeySGResJson),
 							"replication-group": {
 								Resource: resource.MustStructJSON(`{
 									"apiVersion": "elasticache.aws.m.upbound.io/v1beta1", "kind": "ReplicationGroup",
@@ -683,10 +675,10 @@ func TestValkeyInstanceFunction(t *testing.T) {
 									"reader_endpoint_address":  []byte("test-valkey-ro.eun1.cache.amazonaws.com"),
 								},
 							},
-							"sg-ingress-compute-1a":          valkeyObservedReady("ec2.aws.m.upbound.io/v1beta1", "SecurityGroupRule", "test-valkey-ingress-compute-1a"),
-							"credentials":                    valkeyObservedReady("v1", "Secret", "test-valkey-credentials"),
-							"secrets-manager-secret":         valkeyObservedReady("secretsmanager.aws.m.upbound.io/v1beta1", "Secret", "test-valkey-credentials"),
-							"secrets-manager-secret-version": valkeyObservedReady("secretsmanager.aws.m.upbound.io/v1beta1", "SecretVersion", "test-valkey-credentials"),
+							"sg-ingress-compute-1a":          withReadyStatus(valkeySGRuleResJson),
+							"credentials":                    withReadyStatus(valkeyCredentialsResJson),
+							"secrets-manager-secret":         withReadyStatus(valkeySMSecretResJson),
+							"secrets-manager-secret-version": withReadyStatus(valkeySMSecretVersionResJson),
 						},
 					},
 					RequiredResources: valkeyRequiredResources(),
