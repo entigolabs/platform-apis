@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ const (
 
 //---- POSTGRESQL TESTS ----
 
-func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
+func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, zonesReady <-chan struct{}, zonesReadySuccess *atomic.Bool) {
 
 	defer func() {
 		if t.Failed() {
@@ -31,15 +32,29 @@ func testPlatformApisPostgresql(t *testing.T, argocdNamespace string, clusterOpt
 		fmt.Printf("[%s] Cleanup: done\n", argocdNamespace)
 	}()
 
-	testPlatformApisPostgresqlConfigurationDeployed(t, argocdNamespace, clusterOptions)
-	testPlatformApisDatabaseFunctionDeployed(t, argocdNamespace, clusterOptions)
+	// Configuration and function checks in parallel
+	t.Run("setup", func(t *testing.T) {
+		t.Run("configuration", func(t *testing.T) {
+			t.Parallel()
+			testPlatformApisPostgresqlConfigurationDeployed(t, argocdNamespace, clusterOptions)
+		})
+		t.Run("function", func(t *testing.T) {
+			t.Parallel()
+			testPlatformApisDatabaseFunctionDeployed(t, argocdNamespace, clusterOptions)
+		})
+	})
+	if t.Failed() {
+		return
+	}
+
 	testTestNamespaceCreated(t, argocdNamespace, clusterOptions)
+
+	waitForZonesReady(t, argocdNamespace, zonesReady, zonesReadySuccess)
 
 	namespaceOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
 	runPostgresqlInstanceTests(t, argocdNamespace, namespaceOptions)
-	runPostgresqlUserTests(t, argocdNamespace, namespaceOptions)
-	runPostgresqlDatabaseTests(t, argocdNamespace, namespaceOptions)
+	runPostgresqlUserAndDatabaseTests(t, argocdNamespace, namespaceOptions)
 }
 
 func testPlatformApisPostgresqlConfigurationDeployed(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {

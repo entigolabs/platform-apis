@@ -71,6 +71,7 @@ jobs:
 
           # Update test files
           cp ../platform-apis/test/tests/*.go ${{ env.INFRALIB_MODULE_PATH }}/test/
+          cp ../platform-apis/test/tests/config/*.yaml ${{ env.INFRALIB_MODULE_PATH }}/test/
           mkdir -p ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
           cp ../platform-apis/test/tests/templates/* ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
           

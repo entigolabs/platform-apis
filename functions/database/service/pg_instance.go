@@ -319,6 +319,9 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 
 	dbName, engine, storageType, masterUsername := "postgres", "postgres", "gp3", "dbadmin"
 	manageMasterUserPassword, performanceInsightsEnabled, publiclyAccessible, skipFinalSnapshot, storageEncrypted := true, false, false, false, true
+	if *g.env.BackupBeforeDeletion == false {
+		skipFinalSnapshot = true
+	}
 
 	rdsInstance := &rdsmv1beta1.Instance{
 		TypeMeta:   metav1.TypeMeta{Kind: "Instance", APIVersion: rdsApiVersion},

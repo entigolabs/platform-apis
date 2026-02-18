@@ -23,20 +23,50 @@ const (
 	RegularUserExpectedSecretName = PostgresqlInstanceName + "-" + PostgresqlRegularUserName
 )
 
-func runPostgresqlUserTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-
+// runPostgresqlUserAndDatabaseTests orchestrates user and database tests with parallelism.
+// Admin user must be ready first, then regular user and database tests run concurrently.
+// Minimal database depends on regular user, so it runs after the parallel phase.
+func runPostgresqlUserAndDatabaseTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
+	// Phase 1: Admin user
 	testAdminUserApplied(t, argocdNamespace, namespaceOptions)
 	testAdminUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testAdminRoleSyncedAndReady(t, argocdNamespace, namespaceOptions)
 	testAdminRoleExternalNameVerified(t, argocdNamespace, namespaceOptions)
-	testRegularUserApplied(t, argocdNamespace, namespaceOptions)
-	testRegularUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testRegularUserGrantVerified(t, argocdNamespace, namespaceOptions)
-	testRegularUserUsageVerified(t, argocdNamespace, namespaceOptions)
-	testUserUsagePreventsRoleDeletion(t, argocdNamespace, namespaceOptions)
-	testRegularUserExternalNameFallback(t, argocdNamespace, namespaceOptions)
-	testRegularUserPrivilegesVerified(t, argocdNamespace, namespaceOptions)
-	testRegularUserConnectionSecretCreated(t, argocdNamespace, namespaceOptions)
+
+	// Phase 2: Regular user and database in parallel
+	t.Run("parallel-user-and-db", func(t *testing.T) {
+		t.Run("regular-user", func(t *testing.T) {
+			t.Parallel()
+			testRegularUserApplied(t, argocdNamespace, namespaceOptions)
+			testRegularUserSyncedAndReady(t, argocdNamespace, namespaceOptions)
+			testRegularUserGrantVerified(t, argocdNamespace, namespaceOptions)
+			testRegularUserUsageVerified(t, argocdNamespace, namespaceOptions)
+			testUserUsagePreventsRoleDeletion(t, argocdNamespace, namespaceOptions)
+			testRegularUserExternalNameFallback(t, argocdNamespace, namespaceOptions)
+			testRegularUserPrivilegesVerified(t, argocdNamespace, namespaceOptions)
+			testRegularUserConnectionSecretCreated(t, argocdNamespace, namespaceOptions)
+		})
+		t.Run("database", func(t *testing.T) {
+			t.Parallel()
+			testDatabaseApplied(t, argocdNamespace, namespaceOptions)
+			testDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
+			testDatabaseGrantOwnerToDbadmin(t, argocdNamespace, namespaceOptions)
+			testDatabaseOwnerFieldVerified(t, argocdNamespace, namespaceOptions)
+			testDatabaseFieldsVerified(t, argocdNamespace, namespaceOptions)
+			testDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	// Phase 3: Minimal database (depends on regular user being ready as owner)
+	testMinimalDatabaseApplied(t, argocdNamespace, namespaceOptions)
+	testMinimalDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
+	testMinimalDatabaseDefaultsVerified(t, argocdNamespace, namespaceOptions)
+	testMinimalDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
+	testDatabaseUsagePreventsGrantDeletion(t, argocdNamespace, namespaceOptions)
 }
 
 func testAdminUserApplied(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {

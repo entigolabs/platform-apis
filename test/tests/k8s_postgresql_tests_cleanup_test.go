@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,19 +14,37 @@ import (
 func cleanupPostgresqlResources(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
 	pgNsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
-	// Phase 1: Delete databases (Usage resources ensure Grant is not deleted before Database)
+	// Phase 1: Delete databases in parallel
 	fmt.Printf("[%s] Cleanup Phase 1: Deleting databases\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName)
-	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName, 30)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName)
-	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 30)
+	var wgDbs sync.WaitGroup
+	wgDbs.Add(2)
+	go func() {
+		defer wgDbs.Done()
+		cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName, 30)
+	}()
+	go func() {
+		defer wgDbs.Done()
+		cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 30)
+	}()
+	wgDbs.Wait()
 
-	// Phase 2: Delete users (Roles can now be dropped since databases are gone)
+	// Phase 2: Delete users in parallel
 	fmt.Printf("[%s] Cleanup Phase 2: Deleting users\n", argocdNamespace)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName)
-	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName, 30)
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName)
-	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 30)
+	var wgUsers sync.WaitGroup
+	wgUsers.Add(2)
+	go func() {
+		defer wgUsers.Done()
+		cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName, 30)
+	}()
+	go func() {
+		defer wgUsers.Done()
+		cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 30)
+	}()
+	wgUsers.Wait()
 
 	// Phase 3: Check for leftover Grants, Roles, and Usages, delete if any
 	fmt.Printf("[%s] Cleanup Phase 3: Checking for leftover Grants, Roles, and Usages\n", argocdNamespace)
@@ -42,7 +61,7 @@ func cleanupPostgresqlResources(t *testing.T, argocdNamespace string, clusterOpt
 	cleanupDeleteForeground(t, argocdNamespace, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName)
 	cleanupWaitForDeletion(t, argocdNamespace, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 60)
 
-	// Phase 7: Verify all instance-generated resources are gone
+	// Phase 7: Verify all instance-generated resources are gone (check in parallel)
 	fmt.Printf("[%s] Cleanup Phase 7: Verifying generated resources deleted\n", argocdNamespace)
 	cleanupWaitForGeneratedResources(t, argocdNamespace, pgNsOptions)
 
@@ -126,7 +145,7 @@ func cleanupDisableDeletionProtection(t *testing.T, argocdNamespace string, opts
 
 }
 
-// cleanupWaitForGeneratedResources waits for all instance-generated resources to be deleted.
+// cleanupWaitForGeneratedResources waits for all instance-generated resources to be deleted in parallel.
 func cleanupWaitForGeneratedResources(t *testing.T, argocdNamespace string, opts *terrak8s.KubectlOptions) {
 	generatedKinds := []struct {
 		kind  string
@@ -139,19 +158,26 @@ func cleanupWaitForGeneratedResources(t *testing.T, argocdNamespace string, opts
 		{SqlProviderConfigKind, "ProviderConfigs"},
 	}
 
+	var wg sync.WaitGroup
 	for _, gk := range generatedKinds {
-		_, _ = retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for %s deletion", argocdNamespace, gk.label), 60, 10*time.Second, func() (string, error) {
-			output, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", gk.kind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
-			if err != nil {
-				return "", err
-			}
-			if output != "" {
-				return "", fmt.Errorf("%s still exist: %s", gk.label, output)
-			}
-			return "deleted", nil
-		})
-		fmt.Printf("[%s] Cleanup: %s deleted\n", argocdNamespace, gk.label)
+		gk := gk
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for %s deletion", argocdNamespace, gk.label), 60, 10*time.Second, func() (string, error) {
+				output, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", gk.kind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
+				if err != nil {
+					return "", err
+				}
+				if output != "" {
+					return "", fmt.Errorf("%s still exist: %s", gk.label, output)
+				}
+				return "deleted", nil
+			})
+			fmt.Printf("[%s] Cleanup: %s deleted\n", argocdNamespace, gk.label)
+		}()
 	}
+	wg.Wait()
 }
 
 // cleanupNamespace checks for leftover resources and deletes the namespace.

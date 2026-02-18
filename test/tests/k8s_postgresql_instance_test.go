@@ -25,11 +25,35 @@ const (
 func runPostgresqlInstanceTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	testPostgresqlInstanceApplied(t, argocdNamespace, namespaceOptions)
 	testPostgresqlInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testSecurityGroupRulesSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testSecurityGroupSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testExternalSecretReady(t, argocdNamespace, namespaceOptions)
-	testProviderConfigExists(t, argocdNamespace, namespaceOptions)
-	testRdsInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
+
+	// Parallel composed resource check
+	t.Run("sub-resources", func(t *testing.T) {
+		t.Run("security-group-rules", func(t *testing.T) {
+			t.Parallel()
+			testSecurityGroupRulesSyncedAndReady(t, argocdNamespace, namespaceOptions)
+		})
+		t.Run("security-group", func(t *testing.T) {
+			t.Parallel()
+			testSecurityGroupSyncedAndReady(t, argocdNamespace, namespaceOptions)
+		})
+		t.Run("external-secret", func(t *testing.T) {
+			t.Parallel()
+			testExternalSecretReady(t, argocdNamespace, namespaceOptions)
+		})
+		t.Run("provider-config", func(t *testing.T) {
+			t.Parallel()
+			testProviderConfigExists(t, argocdNamespace, namespaceOptions)
+		})
+		t.Run("rds-instance", func(t *testing.T) {
+			t.Parallel()
+			testRdsInstanceSyncedAndReady(t, argocdNamespace, namespaceOptions)
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
 	testRdsInstanceFieldsVerified(t, argocdNamespace, namespaceOptions)
 	testDeletionProtectionToggle(t, argocdNamespace, namespaceOptions)
 }

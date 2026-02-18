@@ -11,33 +11,18 @@ import (
 )
 
 const (
-	PostgresqlDatabaseName = "database-test"
-	PostgresqlDatabaseKind = "postgresqldatabase.database.entigo.com"
-	SqlDatabaseKind        = "database.postgresql.sql.m.crossplane.io"
-	SqlRoleKind            = "role.postgresql.sql.m.crossplane.io"
-	UsageKind              = "usage.protection.crossplane.io"
-	MinimalDatabaseName    = "database-minimal-test"
-	// Grant name from composition: {owner | replace "_" "-"}-to-dbadmin-grant
-	DatabaseGrantExpectedName = "test-admin-to-dbadmin-grant"
-	// Usage name from composition: {metadata.name}-grant-usage
+	PostgresqlDatabaseName           = "database-test"
+	PostgresqlDatabaseKind           = "postgresqldatabase.database.entigo.com"
+	SqlDatabaseKind                  = "database.postgresql.sql.m.crossplane.io"
+	SqlRoleKind                      = "role.postgresql.sql.m.crossplane.io"
+	UsageKind                        = "usage.protection.crossplane.io"
+	MinimalDatabaseName              = "database-minimal-test"
+	DatabaseGrantExpectedName        = "test-admin-to-dbadmin-grant"
 	DatabaseUsageExpectedName        = PostgresqlDatabaseName + "-grant-usage"
 	MinimalDatabaseUsageExpectedName = MinimalDatabaseName + "-grant-usage"
 )
 
-func runPostgresqlDatabaseTests(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
-
-	testDatabaseApplied(t, argocdNamespace, namespaceOptions)
-	testDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testDatabaseGrantOwnerToDbadmin(t, argocdNamespace, namespaceOptions)
-	testDatabaseOwnerFieldVerified(t, argocdNamespace, namespaceOptions)
-	testDatabaseFieldsVerified(t, argocdNamespace, namespaceOptions)
-	testDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
-	testMinimalDatabaseApplied(t, argocdNamespace, namespaceOptions)
-	testMinimalDatabaseSyncedAndReady(t, argocdNamespace, namespaceOptions)
-	testMinimalDatabaseDefaultsVerified(t, argocdNamespace, namespaceOptions)
-	testMinimalDatabaseUsageVerified(t, argocdNamespace, namespaceOptions)
-	testDatabaseUsagePreventsGrantDeletion(t, argocdNamespace, namespaceOptions)
-}
+// Functions below are called from runPostgresqlUserAndDatabaseTests in k8s_postgresql_user_test.go
 
 func testDatabaseApplied(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	fmt.Printf("[%s] TEST: Applying PostgreSQL Database '%s' to namespace '%s'\n", argocdNamespace, PostgresqlDatabaseName, PostgresqlNamespaceName)
@@ -263,16 +248,12 @@ func testMinimalDatabaseUsageVerified(t *testing.T, argocdNamespace string, name
 	fmt.Printf("[%s] TEST PASSED - Minimal database Usage '%s' verified (of=Grant/%s, by=Database/%s)\n", argocdNamespace, MinimalDatabaseUsageExpectedName, expectedGrantName, MinimalDatabaseName)
 }
 
-// testDatabaseUsagePreventsGrantDeletion verifies that the Usage resource blocks
-// deletion of the Grant while the Database still exists.
 func testDatabaseUsagePreventsGrantDeletion(t *testing.T, argocdNamespace string, namespaceOptions *terrak8s.KubectlOptions) {
 	fmt.Printf("[%s] TEST: Verifying Usage prevents Grant '%s' from being deleted while Database exists\n", argocdNamespace, DatabaseGrantExpectedName)
 
-	// Attempt to delete the Grant directly - Usage should block this
 	output, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "delete", SqlGrantKind, DatabaseGrantExpectedName, "--wait=false")
 	fmt.Printf("[%s] Delete attempt output: %s (err: %v)\n", argocdNamespace, output, err)
 
-	// Wait briefly and verify the Grant still exists (protected by Usage)
 	time.Sleep(10 * time.Second)
 
 	grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")

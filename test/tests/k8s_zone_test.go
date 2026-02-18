@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,17 +20,42 @@ const (
 	ZoneConfigurationName = "platform-apis-zone"
 	ZoneKind              = "zone.tenancy.entigo.com"
 	ZoneNamespaceName     = "test-zone"
+	TenancyFunctionName   = "platform-apis-tenancy-fn"
 )
 
 //---- ZONE TESTS ----
 
-func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, argocdOptions *terrak8s.KubectlOptions) {
-	test0PlatformApisZoneConfigurationDeployed(t, argocdNamespace, clusterOptions)
+func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, argocdOptions *terrak8s.KubectlOptions, signalZonesReady func(bool)) {
+	// If zone setup (steps 0-4) fails, signal failure so postgresql tests don't hang
+	setupFailed := true
+	defer func() {
+		if setupFailed {
+			signalZonesReady(false)
+		}
+	}()
+
+	// Configuration and function checks in parallel
+	t.Run("setup", func(t *testing.T) {
+		t.Run("configuration", func(t *testing.T) {
+			t.Parallel()
+			test0PlatformApisZoneConfigurationDeployed(t, argocdNamespace, clusterOptions)
+		})
+		t.Run("function", func(t *testing.T) {
+			t.Parallel()
+			testPlatformApisTenancyFunctionDeployed(t, argocdNamespace, clusterOptions)
+		})
+	})
+	if t.Failed() {
+		return
+	}
+
 	test1AppProjectExists(t, argocdNamespace, argocdOptions)
 	test2ZoneApplicationApplied(t, argocdNamespace, argocdOptions)
 	test3VerifyZoneApplicationName(t, argocdNamespace, argocdOptions)
 	test4ZoneApplicationSynced(t, argocdNamespace, argocdOptions)
-	testZoneResources(t, argocdNamespace, clusterOptions)
+
+	setupFailed = false
+	testZoneResourcesParallel(t, argocdNamespace, clusterOptions, signalZonesReady)
 	//test8NamespaceCreated(t, argocdNamespace, clusterOptions)
 	//test9NamespaceHasValidZoneLabel(t, argocdNamespace, clusterOptions)
 }
@@ -55,6 +81,29 @@ func test0PlatformApisZoneConfigurationDeployed(t *testing.T, argocdNamespace st
 	})
 	require.NoError(t, err, fmt.Sprintf("[%s] Crossplane Configuration '%s' not ready", argocdNamespace, ZoneConfigurationName))
 	fmt.Printf("[%s] Step 0: PASSED - Configuration '%s' is Healthy and Installed\n", argocdNamespace, ZoneConfigurationName)
+}
+
+func testPlatformApisTenancyFunctionDeployed(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
+	fmt.Printf("[%s] TEST: Waiting for Crossplane Function '%s' to be Healthy and Installed\n", argocdNamespace, TenancyFunctionName)
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for Function '%s'", argocdNamespace, TenancyFunctionName), 40, 6*time.Second, func() (string, error) {
+		healthyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", FunctionKind, TenancyFunctionName, "-o", `jsonpath={.status.conditions[?(@.type=="Healthy")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if healthyStatus != "True" {
+			return "", fmt.Errorf("function not healthy yet, status: %s", healthyStatus)
+		}
+		installedStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", FunctionKind, TenancyFunctionName, "-o", `jsonpath={.status.conditions[?(@.type=="Installed")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if installedStatus != "True" {
+			return "", fmt.Errorf("function not installed yet, status: %s", installedStatus)
+		}
+		return "Healthy+Installed", nil
+	})
+	require.NoError(t, err, fmt.Sprintf("[%s] Crossplane Function '%s' not ready", argocdNamespace, TenancyFunctionName))
+	fmt.Printf("[%s] TEST PASSED - Function '%s' is Healthy and Installed\n", argocdNamespace, TenancyFunctionName)
 }
 
 func test1AppProjectExists(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
@@ -98,12 +147,29 @@ func test4ZoneApplicationSynced(t *testing.T, argocdNamespace string, argocdOpti
 	fmt.Printf("[%s] Step 4: PASSED - Application synced\n", argocdNamespace)
 }
 
-func testZoneResources(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
-	for _, zone := range []string{ZoneAName, ZoneBName} {
+func testZoneResourcesParallel(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, signalZonesReady func(bool)) {
+	var readyCount atomic.Int32
 
-		test5ZoneResourceExists(t, argocdNamespace, clusterOptions, zone)
-		test6ZoneResourceSyncedAndReady(t, argocdNamespace, clusterOptions, zone)
-		test7ZoneHasNodegroupAndItIsReady(t, argocdNamespace, clusterOptions, zone)
+	for _, zone := range []string{ZoneAName, ZoneBName} {
+		zone := zone
+		t.Run(fmt.Sprintf("zone-%s", zone), func(t *testing.T) {
+			t.Parallel()
+			defer func() {
+				if t.Failed() {
+					signalZonesReady(false)
+				}
+			}()
+
+			test5ZoneResourceExists(t, argocdNamespace, clusterOptions, zone)
+			test6ZoneResourceSyncedAndReady(t, argocdNamespace, clusterOptions, zone)
+
+			// Signal when both zones have passed test6 (synced+ready)
+			if readyCount.Add(1) == 2 {
+				signalZonesReady(true)
+			}
+
+			test7ZoneHasNodegroupAndItIsReady(t, argocdNamespace, clusterOptions, zone)
+		})
 	}
 }
 
