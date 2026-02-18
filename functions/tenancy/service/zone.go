@@ -292,7 +292,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]runtime.Object, error) {
 		zoneNs.Add(ns.Name)
 	}
 	for _, ns := range g.namespaces {
-		if zoneNs.Contains(ns.Name) {
+		if zoneNs.Contains(ns.Name) || ns.DeletionTimestamp != nil {
 			continue
 		}
 		var pool string
