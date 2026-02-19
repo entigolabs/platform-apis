@@ -65,8 +65,9 @@ jobs:
           # Update dependencies
           helm dependency update ${{ env.INFRALIB_MODULE_PATH }}
 
-          # Copy Test Files from platform-apis to infralib
-          cp ../platform-apis/test/tests/*.go ${{ env.INFRALIB_MODULE_PATH }}/test/
+          # Replace Test Files from platform-apis to infralib
+          rm -f ${{ env.INFRALIB_MODULE_PATH }}/test/*_test.go
+          cp ../platform-apis/test/tests/*_test.go ${{ env.INFRALIB_MODULE_PATH }}/test/
           cp ../platform-apis/test/tests/config/*.yaml ${{ env.INFRALIB_MODULE_PATH }}/test/
           mkdir -p ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
           cp ../platform-apis/test/tests/templates/* ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
