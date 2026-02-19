@@ -10,6 +10,7 @@ database:
     subnetGroup: database
     elasticacheSubnetGroup: elasticache
     esClusterSecretStore: external-secrets
+    backupBeforeDeletion: true
     tags: {}
 
 postgresql:

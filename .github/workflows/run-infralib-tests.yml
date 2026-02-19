@@ -1,15 +1,18 @@
-name: Run Infralib Tests
+name: Execute Infralib Tests
 
 on:
   workflow_call:
     inputs:
+      branch_name:
+        description: "Infralib branch to test"
+        required: true
+        type: string
       helm_version:
-        description: Helm chart version to test
+        description: "Helm version (for reporting only)"
         required: true
         type: string
 
 env:
-  CHART_NAME: platform-apis
   INFRALIB_REPO: entigolabs/entigo-infralib
   INFRALIB_MODULE_PATH: modules/k8s/platform-apis
 
@@ -21,23 +24,13 @@ jobs:
       group: infralib-e2e-tests
       cancel-in-progress: false
     steps:
-      - name: Checkout platform-apis
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          path: platform-apis
-
       - name: Checkout entigo-infralib
         uses: actions/checkout@v4
         with:
           repository: ${{ env.INFRALIB_REPO }}
           token: ${{ secrets.INFRALIB_PAT }}
+          ref: ${{ inputs.branch_name }}
           path: infralib
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -46,42 +39,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create test branch
-        id: branch
-        working-directory: infralib
-        env:
-          VERSION: ${{ inputs.helm_version }}
-        run: |
-          BRANCH_NAME="${CHART_NAME}-${VERSION}"
-          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git checkout -b "$BRANCH_NAME"
-
-          # Update Chart.yaml with new version using yq
-          CHART_FILE="${{ env.INFRALIB_MODULE_PATH }}/Chart.yaml"
-          yq -i ".version = \"${VERSION}\"" "$CHART_FILE"
-          yq -i ".appVersion = \"${VERSION}\"" "$CHART_FILE"
-          yq -i "(.dependencies[] | select(.name == \"platform-apis\")).version = \"${VERSION}\"" "$CHART_FILE"
-
-          # Run helm dependency update
-          helm dependency update ${{ env.INFRALIB_MODULE_PATH }}
-
-          # Update test files
-          cp ../platform-apis/test/tests/*.go ${{ env.INFRALIB_MODULE_PATH }}/test/
-          mkdir -p ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
-          cp ../platform-apis/test/tests/templates/* ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
-          
-
-          git add .
-          git commit -m "Update ${CHART_NAME} to ${VERSION} for testing"
-          git push --force origin "$BRANCH_NAME"
-
-          echo "Created branch: $BRANCH_NAME"
-
-      - name: Run tests
+      - name: Run Test Script
         id: tests
         working-directory: infralib/${{ env.INFRALIB_MODULE_PATH }}
         env:
@@ -93,46 +51,16 @@ jobs:
           ./test.sh 2>&1 | tee test-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           set -e
-
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-
           exit $EXIT_CODE
         continue-on-error: true
-
-      - name: Create job summary
-        env:
-          VERSION: ${{ inputs.helm_version }}
-          BRANCH: ${{ steps.branch.outputs.name }}
-          EXIT_CODE: ${{ steps.tests.outputs.exit_code }}
-        working-directory: infralib/${{ env.INFRALIB_MODULE_PATH }}
-        run: |
-          {
-            echo "## Platform APIs E2E Test Results"
-            echo ""
-            echo "**Helm Version:** \`${VERSION}\`"
-            echo "**Infralib Branch:** \`${BRANCH}\`"
-            echo ""
-            if [ "$EXIT_CODE" == "0" ]; then
-              echo "### Tests Passed"
-            else
-              echo "### Tests Failed"
-            fi
-            echo ""
-            echo "<details>"
-            echo "<summary>Test Output</summary>"
-            echo ""
-            echo '```'
-            cat test-output.txt
-            echo '```'
-            echo "</details>"
-          } >> $GITHUB_STEP_SUMMARY
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         env:
           VERSION: ${{ inputs.helm_version }}
-          BRANCH: ${{ steps.branch.outputs.name }}
+          BRANCH: ${{ inputs.branch_name }}
           EXIT_CODE: ${{ steps.tests.outputs.exit_code }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -140,20 +68,18 @@ jobs:
             const fs = require('fs');
             const output = fs.readFileSync('infralib/${{ env.INFRALIB_MODULE_PATH }}/test-output.txt', 'utf8');
             const status = process.env.EXIT_CODE === '0' ? 'Passed' : 'Failed';
-            const body = `## Platform APIs E2E Test Results
+            const body = `## Infralib E2E Results
 
             **Helm Version:** \`${process.env.VERSION}\`
-            **Infralib Branch:** [\`${process.env.BRANCH}\`](https://github.com/${{ env.INFRALIB_REPO }}/tree/${process.env.BRANCH})
+            **Branch:** \`${process.env.BRANCH}\`
             **Status:** ${status}
 
-            <details>
-            <summary>Test Output</summary>
+            <details><summary>Output</summary>
 
             \`\`\`
             ${output}
             \`\`\`
-            </details>
-            `;
+            </details>`;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
