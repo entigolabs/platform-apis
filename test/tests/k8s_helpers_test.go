@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +10,22 @@ import (
 	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/stretchr/testify/require"
 )
+
+// getFirstByLabel returns the name of the first resource matching crossplane.io/composite label,
+// or empty string if none exist. Uses items[*] to avoid a kubectl error on empty lists.
+func getFirstByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind, composite string) (string, error) {
+	t.Helper()
+	out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "-l",
+		fmt.Sprintf("crossplane.io/composite=%s", composite), "-o", "jsonpath={.items[*].metadata.name}")
+	if err != nil {
+		return "", err
+	}
+	items := strings.Fields(out)
+	if len(items) == 0 {
+		return "", nil
+	}
+	return items[0], nil
+}
 
 func waitSyncedAndReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, retries int, interval time.Duration) {
 	t.Helper()
@@ -32,14 +49,16 @@ func waitSyncedAndReadyByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind
 	t.Helper()
 	var name string
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s (composite=%s)", kind, composite), retries, interval, func() (string, error) {
-		n, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "-l",
-			fmt.Sprintf("crossplane.io/composite=%s", composite), "-o", "jsonpath={.items[0].metadata.name}")
+		out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "-l",
+			fmt.Sprintf("crossplane.io/composite=%s", composite), "-o", "jsonpath={.items[*].metadata.name}")
 		if err != nil {
 			return "", err
 		}
-		if n == "" {
+		items := strings.Fields(out)
+		if len(items) == 0 {
 			return "", fmt.Errorf("no %s found for composite=%s", kind, composite)
 		}
+		n := items[0]
 		for _, condType := range []string{"Synced", "Ready"} {
 			status, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, n, "-o",
 				fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))

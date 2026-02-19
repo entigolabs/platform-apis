@@ -66,7 +66,7 @@ func testPostgresqlInstanceSyncedAndReady(t *testing.T, namespaceOptions *terrak
 
 func testSecurityGroupSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for SecurityGroup (composite=%s)", PostgresqlInstanceName), 60, 10*time.Second, func() (string, error) {
-		sgName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SecurityGroupKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
+		sgName, err := getFirstByLabel(t, namespaceOptions, SecurityGroupKind, PostgresqlInstanceName)
 		if err != nil {
 			return "", err
 		}
@@ -138,7 +138,7 @@ func testSecurityGroupRulesSyncedAndReady(t *testing.T, namespaceOptions *terrak
 
 func testExternalSecretReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for ExternalSecret (composite=%s)", PostgresqlInstanceName), 60, 10*time.Second, func() (string, error) {
-		esName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
+		esName, err := getFirstByLabel(t, namespaceOptions, ExternalSecretKind, PostgresqlInstanceName)
 		if err != nil {
 			return "", err
 		}
@@ -160,7 +160,7 @@ func testExternalSecretReady(t *testing.T, namespaceOptions *terrak8s.KubectlOpt
 	})
 	require.NoError(t, err, fmt.Sprintf("ExternalSecret for '%s' failed to become Ready", PostgresqlInstanceName))
 
-	esName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
+	esName, err := getFirstByLabel(t, namespaceOptions, ExternalSecretKind, PostgresqlInstanceName)
 	require.NoError(t, err, "failed to find ExternalSecret")
 
 	username, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, esName, "-o", "jsonpath={.spec.target.template.data.username}")
@@ -187,7 +187,7 @@ func testRdsInstanceSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.Kube
 }
 
 func testRdsInstanceFieldsVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	rdsName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
+	rdsName, err := getFirstByLabel(t, namespaceOptions, RdsInstanceKind, PostgresqlInstanceName)
 	require.NoError(t, err, "failed to find RDS Instance")
 	require.NotEmpty(t, rdsName, fmt.Sprintf("no RDS Instance found for composite '%s'", PostgresqlInstanceName))
 
@@ -221,9 +221,12 @@ func testDeletionProtectionToggle(t *testing.T, namespaceOptions *terrak8s.Kubec
 	require.NoError(t, err, "failed to patch deletionProtection to true")
 
 	_, err = retry.DoWithRetryE(t, "waiting for RDS deletionProtection=true", 30, 10*time.Second, func() (string, error) {
-		rdsName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
+		rdsName, err := getFirstByLabel(t, namespaceOptions, RdsInstanceKind, PostgresqlInstanceName)
 		if err != nil {
 			return "", err
+		}
+		if rdsName == "" {
+			return "", fmt.Errorf("no RDS Instance found for composite=%s", PostgresqlInstanceName)
 		}
 		dp, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", RdsInstanceKind, rdsName, "-o", "jsonpath={.spec.forProvider.deletionProtection}")
 		if err != nil {
@@ -240,9 +243,12 @@ func testDeletionProtectionToggle(t *testing.T, namespaceOptions *terrak8s.Kubec
 	require.NoError(t, err, "failed to patch deletionProtection to false")
 
 	_, err = retry.DoWithRetryE(t, "waiting for RDS deletionProtection=false", 30, 10*time.Second, func() (string, error) {
-		rdsName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
+		rdsName, err := getFirstByLabel(t, namespaceOptions, RdsInstanceKind, PostgresqlInstanceName)
 		if err != nil {
 			return "", err
+		}
+		if rdsName == "" {
+			return "", fmt.Errorf("no RDS Instance found for composite=%s", PostgresqlInstanceName)
 		}
 		dp, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", RdsInstanceKind, rdsName, "-o", "jsonpath={.spec.forProvider.deletionProtection}")
 		if err != nil {

@@ -101,7 +101,7 @@ func cleanupDisableDeletionProtection(t *testing.T, opts *terrak8s.KubectlOption
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", PostgresqlInstanceKind, PostgresqlInstanceName, "-n", PostgresqlNamespaceName, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
 
 	_, _ = retry.DoWithRetryE(t, "waiting for RDS deletionProtection=false", 30, 10*time.Second, func() (string, error) {
-		rdsName, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", RdsInstanceKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[0].metadata.name}")
+		rdsName, err := getFirstByLabel(t, opts, RdsInstanceKind, PostgresqlInstanceName)
 		if err != nil || rdsName == "" {
 			return "no-rds", nil
 		}

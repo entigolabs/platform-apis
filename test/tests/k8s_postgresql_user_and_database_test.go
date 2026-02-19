@@ -89,7 +89,7 @@ func testAdminRoleSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.Kubect
 }
 
 func testAdminRoleExternalNameVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlAdminUserName), "-o", "jsonpath={.items[0].metadata.name}")
+	roleName, err := getFirstByLabel(t, namespaceOptions, SqlRoleKind, PostgresqlAdminUserName)
 	require.NoError(t, err, "failed to find SQL Role")
 	require.NotEmpty(t, roleName, fmt.Sprintf("no SQL Role found for composite '%s'", PostgresqlAdminUserName))
 
@@ -142,7 +142,7 @@ func testRegularUserGrantVerified(t *testing.T, namespaceOptions *terrak8s.Kubec
 }
 
 func testRegularUserExternalNameFallback(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlRegularUserName), "-o", "jsonpath={.items[0].metadata.name}")
+	roleName, err := getFirstByLabel(t, namespaceOptions, SqlRoleKind, PostgresqlRegularUserName)
 	require.NoError(t, err, "failed to find SQL Role for regular user")
 	require.NotEmpty(t, roleName, fmt.Sprintf("no SQL Role found for composite '%s'", PostgresqlRegularUserName))
 
