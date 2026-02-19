@@ -50,7 +50,7 @@ jobs:
     uses: ./.github/workflows/build-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
-      release_type: rc
+      release_type: stable
       pr_number: ${{ github.event.number }}
       run_number: ${{ github.run_number }}
       run_attempt: ${{ github.run_attempt }}
@@ -66,7 +66,7 @@ jobs:
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
-      release_type: rc
+      release_type: stable
       pr_number: ${{ github.event.number }}
       run_number: ${{ github.run_number }}
       run_attempt: ${{ github.run_attempt }}
@@ -87,7 +87,7 @@ jobs:
       )
     uses: ./.github/workflows/build-helm.yml
     with:
-      release_type: rc
+      release_type: stable
       pr_number: ${{ github.event.number }}
       run_number: ${{ github.run_number }}
       run_attempt: ${{ github.run_attempt }}
