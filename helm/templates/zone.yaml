@@ -397,11 +397,15 @@ subjects:
   name: kyverno-reports-controller
   namespace: {{ .Values.zone.kyvernoNamespace }}
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-ownership
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
+  validationActions:
+    - Deny
   evaluation:
     background:
       enabled: false
@@ -419,6 +423,8 @@ spec:
     expression: |
       "tenancy.entigo.com/zone"
   validations:
+  - expression: "object.metadata.name != 'default'"
+    message: "'default' zone cannot be created"
   - expression: |
       object.spec.namespaces.all(requestedNs,
         !dyn(variables.existingNamespaces.items).exists(existingNs,
@@ -456,11 +462,14 @@ spec:
           : "no zone label - must be labeled manually first")
       ).join(", ")
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: MutatingPolicy
 metadata:
   name: platform-apis-zone-namespace-pod-security
 spec:
+  evaluation:
+    admission:
+      enabled: true
   matchConstraints:
     resourceRules:
       - apiGroups: [""]
@@ -511,11 +520,15 @@ spec:
         - key: max-size
           value: 0
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-pod-security
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
+  validationActions:
+    - Deny
   evaluation:
     background:
       enabled: false
@@ -574,7 +587,7 @@ spec:
         ))
       message: "The 'pod-security.kubernetes.io/warn' label must be set to '{{ .Values.zone.environmentConfig.podSecurity }}' (or stricter)."
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: GeneratingPolicy
 metadata:
   name: generate-namespace-from-argocd-app
@@ -589,7 +602,7 @@ spec:
     resourceRules:
       - apiGroups: ["argoproj.io"]
         apiVersions: ["v1alpha1"]
-        operations: ["CREATE","UPDATE"]
+        operations: ["CREATE"]
         resources: ["applications"]
   matchConditions:
     - name: has-destination-namespace
@@ -621,11 +634,14 @@ spec:
           }
         ])
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: MutatingPolicy
 metadata:
   name: platform-apis-namespace-add-missing-zone-label
 spec:
+  evaluation:
+    admission:
+      enabled: true
   matchConstraints:
     resourceRules:
       - apiGroups: [""]
@@ -702,12 +718,18 @@ spec:
             )
           )
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-contributor-deny
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
+  validationActions:
+    - Deny
   evaluation:
+    admission:
+      enabled: true
     background:
       enabled: false
   matchConstraints:
@@ -723,12 +745,18 @@ spec:
     - expression: "false"
       message: "contributor cannot modify namespaces."
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-maintainer-deny
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
+  validationActions:
+    - Deny
   evaluation:
+    admission:
+      enabled: true
     background:
       enabled: false
   matchConstraints:
@@ -746,12 +774,18 @@ spec:
     - expression: "false"
       message: "cannot use infralib zone."
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-maintainer-infralib-zone-deny
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
+  validationActions:
+    - Deny
   evaluation:
+    admission:
+      enabled: true
     background:
       enabled: false
   matchConstraints:
@@ -769,12 +803,18 @@ spec:
     - expression: "false"
       message: "infralib zone is reserved."
 ---
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-deletion-check-namespaces
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
+  validationActions:
+    - Deny
   evaluation:
+    admission:
+      enabled: true
     background:
       enabled: false
   matchConstraints:

@@ -29,8 +29,7 @@ type ZoneSpec struct {
 
 	AppProject *AppProject `json:"appProject,omitempty"`
 
-	// List of namespaces to manage as part of the Zone. At least one namespace must be specified.
-	// +kubebuilder:validation:MinItems=1
+	// List of namespaces to manage as part of the Zone.
 	Namespaces []Namespace `json:"namespaces"`
 
 	// List of node pool configurations for cluster-autoscaler
