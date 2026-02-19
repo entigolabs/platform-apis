@@ -54,3 +54,9 @@ type GroupService interface {
 	GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error)
 	GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error)
 }
+
+// PostStatusProcessor is an optional interface that GroupService implementations can implement
+// to perform custom status aggregation (e.g., collecting arrays from multiple resources)
+type PostStatusProcessor interface {
+	PostProcessStatus(status map[string]interface{}, observed map[resource.Name]resource.ObservedComposed) (map[string]interface{}, error)
+}

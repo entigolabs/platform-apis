@@ -1,3 +1,24 @@
+apiVersion: eks.aws.m.upbound.io/v1beta1
+kind: Cluster
+metadata:
+  name: eks
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  managementPolicies:
+    - Observe
+  providerConfigRef:
+    name: crossplane-aws
+status:
+  atProvider:
+    arn: arn:aws:eks:eu-north-1:012345678901:cluster/eks
+    region: eu-north-1
+    version: "1.33"
+    identity:
+      - oidc:
+          - issuer: https://oidc.eks.eu-north-1.amazonaws.com/id/EXAMPLE123
+
 ---
 apiVersion: kms.aws.m.upbound.io/v1beta1
 kind: Key
@@ -42,6 +63,7 @@ status:
       reason: Available
       status: "True"
       type: Ready
+
 ---
 apiVersion: kms.aws.m.upbound.io/v1beta1
 kind: Key
@@ -86,3 +108,11 @@ status:
       reason: Available
       status: "True"
       type: Ready
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: default
+  labels:
+    tenancy.entigo.com/zone: dev

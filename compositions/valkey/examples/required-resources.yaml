@@ -1,55 +1,50 @@
-apiVersion: ec2.aws.upbound.io/v1beta1
+apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPC
 metadata:
   name: vpc
-  labels:
-    crossplane.io/claim-name: vpc
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
 status:
   atProvider:
     id: vpc-1234567890abcdef0
-    region: eu-north-1
 ---
-apiVersion: elasticache.aws.upbound.io/v1beta1
+apiVersion: elasticache.aws.m.upbound.io/v1beta1
 kind: SubnetGroup
 metadata:
   name: elasticache
+  namespace: crossplane-aws
 status:
   atProvider:
     id: my-elasticache-subnet-group
 ---
-apiVersion: rds.aws.m.upbound.io/v1beta1
-kind: SubnetGroup
-metadata:
-  name: database
-status:
-  atProvider:
-    id: my-database-subnet-group
----
-apiVersion: kms.aws.upbound.io/v1beta1
-kind: Alias
+apiVersion: kms.aws.m.upbound.io/v1beta1
+kind: Key
 metadata:
   name: data
+  namespace: crossplane-aws
 status:
   atProvider:
-    id: alias/data-key
-    targetKeyArn: arn:aws:kms:eu-north-1:123456789012:key/data-key-uuid
+    arn: arn:aws:kms:eu-north-1:123456789012:key/data-key-uuid
 ---
-apiVersion: kms.aws.upbound.io/v1beta1
-kind: Alias
+apiVersion: kms.aws.m.upbound.io/v1beta1
+kind: Key
 metadata:
   name: config
+  namespace: crossplane-aws
 status:
   atProvider:
-    id: alias/config-key
-    targetKeyArn: arn:aws:kms:eu-north-1:123456789012:key/config-key-uuid
+    arn: arn:aws:kms:eu-north-1:123456789012:key/config-key-uuid
 ---
-apiVersion: ec2.aws.upbound.io/v1beta1
+apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
 metadata:
-  name: database
+  name: compute-subnet
+  namespace: crossplane-aws
   labels:
     subnet-type: compute
 status:
   atProvider:
     cidrBlock: 10.0.1.0/24
-    id: database
+    id: subnet-12345

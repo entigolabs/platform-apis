@@ -1,0 +1,5 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: platform-apis-storage-fn
+spec: {}

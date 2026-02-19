@@ -69,6 +69,7 @@ jobs:
             ["networking"]="platform-apis-networking-fn"
             ["postgresql"]="platform-apis-postgresql"
             ["repository"]="platform-apis-repository"
+            ["storage"]="platform-apis-storage-fn"
             ["s3bucket"]="platform-apis-s3bucket"
             ["tenancy"]="platform-apis-tenancy-fn"
             ["valkey"]="platform-apis-valkey"

@@ -47,3 +47,13 @@ metadata:
 spec:
   runtimeConfigRef:
     name: platform-apis-tenancy-fn
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-storage-fn
+  annotations:
+    render.crossplane.io/runtime: Development
+spec:
+  runtimeConfigRef:
+    name: platform-apis-storage-fn

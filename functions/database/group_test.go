@@ -115,12 +115,13 @@ func TestDatabaseFunction(t *testing.T) {
 	setHash := base.GenerateFNVHash(cr.Metadata.UID)
 
 	environmentData := map[string]interface{}{
-		"awsProvider":          "aws-provider",
-		"dataKMSKey":           "data",
-		"configKMSKey":         "config",
-		"vpc":                  "test-net-vpc",
-		"subnetGroup":          "test-net-vpc",
-		"esClusterSecretStore": "external-secrets",
+		"awsProvider":            "aws-provider",
+		"dataKMSKey":             "data",
+		"configKMSKey":           "config",
+		"vpc":                    "test-net-vpc",
+		"subnetGroup":            "test-net-vpc",
+		"elasticacheSubnetGroup": "test-elasticache-sg",
+		"esClusterSecretStore":   "external-secrets",
 	}
 	optEnvironmentData := map[string]interface{}{
 		"tags": map[string]interface{}{
@@ -485,7 +486,6 @@ func TestAddDBInstanceStatus(t *testing.T) {
 			if diff != "" {
 				t.Errorf("AllStatusFieldsProperlyPopulated() mismatch (-want +got):\n%s", diff)
 			}
-
 		})
 	}
 }
@@ -547,4 +547,161 @@ func TestInstanceGetReadyStatus(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Valkey test constants
+const (
+	valkeyInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"ValkeyInstance","metadata":{"name":"test-valkey","namespace":"testspace"},"spec":{"engineVersion":"8.2","instanceType":"cache.t4g.small","numCacheClusters":2,"autoMinorVersionUpgrade":true,"maintenanceWindow":"sun:05:00-sun:06:00","snapshotWindow":"03:00-05:00","snapshotRetentionLimit":7}}`
+
+	valkeyKMSDataKeyJson   = `{"apiVersion":"kms.aws.m.upbound.io/v1beta1","kind":"Key","metadata":{"name":"data","namespace":"aws-provider"},"status":{"atProvider":{"arn":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data"}}}`
+	valkeyKMSConfigKeyJson = `{"apiVersion":"kms.aws.m.upbound.io/v1beta1","kind":"Key","metadata":{"name":"config","namespace":"aws-provider"},"status":{"atProvider":{"arn":"arn:aws:kms:eu-north-1:222222222222:key/mrk-config"}}}`
+
+	valkeyElasticacheSubnetGroupJson = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"SubnetGroup","metadata":{"name":"test-elasticache-sg","namespace":"aws-provider"},"status":{"atProvider":{"id":"test-elasticache-sg"}}}`
+	valkeyComputeSubnetJson          = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"Subnet","metadata":{"name":"compute-1a","namespace":"aws-provider","labels":{"subnet-type":"compute"}},"status":{"atProvider":{"cidrBlock":"10.0.1.0/24"}}}`
+
+	valkeySGResJson              = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"name":"test-valkey"},"spec":{"forProvider":{"description":"Security group for Valkey test-valkey","region":"eu-north-1","tags":{"Name":"test-valkey"},"vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeySMSecretResJson        = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"Secret","metadata":{"name":"test-valkey-credentials"},"spec":{"forProvider":{"description":"Valkey connection credentials for test-valkey","kmsKeyId":"arn:aws:kms:eu-north-1:222222222222:key/mrk-config","name":"test-valkey-credentials","recoveryWindowInDays":0,"region":"eu-north-1","tags":{"Name":"test-valkey"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeySMSecretVersionResJson = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"SecretVersion","metadata":{"name":"test-valkey-credentials"},"spec":{"forProvider":{"region":"eu-north-1","secretIdRef":{"name":"test-valkey-credentials"},"secretStringSecretRef":{"key":"credentials.json","name":"test-valkey-credentials"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeyRGResJson              = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"name":"test-valkey"},"spec":{"forProvider":{"applyImmediately":true,"atRestEncryptionEnabled":"true","authTokenSecretRef":{"key":"auth-token","name":"test-valkey-auth-token"},"authTokenUpdateStrategy":"SET","autoGenerateAuthToken":true,"autoMinorVersionUpgrade":"true","automaticFailoverEnabled":true,"description":"test-valkey","engine":"valkey","engineVersion":"8.2","finalSnapshotIdentifier":"test-valkey-final-snapshot","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data","maintenanceWindow":"sun:05:00-sun:06:00","multiAzEnabled":true,"nodeType":"cache.t4g.small","numCacheClusters":2,"region":"eu-north-1","securityGroupIdRefs":[{"name":"test-valkey"}],"snapshotRetentionLimit":7,"snapshotWindow":"03:00-05:00","subnetGroupName":"test-elasticache-sg","tags":{"Name":"test-valkey"},"transitEncryptionEnabled":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"test-valkey"}},"status":{"atProvider":{}}}`
+	valkeySGRuleResJson          = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"name":"test-valkey-ingress-compute-1a"},"spec":{"forProvider":{"cidrBlocks":["10.0.1.0/24"],"description":"Allow Valkey access from compute-1a","fromPort":6379,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"test-valkey"},"toPort":6379,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeyCredentialsResJson     = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-valkey-credentials","namespace":"testspace"},"stringData":{"AUTH_TOKEN":"test-auth-token","PORT":"6379","PRIMARY_ENDPOINT":"test-valkey.eun1.cache.amazonaws.com","READER_ENDPOINT":"test-valkey-ro.eun1.cache.amazonaws.com","credentials.json":"{\"AUTH_TOKEN\": \"test-auth-token\", \"PORT\": \"6379\", \"PRIMARY_ENDPOINT\": \"test-valkey.eun1.cache.amazonaws.com\", \"READER_ENDPOINT\": \"test-valkey-ro.eun1.cache.amazonaws.com\"}"},"type":"Opaque"}`
+)
+
+func valkeyRequiredResources() map[string]*fnv1.Resources {
+	envData := map[string]interface{}{
+		"awsProvider":            "aws-provider",
+		"dataKMSKey":             "data",
+		"configKMSKey":           "config",
+		"vpc":                    "test-net-vpc",
+		"subnetGroup":            "test-net-vpc",
+		"elasticacheSubnetGroup": "test-elasticache-sg",
+		"esClusterSecretStore":   "external-secrets",
+	}
+	return map[string]*fnv1.Resources{
+		base.EnvironmentKey:               test.EnvironmentConfigResourceWithData(environmentName, envData),
+		service.VPCKey:                    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
+		service.ElasticacheSubnetGroupKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(valkeyElasticacheSubnetGroupJson)}}},
+		"KMSDataKey":                      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(valkeyKMSDataKeyJson)}}},
+		"KMSConfigKey":                    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(valkeyKMSConfigKeyJson)}}},
+		service.ComputeSubnetsKey:         {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(valkeyComputeSubnetJson)}}},
+	}
+}
+
+func valkeyExpectedRequirements() *fnv1.Requirements {
+	reqResNs := "aws-provider"
+	return &fnv1.Requirements{
+		Resources: map[string]*fnv1.ResourceSelector{
+			base.EnvironmentKey:               base.RequiredEnvironmentConfig(environmentName),
+			service.VPCKey:                    {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
+			service.ElasticacheSubnetGroupKey: {Kind: "SubnetGroup", ApiVersion: "elasticache.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-elasticache-sg"}},
+			"KMSDataKey":                      base.RequiredKMSKey("data", "aws-provider"),
+			"KMSConfigKey":                    base.RequiredKMSKey("config", "aws-provider"),
+			service.ComputeSubnetsKey: {Kind: "Subnet", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchLabels{
+				MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "compute"}},
+			}},
+		},
+	}
+}
+
+func TestValkeyInstanceFunction(t *testing.T) {
+	cases := map[string]test.Case{
+		"ValkeyInstance/Stage 1: Create SecurityGroup": {
+			Reason: "With no observed resources, SecurityGroup should be desired.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyInputJson)},
+					},
+					RequiredResources: valkeyRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"security-group": {Resource: resource.MustStructJSON(valkeySGResJson)},
+						},
+					},
+					Requirements: valkeyExpectedRequirements(),
+				},
+			},
+		},
+		"ValkeyInstance/Stage 2: Create ReplicationGroup when SecurityGroup is Ready": {
+			Reason: "When SecurityGroup is ready, should also desire ReplicationGroup.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							"security-group": withReadyStatus(valkeySGResJson),
+						},
+					},
+					RequiredResources: valkeyRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"security-group":    {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"replication-group": {Resource: resource.MustStructJSON(valkeyRGResJson)},
+						},
+					},
+					Requirements: valkeyExpectedRequirements(),
+				},
+			},
+		},
+		"ValkeyInstance/Stage 3: All Ready": {
+			Reason: "When all resources are ready with connection details, all resources desired with status.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							"security-group": withReadyStatus(valkeySGResJson),
+							"replication-group": {
+								Resource: resource.MustStructJSON(`{
+									"apiVersion": "elasticache.aws.m.upbound.io/v1beta1", "kind": "ReplicationGroup",
+									"metadata": {"name": "test-valkey"},
+									"status": {"atProvider": {"primaryEndpointAddress": "test-valkey.eun1.cache.amazonaws.com", "port": 6379, "autoMinorVersionUpgrade": "true", "kmsKeyId": "arn:aws:kms:eu-north-1:111111111111:key/mrk-data", "multiAzEnabled": true, "parameterGroupName": "default.valkey8"},
+										"conditions": [{"type": "Ready", "status": "True"}]}
+								}`),
+								ConnectionDetails: map[string][]byte{
+									"attribute.auth_token":     []byte("test-auth-token"),
+									"port":                     []byte("6379"),
+									"primary_endpoint_address": []byte("test-valkey.eun1.cache.amazonaws.com"),
+									"reader_endpoint_address":  []byte("test-valkey-ro.eun1.cache.amazonaws.com"),
+								},
+							},
+							"sg-ingress-compute-1a":          withReadyStatus(valkeySGRuleResJson),
+							"credentials":                    withReadyStatus(valkeyCredentialsResJson),
+							"secrets-manager-secret":         withReadyStatus(valkeySMSecretResJson),
+							"secrets-manager-secret-version": withReadyStatus(valkeySMSecretVersionResJson),
+						},
+					},
+					RequiredResources: valkeyRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"security-group":                 {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"replication-group":              {Resource: resource.MustStructJSON(valkeyRGResJson), Ready: 1},
+							"sg-ingress-compute-1a":          {Resource: resource.MustStructJSON(valkeySGRuleResJson), Ready: 1},
+							"credentials":                    {Resource: resource.MustStructJSON(valkeyCredentialsResJson), Ready: 1},
+							"secrets-manager-secret":         {Resource: resource.MustStructJSON(valkeySMSecretResJson), Ready: 1},
+							"secrets-manager-secret-version": {Resource: resource.MustStructJSON(valkeySMSecretVersionResJson), Ready: 1},
+						},
+					},
+					Requirements: valkeyExpectedRequirements(),
+				},
+			},
+		},
+	}
+
+	test.RunFunctionCases(t, func() base.GroupService { return &GroupImpl{} }, cases, "annotations", "force-sync", "lastTransitionTime")
 }

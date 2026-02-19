@@ -31,6 +31,9 @@ func (e *Environment) Validate() error {
 	if e.SubnetGroup == "" {
 		return errors.New("subnetGroup is required")
 	}
+	if e.ElasticacheSubnetGroup == "" {
+		return errors.New("elasticacheSubnetGroup is required")
+	}
 	if e.EsClusterSecretStore == "" {
 		return errors.New("esClusterSecretStore is required")
 	}
