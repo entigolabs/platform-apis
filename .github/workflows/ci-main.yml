@@ -45,31 +45,30 @@ jobs:
 
   build-functions:
     name: Build Functions
-    needs: [detect-changes, ensure-test-image]
-    if: needs.detect-changes.outputs.has_function_changes == 'true'
+    needs: [detect-changes, test-functions, test-compositions]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_function_changes == 'true' &&
+      needs.test-functions.result == 'success' &&
+      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
     uses: ./.github/workflows/build-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
-      release_type: rc
-      pr_number: ${{ github.event.number }}
-      run_number: ${{ github.run_number }}
-      run_attempt: ${{ github.run_attempt }}
+      release_type: stable
     secrets: inherit
 
   build-compositions:
     name: Build Compositions
-    needs: [detect-changes, test-compositions]
+    needs: [detect-changes, test-functions, test-compositions]
     if: |
       always() &&
       needs.detect-changes.outputs.has_composition_changes == 'true' &&
-      needs.test-compositions.result == 'success'
+      needs.test-compositions.result == 'success' &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped')
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
-      release_type: rc
-      pr_number: ${{ github.event.number }}
-      run_number: ${{ github.run_number }}
-      run_attempt: ${{ github.run_attempt }}
+      release_type: stable
     secrets: inherit
 
   build-helm:
@@ -87,25 +86,22 @@ jobs:
       )
     uses: ./.github/workflows/build-helm.yml
     with:
-      release_type: rc
-      pr_number: ${{ github.event.number }}
-      run_number: ${{ github.run_number }}
-      run_attempt: ${{ github.run_attempt }}
+      release_type: stable
     secrets: inherit
 
-  prepare-infralib-branch:
-    name: Prepare Infralib Branch
+  infralib-tests:
+    name: Infralib Tests
     needs: build-helm
     if: always() && needs.build-helm.result == 'success'
-    uses: ./.github/workflows/prepare-infralib-branch.yml
+    uses: ./.github/workflows/run-infralib-tests.yml
     with:
       helm_version: ${{ needs.build-helm.outputs.version }}
     secrets: inherit
 
   create-infralib-pr:
     name: Create Infralib PR
-    needs: [build-helm, prepare-infralib-branch]
-    if: always() && needs.prepare-infralib-branch.result == 'success'
+    needs: [build-helm, infralib-tests]
+    if: always() && needs.infralib-tests.result == 'success'
     runs-on: ubuntu-latest
     env:
       INFRALIB_REPO: entigolabs/entigo-infralib

@@ -8,8 +8,6 @@ data:
   configKMSKey: config
   vpc: vpc
   subnetGroup: database
-  elasticacheSubnetGroup: elasticache
   esClusterSecretStore: external-secrets
-  backupBeforeDeletion: false
 # tags:
 #   environment: dev

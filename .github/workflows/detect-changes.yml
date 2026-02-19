@@ -100,8 +100,8 @@ jobs:
             echo "has_composition_changes=true" >> $GITHUB_OUTPUT
           fi
 
-          # Test image sources (test/build/ for Dockerfile, functions/ for pre-downloaded modules)
-          if echo "$ALL_FILES" | tr ' ' '\n' | grep -qE '^test/build/|^functions/.*go\.(mod|sum)$'; then
+          # Test image sources (test/ folder)
+          if echo "$ALL_FILES" | tr ' ' '\n' | grep -qE '^test/'; then
             echo "test_image_changed=true" >> $GITHUB_OUTPUT
             echo "Test image sources changed"
           else
