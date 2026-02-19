@@ -3,6 +3,7 @@ kind: PostgreSQLUser
 metadata:
   name: user-example
 spec:
+  name: user_example
   instanceRef:
     name: postgresql-example
   grant:

@@ -74,7 +74,7 @@ jobs:
           # Functions: if common changed, test all; otherwise only changed ones
           if echo "$ALL_FILES" | tr ' ' '\n' | grep -q '^functions/common/'; then
             echo "Common folder changed - will test all functions"
-            FUNCTIONS='["artifact","database","networking","tenancy","workload"]'
+            FUNCTIONS='["artifact","database","networking","storage","tenancy","workload"]'
           else
             FUNCTIONS=$(echo "$ALL_FILES" | tr ' ' '\n' | grep '^functions/' | grep -v '^functions/common/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
           fi

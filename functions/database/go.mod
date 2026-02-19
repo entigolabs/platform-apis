@@ -1,6 +1,6 @@
 module github.com/entigolabs/platform-apis
 
-go 1.24.9
+go 1.25.7
 
 // This is from upbound/provider-aws, to avoid dependency error
 replace github.com/hashicorp/terraform-provider-aws => github.com/upbound/terraform-provider-aws v0.0.0-20250919132046-4b6f0a4eae76
@@ -20,7 +20,10 @@ require (
 	k8s.io/apimachinery v0.34.0
 )
 
-require github.com/crossplane-contrib/provider-sql v0.13.0
+require (
+	github.com/crossplane-contrib/provider-sql v0.13.0
+	k8s.io/api v0.34.0
+)
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -122,7 +125,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.34.0 // indirect
 	k8s.io/client-go v0.34.0 // indirect
 	k8s.io/code-generator v0.34.0 // indirect
 	k8s.io/component-base v0.34.0 // indirect

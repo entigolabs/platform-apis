@@ -3,3 +3,4 @@ functions/*/crd/
 .DS_Store
 .idea
 .vscode
+/common/
