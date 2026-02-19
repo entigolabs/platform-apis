@@ -5,14 +5,15 @@ import (
 )
 
 type Environment struct {
-	AWSProvider          string             `json:"awsProvider"`
-	DataKMSKey           string             `json:"dataKMSKey"`
-	ConfigKMSKey         string             `json:"configKMSKey"`
-	VPC                  string             `json:"vpc"`
-	SubnetGroup          string             `json:"subnetGroup"`
-	EsClusterSecretStore string             `json:"esClusterSecretStore"`
-	Tags                 map[string]*string `json:"tags,omitempty"`
-	BackupBeforeDeletion *bool              `json:"backupBeforeDeletion"`
+	AWSProvider            	string             `json:"awsProvider"`
+	DataKMSKey             	string             `json:"dataKMSKey"`
+	ConfigKMSKey           	string             `json:"configKMSKey"`
+	VPC                    	string             `json:"vpc"`
+	SubnetGroup            	string             `json:"subnetGroup"`
+	ElasticacheSubnetGroup 	string             `json:"elasticacheSubnetGroup"`
+	EsClusterSecretStore   	string             `json:"esClusterSecretStore"`
+	BackupBeforeDeletion	*bool              `json:"backupBeforeDeletion"`
+	Tags                   map[string]*string `json:"tags,omitempty"`
 }
 
 func (e *Environment) Validate() error {
@@ -30,6 +31,9 @@ func (e *Environment) Validate() error {
 	}
 	if e.SubnetGroup == "" {
 		return errors.New("subnetGroup is required")
+	}
+	if e.ElasticacheSubnetGroup == "" {
+		return errors.New("elasticacheSubnetGroup is required")
 	}
 	if e.EsClusterSecretStore == "" {
 		return errors.New("esClusterSecretStore is required")

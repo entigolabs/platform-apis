@@ -1,0 +1,27 @@
+name: Build Storage Function
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'functions/storage/**'
+  #     - 'functions/common/base/**'
+  # pull_request:
+  #   paths:
+  #     - 'functions/storage/**'
+  #     - 'functions/common/base/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version (e.g. v0.1.0)
+        required: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/builder-function.yml
+    with:
+      path: functions/storage
+      name: platform-apis-storage-fn
+      version: ${{ inputs.version }}
+    secrets: inherit

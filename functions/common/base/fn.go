@@ -302,5 +302,11 @@ func (f *Function) getCompositeResourceStatus(observedObjects map[resource.Name]
 		}
 		maps.Copy(status, observedStatus)
 	}
+
+	// Allow custom post-processing for status aggregation (e.g., collecting arrays)
+	if processor, ok := f.groupService.(PostStatusProcessor); ok {
+		return processor.PostProcessStatus(status, observedObjects)
+	}
+
 	return status, nil
 }
