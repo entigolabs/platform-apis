@@ -10,34 +10,67 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func waitForResourceCondition(t *testing.T, options *terrak8s.KubectlOptions, kind, name, conditionType, expectedStatus string, optionalRetries ...int) {
-	maxRetries := 60
-	if len(optionalRetries) > 0 {
-		maxRetries = optionalRetries[0]
-	}
+func waitSyncedAndReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, retries int, interval time.Duration) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s/%s", kind, name), retries, interval, func() (string, error) {
+		for _, condType := range []string{"Synced", "Ready"} {
+			status, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o",
+				fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))
+			if err != nil {
+				return "", err
+			}
+			if status != "True" {
+				return "", fmt.Errorf("%s/%s: %s=%s", kind, name, condType, status)
+			}
+		}
+		return "Synced+Ready", nil
+	})
+	require.NoError(t, err)
+}
 
-	msg := fmt.Sprintf("Waiting for %s '%s' to be %s=%s (limit: %d)", kind, name, conditionType, expectedStatus, maxRetries)
-
-	_, err := retry.DoWithRetryE(t, msg, maxRetries, 6*time.Second, func() (string, error) {
-		jsonPath := fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, conditionType)
-		status, err := terrak8s.RunKubectlAndGetOutputE(t, options, "get", kind, name, "-o", jsonPath)
+func waitSyncedAndReadyByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind, composite string, retries int, interval time.Duration) string {
+	t.Helper()
+	var name string
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s (composite=%s)", kind, composite), retries, interval, func() (string, error) {
+		n, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "-l",
+			fmt.Sprintf("crossplane.io/composite=%s", composite), "-o", "jsonpath={.items[0].metadata.name}")
 		if err != nil {
 			return "", err
 		}
-		if status != expectedStatus {
-			return "", fmt.Errorf("condition %s is '%s', expected '%s'", conditionType, status, expectedStatus)
+		if n == "" {
+			return "", fmt.Errorf("no %s found for composite=%s", kind, composite)
 		}
-		return status, nil
+		for _, condType := range []string{"Synced", "Ready"} {
+			status, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, n, "-o",
+				fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))
+			if err != nil {
+				return "", err
+			}
+			if status != "True" {
+				return "", fmt.Errorf("%s/%s: %s=%s", kind, n, condType, status)
+			}
+		}
+		name = n
+		return "Synced+Ready", nil
 	})
-	require.NoError(t, err, fmt.Sprintf("%s '%s' failed to meet condition %s=%s", kind, name, conditionType, expectedStatus))
+	require.NoError(t, err)
+	return name
 }
 
-func waitForResourceSyncedAndReady(t *testing.T, options *terrak8s.KubectlOptions, kind, name string, optionalRetries ...int) {
-	waitForResourceCondition(t, options, kind, name, "Synced", "True", optionalRetries...)
-	waitForResourceCondition(t, options, kind, name, "Ready", "True", optionalRetries...)
-}
-
-func waitForResourceHealthyAndInstalled(t *testing.T, options *terrak8s.KubectlOptions, kind, name string, optionalRetries ...int) {
-	waitForResourceCondition(t, options, kind, name, "Healthy", "True", optionalRetries...)
-	waitForResourceCondition(t, options, kind, name, "Installed", "True", optionalRetries...)
+func waitCrossplanePackageReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s/%s", kind, name), 40, 6*time.Second, func() (string, error) {
+		for _, condType := range []string{"Healthy", "Installed"} {
+			status, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o",
+				fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))
+			if err != nil {
+				return "", err
+			}
+			if status != "True" {
+				return "", fmt.Errorf("%s/%s: %s=%s", kind, name, condType, status)
+			}
+		}
+		return "Healthy+Installed", nil
+	})
+	require.NoError(t, err)
 }

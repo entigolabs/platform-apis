@@ -21,12 +21,10 @@ const (
 	ZoneKind              = "zone.tenancy.entigo.com"
 	ZoneNamespaceName     = "test-zone"
 	TenancyFunctionName   = "platform-apis-tenancy-fn"
+	FunctionKind          = "function.pkg.crossplane.io"
 )
 
-//---- ZONE TESTS ----
-
 func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, argocdOptions *terrak8s.KubectlOptions, signalZonesReady func(bool)) {
-	// If zone setup (steps 0-4) fails, signal failure so postgresql tests don't hang
 	setupFailed := true
 	defer func() {
 		if setupFailed {
@@ -34,108 +32,38 @@ func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *
 		}
 	}()
 
-	// Configuration and function checks in parallel
-	setupStart := time.Now()
-	t.Run("setup", func(t *testing.T) {
-		t.Run("configuration", func(t *testing.T) {
-			t.Parallel()
-			test0PlatformApisZoneConfigurationDeployed(t, argocdNamespace, clusterOptions)
-		})
-		t.Run("function", func(t *testing.T) {
-			t.Parallel()
-			testPlatformApisTenancyFunctionDeployed(t, argocdNamespace, clusterOptions)
-		})
-	})
-	fmt.Printf("[%s] TIMING: Zone setup (configuration + function) took %s\n", argocdNamespace, time.Since(setupStart))
-	if t.Failed() {
-		return
-	}
-
 	test1AppProjectExists(t, argocdNamespace, argocdOptions)
 	test2ZoneApplicationApplied(t, argocdNamespace, argocdOptions)
 	test3VerifyZoneApplicationName(t, argocdNamespace, argocdOptions)
 	test4ZoneApplicationSynced(t, argocdNamespace, argocdOptions)
 
 	setupFailed = false
-	testZoneResourcesParallel(t, argocdNamespace, clusterOptions, signalZonesReady)
+	testZoneResourcesParallel(t, clusterOptions, signalZonesReady)
 	//test8NamespaceCreated(t, argocdNamespace, clusterOptions)
 	//test9NamespaceHasValidZoneLabel(t, argocdNamespace, clusterOptions)
 }
 
-func test0PlatformApisZoneConfigurationDeployed(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 0: Waiting for Crossplane Configuration '%s' to be Healthy and Installed\n", argocdNamespace, ZoneConfigurationName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for Configuration '%s'", argocdNamespace, ZoneConfigurationName), 40, 6*time.Second, func() (string, error) {
-		healthyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", ConfigurationKind, ZoneConfigurationName, "-o", `jsonpath={.status.conditions[?(@.type=="Healthy")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if healthyStatus != "True" {
-			return "", fmt.Errorf("configuration not healthy yet, status: %s", healthyStatus)
-		}
-		installedStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", ConfigurationKind, ZoneConfigurationName, "-o", `jsonpath={.status.conditions[?(@.type=="Installed")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if installedStatus != "True" {
-			return "", fmt.Errorf("configuration not installed yet, status: %s", installedStatus)
-		}
-		return "Healthy+Installed", nil
-	})
-	require.NoError(t, err, fmt.Sprintf("[%s] Crossplane Configuration '%s' not ready", argocdNamespace, ZoneConfigurationName))
-	fmt.Printf("[%s] Step 0: PASSED - Configuration '%s' is Healthy and Installed\n", argocdNamespace, ZoneConfigurationName)
-}
-
-func testPlatformApisTenancyFunctionDeployed(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] TEST: Waiting for Crossplane Function '%s' to be Healthy and Installed\n", argocdNamespace, TenancyFunctionName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for Function '%s'", argocdNamespace, TenancyFunctionName), 40, 6*time.Second, func() (string, error) {
-		healthyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", FunctionKind, TenancyFunctionName, "-o", `jsonpath={.status.conditions[?(@.type=="Healthy")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if healthyStatus != "True" {
-			return "", fmt.Errorf("function not healthy yet, status: %s", healthyStatus)
-		}
-		installedStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", FunctionKind, TenancyFunctionName, "-o", `jsonpath={.status.conditions[?(@.type=="Installed")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if installedStatus != "True" {
-			return "", fmt.Errorf("function not installed yet, status: %s", installedStatus)
-		}
-		return "Healthy+Installed", nil
-	})
-	require.NoError(t, err, fmt.Sprintf("[%s] Crossplane Function '%s' not ready", argocdNamespace, TenancyFunctionName))
-	fmt.Printf("[%s] TEST PASSED - Function '%s' is Healthy and Installed\n", argocdNamespace, TenancyFunctionName)
-}
-
 func test1AppProjectExists(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 1: Checking AppProject '%s' exists\n", argocdNamespace, AppProjectName)
 	_, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "get", "appproject", AppProjectName, "-n", argocdNamespace)
-	require.NoError(t, err, fmt.Sprintf("[%s] AppProject '%s' not found", argocdNamespace, AppProjectName))
-	fmt.Printf("[%s] Step 1: PASSED - AppProject '%s' exists\n", argocdNamespace, AppProjectName)
+	require.NoError(t, err, fmt.Sprintf("AppProject '%s' not found", AppProjectName))
 }
 
 func test2ZoneApplicationApplied(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 2: Applying Application '%s'\n", argocdNamespace, ZoneApplicationName)
 	_, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "apply", "-f", "./templates/zone_test_application.yaml", "-n", argocdNamespace)
-	require.NoError(t, err, fmt.Sprintf("[%s] Applying Application error", argocdNamespace))
-	fmt.Printf("[%s] Step 2: PASSED - Application applied\n", argocdNamespace)
+	require.NoError(t, err, "applying Application error")
 }
 
 func test3VerifyZoneApplicationName(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 3: Verifying Application '%s'\n", argocdNamespace, ZoneApplicationName)
 	appName, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "get", "application", ZoneApplicationName, "-n", argocdNamespace, "-o", "jsonpath={.metadata.name}")
-	require.NoError(t, err, fmt.Sprintf("[%s] Application not found", argocdNamespace))
-	require.Equal(t, ZoneApplicationName, appName, fmt.Sprintf("[%s] Application name mismatch", argocdNamespace))
-	fmt.Printf("[%s] Step 3: PASSED - Application verified (name)\n", argocdNamespace)
+	require.NoError(t, err, "Application not found")
+	require.Equal(t, ZoneApplicationName, appName, "Application name mismatch")
 }
 
 func test4ZoneApplicationSynced(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 4: Triggering sync for Application '%s'\n", argocdNamespace, ZoneApplicationName)
 	_, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "patch", "application", ZoneApplicationName, "-n", argocdNamespace, "--type", "merge", "-p", `{"operation":{"initiatedBy":{"username":"test"},"sync":{"revision":"HEAD"}}}`)
-	require.NoError(t, err, fmt.Sprintf("[%s] Force sync Application error", argocdNamespace))
+	require.NoError(t, err, "force sync Application error")
 
-	_, err = retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for Application to sync", argocdNamespace), 30, 10*time.Second, func() (string, error) {
+	_, err = retry.DoWithRetryE(t, fmt.Sprintf("waiting for Application '%s' to sync", ZoneApplicationName), 30, 10*time.Second, func() (string, error) {
 		output, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "get", "application", ZoneApplicationName, "-n", argocdNamespace, "-o", "jsonpath={.status.sync.status}")
 		if err != nil {
 			return "", err
@@ -145,11 +73,10 @@ func test4ZoneApplicationSynced(t *testing.T, argocdNamespace string, argocdOpti
 		}
 		return output, nil
 	})
-	require.NoError(t, err, fmt.Sprintf("[%s] Application '%s' failed to sync", argocdNamespace, ZoneApplicationName))
-	fmt.Printf("[%s] Step 4: PASSED - Application synced\n", argocdNamespace)
+	require.NoError(t, err, fmt.Sprintf("Application '%s' failed to sync", ZoneApplicationName))
 }
 
-func testZoneResourcesParallel(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, signalZonesReady func(bool)) {
+func testZoneResourcesParallel(t *testing.T, clusterOptions *terrak8s.KubectlOptions, signalZonesReady func(bool)) {
 	var readyCount atomic.Int32
 
 	for _, zone := range []string{ZoneAName, ZoneBName} {
@@ -162,58 +89,31 @@ func testZoneResourcesParallel(t *testing.T, argocdNamespace string, clusterOpti
 				}
 			}()
 
-			test5ZoneResourceExists(t, argocdNamespace, clusterOptions, zone)
-			test6ZoneResourceSyncedAndReady(t, argocdNamespace, clusterOptions, zone)
+			test5ZoneResourceExists(t, clusterOptions, zone)
+			waitSyncedAndReady(t, clusterOptions, ZoneKind, zone, 30, 10*time.Second)
 
-			// Signal when both zones have passed test6 (synced+ready)
 			if readyCount.Add(1) == 2 {
 				signalZonesReady(true)
 			}
 
-			test7ZoneHasNodegroupAndItIsReady(t, argocdNamespace, clusterOptions, zone)
+			test7ZoneHasNodegroupAndItIsReady(t, clusterOptions, zone)
 		})
 	}
 }
 
-func test5ZoneResourceExists(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, zone string) {
-	fmt.Printf("[%s] Step 5-%s: Checking Zone '%s' exists\n", argocdNamespace, zone, zone)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for zone '%s' to appear", argocdNamespace, zone), 30, 10*time.Second, func() (string, error) {
+func test5ZoneResourceExists(t *testing.T, clusterOptions *terrak8s.KubectlOptions, zone string) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for zone '%s'", zone), 30, 10*time.Second, func() (string, error) {
 		name, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", ZoneKind, zone, "-o", "jsonpath={.metadata.name}")
 		if err != nil {
 			return "", err
 		}
 		return name, nil
 	})
-	require.NoError(t, err, fmt.Sprintf("[%s] Zone '%s' not found", argocdNamespace, zone))
-	fmt.Printf("[%s] Step 5-%s: PASSED - Zone '%s' exists\n", argocdNamespace, zone, zone)
+	require.NoError(t, err, fmt.Sprintf("zone '%s' not found", zone))
 }
 
-func test6ZoneResourceSyncedAndReady(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, zone string) {
-	fmt.Printf("[%s] Step 6-%s: Waiting for Zone '%s' to be Synced and Ready\n", argocdNamespace, zone, zone)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for zone '%s' to be Synced and Ready", argocdNamespace, zone), 30, 10*time.Second, func() (string, error) {
-		syncStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", ZoneKind, zone, "-o", `jsonpath={.status.conditions[?(@.type=="Synced")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if syncStatus != "True" {
-			return "", fmt.Errorf("zone '%s' not synced yet, condition: %s", zone, syncStatus)
-		}
-		readyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", ZoneKind, zone, "-o", `jsonpath={.status.conditions[?(@.type=="Ready")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if readyStatus != "True" {
-			return "", fmt.Errorf("zone '%s' not ready yet, condition: %s", zone, readyStatus)
-		}
-		return "Synced+Ready", nil
-	})
-	require.NoError(t, err, fmt.Sprintf("[%s] Zone '%s' failed to become Synced and Ready", argocdNamespace, zone))
-	fmt.Printf("[%s] Step 6-%s: PASSED - Zone '%s' is Synced and Ready\n", argocdNamespace, zone, zone)
-}
-
-func test7ZoneHasNodegroupAndItIsReady(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, zone string) {
-	fmt.Printf("[%s] Step 7-%s: Checking Zone '%s' has working NodeGroup\n", argocdNamespace, zone, zone)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for zone '%s' NodeGroup to be ready", argocdNamespace, zone), 30, 10*time.Second, func() (string, error) {
+func test7ZoneHasNodegroupAndItIsReady(t *testing.T, clusterOptions *terrak8s.KubectlOptions, zone string) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for zone '%s' NodeGroup", zone), 30, 10*time.Second, func() (string, error) {
 		count, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "nodegroup.eks.aws.upbound.io", "-l", fmt.Sprintf("crossplane.io/composite=%s", zone), "-o", "jsonpath={.items[*].metadata.name}")
 		if err != nil {
 			return "", err
@@ -230,8 +130,7 @@ func test7ZoneHasNodegroupAndItIsReady(t *testing.T, argocdNamespace string, clu
 		}
 		return readyStatus, nil
 	})
-	require.NoError(t, err, fmt.Sprintf("[%s] Zone '%s' NodeGroup not ready", argocdNamespace, zone))
-	fmt.Printf("[%s] Step 7-%s: PASSED - Zone '%s' NodeGroup is Ready\n", argocdNamespace, zone, zone)
+	require.NoError(t, err, fmt.Sprintf("zone '%s' NodeGroup not ready", zone))
 }
 
 func test8NamespaceCreated(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {

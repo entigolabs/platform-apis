@@ -43,6 +43,30 @@ func testK8sPlatformApis(t *testing.T, cloudName string, envName string) {
 		})
 	}
 
+	configStart := time.Now()
+	t.Run("configurations", func(t *testing.T) {
+		t.Run("zone-configuration", func(t *testing.T) {
+			t.Parallel()
+			waitCrossplanePackageReady(t, clusterOptions, ConfigurationKind, ZoneConfigurationName)
+		})
+		t.Run("tenancy-function", func(t *testing.T) {
+			t.Parallel()
+			waitCrossplanePackageReady(t, clusterOptions, FunctionKind, TenancyFunctionName)
+		})
+		t.Run("postgresql-configuration", func(t *testing.T) {
+			t.Parallel()
+			waitCrossplanePackageReady(t, clusterOptions, ConfigurationKind, PostgresqlConfigurationName)
+		})
+		t.Run("database-function", func(t *testing.T) {
+			t.Parallel()
+			waitCrossplanePackageReady(t, clusterOptions, FunctionKind, DatabaseFunctionName)
+		})
+	})
+	fmt.Printf("[%s] TIMING: Platform-api config and functions tests took %s\n", argocdNamespace, time.Since(configStart))
+	if t.Failed() {
+		return
+	}
+
 	t.Run("zones", func(t *testing.T) {
 		t.Parallel()
 		testPlatformApisZone(t, argocdNamespace, clusterOptions, argocdOptions, signalZonesReady)
@@ -50,21 +74,17 @@ func testK8sPlatformApis(t *testing.T, cloudName string, envName string) {
 
 	t.Run("postgresql", func(t *testing.T) {
 		t.Parallel()
-		testPlatformApisPostgresql(t, argocdNamespace, clusterOptions, zonesReady, &zonesReadySuccess)
+		testPlatformApisPostgresql(t, clusterOptions, zonesReady, &zonesReadySuccess)
 	})
 }
 
-func waitForZonesReady(t *testing.T, argocdNamespace string, zonesReady <-chan struct{}, zonesReadySuccess *atomic.Bool) {
-	fmt.Printf("[%s] Waiting for zones to become ready...\n", argocdNamespace)
+func waitForZonesReady(t *testing.T, zonesReady <-chan struct{}, zonesReadySuccess *atomic.Bool) {
 	select {
 	case <-zonesReady:
 		if !zonesReadySuccess.Load() {
-			t.Fatal("Zones failed to become ready, aborting PostgreSQL tests")
-			return
+			t.Fatal("zones failed to become ready")
 		}
 	case <-time.After(40 * time.Minute):
-		t.Fatal("Timed out waiting for zones to become ready")
-		return
+		t.Fatal("timed out waiting for zones to become ready")
 	}
-	fmt.Printf("[%s] Zones are ready, proceeding with PostgreSQL instance tests\n", argocdNamespace)
 }
