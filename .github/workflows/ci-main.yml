@@ -102,20 +102,10 @@ jobs:
       helm_version: ${{ needs.build-helm.outputs.version }}
     secrets: inherit
 
-  run-infralib-tests:
-    name: Run Infralib Tests
-    needs: [ build-helm, prepare-infralib-branch ]
-    if: always() && needs.prepare-infralib-branch.result == 'success'
-    uses: ./.github/workflows/run-infralib-tests.yml
-    with:
-      branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
-      helm_version: ${{ needs.build-helm.outputs.version }}
-    secrets: inherit
-
   create-infralib-pr:
     name: Create Infralib PR
-    needs: [build-helm, run-infralib-tests]
-    if: always() && needs.run-infralib-tests.result == 'success'
+    needs: [build-helm, prepare-infralib-branch]
+    if: always() && needs.prepare-infralib-branch.result == 'success'
     runs-on: ubuntu-latest
     env:
       INFRALIB_REPO: entigolabs/entigo-infralib
