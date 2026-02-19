@@ -73,7 +73,6 @@ func newPgInstanceGenerator(
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
 ) (*pgInstanceGenerator, error) {
-
 	env, err := GetEnvironment(required)
 	if err != nil {
 		return nil, err

@@ -6,9 +6,11 @@ on:
 #    branches: [main]
 #    paths:
 #      - "compositions/s3bucket/**"
+#      - '!compositions/s3bucket/examples/**'
 #  pull_request:
 #    paths:
 #      - "compositions/s3bucket/**"
+#      - '!compositions/s3bucket/examples/**'
 
 jobs:
   build:
