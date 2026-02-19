@@ -50,10 +50,7 @@ jobs:
     uses: ./.github/workflows/build-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
-      release_type: rc
-      pr_number: ${{ github.event.number }}
-      run_number: ${{ github.run_number }}
-      run_attempt: ${{ github.run_attempt }}
+      release_type: stable
     secrets: inherit
 
   build-compositions:
@@ -66,10 +63,7 @@ jobs:
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
-      release_type: rc
-      pr_number: ${{ github.event.number }}
-      run_number: ${{ github.run_number }}
-      run_attempt: ${{ github.run_attempt }}
+      release_type: stable
     secrets: inherit
 
   build-helm:
@@ -87,10 +81,7 @@ jobs:
       )
     uses: ./.github/workflows/build-helm.yml
     with:
-      release_type: rc
-      pr_number: ${{ github.event.number }}
-      run_number: ${{ github.run_number }}
-      run_attempt: ${{ github.run_attempt }}
+      release_type: stable
     secrets: inherit
 
   prepare-infralib-branch:
