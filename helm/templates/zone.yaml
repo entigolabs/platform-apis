@@ -730,10 +730,9 @@ spec:
         apiVersions: ["v1alpha1"]
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["zones"]
-    matchConditions:
-    - name: exclude-delete
-      expression: request.operation != "DELETE"
   matchConditions:
+    - name: "exclude-delete"
+      expression: 'request.operation != "DELETE"'
     - name: "check-user-group"
       expression: '"maintainer" in request.userInfo.groups'
     - name: "is-infralib-zone"
@@ -762,9 +761,9 @@ spec:
         apiVersions: ["v1alpha1"]
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["zones"]
-    matchConditions:
-    - name: delete-only
-      expression: request.operation == "DELETE"
+  matchConditions:
+  - name: delete-only
+    expression: request.operation == "DELETE"
   variables:
     - name: zoneLabel
       expression: |
@@ -812,9 +811,9 @@ spec:
       apiVersions: ["v1alpha1"]
       operations: ["CREATE", "UPDATE", "DELETE"]
       resources: ["zones"]
-    matchConditions:
-    - name: exclude-delete
-      expression: request.operation != "DELETE"
+  matchConditions:
+  - name: exclude-delete
+    expression: request.operation != "DELETE"
   variables:
   - name: existingNamespaces
     expression: |
