@@ -736,7 +736,7 @@ spec:
     resourceRules:
       - apiGroups: [""]
         apiVersions: ["v1"]
-        operations: ["UPDATE", "DELETE"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["namespaces"]
   matchConditions:
     - name: "check-user-group"
@@ -763,13 +763,13 @@ spec:
     resourceRules:
       - apiGroups: [""]
         apiVersions: ["v1"]
-        operations: ["CREATE", "UPDATE"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["namespaces"]
   matchConditions:
     - name: "check-user-group"
       expression: '"maintainer" in request.userInfo.groups'
     - name: "has-infralib-zone-label"
-      expression: "has(object.metadata.labels) && ('tenancy.entigo.com/zone' in object.metadata.labels) && object.metadata.labels['tenancy.entigo.com/zone'] == 'infralib'"
+      expression: "request.operation != 'DELETE' && has(object.metadata.labels) && ('tenancy.entigo.com/zone' in object.metadata.labels) && object.metadata.labels['tenancy.entigo.com/zone'] == 'infralib'"
   validations:
     - expression: "false"
       message: "cannot use infralib zone."
