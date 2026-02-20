@@ -42,6 +42,12 @@ jobs:
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
 
+  test-helm:
+    name: Test Helm
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.helm_changed == 'true'
+    uses: ./.github/workflows/test-helm.yml
+
   build-functions:
     name: Build Functions
     needs: [detect-changes, ensure-test-image]
@@ -57,11 +63,8 @@ jobs:
 
   build-compositions:
     name: Build Compositions
-    needs: [detect-changes, test-compositions]
-    if: |
-      always() &&
-      needs.detect-changes.outputs.has_composition_changes == 'true' &&
-      needs.test-compositions.result == 'success'
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.has_composition_changes == 'true'
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
@@ -73,12 +76,13 @@ jobs:
 
   build-helm:
     name: Lint and Build Helm
-    needs: [detect-changes, test-functions, test-compositions, build-functions, build-compositions]
+    needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions]
     if: |
       always() &&
       !cancelled() &&
       (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
       (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped') &&
+      (needs.test-helm.result == 'success' || needs.test-helm.result == 'skipped') &&
       (
         needs.build-functions.result == 'success' ||
         needs.build-compositions.result == 'success' ||
