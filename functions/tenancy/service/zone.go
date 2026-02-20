@@ -519,8 +519,8 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) runtime
 				NamespaceSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
 						{
-							Key:      "kubernetes.io/metadata.name",
-							Operator: metav1.LabelSelectorOpIn,
+							Key:      "tenancy.entigo.com/zone",
+							Operator: metav1.LabelSelectorOpExists,
 							Values:   []string{namespaceName},
 						},
 					},
@@ -536,6 +536,10 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) runtime
 					},
 				}},
 			},
+			MatchConditions: []admissionregistrationv1.MatchCondition{{
+				Name:       "namespace-filter",
+				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
+			}},
 			Mutations: []admissionregistrationv1alpha1.Mutation{
 				{
 					PatchType: admissionregistrationv1alpha1.PatchTypeJSONPatch,
@@ -575,8 +579,8 @@ func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) runtime.Obj
 				NamespaceSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
 						{
-							Key:      "kubernetes.io/metadata.name",
-							Operator: metav1.LabelSelectorOpIn,
+							Key:      "tenancy.entigo.com/zone",
+							Operator: metav1.LabelSelectorOpExists,
 							Values:   []string{namespaceName},
 						},
 					},
@@ -601,6 +605,10 @@ func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) runtime.Obj
 					},
 				}},
 			},
+			MatchConditions: []admissionregistrationv1.MatchCondition{{
+				Name:       "namespace-filter",
+				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
+			}},
 			Mutations: []admissionregistrationv1alpha1.Mutation{
 				{
 					PatchType: admissionregistrationv1alpha1.PatchTypeJSONPatch,
@@ -654,8 +662,8 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) runtime.Object 
 				NamespaceSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
 						{
-							Key:      "kubernetes.io/metadata.name",
-							Operator: metav1.LabelSelectorOpIn,
+							Key:      "tenancy.entigo.com/zone",
+							Operator: metav1.LabelSelectorOpExists,
 							Values:   []string{namespaceName},
 						},
 					},
@@ -671,6 +679,10 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) runtime.Object 
 					},
 				}},
 			},
+			MatchConditions: []admissionregistrationv1.MatchCondition{{
+				Name:       "namespace-filter",
+				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
+			}},
 			Validations: []admissionregistrationv1.Validation{
 				{
 					Expression: `has(object.spec.nodeSelector) &&
