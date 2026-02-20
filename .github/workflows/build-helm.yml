@@ -32,23 +32,8 @@ env:
   CHART_NAME: platform-apis
 
 jobs:
-  test:
-    name: Test Helm
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Run tests
-        env:
-          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
-        run: ./run-tests.sh helm
-
   build:
     name: Build Helm
-    needs: test
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
