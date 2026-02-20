@@ -1,4 +1,4 @@
-name: Main CI Pipeline
+ name: Main CI Pipeline
 
 on:
   push:
@@ -92,20 +92,10 @@ jobs:
     name: Create GitHub Release
     needs: build-helm
     if: always() && needs.build-helm.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Create tag and release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.build-helm.outputs.version }}
-        run: |
-          gh release create "v${VERSION}" \
-            --repo "${{ github.repository }}" \
-            --title "v${VERSION}" \
-            --notes "Stable release ${VERSION}" \
-            --target "${{ github.sha }}"
+    uses: ./.github/workflows/create-release.yml
+    with:
+      version: ${{ needs.build-helm.outputs.version }}
+    secrets: inherit
 
   prepare-infralib-branch:
     name: Prepare Infralib Branch
