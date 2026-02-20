@@ -521,7 +521,6 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) runtime
 						{
 							Key:      "tenancy.entigo.com/zone",
 							Operator: metav1.LabelSelectorOpExists,
-							Values:   []string{namespaceName},
 						},
 					},
 				},
@@ -581,7 +580,6 @@ func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) runtime.Obj
 						{
 							Key:      "tenancy.entigo.com/zone",
 							Operator: metav1.LabelSelectorOpExists,
-							Values:   []string{namespaceName},
 						},
 					},
 				},
@@ -664,7 +662,6 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) runtime.Object 
 						{
 							Key:      "tenancy.entigo.com/zone",
 							Operator: metav1.LabelSelectorOpExists,
-							Values:   []string{namespaceName},
 						},
 					},
 				},
