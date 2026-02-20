@@ -88,6 +88,15 @@ jobs:
       release_type: stable
     secrets: inherit
 
+  create-release:
+    name: Create GitHub Release
+    needs: build-helm
+    if: always() && needs.build-helm.result == 'success'
+    uses: ./.github/workflows/create-release.yml
+    with:
+      version: ${{ needs.build-helm.outputs.version }}
+    secrets: inherit
+
   prepare-infralib-branch:
     name: Prepare Infralib Branch
     needs: build-helm
