@@ -78,6 +78,16 @@ func waitSyncedAndReadyByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind
 	return name
 }
 
+func forceSyncArgoApp(t *testing.T, opts *terrak8s.KubectlOptions, appName string) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("force syncing ArgoCD app '%s'", appName), 30, 10*time.Second, func() (string, error) {
+		_, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", "application", appName, "--type", "merge", "-p",
+			`{"operation":{"initiatedBy":{"username":"test"},"sync":{"revision":"HEAD"}}}`)
+		return "", err
+	})
+	require.NoError(t, err, fmt.Sprintf("failed to force sync ArgoCD app '%s'", appName))
+}
+
 func waitArgoCDAppSyncedAndHealthy(t *testing.T, opts *terrak8s.KubectlOptions, appName string, retries int, interval time.Duration) {
 	t.Helper()
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for ArgoCD app '%s'", appName), retries, interval, func() (string, error) {

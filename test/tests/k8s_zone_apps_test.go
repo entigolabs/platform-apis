@@ -26,8 +26,9 @@ type appDestination struct {
 }
 
 var (
-	zoneAChildApps = []string{"a1", "a2", "a1-default"}
-	zoneBChildApps = []string{"b1", "b1-default"}
+	zoneAChildApps   = []string{"a1", "a2", "a1-default"}
+	zoneBChildApps   = []string{"b1"}
+	zoneBFailingApps = []string{"b1-default"}
 
 	zoneAAppDestinations = []appDestination{
 		{appName: "a1", namespace: "a1"},
@@ -36,7 +37,6 @@ var (
 	}
 	zoneBAppDestinations = []appDestination{
 		{appName: "b1", namespace: "b1"},
-		{appName: "b1-default", namespace: "bar"},
 	}
 
 	// managedNamespaceZonePool maps zone-managed namespaces to their expected
@@ -66,6 +66,9 @@ func testZoneApps(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.
 		testApplyAndSyncZoneApp(t, argocdOptions, argocdNamespace, ZoneBAppsName, "zone_test_b_apps.yaml")
 		bAppsOptions := terrak8s.NewKubectlOptions(argocdOptions.ContextName, argocdOptions.ConfigPath, ZoneBAppsNamespace)
 		testWaitChildAppsReady(t, bAppsOptions, zoneBChildApps)
+		for _, app := range zoneBFailingApps {
+			testWaitChildAppSyncFailed(t, bAppsOptions, app)
+		}
 		testAppsHavePods(t, clusterOptions, zoneBAppDestinations)
 		testPodsNodeSelector(t, clusterOptions, zoneBAppDestinations)
 	})
@@ -114,8 +117,25 @@ func testApplyAndSyncZoneApp(t *testing.T, opts *terrak8s.KubectlOptions, namesp
 func testWaitChildAppsReady(t *testing.T, opts *terrak8s.KubectlOptions, apps []string) {
 	t.Helper()
 	for _, app := range apps {
+		forceSyncArgoApp(t, opts, app)
 		waitArgoCDAppSyncedAndHealthy(t, opts, app, 30, 10*time.Second)
 	}
+}
+
+func testWaitChildAppSyncFailed(t *testing.T, opts *terrak8s.KubectlOptions, appName string) {
+	t.Helper()
+	forceSyncArgoApp(t, opts, appName)
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for app '%s' to fail sync", appName), 30, 10*time.Second, func() (string, error) {
+		phase, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", "application", appName, "-o", "jsonpath={.status.operationState.phase}")
+		if err != nil {
+			return "", err
+		}
+		if phase != "Failed" {
+			return "", fmt.Errorf("app '%s' sync phase: '%s', expected 'Failed'", appName, phase)
+		}
+		return phase, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("app '%s' was expected to fail sync", appName))
 }
 
 func testAppsHavePods(t *testing.T, clusterOptions *terrak8s.KubectlOptions, destinations []appDestination) {
