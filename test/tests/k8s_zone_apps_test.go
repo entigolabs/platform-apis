@@ -25,18 +25,29 @@ type appDestination struct {
 	namespace string // destination namespace where workload pods run
 }
 
+type failingApp struct {
+	name    string
+	wantErr string // expected substring in operationState.message
+}
+
 var (
-	zoneAChildApps = []string{"a1", "a2", "a1-default"}
-	zoneBChildApps = []string{"b1", "b1-default"}
+	zoneAChildApps = []string{"a1", "a2"}
+	// a1-default destination 'bar' is not in project 'a' allowed destinations
+	zoneAFailingApps = []failingApp{
+		{name: "a1-default", wantErr: "not match any of the allowed destinations"},
+	}
+	zoneBChildApps = []string{"b1"}
+	// b1-default uses source a/a1 whose resources target namespace a1 (zone A) — zone B project blocks it
+	zoneBFailingApps = []failingApp{
+		{name: "b1-default", wantErr: "not permitted"},
+	}
 
 	zoneAAppDestinations = []appDestination{
 		{appName: "a1", namespace: "a1"},
 		{appName: "a2", namespace: "a2"},
-		{appName: "a1-default", namespace: "bar"},
 	}
 	zoneBAppDestinations = []appDestination{
 		{appName: "b1", namespace: "b1"},
-		{appName: "b1-default", namespace: "bar"},
 	}
 
 	// managedNamespaceZonePool maps zone-managed namespaces to their expected
@@ -57,6 +68,9 @@ func testZoneApps(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.
 		testApplyAndSyncZoneApp(t, argocdOptions, argocdNamespace, ZoneAAppsName, "zone_test_a_apps.yaml")
 		aAppsOptions := terrak8s.NewKubectlOptions(argocdOptions.ContextName, argocdOptions.ConfigPath, ZoneAAppsNamespace)
 		testWaitChildAppsReady(t, aAppsOptions, zoneAChildApps)
+		for _, app := range zoneAFailingApps {
+			testWaitChildAppSyncFailed(t, aAppsOptions, app.name, app.wantErr)
+		}
 		testAppsHavePods(t, clusterOptions, zoneAAppDestinations)
 		testPodsNodeSelector(t, clusterOptions, zoneAAppDestinations)
 	})
@@ -66,6 +80,9 @@ func testZoneApps(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.
 		testApplyAndSyncZoneApp(t, argocdOptions, argocdNamespace, ZoneBAppsName, "zone_test_b_apps.yaml")
 		bAppsOptions := terrak8s.NewKubectlOptions(argocdOptions.ContextName, argocdOptions.ConfigPath, ZoneBAppsNamespace)
 		testWaitChildAppsReady(t, bAppsOptions, zoneBChildApps)
+		for _, app := range zoneBFailingApps {
+			testWaitChildAppSyncFailed(t, bAppsOptions, app.name, app.wantErr)
+		}
 		testAppsHavePods(t, clusterOptions, zoneBAppDestinations)
 		testPodsNodeSelector(t, clusterOptions, zoneBAppDestinations)
 	})
@@ -171,6 +188,34 @@ func testPodsNodeSelector(t *testing.T, clusterOptions *terrak8s.KubectlOptions,
 			}
 		})
 	}
+}
+
+// testWaitChildAppSyncFailed force-syncs an app and verifies the sync operation fails
+// with an error message containing wantErr, confirming the specific policy violation.
+func testWaitChildAppSyncFailed(t *testing.T, opts *terrak8s.KubectlOptions, appName, wantErr string) {
+	t.Helper()
+	forceSyncArgoApp(t, opts, appName)
+	var syncMessage string
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for app '%s' to fail sync", appName), 30, 10*time.Second, func() (string, error) {
+		phase, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", "application", appName,
+			"-o", "jsonpath={.status.operationState.phase}")
+		if err != nil {
+			return "", err
+		}
+		if phase != "Failed" {
+			return "", fmt.Errorf("app '%s' sync phase: '%s', expected 'Failed'", appName, phase)
+		}
+		msg, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", "application", appName,
+			"-o", "jsonpath={.status.operationState.message}")
+		if err != nil {
+			return "", err
+		}
+		syncMessage = msg
+		return phase, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("app '%s' was expected to fail sync", appName))
+	require.Contains(t, syncMessage, wantErr,
+		"app '%s' sync failure message does not match expected error; got: %s", appName, syncMessage)
 }
 
 func testWrongNodeSelectorRejected(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
