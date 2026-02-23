@@ -42,6 +42,8 @@ func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *
 	testNamespaceCreated(t, clusterOptions)
 	testNamespaceHasValidZoneLabel(t, clusterOptions)
 	testZoneApps(t, argocdNamespace, argocdOptions, clusterOptions)
+	testZoneMaintainerPolicies(t, clusterOptions, argocdOptions)
+	testZoneContributorPolicies(t, clusterOptions, argocdOptions)
 }
 
 func test1AppProjectExists(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {

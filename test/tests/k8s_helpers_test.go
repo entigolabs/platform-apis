@@ -2,6 +2,8 @@ package test
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -96,6 +98,46 @@ func waitArgoCDAppSyncedAndHealthy(t *testing.T, opts *terrak8s.KubectlOptions, 
 		return "Synced+Healthy", nil
 	})
 	require.NoError(t, err)
+}
+
+// setupRoleOptions creates kubectl options authenticated as an IAM user mapped to a Kubernetes
+// role group. Credentials are read from the given environment variable names. If either env var
+// is unset the test is skipped. The returned options share the same cluster as baseOptions.
+func setupRoleOptions(t *testing.T, baseOptions *terrak8s.KubectlOptions, accessKeyIDEnv, secretAccessKeyEnv string) *terrak8s.KubectlOptions {
+	t.Helper()
+	accessKeyID := os.Getenv(accessKeyIDEnv)
+	secretAccessKey := os.Getenv(secretAccessKeyEnv)
+	if accessKeyID == "" || secretAccessKey == "" {
+		t.Skipf("%s or %s not set", accessKeyIDEnv, secretAccessKeyEnv)
+	}
+
+	// EKS context ARN format: arn:aws:eks:REGION:ACCOUNT:cluster/CLUSTER-NAME
+	parts := strings.Split(baseOptions.ContextName, ":")
+	require.True(t, len(parts) >= 6, "unexpected EKS context ARN format: %s", baseOptions.ContextName)
+	region := parts[3]
+	clusterName := strings.TrimPrefix(parts[5], "cluster/")
+
+	kubeconfigFile, err := os.CreateTemp("", "role-kubeconfig-*.yaml")
+	require.NoError(t, err)
+	kubeconfigPath := kubeconfigFile.Name()
+	kubeconfigFile.Close()
+	t.Cleanup(func() { os.Remove(kubeconfigPath) })
+
+	cmd := exec.Command("aws", "eks", "update-kubeconfig",
+		"--name", clusterName,
+		"--region", region,
+		"--kubeconfig", kubeconfigPath)
+	cmd.Env = append(os.Environ(),
+		"AWS_ACCESS_KEY_ID="+accessKeyID,
+		"AWS_SECRET_ACCESS_KEY="+secretAccessKey,
+	)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "failed to create role kubeconfig: %s", output)
+
+	out, err := exec.Command("kubectl", "config", "current-context", "--kubeconfig", kubeconfigPath).Output()
+	require.NoError(t, err, "failed to get current context from role kubeconfig")
+
+	return terrak8s.NewKubectlOptions(strings.TrimSpace(string(out)), kubeconfigPath, "")
 }
 
 func waitCrossplanePackageReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string) {

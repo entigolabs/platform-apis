@@ -69,6 +69,10 @@ func testZoneApps(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.
 		testAppsHavePods(t, clusterOptions, zoneBAppDestinations)
 		testPodsNodeSelector(t, clusterOptions, zoneBAppDestinations)
 	})
+	t.Run("nodeselector-enforcement", func(t *testing.T) {
+		t.Parallel()
+		testWrongNodeSelectorRejected(t, clusterOptions)
+	})
 }
 
 func testWaitAppProjectExists(t *testing.T, opts *terrak8s.KubectlOptions, namespace, project string) {
@@ -166,6 +170,15 @@ func testPodsNodeSelector(t *testing.T, clusterOptions *terrak8s.KubectlOptions,
 			}
 		})
 	}
+}
+
+func testWrongNodeSelectorRejected(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
+	t.Helper()
+	nsOpts := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, ZoneAAppsNamespace)
+	defer terrak8s.RunKubectl(t, nsOpts, "delete", "pod", "test-wrong-nodeselector", "--ignore-not-found")
+
+	_, err := terrak8s.RunKubectlAndGetOutputE(t, nsOpts, "apply", "-f", "./templates/zone_test_wrong_nodeselector_pod.yaml")
+	require.Error(t, err, "pod with zone B nodeSelector in zone A namespace should be rejected by Kyverno")
 }
 
 func cleanupZoneApps(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
