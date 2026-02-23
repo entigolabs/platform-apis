@@ -190,32 +190,47 @@ func testPodsNodeSelector(t *testing.T, clusterOptions *terrak8s.KubectlOptions,
 	}
 }
 
-// testWaitChildAppSyncFailed force-syncs an app and verifies the sync operation fails
-// with an error message containing wantErr, confirming the specific policy violation.
+// testWaitChildAppSyncFailed force-syncs an app and verifies it enters an error state
+// whose message contains wantErr. It handles two ArgoCD failure modes:
+//   - operationState.phase == "Failed": sync ran but was rejected (e.g. b1-default trying
+//     to deploy resources into a zone A namespace not permitted in project b)
+//   - status.conditions[InvalidSpecError]: spec rejected before sync starts (e.g. a1-default
+//     whose destination 'bar' is not in project a's allowed destinations)
 func testWaitChildAppSyncFailed(t *testing.T, opts *terrak8s.KubectlOptions, appName, wantErr string) {
 	t.Helper()
 	forceSyncArgoApp(t, opts, appName)
-	var syncMessage string
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for app '%s' to fail sync", appName), 30, 10*time.Second, func() (string, error) {
+	var errMsg string
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for app '%s' to enter error state", appName), 30, 10*time.Second, func() (string, error) {
+		// Check for sync operation failure
 		phase, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", "application", appName,
 			"-o", "jsonpath={.status.operationState.phase}")
 		if err != nil {
 			return "", err
 		}
-		if phase != "Failed" {
-			return "", fmt.Errorf("app '%s' sync phase: '%s', expected 'Failed'", appName, phase)
+		if phase == "Failed" {
+			msg, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", "application", appName,
+				"-o", "jsonpath={.status.operationState.message}")
+			if err != nil {
+				return "", err
+			}
+			errMsg = msg
+			return phase, nil
 		}
-		msg, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", "application", appName,
-			"-o", "jsonpath={.status.operationState.message}")
+		// Check for spec-level validation error stored in conditions
+		cond, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", "application", appName,
+			"-o", `jsonpath={.status.conditions[?(@.type=="InvalidSpecError")].message}`)
 		if err != nil {
 			return "", err
 		}
-		syncMessage = msg
-		return phase, nil
+		if cond != "" {
+			errMsg = cond
+			return "InvalidSpecError", nil
+		}
+		return "", fmt.Errorf("app '%s' not in error state yet (phase=%q)", appName, phase)
 	})
-	require.NoError(t, err, fmt.Sprintf("app '%s' was expected to fail sync", appName))
-	require.Contains(t, syncMessage, wantErr,
-		"app '%s' sync failure message does not match expected error; got: %s", appName, syncMessage)
+	require.NoError(t, err, fmt.Sprintf("app '%s' was expected to enter an error state", appName))
+	require.Contains(t, errMsg, wantErr,
+		"app '%s' error message does not match expected; got: %s", appName, errMsg)
 }
 
 func testWrongNodeSelectorRejected(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
