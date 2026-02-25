@@ -39,7 +39,7 @@ var (
 	zoneBChildApps = []string{"b1"}
 	// b1-default uses source a/a1 whose resources target namespace a1 (zone A) — zone B project blocks it
 	zoneBFailingApps = []failingApp{
-		{name: "b1-default", wantErr: "not permitted"},
+		{name: "b1-default", wantErr: "not valid"},
 	}
 
 	zoneAAppDestinations = []appDestination{
@@ -55,6 +55,8 @@ var (
 	// Pods in namespaces NOT listed here must NOT have this nodeSelector.
 	managedNamespaceZonePool = map[string]string{
 		"a-apps": ZoneAName + "-default",
+		"a1":     ZoneAName + "-default",
+		"a2":     ZoneAName + "-default",
 		"b-apps": ZoneBName + "-default",
 		"b1":     ZoneBName + "-default",
 		"b2":     ZoneBName + "-default",
