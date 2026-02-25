@@ -137,11 +137,18 @@ func test7ZoneHasNodegroupAndItIsReady(t *testing.T, clusterOptions *terrak8s.Ku
 }
 
 func testNamespaceCreated(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "create", "namespace", ZoneNamespaceName)
-	if err != nil {
-		_, err = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "namespace", ZoneNamespaceName)
-		require.NoError(t, err, fmt.Sprintf("Namespace '%s' not found", ZoneNamespaceName))
-	}
+	_, err := retry.DoWithRetryE(t, "create namespace "+ZoneNamespaceName, 10, 15*time.Second, func() (string, error) {
+		_, createErr := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "create", "namespace", ZoneNamespaceName)
+		if createErr == nil {
+			return "created", nil
+		}
+		_, getErr := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "namespace", ZoneNamespaceName)
+		if getErr == nil {
+			return "already exists", nil
+		}
+		return "", createErr
+	})
+	require.NoError(t, err, "namespace "+ZoneNamespaceName+" not found")
 }
 
 func testNamespaceHasValidZoneLabel(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
