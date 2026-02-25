@@ -30,14 +30,16 @@ func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *
 		if setupFailed {
 			signalZonesReady(false)
 		}
+	}()
 
+	t.Cleanup(func() {
 		if t.Failed() {
 			return
 		}
 		cleanupStart := time.Now()
 		cleanupZoneResources(t, argocdNamespace, argocdOptions, clusterOptions)
 		fmt.Printf("TIMING: Zone tests cleanup took %s\n", time.Since(cleanupStart))
-	}()
+	})
 
 	test1AppProjectExists(t, argocdNamespace, argocdOptions)
 	test2ZoneApplicationApplied(t, argocdNamespace, argocdOptions)
@@ -49,8 +51,12 @@ func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *
 	testNamespaceCreated(t, clusterOptions)
 	testNamespaceHasValidZoneLabel(t, clusterOptions)
 	testZoneApps(t, argocdNamespace, argocdOptions, clusterOptions)
-	testZoneMaintainerPolicies(t, clusterOptions, argocdOptions)
-	testZoneContributorPolicies(t, clusterOptions, argocdOptions)
+	t.Run("maintainer-policies", func(t *testing.T) {
+		testZoneMaintainerPolicies(t, clusterOptions, argocdOptions)
+	})
+	t.Run("contributor-policies", func(t *testing.T) {
+		testZoneContributorPolicies(t, clusterOptions, argocdOptions)
+	})
 }
 
 func test1AppProjectExists(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
