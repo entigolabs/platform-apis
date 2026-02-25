@@ -243,6 +243,20 @@ func testWrongNodeSelectorRejected(t *testing.T, clusterOptions *terrak8s.Kubect
 }
 
 func cleanupZoneApps(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
+	aAppsOpts := terrak8s.NewKubectlOptions(argocdOptions.ContextName, argocdOptions.ConfigPath, ZoneAAppsNamespace)
+	for _, app := range zoneAChildApps {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, aAppsOpts, "delete", "application", app, "--ignore-not-found")
+	}
+	for _, fa := range zoneAFailingApps {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, aAppsOpts, "delete", "application", fa.name, "--ignore-not-found")
+	}
+	bAppsOpts := terrak8s.NewKubectlOptions(argocdOptions.ContextName, argocdOptions.ConfigPath, ZoneBAppsNamespace)
+	for _, app := range zoneBChildApps {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, bAppsOpts, "delete", "application", app, "--ignore-not-found")
+	}
+	for _, fa := range zoneBFailingApps {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, bAppsOpts, "delete", "application", fa.name, "--ignore-not-found")
+	}
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "delete", "application", ZoneAAppsName, "-n", argocdNamespace, "--ignore-not-found")
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "delete", "application", ZoneBAppsName, "-n", argocdNamespace, "--ignore-not-found")
 }

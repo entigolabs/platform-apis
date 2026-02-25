@@ -30,6 +30,13 @@ func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *
 		if setupFailed {
 			signalZonesReady(false)
 		}
+
+		if t.Failed() {
+			return
+		}
+		cleanupStart := time.Now()
+		cleanupZoneResources(t, argocdNamespace, argocdOptions, clusterOptions)
+		fmt.Printf("TIMING: Zone tests cleanup took %s\n", time.Since(cleanupStart))
 	}()
 
 	test1AppProjectExists(t, argocdNamespace, argocdOptions)
@@ -170,7 +177,6 @@ func testNamespaceHasValidZoneLabel(t *testing.T, clusterOptions *terrak8s.Kubec
 func cleanupZoneResources(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions, clusterOptions *terrak8s.KubectlOptions) {
 	cleanupZoneApps(t, argocdNamespace, argocdOptions)
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "delete", "namespace", ZoneNamespaceName, "--ignore-not-found")
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "delete", "application", ZoneApplicationName, "-n", argocdNamespace, "--ignore-not-found")
 }
 
 //create users
