@@ -38,6 +38,8 @@ COPY compositions/s3bucket/test/go.mod compositions/s3bucket/test/go.mod
 COPY compositions/s3bucket/test/go.sum compositions/s3bucket/test/go.sum
 COPY compositions/valkey/test/go.mod compositions/valkey/test/go.mod
 COPY compositions/valkey/test/go.sum compositions/valkey/test/go.sum
+COPY compositions/webaccess/test/go.mod compositions/webaccess/test/go.mod
+COPY compositions/webaccess/test/go.sum compositions/webaccess/test/go.sum
 
 RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
       echo "Downloading modules in $dir..."; \
@@ -50,4 +52,5 @@ RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
     cd /workspace/compositions/postgresql/test && go mod download && \
     cd /workspace/compositions/repository/test && go mod download && \
     cd /workspace/compositions/s3bucket/test && go mod download && \
-    cd /workspace/compositions/valkey/test && go mod download
+    cd /workspace/compositions/valkey/test && go mod download && \
+    cd /workspace/compositions/webaccess/test && go mod download
