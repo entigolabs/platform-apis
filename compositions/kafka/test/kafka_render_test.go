@@ -2,7 +2,6 @@ package render_test
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -12,9 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func helmValues() string {
-	return filepath.Join(xptest.WorkspaceRoot(), "helm", "values.yaml")
-}
+const (
+	mskRegion = "eu-north-1"
+	mskArn    = "arn:aws:kafka:eu-north-1:012345678901:cluster/test-crossplane-cluster/abcdef"
+)
 
 func TestMSKObserverStatic(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -22,6 +22,7 @@ func TestMSKObserverStatic(t *testing.T) {
 
 	fs := afero.NewOsFs()
 
+	// Load definition, composition, function, env
 	xr, err := render.LoadCompositeResource(fs, "../examples/msk-observer.yaml")
 	if err != nil {
 		t.Fatalf("cannot load composite resource: %v", err)
@@ -35,7 +36,7 @@ func TestMSKObserverStatic(t *testing.T) {
 		t.Fatalf("cannot load composition: %v", err)
 	}
 
-	fns := xptest.DockerFunctionsFromHelm(t, helmValues(), "function-go-templating", "function-auto-ready")
+	fns := xptest.DockerFunctionsFromHelm(t, xptest.HelmValues(), "function-go-templating", "function-auto-ready")
 
 	envConfig, err := xptest.LoadUnstructured("../examples/environment-config.yaml")
 	if err != nil {
@@ -122,7 +123,7 @@ func TestTopicStatic(t *testing.T) {
 		t.Fatalf("cannot load composition: %v", err)
 	}
 
-	fns := xptest.DockerFunctionsFromHelm(t, helmValues(), "function-go-templating", "function-auto-ready")
+	fns := xptest.DockerFunctionsFromHelm(t, xptest.HelmValues(), "function-go-templating", "function-auto-ready")
 
 	msk := mockedMSKResource(t, "test-crossplane-cluster-observed", "eu-north-1",
 		"arn:aws:kafka:eu-north-1:012345678901:cluster/test-crossplane-cluster/abcdef",
@@ -169,12 +170,8 @@ func TestKafkaUserStatic(t *testing.T) {
 
 	xptest.RemoveCompositionStep(comp, "sequence-creation")
 
-	fns := xptest.DockerFunctionsFromHelm(t, helmValues(), "function-go-templating", "function-auto-ready")
+	fns := xptest.DockerFunctionsFromHelm(t, xptest.HelmValues(), "function-go-templating", "function-auto-ready")
 
-	const (
-		mskRegion = "eu-north-1"
-		mskArn    = "arn:aws:kafka:eu-north-1:012345678901:cluster/test-crossplane-cluster/abcdef"
-	)
 	msk := mockedMSKResource(t, "test-crossplane-cluster-observed", mskRegion, mskArn,
 		"broker1:9098,broker2:9098", "broker1:9096,broker2:9096")
 	envConfig, err := xptest.LoadUnstructured("../examples/environment-config.yaml")

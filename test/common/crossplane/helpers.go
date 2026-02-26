@@ -1,11 +1,14 @@
 package crossplane
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -38,6 +41,22 @@ func AssertCounts(t *testing.T, out render.Outputs, kindCounts ...interface{}) {
 		} else {
 			t.Logf("SUCCESS: %s count: %d/%d", kind, actual, expected)
 		}
+	}
+}
+
+func AssertNestedBool(t *testing.T, obj map[string]interface{}, expected bool, fields ...string) {
+	t.Helper()
+	got, found, err := unstructured.NestedBool(obj, fields...)
+	if err != nil {
+		t.Errorf("field %v: error: %v", fields, err)
+		return
+	}
+	if !found {
+		t.Errorf("field %v: not found", fields)
+		return
+	}
+	if got != expected {
+		t.Errorf("field %v: expected %v, got %v", fields, expected, got)
 	}
 }
 
@@ -186,6 +205,10 @@ func FindResourceByKind(t *testing.T, resources []composed.Unstructured, kind st
 	return nil
 }
 
+func HelmValues() string {
+	return filepath.Join(WorkspaceRoot(), "helm", "values.yaml")
+}
+
 func LoadUnstructured(path string) (unstructured.Unstructured, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -196,6 +219,28 @@ func LoadUnstructured(path string) (unstructured.Unstructured, error) {
 		return unstructured.Unstructured{}, err
 	}
 	return unstructured.Unstructured{Object: obj}, nil
+}
+
+func LoadUnstructuredMulti(path string) ([]unstructured.Unstructured, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096)
+	var result []unstructured.Unstructured
+	for {
+		var obj map[string]interface{}
+		if err := decoder.Decode(&obj); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		if obj != nil {
+			result = append(result, unstructured.Unstructured{Object: obj})
+		}
+	}
+	return result, nil
 }
 
 func RemoveCompositionStep(comp *apiv1.Composition, stepName string) {

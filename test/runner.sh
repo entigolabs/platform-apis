@@ -36,7 +36,7 @@ generate_crossplane_functions_configs() {
   ' /workspace/helm/values.yaml | tail -n +2 > "$output"
 
   echo "---" >> "$output"
-  cat /workspace/test/common/functions-dev.yaml >> "$output"
+  cat /workspace/test/common/crossplane/functions-dev.yaml >> "$output"
 }
 
 cleanup_test_functions() {

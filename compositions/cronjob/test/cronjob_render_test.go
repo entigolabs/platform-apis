@@ -20,6 +20,7 @@ func TestCronJobStatic(t *testing.T) {
 
 	fs := afero.NewOsFs()
 
+	// Load definition, composition, function, env
 	xr, err := render.LoadCompositeResource(fs, "../examples/cronjob.yaml")
 	if err != nil {
 		t.Fatalf("cannot load composite resource: %v", err)
