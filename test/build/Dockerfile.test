@@ -28,6 +28,8 @@ COPY test/common/crossplane/go.mod test/common/crossplane/go.mod
 COPY test/common/crossplane/go.sum test/common/crossplane/go.sum
 COPY compositions/cronjob/test/go.mod compositions/cronjob/test/go.mod
 COPY compositions/cronjob/test/go.sum compositions/cronjob/test/go.sum
+COPY compositions/kafka/test/go.mod compositions/kafka/test/go.mod
+COPY compositions/kafka/test/go.sum compositions/kafka/test/go.sum
 
 RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
       echo "Downloading modules in $dir..."; \
@@ -35,4 +37,5 @@ RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
     done && \
     cd test/common/static && go mod download && \
     cd /workspace/test/common/crossplane && go mod download && \
-    cd /workspace/compositions/cronjob/test && go mod download
+    cd /workspace/compositions/cronjob/test && go mod download && \
+    cd /workspace/compositions/kafka/test && go mod download

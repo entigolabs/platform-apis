@@ -89,12 +89,12 @@ func TestCronJobStatic(t *testing.T) {
 func assertCronJobFields(t *testing.T, obj map[string]interface{}) {
 	t.Helper()
 
-	assertNestedString(t, obj, "* * */1 * *", "spec", "schedule")
-	assertNestedString(t, obj, "Allow", "spec", "concurrencyPolicy")
-	assertNestedString(t, obj, "OnFailure", "spec", "jobTemplate", "spec", "template", "spec", "restartPolicy")
-	assertNestedString(t, obj, "new-cron-job", "metadata", "labels", "app")
-	assertNestedString(t, obj, "new-cron-job", "metadata", "labels", "entigo.com/resource")
-	assertNestedString(t, obj, "CronJob", "metadata", "labels", "entigo.com/resource-kind")
+	xptest.AssertNestedString(t, obj, "* * */1 * *", "spec", "schedule")
+	xptest.AssertNestedString(t, obj, "Allow", "spec", "concurrencyPolicy")
+	xptest.AssertNestedString(t, obj, "OnFailure", "spec", "jobTemplate", "spec", "template", "spec", "restartPolicy")
+	xptest.AssertNestedString(t, obj, "new-cron-job", "metadata", "labels", "app")
+	xptest.AssertNestedString(t, obj, "new-cron-job", "metadata", "labels", "entigo.com/resource")
+	xptest.AssertNestedString(t, obj, "CronJob", "metadata", "labels", "entigo.com/resource-kind")
 
 	containers, _, _ := unstructured.NestedSlice(obj, "spec", "jobTemplate", "spec", "template", "spec", "containers")
 	if len(containers) == 0 {
@@ -148,16 +148,16 @@ func assertContainerFields(t *testing.T, label string, container map[string]inte
 		}
 	}
 
-	assertNestedString(t, container, "250m", "resources", "limits", "cpu")
-	assertNestedString(t, container, "128Mi", "resources", "limits", "memory")
-	assertNestedString(t, container, "125m", "resources", "requests", "cpu")
-	assertNestedString(t, container, "102Mi", "resources", "requests", "memory")
+	xptest.AssertNestedString(t, container, "250m", "resources", "limits", "cpu")
+	xptest.AssertNestedString(t, container, "128Mi", "resources", "limits", "memory")
+	xptest.AssertNestedString(t, container, "125m", "resources", "requests", "cpu")
+	xptest.AssertNestedString(t, container, "102Mi", "resources", "requests", "memory")
 }
 
 func assertServiceFields(t *testing.T, obj map[string]interface{}) {
 	t.Helper()
 
-	assertNestedString(t, obj, "new-cron-job", "spec", "selector", "app")
+	xptest.AssertNestedString(t, obj, "new-cron-job", "spec", "selector", "app")
 
 	ports, _, _ := unstructured.NestedSlice(obj, "spec", "ports")
 	if len(ports) != 2 {
@@ -196,21 +196,5 @@ func assertServiceFields(t *testing.T, obj map[string]interface{}) {
 		if p["protocol"] != ep.protocol {
 			t.Errorf("Service port[%d]: expected protocol %q, got %v", i, ep.protocol, p["protocol"])
 		}
-	}
-}
-
-func assertNestedString(t *testing.T, obj map[string]interface{}, expected string, fields ...string) {
-	t.Helper()
-	got, found, err := unstructured.NestedString(obj, fields...)
-	if err != nil {
-		t.Errorf("field %v: error: %v", fields, err)
-		return
-	}
-	if !found {
-		t.Errorf("field %v: not found", fields)
-		return
-	}
-	if got != expected {
-		t.Errorf("field %v: expected %q, got %q", fields, expected, got)
 	}
 }
