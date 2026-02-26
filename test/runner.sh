@@ -50,13 +50,26 @@ run_composition_tests() {
   source /workspace/test/lib.sh
   source /workspace/test/mock_lib.sh
 
-  TEST_FILES=$(find . -maxdepth 1 -name "test_*.sh" | sort)
-  if [ -z "$TEST_FILES" ]; then
-    log_info "No test_*.sh files found. Skipping..."
-    return 0
+  FAILED_TESTS=0
+
+  if [ -f "go.mod" ]; then
+    log_info "Running Go composition tests..."
+    if go test -v ./...; then
+      log_pass "Go composition tests"
+    else
+      log_fail "Go composition tests"
+      FAILED_TESTS=$((FAILED_TESTS+1))
+    fi
   fi
 
-  FAILED_TESTS=0
+  TEST_FILES=$(find . -maxdepth 1 -name "test_*.sh" | sort)
+  if [ -z "$TEST_FILES" ]; then
+    if [ ! -f "go.mod" ]; then
+      log_info "No test files found. Skipping..."
+    fi
+    return $FAILED_TESTS
+  fi
+
   for test_file in $TEST_FILES; do
     echo -e "\nRunning Suite: $test_file..."
     ( set -e; source "$test_file" )

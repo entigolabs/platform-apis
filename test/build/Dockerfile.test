@@ -22,8 +22,17 @@ ENV GOCACHE=/go/cache
 
 WORKDIR /workspace
 COPY functions/ functions/
+COPY test/common/static/go.mod test/common/static/go.mod
+COPY test/common/static/go.sum test/common/static/go.sum
+COPY test/common/crossplane/go.mod test/common/crossplane/go.mod
+COPY test/common/crossplane/go.sum test/common/crossplane/go.sum
+COPY compositions/cronjob/test/go.mod compositions/cronjob/test/go.mod
+COPY compositions/cronjob/test/go.sum compositions/cronjob/test/go.sum
 
 RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
       echo "Downloading modules in $dir..."; \
       (cd "$dir" && go mod download); \
-    done
+    done && \
+    cd test/common/static && go mod download && \
+    cd /workspace/test/common/crossplane && go mod download && \
+    cd /workspace/compositions/cronjob/test && go mod download
