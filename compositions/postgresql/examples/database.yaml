@@ -10,3 +10,8 @@ spec:
   dbTemplate: template0
   instanceRef:
     name: postgresql-example
+  extensions:
+    - name: postgis
+    - name: postgis_topology
+      schema: topology
+    - name: uuid-ossp

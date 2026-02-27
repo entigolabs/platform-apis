@@ -77,13 +77,16 @@ spec:
           kind: Extension
           metadata:
             annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: extension-{{ $extension }}-{{ $index }}
-            name: {{ $.observed.composite.resource.metadata.name }}-{{ $extension }}
+              gotemplating.fn.crossplane.io/composition-resource-name: extension-{{ $extension.name }}-{{ $index }}
+            name: {{ $.observed.composite.resource.metadata.name }}-{{ $extension.name }}
             namespace: {{ $.observed.composite.resource.metadata.namespace }}
           spec:
             forProvider:
-              extension: {{ $extension }}
+              extension: {{ $extension.name }}
               database: {{ $.observed.composite.resource.metadata.name }}
+            {{- if $extension.schema }}
+              schema: {{ $extension.schema }}
+            {{- end }}
             providerConfigRef:
               kind: ProviderConfig
               name: {{ $.observed.composite.resource.spec.instanceRef.name }}-providerconfig

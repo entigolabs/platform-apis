@@ -47,7 +47,16 @@ spec:
                   description: List of PostgreSQL extensions to enable
                   type: array
                   items:
-                    type: string
+                    type: object
+                    properties:
+                      name:
+                        description: Extension name
+                        type: string
+                      schema:
+                        description: Schema in which to create the extension objects
+                        type: string
+                    required:
+                      - name
               required:
                 - owner
                 - instanceRef
