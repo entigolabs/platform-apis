@@ -21,39 +21,50 @@ ENV GOPATH=/go
 ENV GOCACHE=/go/cache
 
 WORKDIR /workspace
-COPY functions/ functions/
-COPY test/common/crossplane/go.mod test/common/crossplane/go.mod
-COPY test/common/crossplane/go.sum test/common/crossplane/go.sum
-COPY compositions/cronjob/test/go.mod compositions/cronjob/test/go.mod
-COPY compositions/cronjob/test/go.sum compositions/cronjob/test/go.sum
-COPY compositions/kafka/test/go.mod compositions/kafka/test/go.mod
-COPY compositions/kafka/test/go.sum compositions/kafka/test/go.sum
-COPY compositions/postgresql/test/go.mod compositions/postgresql/test/go.mod
-COPY compositions/postgresql/test/go.sum compositions/postgresql/test/go.sum
-COPY compositions/repository/test/go.mod compositions/repository/test/go.mod
-COPY compositions/repository/test/go.sum compositions/repository/test/go.sum
-COPY compositions/s3bucket/test/go.mod compositions/s3bucket/test/go.mod
-COPY compositions/s3bucket/test/go.sum compositions/s3bucket/test/go.sum
-COPY compositions/valkey/test/go.mod compositions/valkey/test/go.mod
-COPY compositions/valkey/test/go.sum compositions/valkey/test/go.sum
-COPY compositions/webaccess/test/go.mod compositions/webaccess/test/go.mod
-COPY compositions/webaccess/test/go.sum compositions/webaccess/test/go.sum
-COPY compositions/webapp/test/go.mod compositions/webapp/test/go.mod
-COPY compositions/webapp/test/go.sum compositions/webapp/test/go.sum
-COPY compositions/zone/test/go.mod compositions/zone/test/go.mod
-COPY compositions/zone/test/go.sum compositions/zone/test/go.sum
+
+COPY functions/artifact/go.mod   functions/artifact/go.mod
+COPY functions/artifact/go.sum   functions/artifact/go.sum
+COPY functions/common/go.mod     functions/common/go.mod
+COPY functions/common/go.sum     functions/common/go.sum
+COPY functions/database/go.mod   functions/database/go.mod
+COPY functions/database/go.sum   functions/database/go.sum
+COPY functions/networking/go.mod functions/networking/go.mod
+COPY functions/networking/go.sum functions/networking/go.sum
+COPY functions/storage/go.mod    functions/storage/go.mod
+COPY functions/storage/go.sum    functions/storage/go.sum
+COPY functions/tenancy/go.mod    functions/tenancy/go.mod
+COPY functions/tenancy/go.sum    functions/tenancy/go.sum
+COPY functions/workload/go.mod   functions/workload/go.mod
+COPY functions/workload/go.sum   functions/workload/go.sum
+COPY test/common/crossplane/go.mod         test/common/crossplane/go.mod
+COPY test/common/crossplane/go.sum         test/common/crossplane/go.sum
+COPY compositions/cronjob/test/go.mod      compositions/cronjob/test/go.mod
+COPY compositions/cronjob/test/go.sum      compositions/cronjob/test/go.sum
+COPY compositions/kafka/test/go.mod        compositions/kafka/test/go.mod
+COPY compositions/kafka/test/go.sum        compositions/kafka/test/go.sum
+COPY compositions/postgresql/test/go.mod   compositions/postgresql/test/go.mod
+COPY compositions/postgresql/test/go.sum   compositions/postgresql/test/go.sum
+COPY compositions/repository/test/go.mod   compositions/repository/test/go.mod
+COPY compositions/repository/test/go.sum   compositions/repository/test/go.sum
+COPY compositions/s3bucket/test/go.mod     compositions/s3bucket/test/go.mod
+COPY compositions/s3bucket/test/go.sum     compositions/s3bucket/test/go.sum
+COPY compositions/valkey/test/go.mod       compositions/valkey/test/go.mod
+COPY compositions/valkey/test/go.sum       compositions/valkey/test/go.sum
+COPY compositions/webaccess/test/go.mod    compositions/webaccess/test/go.mod
+COPY compositions/webaccess/test/go.sum    compositions/webaccess/test/go.sum
+COPY compositions/webapp/test/go.mod       compositions/webapp/test/go.mod
+COPY compositions/webapp/test/go.sum       compositions/webapp/test/go.sum
+COPY compositions/zone/test/go.mod         compositions/zone/test/go.mod
+COPY compositions/zone/test/go.sum         compositions/zone/test/go.sum
 
 RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
-      echo "Downloading modules in $dir..."; \
       (cd "$dir" && go mod download); \
     done && \
-    cd /workspace/test/common/crossplane && go mod download && \
-    cd /workspace/compositions/cronjob/test && go mod download && \
-    cd /workspace/compositions/kafka/test && go mod download && \
-    cd /workspace/compositions/postgresql/test && go mod download && \
-    cd /workspace/compositions/repository/test && go mod download && \
-    cd /workspace/compositions/s3bucket/test && go mod download && \
-    cd /workspace/compositions/valkey/test && go mod download && \
-    cd /workspace/compositions/webaccess/test && go mod download && \
-    cd /workspace/compositions/webapp/test && go mod download && \
-    cd /workspace/compositions/zone/test && go mod download
+    for dir in test/common/crossplane compositions/*/test; do \
+      [ -f "$dir/go.mod" ] && (cd "$dir" && go mod download); \
+    done
+
+COPY functions/ functions/
+RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
+      (cd "$dir" && go build ./...); \
+    done
