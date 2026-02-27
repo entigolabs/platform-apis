@@ -64,20 +64,11 @@ RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
       [ -f "$dir/go.mod" ] && (cd "$dir" && go mod download); \
     done
 
-# Pre-compile all dependency packages into the build cache by building each
-# downloaded module directly from the module cache. No function source needed.
-# At test time, "go run ." only recompiles the function's own files (seconds
-# instead of 60+ s), because all heavyweight dependencies are already compiled.
-RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
-      (cd "$dir" && go list -m -json all 2>/dev/null); \
-    done | \
-    jq -r 'select(.Dir != null) | .Dir' | sort -u | \
-    while IFS= read -r moddir; do \
-      (cd "$moddir" && go build ./... 2>/dev/null) || true; \
-    done
-
-# Pre-compile our shared local libraries. Separate layers so each is only
-# rebuilt when that source changes, independent of external dependency updates.
+# Pre-compile shared local libraries. Building each one also compiles all of its
+# dependencies (crossplane-runtime, function-sdk-go, render framework, k8s, etc.)
+# into the build cache. At test time, "go run ." and "go test" only compile the
+# function's own files and provider-specific packages — the heavy shared deps are
+# already cached. Separate layers so each rebuilds only when its source changes.
 COPY functions/common/ functions/common/
 RUN cd functions/common && go build ./...
 
