@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -96,6 +97,11 @@ func AssertReady(t *testing.T, xr *composite.Unstructured) {
 	t.Errorf("FAIL: %s is NOT Ready. Conditions: %v", xr.GetKind(), conditions)
 }
 
+func BuildObservedReady(t *testing.T, resources []composed.Unstructured) []composed.Unstructured {
+	t.Helper()
+	return BuildObservedResources(t, resources, func(_, _ string) bool { return true })
+}
+
 func BuildObservedResources(t *testing.T, resources []composed.Unstructured, isReady func(kind, apiVersion string) bool) []composed.Unstructured {
 	t.Helper()
 	readyConditions := []interface{}{
@@ -116,21 +122,6 @@ func BuildObservedResources(t *testing.T, resources []composed.Unstructured, isR
 		observed = append(observed, clone)
 	}
 	return observed
-}
-
-func CloneComposed(t *testing.T, r composed.Unstructured) composed.Unstructured {
-	t.Helper()
-	data, err := json.Marshal(r.Object)
-	if err != nil {
-		t.Fatalf("cannot marshal composed resource: %v", err)
-	}
-	var obj map[string]interface{}
-	if err := json.Unmarshal(data, &obj); err != nil {
-		t.Fatalf("cannot unmarshal composed resource: %v", err)
-	}
-	clone := composed.New()
-	clone.Object = obj
-	return *clone
 }
 
 func DevFunctions(names ...string) []pkgv1.Function {
@@ -168,19 +159,13 @@ func DockerFunctionsFromHelm(t *testing.T, valuesPath string, names ...string) [
 		if image == "" || tag == "" {
 			t.Fatalf("function %q in %s missing image or tag", name, valuesPath)
 		}
-		fns = append(fns, DockerFunction(name, image+":"+tag))
+		fn := pkgv1.Function{}
+		fn.SetName(name)
+		fn.SetAnnotations(map[string]string{"render.crossplane.io/runtime": "Docker"})
+		fn.Spec.Package = image + ":" + tag
+		fns = append(fns, fn)
 	}
 	return fns
-}
-
-func DockerFunction(name, pkg string) pkgv1.Function {
-	fn := pkgv1.Function{}
-	fn.SetName(name)
-	fn.SetAnnotations(map[string]string{
-		"render.crossplane.io/runtime": "Docker",
-	})
-	fn.Spec.Package = pkg
-	return fn
 }
 
 func FindResource(t *testing.T, resources []composed.Unstructured, kind, name string) *composed.Unstructured {
@@ -257,17 +242,42 @@ func StartFunction(ctx context.Context, t *testing.T, funcDir, port string) {
 	t.Helper()
 	cmd := exec.CommandContext(ctx, "go", "run", ".", "--insecure", "--debug")
 	cmd.Dir = funcDir
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("cannot start function in %s: %v", funcDir, err)
 	}
 	t.Cleanup(func() {
-		_ = cmd.Process.Kill()
+		// Kill the entire process group (go run + the function binary child).
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		_ = cmd.Wait()
 	})
-	WaitForPort(t, port, 60*time.Second)
+	waitForPort(t, port, 60*time.Second)
 }
 
-func WaitForPort(t *testing.T, port string, timeout time.Duration) {
+func WorkspaceRoot() string {
+	if ws := os.Getenv("WORKSPACE"); ws != "" {
+		return ws
+	}
+	return "/workspace"
+}
+
+func CloneComposed(t *testing.T, r composed.Unstructured) composed.Unstructured {
+	t.Helper()
+	data, err := json.Marshal(r.Object)
+	if err != nil {
+		t.Fatalf("cannot marshal composed resource: %v", err)
+	}
+	var obj map[string]interface{}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		t.Fatalf("cannot unmarshal composed resource: %v", err)
+	}
+	clone := composed.New()
+	clone.Object = obj
+	return *clone
+}
+
+func waitForPort(t *testing.T, port string, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -279,11 +289,4 @@ func WaitForPort(t *testing.T, port string, timeout time.Duration) {
 		time.Sleep(time.Second)
 	}
 	t.Fatalf("timeout waiting for port %s", port)
-}
-
-func WorkspaceRoot() string {
-	if ws := os.Getenv("WORKSPACE"); ws != "" {
-		return ws
-	}
-	return "/workspace"
 }

@@ -71,7 +71,7 @@ func TestZoneStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 1 as observed and ready")
-	observed := xptest.BuildObservedResources(t, out1.ComposedResources, func(kind, _ string) bool { return true })
+	observed := xptest.BuildObservedReady(t, out1.ComposedResources)
 
 	t.Log("TEST 2: rendering NetworkPolicy, Role, ValidatingPolicy resources")
 	out2, err := render.Render(ctx, log, render.Inputs{
@@ -99,7 +99,7 @@ func TestZoneStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 2 as observed and ready")
-	observed = xptest.BuildObservedResources(t, out2.ComposedResources, func(kind, _ string) bool { return true })
+	observed = xptest.BuildObservedReady(t, out2.ComposedResources)
 
 	t.Log("TEST 3: rendering AccessEntry, Role, RolePolicyAttachment resources")
 	out3, err := render.Render(ctx, log, render.Inputs{
@@ -136,7 +136,7 @@ func TestZoneStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 3 as observed and ready")
-	observed = xptest.BuildObservedResources(t, out3.ComposedResources, func(kind, _ string) bool { return true })
+	observed = xptest.BuildObservedReady(t, out3.ComposedResources)
 
 	t.Log("TEST 4: rendering RoleBinding resources")
 	out4, err := render.Render(ctx, log, render.Inputs{
@@ -159,7 +159,7 @@ func TestZoneStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 4 as observed and ready")
-	observed = xptest.BuildObservedResources(t, out4.ComposedResources, func(kind, _ string) bool { return true })
+	observed = xptest.BuildObservedReady(t, out4.ComposedResources)
 
 	t.Log("TEST 5: checking Zone readiness")
 	out5, err := render.Render(ctx, log, render.Inputs{

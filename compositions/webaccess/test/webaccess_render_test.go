@@ -69,7 +69,7 @@ func TestWebAccessStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 1 as observed and ready")
-	observed := xptest.BuildObservedResources(t, out1.ComposedResources, func(kind, _ string) bool { return true })
+	observed := xptest.BuildObservedReady(t, out1.ComposedResources)
 
 	t.Log("TEST 2: checking WebAccess readiness")
 	out2, err := render.Render(ctx, log, render.Inputs{

@@ -53,11 +53,8 @@ TARGET="${1%/}"
 if [ -z "$TARGET" ]; then
   log_info "No target specified. Auto-discovering all tests..."
 
-  for d in compositions/*; do
-    if [ -d "$d/test" ]; then
-      run_composition_test "$d"
-    fi
-  done
+  log_info "Running all composition tests in one container..."
+  run_docker_test "compositions" "/workspace"
 
   for d in functions/*; do
     if [ -d "$d" ] && [ "$(basename "$d")" != "common" ]; then
@@ -77,12 +74,10 @@ else
     run_function_test "$TARGET"
   elif [[ "$TARGET" == compositions* ]]; then
     run_composition_test "$TARGET"
+  elif [ -d "$TARGET/test" ]; then
+    run_composition_test "$TARGET"
   else
-    if [ -d "$TARGET/test" ] || [[ "$PWD" == *"/test" ]]; then
-       run_composition_test "$TARGET"
-    else
-       echo "Unknown target: $TARGET"
-       exit 1
-    fi
+    echo "Unknown target: $TARGET"
+    exit 1
   fi
 fi

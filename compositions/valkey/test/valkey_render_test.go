@@ -65,7 +65,7 @@ func TestValkeyStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 1 as observed and ready")
-	observed := xptest.BuildObservedResources(t, out1.ComposedResources, func(kind, _ string) bool { return true })
+	observed := xptest.BuildObservedReady(t, out1.ComposedResources)
 
 	t.Log("TEST 2: rendering step 2 resources (ReplicationGroup)")
 	out2, err := render.Render(ctx, log, render.Inputs{
@@ -159,7 +159,7 @@ func TestValkeyStatic(t *testing.T) {
 // sets primaryEndpointAddress and port on any ReplicationGroup (required by GetValkeyReplicationGroupReadyStatus).
 func buildValkeyObserved(t *testing.T, resources []xptest.ComposedUnstructured) []xptest.ComposedUnstructured {
 	t.Helper()
-	obs := xptest.BuildObservedResources(t, resources, func(kind, _ string) bool { return true })
+	obs := xptest.BuildObservedReady(t, resources)
 	for i := range obs {
 		if obs[i].GetKind() == "ReplicationGroup" {
 			_ = unstructured.SetNestedField(obs[i].Object, "primary.endpoint.example.com", "status", "atProvider", "primaryEndpointAddress")

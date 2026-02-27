@@ -73,7 +73,7 @@ func TestS3BucketStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 1 as observed and ready")
-	observed := xptest.BuildObservedResources(t, out1.ComposedResources, func(kind, _ string) bool { return true })
+	observed := xptest.BuildObservedReady(t, out1.ComposedResources)
 
 	t.Log("TEST 2: rendering step 2 resources (AccessKey, Policy)")
 	out2, err := render.Render(ctx, log, render.Inputs{
@@ -89,7 +89,7 @@ func TestS3BucketStatic(t *testing.T) {
 	xptest.AssertCounts(t, out2, "AccessKey", 1, "Policy", 1)
 
 	t.Log("Mocking step 2 as observed and ready")
-	observed = append(observed, xptest.BuildObservedResources(t, out2.ComposedResources, func(kind, _ string) bool { return true })...)
+	observed = append(observed, xptest.BuildObservedReady(t, out2.ComposedResources)...)
 
 	t.Log("TEST 3: rendering step 3 resources (Secret)")
 	out3, err := render.Render(ctx, log, render.Inputs{
@@ -113,7 +113,7 @@ func TestS3BucketStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 3 as observed and ready")
-	observed = append(observed, xptest.BuildObservedResources(t, out3.ComposedResources, func(kind, _ string) bool { return true })...)
+	observed = append(observed, xptest.BuildObservedReady(t, out3.ComposedResources)...)
 
 	t.Log("TEST 4: rendering step 4 resources (SecretVersion, UserPolicyAttachment, RolePolicyAttachment)")
 	out4, err := render.Render(ctx, log, render.Inputs{
@@ -129,7 +129,7 @@ func TestS3BucketStatic(t *testing.T) {
 	xptest.AssertCounts(t, out4, "SecretVersion", 1, "UserPolicyAttachment", 1, "RolePolicyAttachment", 1)
 
 	t.Log("Mocking step 4 as observed and ready")
-	observed = append(observed, xptest.BuildObservedResources(t, out4.ComposedResources, func(kind, _ string) bool { return true })...)
+	observed = append(observed, xptest.BuildObservedReady(t, out4.ComposedResources)...)
 
 	t.Log("TEST 5: rendering step 5 resources (BucketVersioning, BucketOwnershipControls)")
 	out5, err := render.Render(ctx, log, render.Inputs{
@@ -151,7 +151,7 @@ func TestS3BucketStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 5 as observed and ready")
-	observed = append(observed, xptest.BuildObservedResources(t, out5.ComposedResources, func(kind, _ string) bool { return true })...)
+	observed = append(observed, xptest.BuildObservedReady(t, out5.ComposedResources)...)
 
 	t.Log("TEST 6: rendering step 6 resources (BucketPublicAccessBlock, BucketServerSideEncryptionConfiguration)")
 	out6, err := render.Render(ctx, log, render.Inputs{
@@ -182,7 +182,7 @@ func TestS3BucketStatic(t *testing.T) {
 	}
 
 	t.Log("Mocking step 6 as observed and ready")
-	observed = append(observed, xptest.BuildObservedResources(t, out6.ComposedResources, func(kind, _ string) bool { return true })...)
+	observed = append(observed, xptest.BuildObservedReady(t, out6.ComposedResources)...)
 
 	t.Log("TEST 7: checking S3Bucket readiness")
 	out7, err := render.Render(ctx, log, render.Inputs{

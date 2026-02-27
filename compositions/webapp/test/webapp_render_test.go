@@ -90,7 +90,7 @@ func TestWebAppStatic(t *testing.T) {
 
 func buildWebAppObserved(t *testing.T, resources []xptest.ComposedUnstructured) []xptest.ComposedUnstructured {
 	t.Helper()
-	obs := xptest.BuildObservedResources(t, resources, func(kind, _ string) bool { return true })
+	obs := xptest.BuildObservedReady(t, resources)
 	for i := range obs {
 		if obs[i].GetKind() == "Deployment" {
 			_ = unstructured.SetNestedField(obs[i].Object, float64(1), "status", "readyReplicas")
