@@ -63,14 +63,3 @@ RUN for dir in $(find functions -name "go.mod" -exec dirname {} \;); do \
     for dir in test/common/crossplane compositions/*/test; do \
       [ -f "$dir/go.mod" ] && (cd "$dir" && go mod download); \
     done
-
-# Pre-compile shared local libraries. Building each one also compiles all of its
-# dependencies (crossplane-runtime, function-sdk-go, render framework, k8s, etc.)
-# into the build cache. At test time, "go run ." and "go test" only compile the
-# function's own files and provider-specific packages — the heavy shared deps are
-# already cached. Separate layers so each rebuilds only when its source changes.
-COPY functions/common/ functions/common/
-RUN cd functions/common && go build ./...
-
-COPY test/common/crossplane/ test/common/crossplane/
-RUN cd test/common/crossplane && go build ./...
