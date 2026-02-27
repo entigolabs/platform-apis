@@ -23,7 +23,7 @@ spec:
           metadata:
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: grant-owner-to-dbadmin
-            name: {{ .observed.composite.resource.spec.owner | replace "_" "-" }}-to-dbadmin-grant
+            name: {{ .observed.composite.resource.metadata.name }}-grant-owner-to-dbadmin
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
             forProvider:
@@ -114,7 +114,7 @@ spec:
               apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
               kind: Grant
               resourceRef:
-                name: {{ .observed.composite.resource.spec.owner | replace "_" "-" }}-to-dbadmin-grant
+                name: {{ .observed.composite.resource.metadata.name }}-grant-owner-to-dbadmin
             by:
               apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
               kind: Database
