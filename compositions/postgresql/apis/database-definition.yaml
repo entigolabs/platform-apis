@@ -48,8 +48,6 @@ spec:
                   type: array
                   items:
                     type: string
-                    enum:
-                      - postgis
               required:
                 - owner
                 - instanceRef
