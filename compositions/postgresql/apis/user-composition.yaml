@@ -49,7 +49,7 @@ spec:
               gotemplating.fn.crossplane.io/composition-resource-name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName | replace "_" "-" }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
           spec:
             forProvider:
-              role: {{ $.observed.composite.resource.metadata.name }}
+              role: "{{- if $.observed.composite.resource.spec.name -}}{{- $.observed.composite.resource.spec.name -}}{{- else -}}{{- $.observed.composite.resource.metadata.name -}}{{- end -}}"
               memberOf: {{ $roleName }}
             providerConfigRef:
               kind: ProviderConfig
