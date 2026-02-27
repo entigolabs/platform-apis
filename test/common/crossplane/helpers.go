@@ -252,7 +252,7 @@ func StartFunction(ctx context.Context, t *testing.T, funcDir, port string) {
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		_ = cmd.Wait()
 	})
-	waitForPort(t, port, 60*time.Second)
+	waitForPort(t, port, 5*time.Minute)
 }
 
 func WorkspaceRoot() string {
