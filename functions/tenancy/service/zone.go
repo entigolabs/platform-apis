@@ -15,7 +15,7 @@ import (
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/argocd"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
-	policyv1 "github.com/kyverno/api/api/policies.kyverno.io/v1"
+	policyv1alpha1 "github.com/kyverno/kyverno/api/policies.kyverno.io/v1alpha1"
 	ec2v1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/ec2/v1beta1"
 	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
 	iamv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/iam/v1beta1"
@@ -330,20 +330,11 @@ func (g zoneGenerator) generateNamespace(objs map[string]runtime.Object, name, p
 	objs[GetRBMaintainerKey(g.zone.Name, name)] = maintainerBinding
 	observerBinding := g.getRoleBinding(name, name+"-observer", readRole.Name, "observer")
 	objs[GetRBObserverKey(g.zone.Name, name)] = observerBinding
-	mutatingPolicy, err := g.getMutatingPolicy(name, pool)
-	if err != nil {
-		return err
-	}
+	mutatingPolicy := g.getMutatingPolicy(name, pool)
 	objs[GetMutatingPolicyKey(g.zone.Name, name)] = mutatingPolicy
-	labelsMutatingPolicy, err := g.getLabelsMutatingPolicy(name)
-	if err != nil {
-		return err
-	}
+	labelsMutatingPolicy := g.getLabelsMutatingPolicy(name)
 	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = labelsMutatingPolicy
-	validatingPolicy, err := g.getValidatingPolicy(name)
-	if err != nil {
-		return err
-	}
+	validatingPolicy := g.getValidatingPolicy(name)
 	objs[GetValidatingPolicyKey(g.zone.Name, name)] = validatingPolicy
 	return nil
 }
@@ -507,11 +498,11 @@ func (g zoneGenerator) getRoleBinding(nsName, bindingName, roleName, group strin
 	}
 }
 
-func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) (runtime.Object, error) {
+func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) *policyv1alpha1.MutatingPolicy {
 	poolName = g.getPoolName(poolName)
-	policy := &policyv1.MutatingPolicy{
+	return &policyv1alpha1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "policies.kyverno.io/v1",
+			APIVersion: "policies.kyverno.io/v1alpha1",
 			Kind:       "MutatingPolicy",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -519,27 +510,32 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) (runtim
 			Annotations: g.zoneAnnotations,
 			Labels:      map[string]string{"reports.kyverno.io/disabled": "true"},
 		},
-		Spec: policyv1.MutatingPolicySpec{
-			EvaluationConfiguration: &policyv1.MutatingPolicyEvaluationConfiguration{
-				Admission:                   &policyv1.AdmissionConfiguration{Enabled: base.BoolPtr(true)},
-				MutateExistingConfiguration: &policyv1.MutateExistingConfiguration{Enabled: base.BoolPtr(false)},
+		Spec: policyv1alpha1.MutatingPolicySpec{
+			EvaluationConfiguration: &policyv1alpha1.MutatingPolicyEvaluationConfiguration{
+				Admission:                   &policyv1alpha1.AdmissionConfiguration{Enabled: base.BoolPtr(true)},
+				MutateExistingConfiguration: &policyv1alpha1.MutateExistingConfiguration{Enabled: base.BoolPtr(false)},
 			},
-			MatchConstraints: &admissionregistrationv1.MatchResources{
-				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{{
-					RuleWithOperations: admissionregistrationv1.RuleWithOperations{
-						Rule: admissionregistrationv1.Rule{
+			MatchConstraints: &admissionregistrationv1alpha1.MatchResources{
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "kubernetes.io/metadata.name",
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{namespaceName},
+						},
+					},
+				},
+				ResourceRules: []admissionregistrationv1alpha1.NamedRuleWithOperations{{
+					RuleWithOperations: admissionregistrationv1alpha1.RuleWithOperations{
+						Rule: admissionregistrationv1alpha1.Rule{
 							APIGroups:   []string{""},
 							APIVersions: []string{"v1"},
 							Resources:   []string{"pods"},
 						},
-						Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create},
+						Operations: []admissionregistrationv1alpha1.OperationType{admissionregistrationv1alpha1.Create},
 					},
 				}},
 			},
-			MatchConditions: []admissionregistrationv1.MatchCondition{{
-				Name:       "namespace-filter",
-				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
-			}},
 			Mutations: []admissionregistrationv1alpha1.Mutation{
 				{
 					PatchType: admissionregistrationv1alpha1.PatchTypeJSONPatch,
@@ -557,22 +553,12 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) (runtim
 			},
 		},
 	}
-	u, err := base.ToUnstructured(policy)
-	if err != nil {
-		return nil, err
-	}
-	// This is normally removed by omitempty
-	err = unstructured.SetNestedSlice(u.Object, []interface{}{}, "spec", "autogen", "podControllers", "controllers")
-	if err != nil {
-		return nil, err
-	}
-	return u, nil
 }
 
-func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) (runtime.Object, error) {
-	policy := &policyv1.MutatingPolicy{
+func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) *policyv1alpha1.MutatingPolicy {
+	return &policyv1alpha1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "policies.kyverno.io/v1",
+			APIVersion: "policies.kyverno.io/v1alpha1",
 			Kind:       "MutatingPolicy",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -580,36 +566,41 @@ func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) (runtime.Ob
 			Annotations: g.zoneAnnotations,
 			Labels:      map[string]string{"reports.kyverno.io/disabled": "true"},
 		},
-		Spec: policyv1.MutatingPolicySpec{
-			EvaluationConfiguration: &policyv1.MutatingPolicyEvaluationConfiguration{
-				Admission:                   &policyv1.AdmissionConfiguration{Enabled: base.BoolPtr(true)},
-				MutateExistingConfiguration: &policyv1.MutateExistingConfiguration{Enabled: base.BoolPtr(false)},
+		Spec: policyv1alpha1.MutatingPolicySpec{
+			EvaluationConfiguration: &policyv1alpha1.MutatingPolicyEvaluationConfiguration{
+				Admission:                   &policyv1alpha1.AdmissionConfiguration{Enabled: base.BoolPtr(true)},
+				MutateExistingConfiguration: &policyv1alpha1.MutateExistingConfiguration{Enabled: base.BoolPtr(false)},
 			},
-			MatchConstraints: &admissionregistrationv1.MatchResources{
-				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{{
-					RuleWithOperations: admissionregistrationv1.RuleWithOperations{
-						Rule: admissionregistrationv1.Rule{
+			MatchConstraints: &admissionregistrationv1alpha1.MatchResources{
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "kubernetes.io/metadata.name",
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{namespaceName},
+						},
+					},
+				},
+				ResourceRules: []admissionregistrationv1alpha1.NamedRuleWithOperations{{
+					RuleWithOperations: admissionregistrationv1alpha1.RuleWithOperations{
+						Rule: admissionregistrationv1alpha1.Rule{
 							APIGroups:   []string{""},
 							APIVersions: []string{"v1"},
 							Resources:   []string{"services"},
 						},
-						Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create},
+						Operations: []admissionregistrationv1alpha1.OperationType{admissionregistrationv1alpha1.Create},
 					},
 				}, {
-					RuleWithOperations: admissionregistrationv1.RuleWithOperations{
-						Rule: admissionregistrationv1.Rule{
+					RuleWithOperations: admissionregistrationv1alpha1.RuleWithOperations{
+						Rule: admissionregistrationv1alpha1.Rule{
 							APIGroups:   []string{"networking.k8s.io"},
 							APIVersions: []string{"v1"},
 							Resources:   []string{"ingresses"},
 						},
-						Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create},
+						Operations: []admissionregistrationv1alpha1.OperationType{admissionregistrationv1alpha1.Create},
 					},
 				}},
 			},
-			MatchConditions: []admissionregistrationv1.MatchCondition{{
-				Name:       "namespace-filter",
-				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
-			}},
 			Mutations: []admissionregistrationv1alpha1.Mutation{
 				{
 					PatchType: admissionregistrationv1alpha1.PatchTypeJSONPatch,
@@ -636,40 +627,34 @@ func (g zoneGenerator) getLabelsMutatingPolicy(namespaceName string) (runtime.Ob
 			},
 		},
 	}
-	u, err := base.ToUnstructured(policy)
-	if err != nil {
-		return nil, err
-	}
-	// This is normally removed by omitempty
-	err = unstructured.SetNestedSlice(u.Object, []interface{}{}, "spec", "autogen", "podControllers", "controllers")
-	if err != nil {
-		return nil, err
-	}
-	return u, nil
 }
 
-func (g zoneGenerator) getValidatingPolicy(namespaceName string) (runtime.Object, error) {
+func (g zoneGenerator) getValidatingPolicy(namespaceName string) *policyv1alpha1.ValidatingPolicy {
 	var poolExprList, poolMsgList []string
 	for _, pool := range g.zone.Spec.Pools {
 		poolExprList = append(poolExprList, `"`+g.zone.Name+`-`+pool.Name+`"`)
 		poolMsgList = append(poolMsgList, g.zone.Name+`-`+pool.Name)
 	}
-	policy := &policyv1.ValidatingPolicy{
+	return &policyv1alpha1.ValidatingPolicy{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "policies.kyverno.io/v1",
+			APIVersion: "policies.kyverno.io/v1alpha1",
 			Kind:       "ValidatingPolicy",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        g.zone.Name + "-" + namespaceName + "-validate-nodeselector",
 			Annotations: g.zoneAnnotations,
 		},
-		Spec: policyv1.ValidatingPolicySpec{
-			EvaluationConfiguration: &policyv1.EvaluationConfiguration{
-				Admission:  &policyv1.AdmissionConfiguration{Enabled: base.BoolPtr(true)},
-				Background: &policyv1.BackgroundConfiguration{Enabled: base.BoolPtr(false)},
-			},
-			ValidationAction: []admissionregistrationv1.ValidationAction{admissionregistrationv1.Deny},
+		Spec: policyv1alpha1.ValidatingPolicySpec{
 			MatchConstraints: &admissionregistrationv1.MatchResources{
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "kubernetes.io/metadata.name",
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{namespaceName},
+						},
+					},
+				},
 				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{{
 					RuleWithOperations: admissionregistrationv1.RuleWithOperations{
 						Rule: admissionregistrationv1.Rule{
@@ -681,10 +666,6 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) (runtime.Object
 					},
 				}},
 			},
-			MatchConditions: []admissionregistrationv1.MatchCondition{{
-				Name:       "namespace-filter",
-				Expression: `object.metadata.namespace == "` + namespaceName + `"`,
-			}},
 			Validations: []admissionregistrationv1.Validation{
 				{
 					Expression: `has(object.spec.nodeSelector) &&
@@ -695,16 +676,6 @@ object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [` + strings.Join(po
 			},
 		},
 	}
-	u, err := base.ToUnstructured(policy)
-	if err != nil {
-		return nil, err
-	}
-	// This is normally removed by omitempty
-	err = unstructured.SetNestedSlice(u.Object, []interface{}{}, "spec", "autogen", "podControllers", "controllers")
-	if err != nil {
-		return nil, err
-	}
-	return u, nil
 }
 
 func (g zoneGenerator) getPoolName(poolName string) string {

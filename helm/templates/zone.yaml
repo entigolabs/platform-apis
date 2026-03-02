@@ -397,7 +397,7 @@ subjects:
   name: kyverno-reports-controller
   namespace: {{ .Values.zone.kyvernoNamespace }}
 ---
-apiVersion: policies.kyverno.io/v1
+apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-ownership
@@ -462,7 +462,7 @@ spec:
           : "no zone label - must be labeled manually first")
       ).join(", ")
 ---
-apiVersion: policies.kyverno.io/v1
+apiVersion: policies.kyverno.io/v1alpha1
 kind: MutatingPolicy
 metadata:
   name: platform-apis-zone-namespace-pod-security
@@ -520,7 +520,7 @@ spec:
         - key: max-size
           value: 0
 ---
-apiVersion: policies.kyverno.io/v1
+apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-pod-security
@@ -587,7 +587,7 @@ spec:
         ))
       message: "The 'pod-security.kubernetes.io/warn' label must be set to '{{ .Values.zone.environmentConfig.podSecurity }}' (or stricter)."
 ---
-apiVersion: policies.kyverno.io/v1
+apiVersion: policies.kyverno.io/v1alpha1
 kind: GeneratingPolicy
 metadata:
   name: generate-namespace-from-argocd-app
@@ -634,7 +634,7 @@ spec:
           }
         ])
 ---
-apiVersion: policies.kyverno.io/v1
+apiVersion: policies.kyverno.io/v1alpha1
 kind: MutatingPolicy
 metadata:
   name: platform-apis-namespace-add-missing-zone-label
@@ -718,7 +718,7 @@ spec:
             )
           )
 ---
-apiVersion: policies.kyverno.io/v1
+apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-contributor-deny
@@ -745,7 +745,7 @@ spec:
     - expression: "false"
       message: "contributor cannot modify namespaces."
 ---
-apiVersion: policies.kyverno.io/v1
+apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-namespace-maintainer-deny
@@ -774,7 +774,7 @@ spec:
     - expression: "false"
       message: "cannot use infralib zone."
 ---
-apiVersion: policies.kyverno.io/v1
+apiVersion: policies.kyverno.io/v1alpha1
 kind: ValidatingPolicy
 metadata:
   name: platform-apis-zone-maintainer-infralib-zone-deny

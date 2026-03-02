@@ -16,18 +16,13 @@ require (
 	github.com/crossplane/crossplane-runtime/v2 v2.3.0-rc.0 // Other dependencies should match versions used in crossplane-runtime
 	github.com/crossplane/function-sdk-go v0.5.0
 	github.com/entigolabs/function-base v0.0.0-00010101000000-000000000000
-	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/kyverno/kyverno v1.16.3
 	github.com/upbound/provider-aws/v2 v2.4.0
 	google.golang.org/protobuf v1.36.11
+	istio.io/api v1.28.2-0.20251205082437-fde1452f70bc
 	istio.io/client-go v1.28.3
 	k8s.io/api v0.35.0
-	k8s.io/apiextensions-apiserver v0.35.0 // indirect
 	k8s.io/apimachinery v0.35.0
-)
-
-require (
-	github.com/kyverno/api v0.0.1-alpha.2.0.20260129144402-7b64bcf2b1f7
-	istio.io/api v1.28.2-0.20251205082437-fde1452f70bc
 )
 
 require (
@@ -38,7 +33,6 @@ require (
 	github.com/antchfx/xpath v1.2.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
-	github.com/aptible/supercronic v0.2.42 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -76,6 +70,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.1-0.20241114170450-2d3c2a9cc518 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3 // indirect
@@ -105,7 +100,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/mozillazg/go-unidecode v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/onsi/ginkgo/v2 v2.28.0 // indirect
 	github.com/onsi/gomega v1.39.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -151,6 +145,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	k8s.io/apiextensions-apiserver v0.35.0 // indirect
 	k8s.io/client-go v0.35.0 // indirect
 	k8s.io/code-generator v0.35.0 // indirect
 	k8s.io/component-base v0.35.0 // indirect
@@ -165,8 +160,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-// k8s.io/kms is required transitively via k8s.io/apiserver but has no published version
-replace k8s.io/kms => k8s.io/kms v0.35.0
 
 tool sigs.k8s.io/controller-tools/cmd/controller-gen
