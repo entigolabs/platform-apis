@@ -26,7 +26,7 @@ const (
 	SqlRoleKind                      = "role.postgresql.sql.m.crossplane.io"
 	UsageKind                        = "usage.protection.crossplane.io"
 	MinimalDatabaseName              = "database-minimal-test"
-	DatabaseGrantExpectedName        = "test-admin-to-dbadmin-grant"
+	DatabaseGrantExpectedName        = PostgresqlDatabaseName + "-grant-owner-to-dbadmin"
 	DatabaseUsageExpectedName        = PostgresqlDatabaseName + "-grant-usage"
 	MinimalDatabaseUsageExpectedName = MinimalDatabaseName + "-grant-usage"
 )
@@ -365,8 +365,7 @@ func testDatabaseUsageVerified(t *testing.T, namespaceOptions *terrak8s.KubectlO
 }
 
 func testMinimalDatabaseUsageVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	// Minimal database owner is "test-user", so grant name is "test-user-to-dbadmin-grant"
-	expectedGrantName := "test-user-to-dbadmin-grant"
+	expectedGrantName := MinimalDatabaseName + "-grant-owner-to-dbadmin"
 
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Usage '%s'", MinimalDatabaseUsageExpectedName), 30, 10*time.Second, func() (string, error) {
 		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, MinimalDatabaseUsageExpectedName, "-o", "jsonpath={.metadata.name}")

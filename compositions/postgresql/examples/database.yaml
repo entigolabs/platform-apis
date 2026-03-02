@@ -11,4 +11,4 @@ spec:
   instanceRef:
     name: postgresql-example
   extensions:
-    - postgis
+    - name: postgis
