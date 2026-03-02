@@ -44,7 +44,7 @@ spec:
           {{- $encoding := .observed.composite.resource.spec.encoding -}}
           {{- $lcCType := .observed.composite.resource.spec.lcCType -}}
           {{- $lcCollate := .observed.composite.resource.spec.lcCollate -}}
-          {{- $dbTemplate := .observed.composite.resource.spec.dbTemplate -}}
+          {{- $template := .observed.composite.resource.spec.template -}}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Database
@@ -65,8 +65,8 @@ spec:
             {{- if $lcCollate }}
               lcCollate: {{ $lcCollate }}
             {{- end }}
-            {{- if $dbTemplate }}
-              template: {{ $dbTemplate }}
+            {{- if $template }}
+              template: {{ $template }}
             {{- end }}
             providerConfigRef:
               kind: ProviderConfig
