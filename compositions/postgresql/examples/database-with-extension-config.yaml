@@ -1,0 +1,17 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLDatabase
+metadata:
+  name: database-extconfig-example
+spec:
+  owner: owner
+  encoding: "UTF8"
+  lcCType: "et_EE.UTF-8"
+  lcCollate: "et_EE.UTF-8"
+  dbTemplate: template0
+  instanceRef:
+    name: postgresql-example
+  extensions:
+    - postgis
+  extensionConfig:
+    postgis:
+      schema: public
