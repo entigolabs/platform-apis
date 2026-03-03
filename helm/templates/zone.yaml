@@ -396,114 +396,7 @@ subjects:
 - kind: ServiceAccount
   name: kyverno-reports-controller
   namespace: {{ .Values.zone.kyvernoNamespace }}
----
-apiVersion: policies.kyverno.io/v1
-kind: ValidatingPolicy
-metadata:
-  name: platform-apis-zone-namespace-ownership
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  validationActions:
-    - Deny
-  evaluation:
-    background:
-      enabled: false
-  matchConstraints:
-    resourceRules:
-    - apiGroups: ["tenancy.entigo.com"]
-      apiVersions: ["v1alpha1"]
-      operations: ["CREATE", "UPDATE"]
-      resources: ["zones"]
-  variables:
-  - name: existingNamespaces
-    expression: |
-      resource.List("v1", "namespaces", "")
-  - name: zoneLabel
-    expression: |
-      "tenancy.entigo.com/zone"
-  validations:
-  - expression: "object.metadata.name != 'default'"
-    message: "'default' zone cannot be created"
-  - expression: |
-      object.spec.namespaces.all(requestedNs,
-        !dyn(variables.existingNamespaces.items).exists(existingNs,
-          existingNs.metadata.name == requestedNs.name &&
-          has(existingNs.metadata.labels) &&
-          variables.zoneLabel in existingNs.metadata.labels &&
-          existingNs.metadata.labels[variables.zoneLabel] != object.metadata.name
-        ) &&
-        !dyn(variables.existingNamespaces.items).exists(existingNs,
-          existingNs.metadata.name == requestedNs.name &&
-          (!has(existingNs.metadata.labels) || !(variables.zoneLabel in existingNs.metadata.labels))
-        )
-      )
-    messageExpression: |
-      "Cannot manage namespace(s): " +
-      object.spec.namespaces.filter(requestedNs,
-        dyn(variables.existingNamespaces.items).exists(existingNs,
-          existingNs.metadata.name == requestedNs.name &&
-          has(existingNs.metadata.labels) &&
-          variables.zoneLabel in existingNs.metadata.labels &&
-          existingNs.metadata.labels[variables.zoneLabel] != object.metadata.name
-        ) ||
-        dyn(variables.existingNamespaces.items).exists(existingNs,
-          existingNs.metadata.name == requestedNs.name &&
-          (!has(existingNs.metadata.labels) || !(variables.zoneLabel in existingNs.metadata.labels))
-        )
-      ).map(requestedNs,
-        requestedNs.name + " - " +
-        (dyn(variables.existingNamespaces.items).exists(existingNs,
-          existingNs.metadata.name == requestedNs.name &&
-          has(existingNs.metadata.labels) &&
-          variables.zoneLabel in existingNs.metadata.labels
-        ) ?
-          "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels[variables.zoneLabel]
-          : "no zone label - must be labeled manually first")
-      ).join(", ")
----
-apiVersion: policies.kyverno.io/v1
-kind: MutatingPolicy
-metadata:
-  name: platform-apis-zone-namespace-pod-security
-spec:
-  evaluation:
-    admission:
-      enabled: true
-  matchConstraints:
-    resourceRules:
-      - apiGroups: [""]
-        apiVersions: ["v1"]
-        operations: ["CREATE", "UPDATE"]
-        resources: ["namespaces"]
-  matchConditions:
-    - name: "exclude-system-namespaces"
-      expression: "!(object.metadata.name in ['kube-system'])"
-    - name: "has-zone-label"
-      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'infralib'"
-  mutations:
-    - patchType: JSONPatch
-      jsonPatch:
-        expression: >-
-          (
-            !('pod-security.kubernetes.io/enforce' in object.metadata.labels) ?
-            [
-              JSONPatch{
-                op: "add",
-                path: "/metadata/labels/pod-security.kubernetes.io~1enforce",
-                value: "{{ .Values.zone.environmentConfig.podSecurity }}"
-              }
-            ] : []
-          ) + (
-            !('pod-security.kubernetes.io/warn' in object.metadata.labels) ?
-            [
-              JSONPatch{
-                op: "add",
-                path: "/metadata/labels/pod-security.kubernetes.io~1warn",
-                value: "{{ .Values.zone.environmentConfig.podSecurity }}"
-              }
-            ] : []
-          )
+
 ---
 apiVersion: tenancy.entigo.com/v1alpha1
 kind: Zone
@@ -736,7 +629,7 @@ spec:
     resourceRules:
       - apiGroups: [""]
         apiVersions: ["v1"]
-        operations: ["UPDATE", "DELETE"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["namespaces"]
   matchConditions:
     - name: "check-user-group"
@@ -763,9 +656,11 @@ spec:
     resourceRules:
       - apiGroups: [""]
         apiVersions: ["v1"]
-        operations: ["CREATE", "UPDATE"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["namespaces"]
   matchConditions:
+    - name: "exclude-delete"
+      expression: 'request.operation != "DELETE"'
     - name: "check-user-group"
       expression: '"maintainer" in request.userInfo.groups'
     - name: "has-infralib-zone-label"
@@ -795,6 +690,8 @@ spec:
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["zones"]
   matchConditions:
+    - name: "exclude-delete"
+      expression: 'request.operation != "DELETE"'
     - name: "check-user-group"
       expression: '"maintainer" in request.userInfo.groups'
     - name: "is-infralib-zone"
@@ -821,8 +718,11 @@ spec:
     resourceRules:
       - apiGroups: ["tenancy.entigo.com"]
         apiVersions: ["v1alpha1"]
-        operations: ["DELETE"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["zones"]
+  matchConditions:
+  - name: delete-only
+    expression: request.operation == "DELETE"
   variables:
     - name: zoneLabel
       expression: |
@@ -851,5 +751,72 @@ spec:
         "Cannot delete zone '" + variables.zoneName + "': " +
         string(variables.namespacesInZone.size()) + " namespace(s) still assigned to it (not managed via spec.namespaces): " +
         variables.namespacesInZone.map(ns, ns.metadata.name).join(", ")
-
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-namespace-ownership
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  validationActions:
+    - Deny
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["tenancy.entigo.com"]
+      apiVersions: ["v1alpha1"]
+      operations: ["CREATE", "UPDATE", "DELETE"]
+      resources: ["zones"]
+  matchConditions:
+  - name: exclude-delete
+    expression: request.operation != "DELETE"
+  variables:
+  - name: existingNamespaces
+    expression: |
+      resource.List("v1", "namespaces", "")
+  - name: zoneLabel
+    expression: |
+      "tenancy.entigo.com/zone"
+  validations:
+  - expression: "object.metadata.name != 'default'"
+    message: "'default' zone cannot be created"
+  - expression: |
+      object.spec.namespaces.all(requestedNs,
+        !dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          has(existingNs.metadata.labels) &&
+          variables.zoneLabel in existingNs.metadata.labels &&
+          existingNs.metadata.labels[variables.zoneLabel] != object.metadata.name
+        ) &&
+        !dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          (!has(existingNs.metadata.labels) || !(variables.zoneLabel in existingNs.metadata.labels))
+        )
+      )
+    messageExpression: |
+      "Cannot manage namespace(s): " +
+      object.spec.namespaces.filter(requestedNs,
+        dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          has(existingNs.metadata.labels) &&
+          variables.zoneLabel in existingNs.metadata.labels &&
+          existingNs.metadata.labels[variables.zoneLabel] != object.metadata.name
+        ) ||
+        dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          (!has(existingNs.metadata.labels) || !(variables.zoneLabel in existingNs.metadata.labels))
+        )
+      ).map(requestedNs,
+        requestedNs.name + " - " +
+        (dyn(variables.existingNamespaces.items).exists(existingNs,
+          existingNs.metadata.name == requestedNs.name &&
+          has(existingNs.metadata.labels) &&
+          variables.zoneLabel in existingNs.metadata.labels
+        ) ?
+          "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels[variables.zoneLabel]
+          : "no zone label - must be labeled manually first")
+      ).join(", ")
 {{- end }}
