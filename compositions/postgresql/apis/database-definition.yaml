@@ -44,35 +44,26 @@ spec:
                   required:
                     - name
                 extensions:
-                  description: List of PostgreSQL extensions to enable. Each extension can be a string (name only) or an object with name and optional schema.
+                  description: List of PostgreSQL extensions to enable.
                   type: array
                   items:
-                    oneOf:
-                      - type: string
-                        enum:
-                          - postgis
-                          - postgis_topology
-                          - fuzzystrmatch
-                          - postgis_tiger_geocoder
-                          - uuid-ossp
-                          - btree_gist
-                      - type: object
-                        properties:
-                          name:
-                            description: Extension name
-                            type: string
-                            enum:
-                              - postgis
-                              - postgis_topology
-                              - fuzzystrmatch
-                              - postgis_tiger_geocoder
-                              - uuid-ossp
-                              - btree_gist
-                          schema:
-                            description: Schema in which to create the extension objects
-                            type: string
-                        required:
-                          - name
+                    type: string
+                    enum:
+                      - postgis
+                      - postgis_topology
+                      - fuzzystrmatch
+                      - postgis_tiger_geocoder
+                      - uuid-ossp
+                      - btree_gist
+                extensionConfig:
+                  description: Per-extension configuration. Key is the extension name, value is a configuration object.
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      schema:
+                        description: Schema in which to create the extension objects
+                        type: string
               required:
                 - owner
                 - instanceRef

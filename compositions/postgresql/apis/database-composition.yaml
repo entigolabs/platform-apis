@@ -71,15 +71,11 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
-          {{- range $index, $extension := .observed.composite.resource.spec.extensions }}
-          {{- $extName := "" -}}
+          {{- $extConfig := default dict .observed.composite.resource.spec.extensionConfig -}}
+          {{- range $index, $extName := .observed.composite.resource.spec.extensions }}
+          {{- $extCfg := index $extConfig $extName -}}
           {{- $extSchema := "" -}}
-          {{- if kindIs "string" $extension -}}
-            {{- $extName = $extension -}}
-          {{- else -}}
-            {{- $extName = $extension.name -}}
-            {{- $extSchema = $extension.schema -}}
-          {{- end }}
+          {{- if $extCfg -}}{{- $extSchema = $extCfg.schema -}}{{- end -}}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Extension
