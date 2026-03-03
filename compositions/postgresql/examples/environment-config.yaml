@@ -11,5 +11,6 @@ data:
   elasticacheSubnetGroup: elasticache
   esClusterSecretStore: external-secrets
   backupBeforeDeletion: false
+  backupRetentionPeriod: 14
 # tags:
 #   environment: dev
