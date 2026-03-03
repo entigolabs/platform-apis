@@ -23,7 +23,7 @@ spec:
           metadata:
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: grant-owner-to-dbadmin
-            name: {{ .observed.composite.resource.spec.owner | replace "_" "-" }}-to-dbadmin-grant
+            name: {{ .observed.composite.resource.metadata.name }}-grant-owner-to-dbadmin
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
             forProvider:
@@ -45,6 +45,7 @@ spec:
           {{- $lcCType := .observed.composite.resource.spec.lcCType -}}
           {{- $lcCollate := .observed.composite.resource.spec.lcCollate -}}
           {{- $dbTemplate := .observed.composite.resource.spec.dbTemplate -}}
+          {{- $extConfig := default dict .observed.composite.resource.spec.extensionConfig -}}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Database
@@ -71,19 +72,25 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
-          {{- range $index, $extension := .observed.composite.resource.spec.extensions }}
+          {{- range $index, $extName := .observed.composite.resource.spec.extensions }}
+          {{- $extCfg := index $extConfig $extName -}}
+          {{- $extSchema := "" -}}
+          {{- if $extCfg -}}{{- $extSchema = $extCfg.schema -}}{{- end }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Extension
           metadata:
             annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: extension-{{ $extension }}-{{ $index }}
-            name: {{ $.observed.composite.resource.metadata.name }}-{{ $extension }}
+              gotemplating.fn.crossplane.io/composition-resource-name: extension-{{ $extName | replace "_" "-" }}-{{ $index }}
+            name: {{ $.observed.composite.resource.metadata.name }}-{{ $extName | replace "_" "-" }}
             namespace: {{ $.observed.composite.resource.metadata.namespace }}
           spec:
             forProvider:
-              extension: {{ $extension }}
+              extension: {{ $extName }}
               database: {{ $.observed.composite.resource.metadata.name }}
+            {{- if $extSchema }}
+              schema: {{ $extSchema }}
+            {{- end }}
             providerConfigRef:
               kind: ProviderConfig
               name: {{ $.observed.composite.resource.spec.instanceRef.name }}-providerconfig
@@ -111,7 +118,7 @@ spec:
               apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
               kind: Grant
               resourceRef:
-                name: {{ .observed.composite.resource.spec.owner | replace "_" "-" }}-to-dbadmin-grant
+                name: {{ .observed.composite.resource.metadata.name }}-grant-owner-to-dbadmin
             by:
               apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
               kind: Database

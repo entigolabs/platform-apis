@@ -21,7 +21,7 @@ spec:
               type: object
               properties:
                 owner:
-                  description: Owner role name
+                  description: Owner role name (PostgreSQL conventional name)
                   type: string
                 encoding:
                   description: Character set encoding to use in the new database. Specify a string constant (e.g., 'SQL_ASCII'), or an integer encoding number, or DEFAULT to use the default encoding (namely, the encoding of the template database).
@@ -44,12 +44,26 @@ spec:
                   required:
                     - name
                 extensions:
-                  description: List of PostgreSQL extensions to enable
+                  description: List of PostgreSQL extensions to enable.
                   type: array
                   items:
                     type: string
                     enum:
                       - postgis
+                      - postgis_topology
+                      - fuzzystrmatch
+                      - postgis_tiger_geocoder
+                      - uuid-ossp
+                      - btree_gist
+                extensionConfig:
+                  description: Per-extension configuration. Key is the extension name, value is a configuration object.
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      schema:
+                        description: Schema in which to create the extension objects
+                        type: string
               required:
                 - owner
                 - instanceRef

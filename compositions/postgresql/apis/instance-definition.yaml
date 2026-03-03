@@ -36,6 +36,11 @@ spec:
                   default: true
                   type: boolean
                   description: Indicates that minor engine upgrades will be applied automatically to the DB instance during the maintenance window. Defaults to true.
+                backupRetentionPeriod:
+                  type: number
+                  minimum: 0
+                  maximum: 35
+                  description: The days to retain backups for. Must be between 0 and 35.
                 backupWindow:
                   type: string
                   description: |

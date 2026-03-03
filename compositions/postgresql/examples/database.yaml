@@ -10,3 +10,5 @@ spec:
   dbTemplate: template0
   instanceRef:
     name: postgresql-example
+  extensions:
+    - postgis
