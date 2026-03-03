@@ -21,7 +21,7 @@ spec:
               type: object
               properties:
                 owner:
-                  description: Owner role name
+                  description: Owner role name (PostgreSQL conventional name)
                   type: string
                 encoding:
                   description: Character set encoding to use in the new database. Specify a string constant (e.g., 'SQL_ASCII'), or an integer encoding number, or DEFAULT to use the default encoding (namely, the encoding of the template database).
