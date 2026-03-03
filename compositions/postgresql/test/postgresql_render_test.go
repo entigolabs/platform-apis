@@ -104,6 +104,7 @@ func TestInstanceStatic(t *testing.T) {
 		xptest.AssertNestedBool(t, inst.Object, true, "spec", "forProvider", "storageEncrypted")
 		xptest.AssertNestedBool(t, inst.Object, false, "spec", "forProvider", "publiclyAccessible")
 		assertNestedNumber(t, inst.Object, 20, "spec", "forProvider", "allocatedStorage")
+		assertNestedNumber(t, inst.Object, 14, "spec", "forProvider", "backupRetentionPeriod")
 	}
 
 	instanceObserved := mockInstanceAsObserved(t, inst)
@@ -173,7 +174,7 @@ func TestDatabaseStatic(t *testing.T) {
 
 	log := logging.NewNopLogger()
 
-	t.Log("TEST 1: rendering Grant, Database and Usage")
+	t.Log("TEST 1: rendering Grant, Database, Extension and Usage")
 	out1, err := render.Render(ctx, log, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
@@ -182,10 +183,10 @@ func TestDatabaseStatic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render failed: %v", err)
 	}
-	xptest.AssertCounts(t, out1, "Grant", 1, "Database", 1, "Usage", 1)
+	xptest.AssertCounts(t, out1, "Grant", 1, "Database", 1, "Extension", 1, "Usage", 1)
 
 	t.Log("TEST 1: asserting Grant fields")
-	grant := xptest.FindResource(t, out1.ComposedResources, "Grant", "owner-to-dbadmin-grant")
+	grant := xptest.FindResource(t, out1.ComposedResources, "Grant", "database-example-grant-owner-to-dbadmin")
 	if grant != nil {
 		xptest.AssertNestedString(t, grant.Object, "dbadmin", "spec", "forProvider", "role")
 		xptest.AssertNestedString(t, grant.Object, "owner", "spec", "forProvider", "memberOf")
@@ -205,14 +206,65 @@ func TestDatabaseStatic(t *testing.T) {
 		xptest.AssertNestedString(t, db.Object, "postgresql-example-providerconfig", "spec", "providerConfigRef", "name")
 	}
 
+	t.Log("TEST 1: asserting Extension fields")
+	ext := xptest.FindResource(t, out1.ComposedResources, "Extension", "database-example-postgis")
+	if ext != nil {
+		xptest.AssertNestedString(t, ext.Object, "postgis", "spec", "forProvider", "extension")
+		xptest.AssertNestedString(t, ext.Object, "database-example", "spec", "forProvider", "database")
+		xptest.AssertNestedString(t, ext.Object, "ProviderConfig", "spec", "providerConfigRef", "kind")
+		xptest.AssertNestedString(t, ext.Object, "postgresql-example-providerconfig", "spec", "providerConfigRef", "name")
+	}
+
 	t.Log("TEST 1: asserting Usage fields")
 	usage := xptest.FindResource(t, out1.ComposedResources, "Usage", "database-example-grant-usage")
 	if usage != nil {
 		xptest.AssertNestedBool(t, usage.Object, true, "spec", "replayDeletion")
 		xptest.AssertNestedString(t, usage.Object, "Grant", "spec", "of", "kind")
-		xptest.AssertNestedString(t, usage.Object, "owner-to-dbadmin-grant", "spec", "of", "resourceRef", "name")
+		xptest.AssertNestedString(t, usage.Object, "database-example-grant-owner-to-dbadmin", "spec", "of", "resourceRef", "name")
 		xptest.AssertNestedString(t, usage.Object, "Database", "spec", "by", "kind")
 		xptest.AssertNestedString(t, usage.Object, "database-example", "spec", "by", "resourceRef", "name")
+	}
+}
+
+func TestDatabaseWithExtensionConfigStatic(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	fs := afero.NewOsFs()
+
+	xr, err := render.LoadCompositeResource(fs, "../examples/database-with-extension-config.yaml")
+	if err != nil {
+		t.Fatalf("cannot load composite resource: %v", err)
+	}
+
+	comp, err := render.LoadComposition(fs, "../apis/database-composition.yaml")
+	if err != nil {
+		t.Fatalf("cannot load composition: %v", err)
+	}
+
+	fns := xptest.DockerFunctionsFromHelm(t, xptest.HelmValues(), "function-go-templating", "function-auto-ready")
+
+	log := logging.NewNopLogger()
+
+	t.Log("TEST 1: rendering Extension with extensionConfig schema")
+	out1, err := render.Render(ctx, log, render.Inputs{
+		CompositeResource: xr,
+		Composition:       comp,
+		Functions:         fns,
+	})
+	if err != nil {
+		t.Fatalf("render failed: %v", err)
+	}
+	xptest.AssertCounts(t, out1, "Grant", 1, "Database", 1, "Extension", 1, "Usage", 1)
+
+	t.Log("TEST 1: asserting Extension with schema")
+	ext := xptest.FindResource(t, out1.ComposedResources, "Extension", "database-extconfig-example-postgis")
+	if ext != nil {
+		xptest.AssertNestedString(t, ext.Object, "postgis", "spec", "forProvider", "extension")
+		xptest.AssertNestedString(t, ext.Object, "database-extconfig-example", "spec", "forProvider", "database")
+		xptest.AssertNestedString(t, ext.Object, "public", "spec", "forProvider", "schema")
+		xptest.AssertNestedString(t, ext.Object, "ProviderConfig", "spec", "providerConfigRef", "kind")
+		xptest.AssertNestedString(t, ext.Object, "postgresql-example-providerconfig", "spec", "providerConfigRef", "name")
 	}
 }
 
@@ -259,7 +311,7 @@ func TestUserStatic(t *testing.T) {
 	t.Log("TEST 1: asserting Grant fields")
 	grant := xptest.FindResource(t, out1.ComposedResources, "Grant", "grant-user-example-example-role-postgresql-example")
 	if grant != nil {
-		xptest.AssertNestedString(t, grant.Object, "user-example", "spec", "forProvider", "role")
+		xptest.AssertNestedString(t, grant.Object, "user_example", "spec", "forProvider", "role")
 		xptest.AssertNestedString(t, grant.Object, "example-role", "spec", "forProvider", "memberOf")
 		xptest.AssertNestedString(t, grant.Object, "ProviderConfig", "spec", "providerConfigRef", "kind")
 		xptest.AssertNestedString(t, grant.Object, "postgresql-example-providerconfig", "spec", "providerConfigRef", "name")
