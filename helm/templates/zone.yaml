@@ -398,49 +398,6 @@ subjects:
   namespace: {{ .Values.zone.kyvernoNamespace }}
 
 ---
-apiVersion: policies.kyverno.io/v1
-kind: MutatingPolicy
-metadata:
-  name: platform-apis-zone-namespace-pod-security
-spec:
-  evaluation:
-    admission:
-      enabled: true
-  matchConstraints:
-    resourceRules:
-      - apiGroups: [""]
-        apiVersions: ["v1"]
-        operations: ["CREATE", "UPDATE"]
-        resources: ["namespaces"]
-  matchConditions:
-    - name: "exclude-system-namespaces"
-      expression: "!(object.metadata.name in ['kube-system'])"
-    - name: "has-zone-label"
-      expression: "has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels && object.metadata.labels['tenancy.entigo.com/zone'] != 'infralib'"
-  mutations:
-    - patchType: JSONPatch
-      jsonPatch:
-        expression: >-
-          (
-            !('pod-security.kubernetes.io/enforce' in object.metadata.labels) ?
-            [
-              JSONPatch{
-                op: "add",
-                path: "/metadata/labels/pod-security.kubernetes.io~1enforce",
-                value: "{{ .Values.zone.environmentConfig.podSecurity }}"
-              }
-            ] : []
-          ) + (
-            !('pod-security.kubernetes.io/warn' in object.metadata.labels) ?
-            [
-              JSONPatch{
-                op: "add",
-                path: "/metadata/labels/pod-security.kubernetes.io~1warn",
-                value: "{{ .Values.zone.environmentConfig.podSecurity }}"
-              }
-            ] : []
-          )
----
 apiVersion: tenancy.entigo.com/v1alpha1
 kind: Zone
 metadata:
