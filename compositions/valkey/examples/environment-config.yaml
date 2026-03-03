@@ -10,5 +10,6 @@ data:
   subnetGroup: database
   elasticacheSubnetGroup: elasticache
   esClusterSecretStore: cluster-secret-store
+  backupRetentionPeriod: 14
   tags:
     foo: bar

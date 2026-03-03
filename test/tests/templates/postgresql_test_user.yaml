@@ -12,4 +12,4 @@ spec:
   inherit: true
   grant:
     roles:
-      - test_admin
+      - test_owner

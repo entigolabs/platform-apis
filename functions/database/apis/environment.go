@@ -5,14 +5,15 @@ import (
 )
 
 type Environment struct {
-	AWSProvider            	string             `json:"awsProvider"`
-	DataKMSKey             	string             `json:"dataKMSKey"`
-	ConfigKMSKey           	string             `json:"configKMSKey"`
-	VPC                    	string             `json:"vpc"`
-	SubnetGroup            	string             `json:"subnetGroup"`
-	ElasticacheSubnetGroup 	string             `json:"elasticacheSubnetGroup"`
-	EsClusterSecretStore   	string             `json:"esClusterSecretStore"`
-	BackupBeforeDeletion	*bool              `json:"backupBeforeDeletion"`
+	AWSProvider            string             `json:"awsProvider"`
+	DataKMSKey             string             `json:"dataKMSKey"`
+	ConfigKMSKey           string             `json:"configKMSKey"`
+	VPC                    string             `json:"vpc"`
+	SubnetGroup            string             `json:"subnetGroup"`
+	ElasticacheSubnetGroup string             `json:"elasticacheSubnetGroup"`
+	EsClusterSecretStore   string             `json:"esClusterSecretStore"`
+	BackupBeforeDeletion   *bool              `json:"backupBeforeDeletion"`
+	BackupRetentionPeriod  *float64           `json:"backupRetentionPeriod"`
 	Tags                   map[string]*string `json:"tags,omitempty"`
 }
 
@@ -41,6 +42,9 @@ func (e *Environment) Validate() error {
 	if e.BackupBeforeDeletion == nil {
 		defaultTrue := true
 		e.BackupBeforeDeletion = &defaultTrue
+	}
+	if e.BackupRetentionPeriod == nil {
+		return errors.New("backupRetentionPeriod is required")
 	}
 	return nil
 }

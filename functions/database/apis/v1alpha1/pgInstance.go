@@ -27,8 +27,9 @@ type PostgreSQLInstanceSpec struct {
 	// +kubebuilder:default=false
 	AllowMajorVersionUpgrade bool `json:"allowMajorVersionUpgrade,omitempty"`
 	// +kubebuilder:default=true
-	AutoMinorVersionUpgrade bool   `json:"autoMinorVersionUpgrade,omitempty"`
-	BackupWindow            string `json:"backupWindow,omitempty"`
+	AutoMinorVersionUpgrade bool     `json:"autoMinorVersionUpgrade,omitempty"`
+	BackupRetentionPeriod   *float64 `json:"backupRetentionPeriod,omitempty"`
+	BackupWindow            string   `json:"backupWindow,omitempty"`
 	// +kubebuilder:default=true
 	DeletionProtection bool    `json:"deletionProtection"`
 	EngineVersion      string  `json:"engineVersion"`
