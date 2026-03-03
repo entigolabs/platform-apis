@@ -32,7 +32,7 @@ spec:
                 lcCollate:
                   description: Collation order (LC_COLLATE) to use in the new database. This affects the sort order applied to strings, e.g. in queries with ORDER BY, as well as the order used in indexes on text columns. The default is to use the collation order of the template database.
                   type: string
-                template:
+                dbTemplate:
                   description: The name of the template from which to create the new database
                   type: string
                 instanceRef:
@@ -44,19 +44,35 @@ spec:
                   required:
                     - name
                 extensions:
-                  description: List of PostgreSQL extensions to enable
+                  description: List of PostgreSQL extensions to enable. Each extension can be a string (name only) or an object with name and optional schema.
                   type: array
                   items:
-                    type: object
-                    properties:
-                      name:
-                        description: Extension name
-                        type: string
-                      schema:
-                        description: Schema in which to create the extension objects
-                        type: string
-                    required:
-                      - name
+                    oneOf:
+                      - type: string
+                        enum:
+                          - postgis
+                          - postgis_topology
+                          - fuzzystrmatch
+                          - postgis_tiger_geocoder
+                          - uuid-ossp
+                          - btree_gist
+                      - type: object
+                        properties:
+                          name:
+                            description: Extension name
+                            type: string
+                            enum:
+                              - postgis
+                              - postgis_topology
+                              - fuzzystrmatch
+                              - postgis_tiger_geocoder
+                              - uuid-ossp
+                              - btree_gist
+                          schema:
+                            description: Schema in which to create the extension objects
+                            type: string
+                        required:
+                          - name
               required:
                 - owner
                 - instanceRef

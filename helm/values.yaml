@@ -11,6 +11,7 @@ database:
     elasticacheSubnetGroup: elasticache
     esClusterSecretStore: external-secrets
     backupBeforeDeletion: true
+    backupRetentionPeriod: 14
     tags: {}
 
 postgresql:

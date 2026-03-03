@@ -322,6 +322,11 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 		skipFinalSnapshot = true
 	}
 
+	backupRetentionPeriod := g.pgInstance.Spec.BackupRetentionPeriod
+	if backupRetentionPeriod == nil {
+		backupRetentionPeriod = g.env.BackupRetentionPeriod
+	}
+
 	rdsInstance := &rdsmv1beta1.Instance{
 		TypeMeta:   metav1.TypeMeta{Kind: "Instance", APIVersion: rdsApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: rdsInstanceName, Namespace: g.pgInstance.Namespace},
@@ -334,6 +339,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 				AllowMajorVersionUpgrade:    &g.pgInstance.Spec.AllowMajorVersionUpgrade,
 				AutoMinorVersionUpgrade:     &g.pgInstance.Spec.AutoMinorVersionUpgrade,
 				AvailabilityZone:            &availabilityZone,
+				BackupRetentionPeriod:       backupRetentionPeriod,
 				DBName:                      &dbName,
 				DBSubnetGroupNameRef:        &xpv2v1.NamespacedReference{Name: g.subnetGroup.Name, Namespace: g.subnetGroup.Namespace},
 				DeletionProtection:          &g.pgInstance.Spec.DeletionProtection,

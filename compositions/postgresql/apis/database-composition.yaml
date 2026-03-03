@@ -44,7 +44,7 @@ spec:
           {{- $encoding := .observed.composite.resource.spec.encoding -}}
           {{- $lcCType := .observed.composite.resource.spec.lcCType -}}
           {{- $lcCollate := .observed.composite.resource.spec.lcCollate -}}
-          {{- $template := .observed.composite.resource.spec.template -}}
+          {{- $dbTemplate := .observed.composite.resource.spec.dbTemplate -}}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Database
@@ -65,27 +65,35 @@ spec:
             {{- if $lcCollate }}
               lcCollate: {{ $lcCollate }}
             {{- end }}
-            {{- if $template }}
-              template: {{ $template }}
+            {{- if $dbTemplate }}
+              template: {{ $dbTemplate }}
             {{- end }}
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
           {{- range $index, $extension := .observed.composite.resource.spec.extensions }}
+          {{- $extName := "" -}}
+          {{- $extSchema := "" -}}
+          {{- if kindIs "string" $extension -}}
+            {{- $extName = $extension -}}
+          {{- else -}}
+            {{- $extName = $extension.name -}}
+            {{- $extSchema = $extension.schema -}}
+          {{- end }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Extension
           metadata:
             annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: extension-{{ $extension.name }}-{{ $index }}
-            name: {{ $.observed.composite.resource.metadata.name }}-{{ $extension.name }}
+              gotemplating.fn.crossplane.io/composition-resource-name: extension-{{ $extName | replace "_" "-" }}-{{ $index }}
+            name: {{ $.observed.composite.resource.metadata.name }}-{{ $extName | replace "_" "-" }}
             namespace: {{ $.observed.composite.resource.metadata.namespace }}
           spec:
             forProvider:
-              extension: {{ $extension.name }}
+              extension: {{ $extName }}
               database: {{ $.observed.composite.resource.metadata.name }}
-            {{- if $extension.schema }}
-              schema: {{ $extension.schema }}
+            {{- if $extSchema }}
+              schema: {{ $extSchema }}
             {{- end }}
             providerConfigRef:
               kind: ProviderConfig
