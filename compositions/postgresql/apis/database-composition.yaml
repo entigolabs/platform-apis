@@ -45,6 +45,7 @@ spec:
           {{- $lcCType := .observed.composite.resource.spec.lcCType -}}
           {{- $lcCollate := .observed.composite.resource.spec.lcCollate -}}
           {{- $dbTemplate := .observed.composite.resource.spec.dbTemplate -}}
+          {{- $extConfig := default dict .observed.composite.resource.spec.extensionConfig -}}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Database
@@ -71,11 +72,10 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
-          {{- $extConfig := default dict .observed.composite.resource.spec.extensionConfig -}}
           {{- range $index, $extName := .observed.composite.resource.spec.extensions }}
           {{- $extCfg := index $extConfig $extName -}}
           {{- $extSchema := "" -}}
-          {{- if $extCfg -}}{{- $extSchema = $extCfg.schema -}}{{- end -}}
+          {{- if $extCfg -}}{{- $extSchema = $extCfg.schema -}}{{- end }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Extension
