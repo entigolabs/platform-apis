@@ -106,10 +106,46 @@ jobs:
       helm_version: ${{ needs.build-helm.outputs.version }}
     secrets: inherit
 
-  create-infralib-pr:
-    name: Create Infralib PR
+  run-infralib-tests:
+    name: Run Infralib Tests
     needs: [build-helm, prepare-infralib-branch]
     if: always() && needs.prepare-infralib-branch.result == 'success'
+    uses: ./.github/workflows/run-infralib-tests.yml
+    with:
+      branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
+      helm_version: ${{ needs.build-helm.outputs.version }}
+    secrets: inherit
+
+  cleanup-infralib-test-files:
+    name: Remove Test Files from Infralib Branch
+    needs: [build-helm, prepare-infralib-branch, run-infralib-tests]
+    if: always() && needs.run-infralib-tests.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      INFRALIB_REPO: entigolabs/entigo-infralib
+      INFRALIB_MODULE_PATH: modules/k8s/platform-apis
+    steps:
+      - name: Checkout infralib branch
+        uses: actions/checkout@v4
+        with:
+          repository: entigolabs/entigo-infralib
+          token: ${{ secrets.INFRALIB_PAT }}
+          ref: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
+
+      - name: Remove test files and push
+        env:
+          BRANCH: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git rm -rf "$INFRALIB_MODULE_PATH/test/"
+          git commit -m "Remove test files before PR"
+          git push origin "$BRANCH"
+
+  create-infralib-pr:
+    name: Create Infralib PR
+    needs: [build-helm, prepare-infralib-branch, run-infralib-tests, cleanup-infralib-test-files]
+    if: always() && needs.cleanup-infralib-test-files.result == 'success'
     runs-on: ubuntu-latest
     outputs:
       pr_url: ${{ steps.create-pr.outputs.pr_url }}
@@ -132,7 +168,7 @@ jobs:
 
   notify:
     name: Slack Notification
-    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, create-release, prepare-infralib-branch, create-infralib-pr]
+    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, create-release, prepare-infralib-branch, run-infralib-tests, cleanup-infralib-test-files, create-infralib-pr]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -149,6 +185,8 @@ jobs:
           R_BUILD_HELM: ${{ needs.build-helm.result }}
           R_RELEASE: ${{ needs.create-release.result }}
           R_INFRALIB: ${{ needs.prepare-infralib-branch.result }}
+          R_TESTS: ${{ needs.run-infralib-tests.result }}
+          R_CLEANUP: ${{ needs.cleanup-infralib-test-files.result }}
           R_INFRALIB_PR: ${{ needs.create-infralib-pr.result }}
           VERSION: ${{ needs.build-helm.outputs.version }}
           INFRALIB_PR_URL: ${{ needs.create-infralib-pr.outputs.pr_url }}
@@ -168,6 +206,8 @@ jobs:
           add_failed "Build Helm" "$R_BUILD_HELM"
           add_failed "Create Release" "$R_RELEASE"
           add_failed "Prepare Infralib Branch" "$R_INFRALIB"
+          add_failed "Run Infralib Tests" "$R_TESTS"
+          add_failed "Cleanup Test Files" "$R_CLEANUP"
           add_failed "Create Infralib PR" "$R_INFRALIB_PR"
 
           if [ -n "$FAILED" ]; then
