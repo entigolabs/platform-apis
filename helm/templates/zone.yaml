@@ -487,6 +487,7 @@ metadata:
   name: generate-namespace-from-argocd-app
   annotations:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: Generate Namespace from ArgoCD Application
     policies.kyverno.io/category: ArgoCD
     policies.kyverno.io/description: >-
@@ -534,6 +535,7 @@ kind: MutatingPolicy
 metadata:
   name: platform-apis-namespace-add-missing-zone-label
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   evaluation:
