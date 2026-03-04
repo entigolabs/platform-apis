@@ -39,6 +39,7 @@ type PostgreSQLInstanceSpec struct {
 	// +kubebuilder:default=false
 	MultiAZ            bool   `json:"multiAZ"`
 	ParameterGroupName string `json:"parameterGroupName,omitempty"`
+	SnapshotIdentifier string `json:"snapshotIdentifier,omitempty"`
 }
 
 type PostgreSQLInstanceStatus struct {
@@ -55,6 +56,7 @@ type PostgreSQLInstanceStatus struct {
 	MaintenanceWindow        string                     `json:"maintenanceWindow,omitempty"`
 	ParameterGroupName       string                     `json:"parameterGroupName,omitempty"`
 	ResourceID               string                     `json:"resourceId,omitempty"`
+	SnapshotIdentifier       string                     `json:"snapshotIdentifier,omitempty"`
 	Status                   string                     `json:"status,omitempty"`
 	StorageEncrypted         bool                       `json:"storageEncrypted"`
 	StorageThroughput        float64                    `json:"storageThroughput,omitempty"`

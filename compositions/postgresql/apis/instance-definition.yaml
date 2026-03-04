@@ -72,6 +72,12 @@ spec:
                 parameterGroupName:
                   type: string
                   description: Reference to a custom parameter group.
+                snapshotIdentifier:
+                  type: string
+                  description: Specifies whether or not to create this database from a snapshot. This corresponds to the snapshot ID in the RDS console.
+                  x-kubernetes-validations:
+                    - rule: "self == oldSelf"
+                      message: "snapshotIdentifier is immutable"
               required:
                 - allocatedStorage
                 - engineVersion
@@ -114,6 +120,8 @@ spec:
                 parameterGroupName:
                   type: string
                 resourceId:
+                  type: string
+                snapshotIdentifier:
                   type: string
                 status:
                   type: string

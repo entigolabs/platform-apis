@@ -37,6 +37,14 @@ func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOp
 	runPostgresqlInstanceTests(t, namespaceOptions)
 	fmt.Printf("TIMING: PostgreSQL instance tests took %s\n", time.Since(instanceStart))
 
+	if t.Failed() {
+		return
+	}
+
+	snapshotStart := time.Now()
+	runPostgresqlSnapshotInstanceTests(t, namespaceOptions)
+	fmt.Printf("TIMING: PostgreSQL snapshot instance tests took %s\n", time.Since(snapshotStart))
+
 	userDbStart := time.Now()
 	runPostgresqlUserAndDatabaseTests(t, namespaceOptions)
 	fmt.Printf("TIMING: User and database tests took %s\n", time.Since(userDbStart))
