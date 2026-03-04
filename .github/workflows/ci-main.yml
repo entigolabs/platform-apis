@@ -157,7 +157,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           FAILED=""
-          add_failed() { [ "$2" = "failure" ] && FAILED="${FAILED:+$FAILED, }$1"; }
+          add_failed() { [ "$2" = "failure" ] && FAILED="${FAILED:+$FAILED, }$1" || true; }
           add_failed "Detect Changes" "$R_DETECT"
           add_failed "Ensure Test Image" "$R_ENSURE"
           add_failed "Test Functions" "$R_TEST_FN"

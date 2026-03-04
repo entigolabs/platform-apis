@@ -66,20 +66,16 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const output = fs.readFileSync('infralib/${{ env.INFRALIB_MODULE_PATH }}/test-output.txt', 'utf8');
+            let output = fs.readFileSync('infralib/${{ env.INFRALIB_MODULE_PATH }}/test-output.txt', 'utf8');
             const status = process.env.EXIT_CODE === '0' ? 'Passed' : 'Failed';
-            const body = `## Infralib E2E Results
-
-            **Helm Version:** \`${process.env.VERSION}\`
-            **Branch:** \`${process.env.BRANCH}\`
-            **Status:** ${status}
-
-            <details><summary>Output</summary>
-
-            \`\`\`
-            ${output}
-            \`\`\`
-            </details>`;
+            const header = `## Infralib E2E Results\n\n**Helm Version:** \`${process.env.VERSION}\`\n**Branch:** \`${process.env.BRANCH}\`\n**Status:** ${status}\n\n<details><summary>Output</summary>\n\n\`\`\`\n`;
+            const footer = `\n\`\`\`\n</details>`;
+            const maxBody = 65536;
+            const maxOutput = maxBody - header.length - footer.length - 100;
+            if (output.length > maxOutput) {
+              output = '...(truncated, showing last lines)\n' + output.slice(-maxOutput);
+            }
+            const body = header + output + footer;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
