@@ -111,17 +111,110 @@ jobs:
     needs: [build-helm, prepare-infralib-branch]
     if: always() && needs.prepare-infralib-branch.result == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      pr_url: ${{ steps.create-pr.outputs.pr_url }}
     env:
       INFRALIB_REPO: entigolabs/entigo-infralib
     steps:
       - name: Create PR in entigo-infralib
+        id: create-pr
         env:
           GH_TOKEN: ${{ secrets.INFRALIB_PAT }}
           VERSION: ${{ needs.build-helm.outputs.version }}
         run: |
-          gh pr create \
+          PR_URL=$(gh pr create \
             --repo "$INFRALIB_REPO" \
             --base main \
             --head "platform-apis-${VERSION}" \
             --title "Update k8s/platform-apis to ${VERSION}" \
-            --body "Automated PR for platform-apis ${VERSION} stable release."
+            --body "Automated PR for platform-apis ${VERSION} stable release.")
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+
+  notify:
+    name: Slack Notification
+    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, create-release, prepare-infralib-branch, create-infralib-pr]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Slack message
+        id: msg
+        env:
+          R_DETECT: ${{ needs.detect-changes.result }}
+          R_ENSURE: ${{ needs.ensure-test-image.result }}
+          R_TEST_FN: ${{ needs.test-functions.result }}
+          R_TEST_COMP: ${{ needs.test-compositions.result }}
+          R_TEST_HELM: ${{ needs.test-helm.result }}
+          R_BUILD_FN: ${{ needs.build-functions.result }}
+          R_BUILD_COMP: ${{ needs.build-compositions.result }}
+          R_BUILD_HELM: ${{ needs.build-helm.result }}
+          R_RELEASE: ${{ needs.create-release.result }}
+          R_INFRALIB: ${{ needs.prepare-infralib-branch.result }}
+          R_INFRALIB_PR: ${{ needs.create-infralib-pr.result }}
+          VERSION: ${{ needs.build-helm.outputs.version }}
+          INFRALIB_PR_URL: ${{ needs.create-infralib-pr.outputs.pr_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          FAILED=""
+          add_failed() { [ "$2" = "failure" ] && FAILED="${FAILED:+$FAILED, }$1"; }
+          add_failed "Detect Changes" "$R_DETECT"
+          add_failed "Ensure Test Image" "$R_ENSURE"
+          add_failed "Test Functions" "$R_TEST_FN"
+          add_failed "Test Compositions" "$R_TEST_COMP"
+          add_failed "Test Helm" "$R_TEST_HELM"
+          add_failed "Build Functions" "$R_BUILD_FN"
+          add_failed "Build Compositions" "$R_BUILD_COMP"
+          add_failed "Build Helm" "$R_BUILD_HELM"
+          add_failed "Create Release" "$R_RELEASE"
+          add_failed "Prepare Infralib Branch" "$R_INFRALIB"
+          add_failed "Create Infralib PR" "$R_INFRALIB_PR"
+
+          if [ -n "$FAILED" ]; then
+            COLOR="danger"
+            STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+              --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
+          else
+            COLOR="good"
+            STEP_DETAILS=""
+          fi
+
+          {
+            echo "color=$COLOR"
+            if [ -n "$FAILED" ]; then
+              echo "title=Main CI: Failed"
+            elif [ -n "$VERSION" ]; then
+              echo "title=Released: platform-apis v${VERSION}"
+            else
+              echo "title=Main CI: Passed"
+            fi
+            echo "message<<SLACKMSG"
+            if [ -n "$FAILED" ]; then
+              echo "*Status:* :x: Failed — ${FAILED}"
+              if [ -n "$STEP_DETAILS" ]; then
+                echo "*Failed steps:*"
+                echo "${STEP_DETAILS}"
+              fi
+            else
+              echo "*Status:* :white_check_mark: Released"
+              if [ -n "$VERSION" ]; then
+                echo "*Version:* \`${VERSION}\` — <${REPO_URL}/releases/tag/v${VERSION}|View release>"
+              fi
+              if [ -n "$INFRALIB_PR_URL" ]; then
+                echo "*Infralib PR:* <${INFRALIB_PR_URL}|View PR>"
+              fi
+            fi
+            echo "*Run:* <${RUN_URL}|View details>"
+            echo "SLACKMSG"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: ${{ steps.msg.outputs.color }}
+          SLACK_TITLE: ${{ steps.msg.outputs.title }}
+          SLACK_MESSAGE: ${{ steps.msg.outputs.message }}
+          SLACK_USERNAME: GitHub Actions
+          SLACK_ICON_EMOJI: ':github:'
+          MSG_MINIMAL: true

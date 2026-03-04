@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +24,22 @@ func runPostgresqlSnapshotInstanceTests(t *testing.T, namespaceOptions *terrak8s
 
 	testPostgresqlSnapshotInstanceApplied(t, namespaceOptions, snapshotID)
 	t.Run("snapshot-sub-resources", func(t *testing.T) {
+		t.Run("security-group-rules", func(t *testing.T) {
+			t.Parallel()
+			testSnapshotSecurityGroupRulesSyncedAndReady(t, namespaceOptions)
+		})
+		t.Run("security-group", func(t *testing.T) {
+			t.Parallel()
+			testSnapshotSecurityGroupSyncedAndReady(t, namespaceOptions)
+		})
+		t.Run("external-secret", func(t *testing.T) {
+			t.Parallel()
+			testSnapshotExternalSecretReady(t, namespaceOptions)
+		})
+		t.Run("provider-config", func(t *testing.T) {
+			t.Parallel()
+			testSnapshotProviderConfigExists(t, namespaceOptions)
+		})
 		t.Run("rds-snapshot-instance", func(t *testing.T) {
 			t.Parallel()
 			waitSyncedAndReadyByLabel(t, namespaceOptions, RdsInstanceKind, PostgresqlSnapshotInstanceName, 90, 10*time.Second)
@@ -122,6 +139,118 @@ spec:
 
 func testPostgresqlSnapshotInstanceSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
 	waitSyncedAndReady(t, namespaceOptions, PostgresqlInstanceKind, PostgresqlSnapshotInstanceName, 90, 10*time.Second)
+}
+
+func testSnapshotSecurityGroupRulesSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for SecurityGroupRules (composite=%s)", PostgresqlSnapshotInstanceName), 60, 10*time.Second, func() (string, error) {
+		ruleNames, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SecurityGroupRuleKind, "-l",
+			fmt.Sprintf("crossplane.io/composite=%s", PostgresqlSnapshotInstanceName), "-o", "jsonpath={.items[*].metadata.name}")
+		if err != nil {
+			return "", err
+		}
+		names := strings.Fields(ruleNames)
+		if len(names) < 2 {
+			return "", fmt.Errorf("expected at least 2 SecurityGroupRules for composite=%s, found %d", PostgresqlSnapshotInstanceName, len(names))
+		}
+		foundIngress, foundEgress := false, false
+		for _, name := range names {
+			if strings.Contains(name, "-sg-ingress-") {
+				foundIngress = true
+			}
+			if strings.Contains(name, "-sg-egress-") {
+				foundEgress = true
+			}
+		}
+		if !foundIngress {
+			return "", fmt.Errorf("no ingress SecurityGroupRule found")
+		}
+		if !foundEgress {
+			return "", fmt.Errorf("no egress SecurityGroupRule found")
+		}
+		for _, name := range names {
+			for _, condType := range []string{"Synced", "Ready"} {
+				status, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SecurityGroupRuleKind, name, "-o",
+					fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))
+				if err != nil {
+					return "", err
+				}
+				if status != "True" {
+					return "", fmt.Errorf("SecurityGroupRule '%s': %s=%s", name, condType, status)
+				}
+			}
+		}
+		return "Synced+Ready", nil
+	})
+	require.NoError(t, err, fmt.Sprintf("SecurityGroupRules for '%s' failed to become Synced and Ready", PostgresqlSnapshotInstanceName))
+}
+
+func testSnapshotSecurityGroupSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for SecurityGroup (composite=%s)", PostgresqlSnapshotInstanceName), 60, 10*time.Second, func() (string, error) {
+		sgName, err := getFirstByLabel(t, namespaceOptions, SecurityGroupKind, PostgresqlSnapshotInstanceName)
+		if err != nil {
+			return "", err
+		}
+		if sgName == "" {
+			return "", fmt.Errorf("no SecurityGroup found for composite=%s", PostgresqlSnapshotInstanceName)
+		}
+		expectedPrefix := PostgresqlSnapshotInstanceName + "-sg-"
+		if !strings.HasPrefix(sgName, expectedPrefix) {
+			return "", fmt.Errorf("SecurityGroup name '%s' does not start with expected prefix '%s'", sgName, expectedPrefix)
+		}
+		for _, condType := range []string{"Synced", "Ready"} {
+			status, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SecurityGroupKind, sgName, "-o",
+				fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))
+			if err != nil {
+				return "", err
+			}
+			if status != "True" {
+				return "", fmt.Errorf("SecurityGroup '%s': %s=%s", sgName, condType, status)
+			}
+		}
+		return sgName, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("SecurityGroup for '%s' failed to become Synced and Ready", PostgresqlSnapshotInstanceName))
+}
+
+func testSnapshotExternalSecretReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for ExternalSecret (composite=%s)", PostgresqlSnapshotInstanceName), 90, 10*time.Second, func() (string, error) {
+		esName, err := getFirstByLabel(t, namespaceOptions, ExternalSecretKind, PostgresqlSnapshotInstanceName)
+		if err != nil {
+			return "", err
+		}
+		if esName == "" {
+			return "", fmt.Errorf("no ExternalSecret found for composite=%s", PostgresqlSnapshotInstanceName)
+		}
+		expectedPrefix := PostgresqlSnapshotInstanceName + "-es-"
+		if !strings.HasPrefix(esName, expectedPrefix) {
+			return "", fmt.Errorf("ExternalSecret name '%s' does not start with expected prefix '%s'", esName, expectedPrefix)
+		}
+		readyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", ExternalSecretKind, esName, "-o",
+			`jsonpath={.status.conditions[?(@.type=="Ready")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if readyStatus != "True" {
+			return "", fmt.Errorf("ExternalSecret '%s' not ready yet, condition: %s", esName, readyStatus)
+		}
+		return esName, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("ExternalSecret for '%s' failed to become Ready", PostgresqlSnapshotInstanceName))
+}
+
+func testSnapshotProviderConfigExists(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
+	expectedName := PostgresqlSnapshotInstanceName + "-providerconfig"
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for ProviderConfig '%s'", expectedName), 90, 10*time.Second, func() (string, error) {
+		output, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlProviderConfigKind, expectedName, "-o", "jsonpath={.metadata.name}")
+		if err != nil {
+			return "", err
+		}
+		if output == "" {
+			return "", fmt.Errorf("ProviderConfig '%s' not found", expectedName)
+		}
+		return output, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("ProviderConfig '%s' not found", expectedName))
 }
 
 func testSnapshotInstanceVerifiedFromSnapshot(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, expectedSnapshotID string) {

@@ -27,9 +27,9 @@ func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOp
 		fmt.Printf("TIMING: Cleanup took %s\n", time.Since(cleanupStart))
 	}()
 
-	testTestNamespaceCreated(t, clusterOptions)
-
 	waitForZonesReady(t, zonesReady, zonesReadySuccess)
+
+	testTestNamespaceCreated(t, clusterOptions)
 
 	namespaceOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
@@ -44,6 +44,10 @@ func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOp
 	snapshotStart := time.Now()
 	runPostgresqlSnapshotInstanceTests(t, namespaceOptions)
 	fmt.Printf("TIMING: PostgreSQL snapshot instance tests took %s\n", time.Since(snapshotStart))
+
+	if t.Failed() {
+		return
+	}
 
 	userDbStart := time.Now()
 	runPostgresqlUserAndDatabaseTests(t, namespaceOptions)

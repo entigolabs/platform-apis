@@ -59,16 +59,21 @@ func cleanupPostgresqlResources(t *testing.T, clusterOptions *terrak8s.KubectlOp
 	wgInstances.Add(2)
 	go func() {
 		defer wgInstances.Done()
-		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlSnapshotInstanceName, 60)
+		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlSnapshotInstanceName, 180)
 	}()
 	go func() {
 		defer wgInstances.Done()
-		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 60)
+		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
 	}()
 	wgInstances.Wait()
 
 	cleanupWaitForGeneratedResources(t, pgNsOptions)
 	cleanupWaitForSnapshotInstanceGeneratedResources(t, pgNsOptions)
+
+	if !cleanupInstancesFullyGone(t, pgNsOptions) {
+		fmt.Printf("WARNING: some Crossplane managed resources still exist; skipping namespace deletion to avoid finalizer deadlock\n")
+		return
+	}
 
 	cleanupNamespace(t, pgNsOptions, clusterOptions)
 }
@@ -197,6 +202,23 @@ func cleanupWaitForSnapshotInstanceGeneratedResources(t *testing.T, opts *terrak
 		}()
 	}
 	wg.Wait()
+}
+
+// cleanupInstancesFullyGone checks that no Crossplane managed resources with
+// instance composite labels remain. Returns true when safe to delete the namespace.
+func cleanupInstancesFullyGone(t *testing.T, opts *terrak8s.KubectlOptions) bool {
+	kinds := []string{RdsInstanceKind, SecurityGroupRuleKind, SecurityGroupKind, ExternalSecretKind, SqlProviderConfigKind}
+	composites := []string{PostgresqlInstanceName, PostgresqlSnapshotInstanceName}
+	for _, kind := range kinds {
+		for _, composite := range composites {
+			out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "-l",
+				fmt.Sprintf("crossplane.io/composite=%s", composite), "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
+			if err != nil || out != "" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func cleanupNamespace(t *testing.T, pgNsOptions *terrak8s.KubectlOptions, clusterOptions *terrak8s.KubectlOptions) {

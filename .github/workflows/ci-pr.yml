@@ -114,3 +114,82 @@ jobs:
       branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
       helm_version: ${{ needs.build-helm.outputs.version }}
     secrets: inherit
+
+  notify:
+    name: Slack Notification
+    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, prepare-infralib-branch, run-infralib-tests]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Slack message
+        id: msg
+        env:
+          R_DETECT: ${{ needs.detect-changes.result }}
+          R_ENSURE: ${{ needs.ensure-test-image.result }}
+          R_TEST_FN: ${{ needs.test-functions.result }}
+          R_TEST_COMP: ${{ needs.test-compositions.result }}
+          R_TEST_HELM: ${{ needs.test-helm.result }}
+          R_BUILD_FN: ${{ needs.build-functions.result }}
+          R_BUILD_COMP: ${{ needs.build-compositions.result }}
+          R_BUILD_HELM: ${{ needs.build-helm.result }}
+          R_INFRALIB: ${{ needs.prepare-infralib-branch.result }}
+          R_TESTS: ${{ needs.run-infralib-tests.result }}
+          VERSION: ${{ needs.build-helm.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          FAILED=""
+          add_failed() { [ "$2" = "failure" ] && FAILED="${FAILED:+$FAILED, }$1"; }
+          add_failed "Detect Changes" "$R_DETECT"
+          add_failed "Ensure Test Image" "$R_ENSURE"
+          add_failed "Test Functions" "$R_TEST_FN"
+          add_failed "Test Compositions" "$R_TEST_COMP"
+          add_failed "Test Helm" "$R_TEST_HELM"
+          add_failed "Build Functions" "$R_BUILD_FN"
+          add_failed "Build Compositions" "$R_BUILD_COMP"
+          add_failed "Build Helm" "$R_BUILD_HELM"
+          add_failed "Prepare Infralib Branch" "$R_INFRALIB"
+          add_failed "Run Infralib Tests" "$R_TESTS"
+
+          if [ -n "$FAILED" ]; then
+            COLOR="danger"
+            STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+              --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
+          else
+            COLOR="good"
+            STEP_DETAILS=""
+          fi
+
+          {
+            echo "color=$COLOR"
+            echo "message<<SLACKMSG"
+            echo "*PR:* <${PR_URL}|#${PR_NUMBER} - ${PR_TITLE}>"
+            echo "*Author:* ${PR_AUTHOR}"
+            echo "*Version:* \`${VERSION:-not built}\`"
+            if [ -n "$FAILED" ]; then
+              echo "*Status:* :x: Failed — ${FAILED}"
+              if [ -n "$STEP_DETAILS" ]; then
+                echo "*Failed steps:*"
+                echo "${STEP_DETAILS}"
+              fi
+            else
+              echo "*Status:* :white_check_mark: Passed"
+            fi
+            echo "*Details:* <${RUN_URL}|View run>"
+            echo "SLACKMSG"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: ${{ steps.msg.outputs.color }}
+          SLACK_TITLE: "PR #${{ github.event.number }}: ${{ github.event.pull_request.title }}"
+          SLACK_MESSAGE: ${{ steps.msg.outputs.message }}
+          SLACK_USERNAME: GitHub Actions
+          SLACK_ICON_EMOJI: ':github:'
+          MSG_MINIMAL: true
