@@ -19,15 +19,7 @@ spec:
         template: |
           {{- $roleExists := hasKey .observed.resources "role" -}}
           {{- $ready := $roleExists -}}
-          {{- if not $ready -}}
-          {{- $instances := getExtraResources . "postgresql-instance" -}}
-          {{- if $instances -}}
-          {{- $instance := mustFirst $instances -}}
-          {{- range $instance.resource.status.conditions -}}
-          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $ready = true -}}{{- end -}}
-          {{- end -}}
-          {{- end -}}
-          {{- if not $ready }}
+          {{- if not $roleExists }}
           apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
           kind: ExtraResources
           requirements:
@@ -35,6 +27,12 @@ spec:
               apiVersion: database.entigo.com/v1alpha1
               kind: PostgreSQLInstance
               matchName: {{ .observed.composite.resource.spec.instanceRef.name }}
+          {{- $instances := getExtraResources . "postgresql-instance" -}}
+          {{- if $instances -}}
+          {{- $instance := mustFirst $instances -}}
+          {{- range $instance.resource.status.conditions -}}
+          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $ready = true -}}{{- end -}}
+          {{- end -}}
           {{- end -}}
           {{- end -}}
           {{- if $ready }}
