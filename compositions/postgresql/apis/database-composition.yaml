@@ -17,6 +17,24 @@ spec:
       source: Inline
       inline:
         template: |
+          apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+          kind: ExtraResources
+          requirements:
+            postgresql-user:
+              apiVersion: database.entigo.com/v1alpha1
+              kind: PostgreSQLUser
+              matchName: {{ .observed.composite.resource.spec.owner }}
+              namespace: {{ .observed.composite.resource.metadata.namespace }}
+          {{- $grantExists := hasKey .observed.resources "grant-owner-to-dbadmin" -}}
+          {{- $users := getExtraResources . "postgresql-user" -}}
+          {{- $userReady := false -}}
+          {{- if $users -}}
+          {{- $user := mustFirst $users -}}
+          {{- range $user.resource.status.conditions -}}
+          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $userReady = true -}}{{- end -}}
+          {{- end -}}
+          {{- end -}}
+          {{- if or $grantExists $userReady }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Grant
@@ -32,6 +50,7 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
+          {{- end }}
   - step: database
     functionRef:
       name: function-go-templating
