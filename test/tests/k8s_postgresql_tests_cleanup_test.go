@@ -53,10 +53,27 @@ func cleanupPostgresqlResources(t *testing.T, clusterOptions *terrak8s.KubectlOp
 
 	cleanupDisableDeletionProtection(t, pgNsOptions)
 
+	cleanupDeleteForeground(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlSnapshotInstanceName)
 	cleanupDeleteForeground(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName)
-	cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 60)
+	var wgInstances sync.WaitGroup
+	wgInstances.Add(2)
+	go func() {
+		defer wgInstances.Done()
+		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlSnapshotInstanceName, 180)
+	}()
+	go func() {
+		defer wgInstances.Done()
+		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
+	}()
+	wgInstances.Wait()
 
 	cleanupWaitForGeneratedResources(t, pgNsOptions)
+	cleanupWaitForSnapshotInstanceGeneratedResources(t, pgNsOptions)
+
+	if !cleanupInstancesFullyGone(t, pgNsOptions) {
+		fmt.Printf("WARNING: some Crossplane managed resources still exist; skipping namespace deletion to avoid finalizer deadlock\n")
+		return
+	}
 
 	cleanupNamespace(t, pgNsOptions, clusterOptions)
 }
@@ -152,6 +169,56 @@ func cleanupWaitForGeneratedResources(t *testing.T, opts *terrak8s.KubectlOption
 		}()
 	}
 	wg.Wait()
+}
+
+func cleanupWaitForSnapshotInstanceGeneratedResources(t *testing.T, opts *terrak8s.KubectlOptions) {
+	generatedKinds := []struct {
+		kind  string
+		label string
+	}{
+		{RdsInstanceKind, "RDS Instances"},
+		{SecurityGroupRuleKind, "SecurityGroupRules"},
+		{SecurityGroupKind, "SecurityGroups"},
+		{ExternalSecretKind, "ExternalSecrets"},
+		{SqlProviderConfigKind, "ProviderConfigs"},
+	}
+
+	var wg sync.WaitGroup
+	for _, gk := range generatedKinds {
+		gk := gk
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = retry.DoWithRetryE(t, fmt.Sprintf("waiting for snapshot instance %s deletion", gk.label), 60, 10*time.Second, func() (string, error) {
+				output, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", gk.kind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlSnapshotInstanceName), "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
+				if err != nil {
+					return "", err
+				}
+				if output != "" {
+					return "", fmt.Errorf("%s for snapshot instance still exist: %s", gk.label, output)
+				}
+				return "deleted", nil
+			})
+		}()
+	}
+	wg.Wait()
+}
+
+// cleanupInstancesFullyGone checks that no Crossplane managed resources with
+// instance composite labels remain. Returns true when safe to delete the namespace.
+func cleanupInstancesFullyGone(t *testing.T, opts *terrak8s.KubectlOptions) bool {
+	kinds := []string{RdsInstanceKind, SecurityGroupRuleKind, SecurityGroupKind, ExternalSecretKind, SqlProviderConfigKind}
+	composites := []string{PostgresqlInstanceName, PostgresqlSnapshotInstanceName}
+	for _, kind := range kinds {
+		for _, composite := range composites {
+			out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "-l",
+				fmt.Sprintf("crossplane.io/composite=%s", composite), "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
+			if err != nil || out != "" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func cleanupNamespace(t *testing.T, pgNsOptions *terrak8s.KubectlOptions, clusterOptions *terrak8s.KubectlOptions) {

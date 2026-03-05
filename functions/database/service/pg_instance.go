@@ -47,7 +47,7 @@ type pgInstanceGenerator struct {
 }
 
 type resourceNames struct {
-	sg, sgIngress, sgEgress, rdsInstance, rdsInstanceSnapshot, es, pc resource.Name
+	sg, sgIngress, sgEgress, rdsInstance, rdsInstanceFinalSnapshot, es, pc resource.Name
 }
 
 func GeneratePgInstanceObjects(
@@ -208,7 +208,7 @@ func GetRDSInstanceName(instanceName string, hash string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-%s", instanceName, hash))
 }
 
-func GetRDSInstanceSnapshotName(instanceName string, hash string) string {
+func GetRDSInstanceFinalSnapshotName(instanceName string, hash string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-snapshot-%s", instanceName, hash))
 }
 
@@ -225,7 +225,7 @@ func (g *pgInstanceGenerator) generateNames() {
 	g.names.sgIngress = resource.Name(GetSGIngressName(g.pgInstance.Name, g.hash))
 	g.names.sgEgress = resource.Name(GetSGEgressName(g.pgInstance.Name, g.hash))
 	g.names.rdsInstance = resource.Name(GetRDSInstanceName(g.pgInstance.Name, g.hash))
-	g.names.rdsInstanceSnapshot = resource.Name(GetRDSInstanceSnapshotName(g.pgInstance.Name, g.hash))
+	g.names.rdsInstanceFinalSnapshot = resource.Name(GetRDSInstanceFinalSnapshotName(g.pgInstance.Name, g.hash))
 	g.names.es = resource.Name(GetESName(g.pgInstance.Name, g.hash))
 	g.names.pc = resource.Name(GetPCName(g.pgInstance.Name))
 }
@@ -310,7 +310,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 	rdsInstances := make(map[string]runtime.Object)
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
-	snapshotIdentifier := string(g.names.rdsInstanceSnapshot)
+	finalSnapshotIdentifier := string(g.names.rdsInstanceFinalSnapshot)
 	region := g.vpc.Spec.ForProvider.Region
 	availabilityZone := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a"))
 
@@ -345,7 +345,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 				DeletionProtection:          &g.pgInstance.Spec.DeletionProtection,
 				Engine:                      &engine,
 				EngineVersion:               &g.pgInstance.Spec.EngineVersion,
-				FinalSnapshotIdentifier:     &snapshotIdentifier,
+				FinalSnapshotIdentifier:     &finalSnapshotIdentifier,
 				Identifier:                  &rdsInstanceName,
 				InstanceClass:               &g.pgInstance.Spec.InstanceType,
 				KMSKeyIDRef:                 &xpv2v1.NamespacedReference{Name: g.kmsDataKey.Name, Namespace: g.kmsDataKey.Namespace},
@@ -374,6 +374,11 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 	if g.pgInstance.Spec.ParameterGroupName != "" {
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.pgInstance.Spec.ParameterGroupName
 	}
+
+	if g.pgInstance.Spec.SnapshotIdentifier != "" {
+		rdsInstance.Spec.ForProvider.SnapshotIdentifier = &g.pgInstance.Spec.SnapshotIdentifier
+	}
+
 	rdsInstance.SetManagementPolicies(xpv2v1.ManagementPolicies{"*"})
 
 	rdsInstances[rdsInstance.Name] = rdsInstance
@@ -569,6 +574,11 @@ func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1
 	base.SetString(dbInstance.Status.AtProvider.ParameterGroupName, &status.ParameterGroupName)
 	base.SetString(dbInstance.Status.AtProvider.ResourceID, &status.ResourceID)
 	base.SetString(dbInstance.Status.AtProvider.Status, &status.Status)
+
+	if dbInstance.Status.AtProvider.SnapshotIdentifier != nil {
+		base.SetString(dbInstance.Status.AtProvider.SnapshotIdentifier, &status.SnapshotIdentifier)
+	}
+
 	base.SetBool(dbInstance.Status.AtProvider.StorageEncrypted, &status.StorageEncrypted)
 	base.SetFloat64(dbInstance.Status.AtProvider.StorageThroughput, &status.StorageThroughput)
 	base.SetString(dbInstance.Status.AtProvider.StorageType, &status.StorageType)
