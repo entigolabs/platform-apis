@@ -795,7 +795,7 @@ spec:
   - expression: "object.metadata.name != 'default'"
     message: "'default' zone cannot be created"
   - expression: |
-      object.spec.namespaces.all(requestedNs,
+      !has(object.spec.namespaces) || object.spec.namespaces.all(requestedNs,
         !dyn(variables.existingNamespaces.items).exists(existingNs,
           existingNs.metadata.name == requestedNs.name &&
           has(existingNs.metadata.labels) &&
@@ -808,6 +808,7 @@ spec:
         )
       )
     messageExpression: |
+      !has(object.spec.namespaces) ? "" :
       "Cannot manage namespace(s): " +
       object.spec.namespaces.filter(requestedNs,
         dyn(variables.existingNamespaces.items).exists(existingNs,
