@@ -25,16 +25,20 @@ spec:
               kind: PostgreSQLInstance
               matchName: {{ .observed.composite.resource.spec.instanceRef.name }}
               namespace: {{ .observed.composite.resource.metadata.namespace }}
+          ---
           {{- $instances := getExtraResources . "postgresql-instance" -}}
           {{- $instanceReady := false -}}
-          {{- if $instances -}}
-          {{- $instance := mustFirst $instances -}}
-          {{- range $instance.resource.status.conditions -}}
-          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $instanceReady = true -}}{{- end -}}
-          {{- end -}}
+          {{- if gt (len $instances) 0 -}}
+            {{- $instance := index $instances 0 -}}
+            {{- if and $instance.resource $instance.resource.status $instance.resource.status.conditions -}}
+              {{- range $cond := $instance.resource.status.conditions -}}
+                {{- if and (eq $cond.type "Ready") (eq $cond.status "True") -}}
+                  {{- $instanceReady = true -}}
+                {{- end -}}
+              {{- end -}}
+            {{- end -}}
           {{- end -}}
           {{- if $instanceReady }}
-          ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Role
           metadata:

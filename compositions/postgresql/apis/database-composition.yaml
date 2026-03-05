@@ -25,16 +25,20 @@ spec:
               kind: PostgreSQLUser
               matchName: {{ .observed.composite.resource.spec.owner }}
               namespace: {{ .observed.composite.resource.metadata.namespace }}
+          ---
           {{- $users := getExtraResources . "postgresql-user" -}}
           {{- $userReady := false -}}
-          {{- if $users -}}
-          {{- $user := mustFirst $users -}}
-          {{- range $user.resource.status.conditions -}}
-          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $userReady = true -}}{{- end -}}
-          {{- end -}}
+          {{- if gt (len $users) 0 -}}
+            {{- $user := index $users 0 -}}
+            {{- if and $user.resource $user.resource.status $user.resource.status.conditions -}}
+              {{- range $cond := $user.resource.status.conditions -}}
+                {{- if and (eq $cond.type "Ready") (eq $cond.status "True") -}}
+                  {{- $userReady = true -}}
+                {{- end -}}
+              {{- end -}}
+            {{- end -}}
           {{- end -}}
           {{- if $userReady }}
-          ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Grant
           metadata:
