@@ -129,8 +129,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git rm -rf "$INFRALIB_MODULE_PATH/test/"
-          git commit -m "Remove test files before PR"
+
+          git rm -f "$INFRALIB_MODULE_PATH/test/"*_test.go || true
+          git rm -rf "$INFRALIB_MODULE_PATH/test/templates/" || true
+
+          printf 'package test\n\nimport (\n\t"testing"\n\t"github.com/entigolabs/entigo-infralib-common/k8s"\n)\n\nfunc TestK8sPlatformApisAWSBiz(t *testing.T) {\n\ttestK8sPlatformApis(t, "aws", "biz")\n}\n\nfunc TestK8sPlatformApisAWSPri(t *testing.T) {\n\ttestK8sPlatformApis(t, "aws", "pri")\n}\n\nfunc testK8sPlatformApis(t *testing.T, cloudName string, envName string) {\n\tt.Parallel()\n\t_, _ = k8s.CheckKubectlConnection(t, cloudName, envName)\n}\n' \
+            > "$INFRALIB_MODULE_PATH/test/k8s_unit_basic_test.go"
+          git add "$INFRALIB_MODULE_PATH/test/k8s_unit_basic_test.go"
+
+          git commit -m "Replace test files with mock before PR"
           git push origin "$BRANCH"
 
   create-release:
