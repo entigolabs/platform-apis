@@ -87,9 +87,9 @@ jobs:
           fi
 
           if [ "${{ inputs.release_type }}" == "rc" ]; then
-            VERSION="v${MAJOR_MINOR}.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
+            VERSION="${MAJOR_MINOR}.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
           else
-            VERSION="v${MAJOR_MINOR}.${NEXT_PATCH}"
+            VERSION="${MAJOR_MINOR}.${NEXT_PATCH}"
           fi
 
           echo "Latest: $LATEST_TAG -> New: $VERSION"
