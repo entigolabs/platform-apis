@@ -63,7 +63,6 @@ func cleanupPostgresqlResources(t *testing.T, clusterOptions *terrak8s.KubectlOp
 	wgInstances.Wait()
 
 	cleanupWaitForGeneratedResources(t, pgNsOptions)
-	cleanupWaitForSnapshotInstanceGeneratedResources(t, pgNsOptions)
 
 	if !cleanupInstancesFullyGone(t, pgNsOptions) {
 		fmt.Printf("WARNING: some Crossplane managed resources still exist; skipping namespace deletion to avoid finalizer deadlock\n")
