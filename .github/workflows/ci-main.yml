@@ -88,15 +88,6 @@ jobs:
       release_type: stable
     secrets: inherit
 
-  create-release:
-    name: Create GitHub Release
-    needs: build-helm
-    if: always() && needs.build-helm.result == 'success'
-    uses: ./.github/workflows/create-release.yml
-    with:
-      version: ${{ needs.build-helm.outputs.version }}
-    secrets: inherit
-
   prepare-infralib-branch:
     name: Prepare Infralib Branch
     needs: build-helm
@@ -141,6 +132,15 @@ jobs:
           git rm -rf "$INFRALIB_MODULE_PATH/test/"
           git commit -m "Remove test files before PR"
           git push origin "$BRANCH"
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-helm, prepare-infralib-branch, run-infralib-tests]
+    if: always() && needs.build-helm.result == 'success'
+    uses: ./.github/workflows/create-release.yml
+    with:
+      version: ${{ needs.build-helm.outputs.version }}
+    secrets: inherit
 
   create-infralib-pr:
     name: Create Infralib PR
