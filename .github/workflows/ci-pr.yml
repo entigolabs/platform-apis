@@ -74,6 +74,19 @@ jobs:
       run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
+  build-testhelm:
+    name: Build Test Helm
+    needs: [detect-changes, ensure-test-image]
+    if: needs.detect-changes.outputs.has_testhelm_changes == 'true'
+    uses: ./.github/workflows/build-testhelm.yml
+    with:
+      testhelm: ${{ needs.detect-changes.outputs.testhelm }}
+      release_type: rc
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
+    secrets: inherit
+
   build-helm:
     name: Lint and Build Helm
     needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions]
