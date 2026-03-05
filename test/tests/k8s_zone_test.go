@@ -2,7 +2,6 @@ package test
 
 import (
 	"fmt"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,171 +12,128 @@ import (
 
 const (
 	AppProjectName        = "zone"
-	NamespaceZoneLabelKey = "app.kubernetes.io/name"
 	ZoneApplicationName   = "app-of-zones"
 	ZoneAName             = "a"
 	ZoneBName             = "b"
 	ZoneConfigurationName = "platform-apis-zone"
 	ZoneKind              = "zone.tenancy.entigo.com"
-	ZoneNamespaceName     = "test-zone"
 	TenancyFunctionName   = "platform-apis-tenancy-fn"
 	FunctionKind          = "function.pkg.crossplane.io"
+
+	AAppsNamespace       = "a-apps"
+	BAppsNamespace       = "b-apps"
+	AAppsApplicationName = "a-apps"
+	BAppsApplicationName = "b-apps"
 )
 
 func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions, argocdOptions *terrak8s.KubectlOptions, signalZonesReady func(bool)) {
-	setupFailed := true
-	defer func() {
-		if setupFailed {
-			signalZonesReady(false)
-		}
-	}()
+	//defer cleanupZoneResources(t, argocdNamespace, argocdOptions, clusterOptions)
 
-	test1AppProjectExists(t, argocdNamespace, argocdOptions)
-	test2ZoneApplicationApplied(t, argocdNamespace, argocdOptions)
-	test3VerifyZoneApplicationName(t, argocdNamespace, argocdOptions)
-	test4ZoneApplicationSynced(t, argocdNamespace, argocdOptions)
-
-	setupFailed = false
-	testZoneResourcesParallel(t, clusterOptions, signalZonesReady)
-	//test8NamespaceCreated(t, clusterOptions)
-	//test9NamespaceHasValidZoneLabel(t, argocdNamespace, clusterOptions)
-}
-
-func test1AppProjectExists(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
 	_, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "get", "appproject", AppProjectName, "-n", argocdNamespace)
-	require.NoError(t, err, fmt.Sprintf("AppProject '%s' not found", AppProjectName))
+	require.NoError(t, err, "AppProject '%s' not found in ArgoCD namespace '%s'", AppProjectName, argocdNamespace)
+
+	_, err = terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "apply", "-f", "./templates/zone_test_application.yaml")
+	require.NoError(t, err, "applying zone Application error")
+
+	syncAndWaitApplication(t, argocdOptions, ZoneApplicationName, 30, 10*time.Second)
+
+	// Wait for both zones to be ready in parallel; t.Run blocks until all parallel subtests finish
+	t.Run("zones-ready", func(t *testing.T) {
+		for _, zone := range []string{ZoneAName, ZoneBName} {
+			zone := zone
+			t.Run(zone, func(t *testing.T) {
+				t.Parallel()
+				waitSyncedAndReady(t, clusterOptions, ZoneKind, zone, 30, 10*time.Second)
+				testZoneNodegroupReady(t, clusterOptions, zone)
+			})
+		}
+	})
+
+	if t.Failed() {
+		signalZonesReady(false)
+		return
+	}
+
+	aAppsOpts := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, AAppsNamespace)
+	bAppsOpts := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, BAppsNamespace)
+
+	_, err = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "apply", "-f", "./templates/a_test_application.yaml")
+	require.NoError(t, err, "applying a-apps Application error")
+
+	_, err = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "apply", "-f", "./templates/b_test_application.yaml")
+	require.NoError(t, err, "applying b-apps Application error")
+
+	// Sync a-apps first — its child 'test-postgresql' Application must exist before postgresql tests start
+	syncAndWaitApplication(t, aAppsOpts, AAppsApplicationName, 30, 10*time.Second)
+	signalZonesReady(!t.Failed())
+
+	if t.Failed() {
+		return
+	}
+
+	syncAndWaitApplication(t, bAppsOpts, BAppsApplicationName, 30, 10*time.Second)
+
+	t.Run("zone-apps-running", func(t *testing.T) {
+		t.Run("a1", func(t *testing.T) {
+			t.Parallel()
+			syncAndWaitApplication(t, aAppsOpts, "a1", 30, 10*time.Second)
+			testPodsRunning(t, clusterOptions, "a1", "a1")
+		})
+		t.Run("b1", func(t *testing.T) {
+			t.Parallel()
+			syncAndWaitApplication(t, bAppsOpts, "b1", 30, 10*time.Second)
+			testPodsRunning(t, clusterOptions, "b1", "b1")
+		})
+	})
 }
 
-func test2ZoneApplicationApplied(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "apply", "-f", "./templates/zone_test_application.yaml", "-n", argocdNamespace)
-	require.NoError(t, err, "applying Application error")
-}
-
-func test3VerifyZoneApplicationName(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
-	appName, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "get", "application", ZoneApplicationName, "-n", argocdNamespace, "-o", "jsonpath={.metadata.name}")
-	require.NoError(t, err, "Application not found")
-	require.Equal(t, ZoneApplicationName, appName, "Application name mismatch")
-}
-
-func test4ZoneApplicationSynced(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions) {
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "patch", "application", ZoneApplicationName, "-n", argocdNamespace, "--type", "merge", "-p", `{"operation":{"initiatedBy":{"username":"test"},"sync":{"revision":"HEAD"}}}`)
-	require.NoError(t, err, "force sync Application error")
-
-	_, err = retry.DoWithRetryE(t, fmt.Sprintf("waiting for Application '%s' to sync", ZoneApplicationName), 30, 10*time.Second, func() (string, error) {
-		output, err := terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "get", "application", ZoneApplicationName, "-n", argocdNamespace, "-o", "jsonpath={.status.sync.status}")
+func testZoneNodegroupReady(t *testing.T, clusterOptions *terrak8s.KubectlOptions, zone string) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for zone '%s' NodeGroup", zone), 30, 10*time.Second, func() (string, error) {
+		names, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "nodegroup.eks.aws.upbound.io",
+			"-l", fmt.Sprintf("crossplane.io/composite=%s", zone), "-o", "jsonpath={.items[*].metadata.name}")
 		if err != nil {
 			return "", err
 		}
-		if output != "Synced" {
-			return "", fmt.Errorf("application not synced yet, status: %s", output)
+		if names == "" {
+			return "", fmt.Errorf("zone '%s' has no NodeGroups", zone)
 		}
-		return output, nil
+		status, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "nodegroup.eks.aws.upbound.io",
+			"-l", fmt.Sprintf("crossplane.io/composite=%s", zone), "-o", `jsonpath={.items[0].status.conditions[?(@.type=="Ready")].status}`)
+		if err != nil {
+			return "", err
+		}
+		if status != "True" {
+			return "", fmt.Errorf("zone '%s' NodeGroup not ready: %s", zone, status)
+		}
+		return status, nil
 	})
-	require.NoError(t, err, fmt.Sprintf("Application '%s' failed to sync", ZoneApplicationName))
+	require.NoError(t, err, "zone '%s' NodeGroup not ready", zone)
 }
 
-func testZoneResourcesParallel(t *testing.T, clusterOptions *terrak8s.KubectlOptions, signalZonesReady func(bool)) {
-	var readyCount atomic.Int32
-
-	for _, zone := range []string{ZoneAName, ZoneBName} {
-		zone := zone
-		t.Run(fmt.Sprintf("zone-%s", zone), func(t *testing.T) {
-			t.Parallel()
-			defer func() {
-				if t.Failed() {
-					signalZonesReady(false)
-				}
-			}()
-
-			test5ZoneResourceExists(t, clusterOptions, zone)
-			waitSyncedAndReady(t, clusterOptions, ZoneKind, zone, 30, 10*time.Second)
-
-			if readyCount.Add(1) == 2 {
-				signalZonesReady(true)
+func testPodsRunning(t *testing.T, clusterOptions *terrak8s.KubectlOptions, namespace, releaseName string) {
+	t.Helper()
+	nsOpts := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, namespace)
+	for _, pod := range []string{releaseName, releaseName + "second"} {
+		_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for pod '%s/%s'", namespace, pod), 30, 10*time.Second, func() (string, error) {
+			phase, err := terrak8s.RunKubectlAndGetOutputE(t, nsOpts, "get", "pod", pod, "-o", "jsonpath={.status.phase}")
+			if err != nil {
+				return "", err
 			}
-
-			test7ZoneHasNodegroupAndItIsReady(t, clusterOptions, zone)
+			if phase != "Running" {
+				return "", fmt.Errorf("pod phase=%s", phase)
+			}
+			return phase, nil
 		})
+		require.NoError(t, err, "pod '%s/%s' not Running", namespace, pod)
 	}
 }
 
-func test5ZoneResourceExists(t *testing.T, clusterOptions *terrak8s.KubectlOptions, zone string) {
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for zone '%s'", zone), 30, 10*time.Second, func() (string, error) {
-		name, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", ZoneKind, zone, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		return name, nil
-	})
-	require.NoError(t, err, fmt.Sprintf("zone '%s' not found", zone))
-}
-
-func test7ZoneHasNodegroupAndItIsReady(t *testing.T, clusterOptions *terrak8s.KubectlOptions, zone string) {
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for zone '%s' NodeGroup", zone), 30, 10*time.Second, func() (string, error) {
-		count, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "nodegroup.eks.aws.upbound.io", "-l", fmt.Sprintf("crossplane.io/composite=%s", zone), "-o", "jsonpath={.items[*].metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if count == "" {
-			return "", fmt.Errorf("zone '%s' has no NodeGroups", zone)
-		}
-		readyStatus, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "nodegroup.eks.aws.upbound.io", "-l", fmt.Sprintf("crossplane.io/composite=%s", zone), "-o", `jsonpath={.items[0].status.conditions[?(@.type=="Ready")].status}`)
-		if err != nil {
-			return "", err
-		}
-		if readyStatus != "True" {
-			return "", fmt.Errorf("zone '%s' NodeGroup not ready yet, condition: %s", zone, readyStatus)
-		}
-		return readyStatus, nil
-	})
-	require.NoError(t, err, fmt.Sprintf("zone '%s' NodeGroup not ready", zone))
-}
-
-func test8NamespaceCreated(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
-	_, err := retry.DoWithRetryE(t, "create namespace "+ZoneNamespaceName, 10, 15*time.Second, func() (string, error) {
-		_, createErr := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "create", "namespace", ZoneNamespaceName)
-		if createErr == nil {
-			return "created", nil
-		}
-		_, getErr := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "namespace", ZoneNamespaceName)
-		if getErr == nil {
-			return "already exists", nil
-		}
-		return "", createErr
-	})
-	require.NoError(t, err, "namespace "+ZoneNamespaceName+" not found")
-}
-
-func test9NamespaceHasValidZoneLabel(t *testing.T, argocdNamespace string, clusterOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Step 9: Verifying namespace '%s' has label %s=%s\n", argocdNamespace, ZoneNamespaceName, NamespaceZoneLabelKey, ZoneAName)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("[%s] Waiting for namespace label", argocdNamespace), 30, 10*time.Second, func() (string, error) {
-		label, err := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "namespace", ZoneNamespaceName, "-o", "jsonpath={.metadata.labels.tenancy\\.entigo\\.com/zone}")
-		if err != nil {
-			return "", err
-		}
-		if label != ZoneAName {
-			return "", fmt.Errorf("namespace label %s expected '%s', got '%s'", NamespaceZoneLabelKey, ZoneAName, label)
-		}
-		return label, nil
-	})
-	require.NoError(t, err, fmt.Sprintf("[%s] Namespace '%s' label %s != '%s'", argocdNamespace, ZoneNamespaceName, NamespaceZoneLabelKey, ZoneAName))
-	fmt.Printf("[%s] Step 9: PASSED - Namespace label verified (%s=%s)\n", argocdNamespace, NamespaceZoneLabelKey, ZoneAName)
-}
-
-//---- CLEANUP FUNCTIONS ----
-
 func cleanupZoneResources(t *testing.T, argocdNamespace string, argocdOptions *terrak8s.KubectlOptions, clusterOptions *terrak8s.KubectlOptions) {
-	fmt.Printf("[%s] Cleanup: deleting namespace '%s'\n", argocdNamespace, ZoneNamespaceName)
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "delete", "namespace", ZoneNamespaceName, "--ignore-not-found")
+	aAppsOpts := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, AAppsNamespace)
+	bAppsOpts := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, BAppsNamespace)
 
-	fmt.Printf("[%s] Cleanup: deleting Zone Application '%s'\n", argocdNamespace, ZoneApplicationName)
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, aAppsOpts, "delete", "application", AAppsApplicationName, "--ignore-not-found")
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, bAppsOpts, "delete", "application", BAppsApplicationName, "--ignore-not-found")
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocdOptions, "delete", "application", ZoneApplicationName, "-n", argocdNamespace, "--ignore-not-found")
 }
-
-//apply apps in zones a and b
-//check apps
-//check pods
-//check pods nodeselectors
-//create users
-//check user rights
-//now cleanup all created resources... PostgresqlInstance and RdsInstance have deletionProtection... change it to false first...

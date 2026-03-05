@@ -76,6 +76,10 @@ func cleanupPostgresqlResources(t *testing.T, clusterOptions *terrak8s.KubectlOp
 	}
 
 	cleanupNamespace(t, pgNsOptions, clusterOptions)
+
+	aAppsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, AAppsNamespace)
+	fmt.Printf("Cleanup: deleting PostgreSQL Application '%s' from '%s'\n", PostgresqlApplicationName, AAppsNamespace)
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, aAppsOptions, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
 }
 
 func cleanupDeleteForeground(t *testing.T, opts *terrak8s.KubectlOptions, kind string, name string) {

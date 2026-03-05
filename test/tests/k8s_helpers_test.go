@@ -76,6 +76,24 @@ func waitSyncedAndReadyByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind
 	return name
 }
 
+func syncAndWaitApplication(t *testing.T, opts *terrak8s.KubectlOptions, name string, retries int, interval time.Duration) {
+	t.Helper()
+	_, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", "application", name, "--type", "merge", "-p",
+		`{"operation":{"initiatedBy":{"username":"test"},"sync":{"revision":"HEAD"}}}`)
+	require.NoError(t, err, fmt.Sprintf("force sync Application '%s' error", name))
+	_, err = retry.DoWithRetryE(t, fmt.Sprintf("waiting for Application '%s' to sync", name), retries, interval, func() (string, error) {
+		output, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", "application", name, "-o", "jsonpath={.status.sync.status}")
+		if err != nil {
+			return "", err
+		}
+		if output != "Synced" {
+			return "", fmt.Errorf("application '%s' not synced yet: %s", name, output)
+		}
+		return output, nil
+	})
+	require.NoError(t, err, fmt.Sprintf("Application '%s' failed to sync", name))
+}
+
 func waitCrossplanePackageReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string) {
 	t.Helper()
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s/%s", kind, name), 40, 6*time.Second, func() (string, error) {
