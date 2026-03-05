@@ -25,7 +25,6 @@ spec:
               kind: PostgreSQLUser
               matchName: {{ .observed.composite.resource.spec.owner }}
               namespace: {{ .observed.composite.resource.metadata.namespace }}
-          {{- $grantExists := hasKey .observed.resources "grant-owner-to-dbadmin" -}}
           {{- $users := getExtraResources . "postgresql-user" -}}
           {{- $userReady := false -}}
           {{- if $users -}}
@@ -34,7 +33,7 @@ spec:
           {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $userReady = true -}}{{- end -}}
           {{- end -}}
           {{- end -}}
-          {{- if or $grantExists $userReady }}
+          {{- if $userReady }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Grant

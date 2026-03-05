@@ -25,7 +25,6 @@ spec:
               kind: PostgreSQLInstance
               matchName: {{ .observed.composite.resource.spec.instanceRef.name }}
               namespace: {{ .observed.composite.resource.metadata.namespace }}
-          {{- $roleExists := hasKey .observed.resources "role" -}}
           {{- $instances := getExtraResources . "postgresql-instance" -}}
           {{- $instanceReady := false -}}
           {{- if $instances -}}
@@ -34,7 +33,7 @@ spec:
           {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $instanceReady = true -}}{{- end -}}
           {{- end -}}
           {{- end -}}
-          {{- if or $roleExists $instanceReady }}
+          {{- if $instanceReady }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Role
