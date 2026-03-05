@@ -133,7 +133,7 @@ jobs:
 
   notify:
     name: Slack Notification
-    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, prepare-infralib-branch, run-infralib-tests]
+    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, prepare-infralib-branch, run-infralib-tests, build-testhelm]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:

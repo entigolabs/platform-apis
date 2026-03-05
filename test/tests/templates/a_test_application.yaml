@@ -5,6 +5,20 @@ metadata:
   annotations:
     tenancy.entigo.com/zone: a
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-postgresql
+  annotations:
+    tenancy.entigo.com/zone: a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: a1
+  annotations:
+    tenancy.entigo.com/zone: a
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
