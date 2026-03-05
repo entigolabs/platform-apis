@@ -35,3 +35,8 @@ spec:
     targetRevision: '*.*.*-0'
     helm:
       releaseName: platform-apis-test-a-apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      enabled: true

@@ -14,3 +14,8 @@ spec:
     targetRevision: '*.*.*-0'
     helm:
       releaseName: a2
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      enabled: true
