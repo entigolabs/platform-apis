@@ -29,12 +29,12 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.composition }}
+    name: Build ${{ matrix.testhelm }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        composition: ${{ fromJson(inputs.compositions) }}
+        testhelm: ${{ fromJson(inputs.testhelm) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PKG_NAME="${{ matrix.composition }}"
+          PKG_NAME="${{ matrix.testhelm }}"
 
           # Get major.minor from Chart.yaml
           CHART_VERSION=$(grep '^version:' helm/Chart.yaml | awk '{print $2}')
@@ -91,7 +91,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Update chart version
-        working-directory: test/tests/helm/${{ matrix.composition }}
+        working-directory: test/tests/helm/${{ matrix.testhelm }}
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -103,5 +103,5 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          helm package ${{ matrix.composition }}
-          helm push ${{ matrix.composition }}-${VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}
+          helm package ${{ matrix.testhelm }}
+          helm push ${{ matrix.testhelm }}-${VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}
