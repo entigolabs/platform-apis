@@ -121,7 +121,7 @@ jobs:
   run-infralib-tests:
     name: Run Infralib Tests
     needs: [ build-helm, prepare-infralib-branch, build-testhelm ]
-    if: always() && needs.prepare-infralib-branch.result == 'success'
+    if: always() && needs.prepare-infralib-branch.result == 'success' && needs.build-testhelm.result == 'success'
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
       branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
