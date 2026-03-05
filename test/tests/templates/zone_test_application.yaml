@@ -10,6 +10,6 @@ spec:
   source:
     chart: platform-apis-test-zones
     repoURL: ghcr.io/entigolabs
-    targetRevision: '*.*.*'
+    targetRevision: '*.*.*-0'
     helm:
       releaseName: platform-apis-test-zones

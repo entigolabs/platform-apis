@@ -11,6 +11,6 @@ spec:
   source:
     chart: platform-apis-test-b-apps
     repoURL: ghcr.io/entigolabs
-    targetRevision: '*.*.*'
+    targetRevision: '*.*.*-0'
     helm:
       releaseName: platform-apis-test-b-apps
