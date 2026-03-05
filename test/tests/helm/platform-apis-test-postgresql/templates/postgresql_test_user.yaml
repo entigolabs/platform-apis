@@ -1,13 +1,14 @@
 apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLUser
 metadata:
-  name: test-owner
-  namespace: test-postgresql
+  name: test-user
 spec:
-  name: test_owner
   instanceRef:
     name: postgresql-instance-test
+  login: true
   createDb: false
   createRole: false
   inherit: true
-  login: false
+  grant:
+    roles:
+      - test_owner

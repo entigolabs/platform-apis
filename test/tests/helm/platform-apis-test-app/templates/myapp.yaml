@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}second
+  labels:
+    app: {{ .Release.Name }}second
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    autonetpol: zone
+spec:
+  selector:
+    app: {{ .Release.Name }}
+  ports:
+  - port: 8080
+    targetPort: 80
+    name: myhttp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}second
+  labels:
+    autonetpol: zone
+spec:
+  selector:
+    app: {{ .Release.Name }}second
+  ports:
+  - port: 8080
+    targetPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}-curl
+  labels:
+    app: {{ .Release.Name }}-curl
+spec:
+  containers:
+  - name: curl
+    image: curlimages/curl
+    command: ["sleep", "infinity"]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+spec:
+  ingressClassName: service
+  rules:
+    - host: {{ .Release.Name }}.biz-net-route53.infralib.entigo.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }} #Service nimi
+                port:
+                  name: myhttp
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}second #Service nimi
+                port:
+                  number: 8080 # Service port
+          - path: /apiv2
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}second #Service nimi
+                port:
+                  number: 8080 # Service port
+          - path: /apiv3
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }} #Service nimi
+                port:
+                  number: 8080 # Service port

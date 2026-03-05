@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: a1
+  namespace: a-apps
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: a1
+  project: a
+  source:
+    chart: platform-apis-test-app
+    repoURL: ghcr.io/entigolabs
+    targetRevision: '*.*.*'
+    helm:
+      releaseName: a1
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+      - Retry=true
+      - ServerSideApply=true

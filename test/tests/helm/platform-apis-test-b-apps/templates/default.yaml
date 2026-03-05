@@ -1,15 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-of-zones
-  namespace: argocd-biz
+  name: b1-default
+  namespace: b-apps
 spec:
   destination:
     server: https://kubernetes.default.svc
-  project: zone
+    namespace: bar
+  project: b
   source:
-    chart: platform-apis-test-zones
+    chart: platform-apis-test-app
     repoURL: ghcr.io/entigolabs
     targetRevision: '*.*.*'
     helm:
-      releaseName: platform-apis-test-zones
+      releaseName: bar
+

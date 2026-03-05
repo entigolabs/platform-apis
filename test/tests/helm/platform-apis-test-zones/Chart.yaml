@@ -1,0 +1,7 @@
+apiVersion: v2
+name: platform-apis-test-zones
+description: platform-apis-test-zones
+version: 0.1.0
+appVersion: "0.1.0"
+
+

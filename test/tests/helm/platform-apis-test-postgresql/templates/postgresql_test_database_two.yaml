@@ -2,7 +2,6 @@ apiVersion: database.entigo.com/v1alpha1
 kind: PostgreSQLDatabase
 metadata:
   name: database-two-test
-  namespace: test-postgresql
 spec:
   owner: test_owner
   dbTemplate: template0
