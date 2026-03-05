@@ -15,6 +15,10 @@ spec:
     helm:
       releaseName: a1
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      enabled: true
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true
