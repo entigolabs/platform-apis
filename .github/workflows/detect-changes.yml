@@ -116,7 +116,7 @@ jobs:
           # Test Helm Charts
           TESTHELM=$(echo "$ALL_FILES" | tr ' ' '\n' | grep '^test/tests/helm/' | cut -d'/' -f4 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
 
-          echo "Changed test helm: $TESTHELM"
+          echo "Changed testhelm: $TESTHELM"
           echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
 
           if [ "$TESTHELM" == "[]" ]; then
