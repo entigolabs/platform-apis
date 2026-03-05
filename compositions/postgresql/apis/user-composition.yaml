@@ -8,7 +8,7 @@ spec:
     kind: PostgreSQLUser
   mode: Pipeline
   pipeline:
-  - step: template
+  - step: role
     functionRef:
       name: function-go-templating
     input:
@@ -17,6 +17,25 @@ spec:
       source: Inline
       inline:
         template: |
+          {{- $roleExists := hasKey .observed.resources "role" -}}
+          {{- $ready := $roleExists -}}
+          {{- if not $roleExists }}
+          apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+          kind: ExtraResources
+          requirements:
+            postgresql-instance:
+              apiVersion: database.entigo.com/v1alpha1
+              kind: PostgreSQLInstance
+              matchName: {{ .observed.composite.resource.spec.instanceRef.name }}
+          {{- $instances := getExtraResources . "postgresql-instance" -}}
+          {{- if $instances -}}
+          {{- $instance := mustFirst $instances -}}
+          {{- range $instance.resource.status.conditions -}}
+          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $ready = true -}}{{- end -}}
+          {{- end -}}
+          {{- end -}}
+          {{- end -}}
+          {{- if $ready }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Role
@@ -38,6 +57,16 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
+          {{- end }}
+  - step: grants
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
           {{ if .observed.composite.resource.spec.grant }}
             {{ range $roleName := .observed.composite.resource.spec.grant.roles }}
           ---
@@ -54,6 +83,19 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ $.observed.composite.resource.spec.instanceRef.name }}-providerconfig
+            {{ end }}
+          {{ end }}
+  - step: usages
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          {{ if .observed.composite.resource.spec.grant }}
+            {{ range $roleName := .observed.composite.resource.spec.grant.roles }}
           ---
           apiVersion: protection.crossplane.io/v1beta1
           kind: Usage
@@ -76,7 +118,47 @@ spec:
                 name: grant-{{ $.observed.composite.resource.metadata.name }}-{{ $roleName | replace "_" "-" }}-{{ $.observed.composite.resource.spec.instanceRef.name }}
             {{ end }}
           {{ end }}
-
+  - step: protect-instance-until-user-deleted
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          apiVersion: protection.crossplane.io/v1beta1
+          kind: Usage
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: instance-protection
+            name: {{ .observed.composite.resource.metadata.name }}-instance-protection
+            namespace: {{ .observed.composite.resource.metadata.namespace }}
+          spec:
+            replayDeletion: true
+            of:
+              apiVersion: database.entigo.com/v1alpha1
+              kind: PostgreSQLInstance
+              resourceRef:
+                name: {{ .observed.composite.resource.spec.instanceRef.name }}
+            by:
+              apiVersion: database.entigo.com/v1alpha1
+              kind: PostgreSQLUser
+              resourceRef:
+                name: {{ .observed.composite.resource.metadata.name }}
   - step: automatically-detect-ready-composed-resources
     functionRef:
       name: function-auto-ready
+  - step: sequence-creation
+    functionRef:
+      name: function-sequencer
+    input:
+      apiVersion: sequencer.fn.crossplane.io/v1beta1
+      kind: Input
+      rules:
+        - sequence:
+          - role
+          - grant-.*
+          - usage-grant-.*
+          - instance-protection

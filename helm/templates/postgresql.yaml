@@ -30,4 +30,31 @@ metadata:
 spec:
   package: {{ .Values.postgresql.package.image }}:{{ .Values.postgresql.package.tag }}
   skipDependencyResolution: true
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: platform-apis-postgresql
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["database.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["pginstances"]
+  validations:
+    - expression: "!has(oldObject.spec.deletionProtection) || oldObject.spec.deletionProtection != true"
+      message: "PostgreSQLInstance is protected from deletion. Set spec.deletionProtection to false before deleting."
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: platform-apis-postgresql
+spec:
+  policyName: platform-apis-postgresql
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector: {}
 {{- end }}

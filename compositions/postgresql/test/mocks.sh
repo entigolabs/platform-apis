@@ -1,3 +1,29 @@
+mock_pg_instance_as_extra_resource() {
+  cat <<'EOF'
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: postgresql-example
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+EOF
+}
+
+mock_pg_user_as_extra_resource() {
+  cat <<'EOF'
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLUser
+metadata:
+  name: owner
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+EOF
+}
+
 mock_observed_resources() {
   yq '
     select(.kind == "ExternalSecret" or .kind == "ProviderConfig") |

@@ -33,6 +33,8 @@ func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOp
 
 	namespaceOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
+	testApplyAllPostgresqlTemplates(t, namespaceOptions)
+
 	instanceStart := time.Now()
 	runPostgresqlInstanceTests(t, namespaceOptions)
 	fmt.Printf("TIMING: PostgreSQL instance tests took %s\n", time.Since(instanceStart))
@@ -52,6 +54,21 @@ func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOp
 	userDbStart := time.Now()
 	runPostgresqlUserAndDatabaseTests(t, namespaceOptions)
 	fmt.Printf("TIMING: User and database tests took %s\n", time.Since(userDbStart))
+}
+
+func testApplyAllPostgresqlTemplates(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
+	templates := []string{
+		"./templates/postgresql_test_instance.yaml",
+		"./templates/postgresql_test_owner_user.yaml",
+		"./templates/postgresql_test_user.yaml",
+		"./templates/postgresql_test_database_one.yaml",
+		"./templates/postgresql_test_database_two.yaml",
+		"./templates/postgresql_test_database_minimal.yaml",
+	}
+	for _, tmpl := range templates {
+		_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", tmpl, "-n", PostgresqlNamespaceName)
+		require.NoError(t, err, fmt.Sprintf("applying %s error", tmpl))
+	}
 }
 
 func testTestNamespaceCreated(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {

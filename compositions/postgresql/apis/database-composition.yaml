@@ -17,6 +17,37 @@ spec:
       source: Inline
       inline:
         template: |
+          {{- $grantExists := hasKey .observed.resources "grant-owner-to-dbadmin" -}}
+          {{- $ready := $grantExists -}}
+          {{- if not $grantExists }}
+          apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+          kind: ExtraResources
+          requirements:
+            postgresql-user:
+              apiVersion: database.entigo.com/v1alpha1
+              kind: PostgreSQLUser
+              matchName: {{ .observed.composite.resource.spec.owner }}
+            postgresql-instance:
+              apiVersion: database.entigo.com/v1alpha1
+              kind: PostgreSQLInstance
+              matchName: {{ .observed.composite.resource.spec.instanceRef.name }}
+          {{- $users := getExtraResources . "postgresql-user" -}}
+          {{- if $users -}}
+          {{- $user := mustFirst $users -}}
+          {{- range $user.resource.status.conditions -}}
+          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $ready = true -}}{{- end -}}
+          {{- end -}}
+          {{- else -}}
+          {{- $instances := getExtraResources . "postgresql-instance" -}}
+          {{- if $instances -}}
+          {{- $instance := mustFirst $instances -}}
+          {{- range $instance.resource.status.conditions -}}
+          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $ready = true -}}{{- end -}}
+          {{- end -}}
+          {{- end -}}
+          {{- end -}}
+          {{- end -}}
+          {{- if $ready }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Grant
@@ -32,6 +63,7 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
+          {{- end }}
   - step: database
     functionRef:
       name: function-go-templating
@@ -45,7 +77,6 @@ spec:
           {{- $lcCType := .observed.composite.resource.spec.lcCType -}}
           {{- $lcCollate := .observed.composite.resource.spec.lcCollate -}}
           {{- $dbTemplate := .observed.composite.resource.spec.dbTemplate -}}
-          {{- $extConfig := default dict .observed.composite.resource.spec.extensionConfig -}}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Database
@@ -72,6 +103,16 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
+  - step: extensions
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          {{- $extConfig := default dict .observed.composite.resource.spec.extensionConfig -}}
           {{- range $index, $extName := .observed.composite.resource.spec.extensions }}
           {{- $extCfg := index $extConfig $extName -}}
           {{- $extSchema := "" -}}
@@ -95,6 +136,35 @@ spec:
               kind: ProviderConfig
               name: {{ $.observed.composite.resource.spec.instanceRef.name }}-providerconfig
           {{- end }}
+  - step: protect-instance-until-database-deleted
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          apiVersion: protection.crossplane.io/v1beta1
+          kind: Usage
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: instance-protection
+            name: {{ .observed.composite.resource.metadata.name }}-instance-protection
+            namespace: {{ .observed.composite.resource.metadata.namespace }}
+          spec:
+            replayDeletion: true
+            of:
+              apiVersion: database.entigo.com/v1alpha1
+              kind: PostgreSQLInstance
+              resourceRef:
+                name: {{ .observed.composite.resource.spec.instanceRef.name }}
+            by:
+              apiVersion: database.entigo.com/v1alpha1
+              kind: PostgreSQLDatabase
+              resourceRef:
+                name: {{ .observed.composite.resource.metadata.name }}
   - step: protect-grant-until-database-deleted
     functionRef:
       name: function-go-templating
@@ -127,3 +197,16 @@ spec:
   - step: automatically-detect-ready-composed-resources
     functionRef:
       name: function-auto-ready
+  - step: sequence-creation
+    functionRef:
+      name: function-sequencer
+    input:
+      apiVersion: sequencer.fn.crossplane.io/v1beta1
+      kind: Input
+      rules:
+        - sequence:
+          - grant-owner-to-dbadmin
+          - postgresql-database
+          - extension-.*
+          - grant-usage
+          - instance-protection
