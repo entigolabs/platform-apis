@@ -17,36 +17,6 @@ spec:
       source: Inline
       inline:
         template: |
-          {{- $grantExists := hasKey .observed.resources "grant-owner-to-dbadmin" -}}
-          {{- $ready := $grantExists -}}
-          {{- if not $grantExists }}
-          apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-          kind: ExtraResources
-          requirements:
-            postgresql-user:
-              apiVersion: database.entigo.com/v1alpha1
-              kind: PostgreSQLUser
-              matchName: {{ .observed.composite.resource.spec.owner }}
-            postgresql-instance:
-              apiVersion: database.entigo.com/v1alpha1
-              kind: PostgreSQLInstance
-              matchName: {{ .observed.composite.resource.spec.instanceRef.name }}
-          {{- $users := getExtraResources . "postgresql-user" -}}
-          {{- if $users -}}
-          {{- $user := mustFirst $users -}}
-          {{- range $user.resource.status.conditions -}}
-          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $ready = true -}}{{- end -}}
-          {{- end -}}
-          {{- else -}}
-          {{- $instances := getExtraResources . "postgresql-instance" -}}
-          {{- if $instances -}}
-          {{- $instance := mustFirst $instances -}}
-          {{- range $instance.resource.status.conditions -}}
-          {{- if and (eq .type "Ready") (eq .status "True") -}}{{- $ready = true -}}{{- end -}}
-          {{- end -}}
-          {{- end -}}
-          {{- end -}}
-          {{- if $ready }}
           ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Grant
@@ -62,8 +32,6 @@ spec:
             providerConfigRef:
               kind: ProviderConfig
               name: {{ .observed.composite.resource.spec.instanceRef.name }}-providerconfig
-          {{- end -}}
-          {{- end -}}
   - step: database
     functionRef:
       name: function-go-templating
