@@ -62,29 +62,31 @@ jobs:
       - name: Remove test files
         run: rm -f *_test.go run_tests.sh
 
-      - name: Build runtime image (amd64)
-        uses: docker/build-push-action@v6
-        with:
-          context: functions/
-          file: functions/${{ matrix.function }}/Dockerfile
-          platforms: linux/amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          target: image
-          build-args: GO_VERSION=${{ env.GO_VERSION }}
-          outputs: type=docker,dest=functions/${{ matrix.function }}/runtime-amd64.tar
+      - name: Build runtime images
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from type=gha,scope=${{ matrix.function }}-amd64 \
+            --cache-to type=gha,mode=max,scope=${{ matrix.function }}-amd64 \
+            --target image \
+            --build-arg GO_VERSION=${{ env.GO_VERSION }} \
+            --output type=docker,dest=runtime-amd64.tar \
+            -f ${{ matrix.function }}/Dockerfile \
+            . &
 
-      - name: Build runtime image (arm64)
-        uses: docker/build-push-action@v6
-        with:
-          context: functions/
-          file: functions/${{ matrix.function }}/Dockerfile
-          platforms: linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          target: image
-          build-args: GO_VERSION=${{ env.GO_VERSION }}
-          outputs: type=docker,dest=functions/${{ matrix.function }}/runtime-arm64.tar
+          docker buildx build \
+            --platform linux/arm64 \
+            --cache-from type=gha,scope=${{ matrix.function }}-arm64 \
+            --cache-to type=gha,mode=max,scope=${{ matrix.function }}-arm64 \
+            --target image \
+            --build-arg GO_VERSION=${{ env.GO_VERSION }} \
+            --output type=docker,dest=runtime-arm64.tar \
+            -f ${{ matrix.function }}/Dockerfile \
+            . &
+
+          wait
+        working-directory: functions/
+
 
       - name: Setup Crossplane CLI
         run: curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
