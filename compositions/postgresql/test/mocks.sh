@@ -31,6 +31,27 @@ mock_observed_resources() {
   ' -
 }
 
+mock_pg_grant_as_observed_resource() {
+  yq '
+    select(.kind == "Grant") |
+    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
+  ' -
+}
+
+mock_pg_grant_usage_as_observed_resource() {
+  yq '
+    select(.kind == "Usage" and .metadata.annotations["crossplane.io/composition-resource-name"] == "grant-usage") |
+    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
+  ' -
+}
+
+mock_pg_usage_grants_as_observed_resource() {
+  yq '
+    select(.kind == "Usage" and (.metadata.annotations["crossplane.io/composition-resource-name"] // "" | test("^usage-grant-"))) |
+    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
+  ' -
+}
+
 mock_sg_as_observed_resource() {
   yq '
     select(.kind == "SecurityGroup" or .kind == "SecurityGroupRule") |

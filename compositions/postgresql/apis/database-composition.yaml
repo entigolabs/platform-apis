@@ -135,7 +135,7 @@ spec:
       source: Inline
       inline:
         template: |
-          {{- if index .observed.resources "grant-usage" }}
+          {{- if and .observed.resources (index .observed.resources "grant-usage") }}
           ---
           apiVersion: protection.crossplane.io/v1beta1
           kind: Usage
@@ -166,7 +166,7 @@ spec:
       source: Inline
       inline:
         template: |
-          {{- if index .observed.resources "grant-owner-to-dbadmin" }}
+          {{- if and .observed.resources (index .observed.resources "grant-owner-to-dbadmin") }}
           ---
           apiVersion: protection.crossplane.io/v1beta1
           kind: Usage

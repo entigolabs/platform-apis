@@ -10,6 +10,16 @@ yq -i 'del(.spec.pipeline[] | select(.step == "sequence-creation"))' "$TEMP_COMP
 
 mock_pg_user_as_extra_resource > "$EXTRA_RESOURCES"
 
-echo "TEST 1: rendering Grant, Database, Extensions and Usages..."
+echo "TEST 1: rendering Grant, Database, Extensions (no Usages yet - nothing observed)..."
+OUTPUT=$(run_render "$INPUT" "$TEMP_COMPOSITION" "$FUNC_CONFIG")
+assert_counts "$OUTPUT" "Grant" 1 "Database" 1 "Extension" 1 "Usage" 0
+
+echo "TEST 2: rendering with observed Grant - expect grant-usage Protection..."
+echo "$OUTPUT" | mock_pg_grant_as_observed_resource | start_observed
+OUTPUT=$(run_render "$INPUT" "$TEMP_COMPOSITION" "$FUNC_CONFIG")
+assert_counts "$OUTPUT" "Grant" 1 "Database" 1 "Extension" 1 "Usage" 1
+
+echo "TEST 3: rendering with observed Grant and grant-usage - expect all Usages..."
+echo "$OUTPUT" | mock_pg_grant_usage_as_observed_resource | append_observed
 OUTPUT=$(run_render "$INPUT" "$TEMP_COMPOSITION" "$FUNC_CONFIG")
 assert_counts "$OUTPUT" "Grant" 1 "Database" 1 "Extension" 1 "Usage" 2

@@ -129,11 +129,13 @@ spec:
         template: |
           {{- $prevReady := false }}
           {{- if .observed.composite.resource.spec.grant }}
-            {{- range $name, $_ := .observed.resources }}
-              {{- if contains "usage-grant-" $name }}{{ $prevReady = true }}{{ end }}
+            {{- if .observed.resources }}
+              {{- range $name, $_ := .observed.resources }}
+                {{- if contains "usage-grant-" $name }}{{ $prevReady = true }}{{ end }}
+              {{- end }}
             {{- end }}
           {{- else }}
-            {{- if index .observed.resources "role" }}{{ $prevReady = true }}{{ end }}
+            {{- if and .observed.resources (index .observed.resources "role") }}{{ $prevReady = true }}{{ end }}
           {{- end }}
           {{- if $prevReady }}
           ---
