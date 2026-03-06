@@ -37,6 +37,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Slack Notification
+        if: steps.msg.outputs.message != ''
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
