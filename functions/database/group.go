@@ -56,8 +56,8 @@ func (g *GroupImpl) generateValkeyInstance(obj runtime.Object, required map[stri
 	return service.GenerateValkeyInstanceObjects(*obj.(*v1alpha1.ValkeyInstance), required, observed)
 }
 
-func (g *GroupImpl) generatePostgreSQLUser(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
-	return service.GeneratePgUserObjects(*obj.(*v1alpha1.PostgreSQLUser), required, observed)
+func (g *GroupImpl) generatePostgreSQLUser(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+	return service.GeneratePgUserObjects(*obj.(*v1alpha1.PostgreSQLUser), required)
 }
 
 func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {

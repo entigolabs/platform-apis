@@ -26,7 +26,6 @@ type pgUserGenerator struct {
 func GeneratePgUserObjects(
 	pgUser v1alpha1.PostgreSQLUser,
 	required map[string][]resource.Required,
-	_ map[resource.Name]resource.ObservedComposed,
 ) (map[string]runtime.Object, error) {
 	g, err := newPgUserGenerator(pgUser, required)
 	if err != nil {
