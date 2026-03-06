@@ -1145,15 +1145,14 @@ func (g zoneGenerator) getAppProject() runtime.Object {
 			Annotations: g.zoneAnnotations,
 		},
 		Spec: argocd.AppProjectSpec{
-			Description:              "Security zone for isolated team deployment",
-			Destinations:             destinations,
-			SourceRepos:              []string{"*"},
-			SourceNamespaces:         g.uqNamespaces,
-			ClusterResourceWhitelist: whitelist,
-			ClusterResourceBlacklist: blacklist,
-			NamespaceResourceBlacklist: []metav1.GroupKind{
-				{Group: "*.m.upbound.io", Kind: "*"},
-			},
+			Description:                "Security zone for isolated team deployment",
+			Destinations:               destinations,
+			SourceRepos:                g.env.AppProject.SourceRepos,
+			SourceNamespaces:           g.uqNamespaces,
+			ClusterResourceWhitelist:   whitelist,
+			ClusterResourceBlacklist:   blacklist,
+			NamespaceResourceBlacklist: g.env.AppProject.NamespaceResourceBlacklist,
+			NamespaceResourceWhitelist: g.env.AppProject.NamespaceResourceWhitelist,
 			Roles: []argocd.ProjectRole{
 				{
 					Name:        "maintainer",
