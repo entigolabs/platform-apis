@@ -14,3 +14,12 @@ spec:
     targetRevision: ">= 0.0.0-0"
     helm:
       releaseName: postgresql
+  ignoreDifferences:
+  - group: "database.entigo.com"
+    kind: PostgreSQLInstance
+    jsonPointers:
+    - /spec/deletionProtection
+  syncPolicy:
+    syncOptions:
+      - RespectIgnoreDifferences=true
+      - Retry=true
