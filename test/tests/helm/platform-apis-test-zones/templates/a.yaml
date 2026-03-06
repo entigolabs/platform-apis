@@ -3,7 +3,6 @@ kind: Zone
 metadata:
   name: a
 spec:
-  namespaces: []
   pools:
     - name: default
       requirements:
