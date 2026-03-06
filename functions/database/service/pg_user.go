@@ -58,14 +58,11 @@ func newPgUserGenerator(
 
 func (g *pgUserGenerator) generate() (map[string]runtime.Object, error) {
 	desired := make(map[string]runtime.Object)
-	instanceReady, err := isPgInstanceReady(g.pgInstance)
-	if err != nil {
-		return nil, err
-	}
-
+	instanceReady := isPgInstanceReady(g.pgInstance)
 	if !instanceReady {
 		return desired, nil
 	}
+
 	maps.Copy(desired, g.buildRole())
 	maps.Copy(desired, g.buildGrants())
 	maps.Copy(desired, g.buildGrantUsages())
@@ -73,14 +70,14 @@ func (g *pgUserGenerator) generate() (map[string]runtime.Object, error) {
 	return desired, nil
 }
 
-func isPgInstanceReady(pgInstance v1alpha1.PostgreSQLInstance) (bool, error) {
+func isPgInstanceReady(pgInstance v1alpha1.PostgreSQLInstance) bool {
 	conditions := pgInstance.Status.Conditions
 	for _, condition := range conditions {
 		if condition.Type == "Ready" && condition.Status == "True" {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 func (g *pgUserGenerator) buildRole() map[string]runtime.Object {
@@ -95,6 +92,9 @@ func (g *pgUserGenerator) buildRole() map[string]runtime.Object {
 			Namespace: g.pgUser.Namespace,
 			Annotations: map[string]string{
 				"crossplane.io/external-name": g.roleDisplayName,
+			},
+			Labels: map[string]string{
+				"database.entigo.com/role-name": g.roleDisplayName,
 			},
 		},
 		Spec: postgresv1alpha1.RoleSpec{

@@ -45,6 +45,10 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 			Instantiate: func() runtime.Object { return &v1alpha1.PostgreSQLUser{} },
 			Generate:    g.generatePostgreSQLUser,
 		},
+		apis.XRKindPostgreSQLDatabase: {
+			Instantiate: func() runtime.Object { return &v1alpha1.PostgreSQLDatabase{} },
+			Generate:    g.generatePostgreSQLDatabase,
+		},
 	}
 }
 
@@ -60,6 +64,10 @@ func (g *GroupImpl) generatePostgreSQLUser(obj runtime.Object, required map[stri
 	return service.GeneratePgUserObjects(*obj.(*v1alpha1.PostgreSQLUser), required)
 }
 
+func (g *GroupImpl) generatePostgreSQLDatabase(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+	return service.GeneratePgDatabaseObjects(*obj.(*v1alpha1.PostgreSQLDatabase), required)
+}
+
 func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
 	switch object.GetObjectKind().GroupVersionKind().Kind {
 	case apis.XRKindPostgreSQLUser:
@@ -67,6 +75,14 @@ func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
 			[]string{"role"},
 			[]string{"grant-.*"},
 			[]string{"usage-grant-.*"},
+			[]string{"instance-protection"},
+		)
+	case apis.XRKindPostgreSQLDatabase:
+		return base.NewSequence(true,
+			[]string{"grant-owner-to-dbadmin"},
+			[]string{"postgresql-database"},
+			[]string{"extension-.*"},
+			[]string{"grant-usage"},
 			[]string{"instance-protection"},
 		)
 	case apis.XRKindPostgreSQL:
@@ -106,6 +122,9 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
 	if compositeResource.GetKind() == apis.XRKindPostgreSQLUser {
 		return g.getPostgreSQLUserRequiredResources(compositeResource)
+	}
+	if compositeResource.GetKind() == apis.XRKindPostgreSQLDatabase {
+		return g.getPostgreSQLDatabaseRequiredResources(compositeResource)
 	}
 
 	resources := map[string]*fnv1.ResourceSelector{
@@ -170,6 +189,26 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		}
 	}
 	return resources, nil
+}
+
+func (g *GroupImpl) getPostgreSQLDatabaseRequiredResources(compositeResource *composite.Unstructured) (map[string]*fnv1.ResourceSelector, error) {
+	owner, found, err := unstructured.NestedString(compositeResource.Object, "spec", "owner")
+	if err != nil || !found || owner == "" {
+		return nil, fmt.Errorf("cannot get spec.owner from PostgreSQLDatabase %s", compositeResource.GetName())
+	}
+	namespace := compositeResource.GetNamespace()
+	return map[string]*fnv1.ResourceSelector{
+		"OwnerRole": {
+			Kind:       "Role",
+			ApiVersion: "postgresql.sql.m.crossplane.io/v1alpha1",
+			Match: &fnv1.ResourceSelector_MatchLabels{
+				MatchLabels: &fnv1.MatchLabels{
+					Labels: map[string]string{"database.entigo.com/role-name": owner},
+				},
+			},
+			Namespace: &namespace,
+		},
+	}, nil
 }
 
 func (g *GroupImpl) getPostgreSQLUserRequiredResources(compositeResource *composite.Unstructured) (map[string]*fnv1.ResourceSelector, error) {

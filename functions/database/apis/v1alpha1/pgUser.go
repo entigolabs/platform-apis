@@ -14,7 +14,12 @@ import (
 type PostgreSQLUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              PostgreSQLUserSpec `json:"spec"`
+	Spec              PostgreSQLUserSpec   `json:"spec"`
+	Status            PostgreSQLUserStatus `json:"status,omitempty"`
+}
+
+type PostgreSQLUserStatus struct {
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 type PostgreSQLUserSpec struct {

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 load_mocks
-init_test "user"
+init_test "user" "/workspace/functions/database"
 INPUT="../examples/user-with-role-grant.yaml"  # override default input
 
 mock_pg_instance_as_extra_resource > "$EXTRA_RESOURCES"

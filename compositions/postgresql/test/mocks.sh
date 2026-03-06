@@ -24,6 +24,35 @@ status:
 EOF
 }
 
+mock_pg_owner_role_as_extra_resource() {
+  cat <<'EOF'
+apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+kind: Role
+metadata:
+  name: owner
+  labels:
+    database.entigo.com/role-name: owner
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+EOF
+}
+
+mock_pg_database_as_observed_resource() {
+  yq '
+    select(.kind == "Database") |
+    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
+  ' -
+}
+
+mock_pg_extension_as_observed_resource() {
+  yq '
+    select(.kind == "Extension") |
+    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
+  ' -
+}
+
 mock_observed_resources() {
   yq '
     select(.kind == "ExternalSecret" or .kind == "ProviderConfig") |

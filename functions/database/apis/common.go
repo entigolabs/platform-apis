@@ -1,7 +1,8 @@
 package apis
 
 const (
-	XRKindPostgreSQL     = "PostgreSQLInstance"
-	XRKindValkey         = "ValkeyInstance"
-	XRKindPostgreSQLUser = "PostgreSQLUser"
+	XRKindPostgreSQL         = "PostgreSQLInstance"
+	XRKindValkey             = "ValkeyInstance"
+	XRKindPostgreSQLUser     = "PostgreSQLUser"
+	XRKindPostgreSQLDatabase = "PostgreSQLDatabase"
 )
