@@ -25,20 +25,18 @@ spec:
               kind: PostgreSQLInstance
               matchName: {{ .observed.composite.resource.spec.instanceRef.name }}
               namespace: {{ .observed.composite.resource.metadata.namespace }}
-          ---
-          {{- $instances := getExtraResources . "postgresql-instance" -}}
-          {{- $instanceReady := false -}}
-          {{- if gt (len $instances) 0 -}}
-            {{- $instance := index $instances 0 -}}
-            {{- if and $instance.resource $instance.resource.status $instance.resource.status.conditions -}}
-              {{- range $cond := $instance.resource.status.conditions -}}
-                {{- if and (eq $cond.type "Ready") (eq $cond.status "True") -}}
-                  {{- $instanceReady = true -}}
-                {{- end -}}
-              {{- end -}}
-            {{- end -}}
-          {{- end -}}
+          {{- $instances := getExtraResources . "postgresql-instance" }}
+          {{- $instanceReady := false }}
+          {{- if gt (len $instances) 0 }}
+            {{- $instance := index $instances 0 }}
+            {{- if and $instance.resource $instance.resource.status $instance.resource.status.conditions }}
+              {{- range $cond := $instance.resource.status.conditions }}
+                {{- if and (eq $cond.type "Ready") (eq $cond.status "True") }}{{ $instanceReady = true }}{{ end }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
           {{- if $instanceReady }}
+          ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Role
           metadata:
@@ -129,6 +127,15 @@ spec:
       source: Inline
       inline:
         template: |
+          {{- $prevReady := false }}
+          {{- if .observed.composite.resource.spec.grant }}
+            {{- range $name, $_ := .observed.resources }}
+              {{- if contains "usage-grant-" $name }}{{ $prevReady = true }}{{ end }}
+            {{- end }}
+          {{- else }}
+            {{- if index .observed.resources "role" }}{{ $prevReady = true }}{{ end }}
+          {{- end }}
+          {{- if $prevReady }}
           ---
           apiVersion: protection.crossplane.io/v1beta1
           kind: Usage
@@ -149,6 +156,7 @@ spec:
               kind: PostgreSQLUser
               resourceRef:
                 name: {{ .observed.composite.resource.metadata.name }}
+          {{- end }}
   - step: automatically-detect-ready-composed-resources
     functionRef:
       name: function-auto-ready
@@ -160,7 +168,7 @@ spec:
       kind: Input
       rules:
         - sequence:
-          - role
-          - grant-.*
-          - usage-grant-.*
-          - instance-protection
+            - role
+            - grant-.*
+            - usage-grant-.*
+            - instance-protection

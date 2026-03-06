@@ -25,7 +25,6 @@ spec:
               kind: PostgreSQLUser
               matchName: {{ .observed.composite.resource.spec.owner }}
               namespace: {{ .observed.composite.resource.metadata.namespace }}
-          ---
           {{- $users := getExtraResources . "postgresql-user" -}}
           {{- $userReady := false -}}
           {{- if gt (len $users) 0 -}}
@@ -39,6 +38,7 @@ spec:
             {{- end -}}
           {{- end -}}
           {{- if $userReady }}
+          ---
           apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
           kind: Grant
           metadata:
@@ -135,6 +135,7 @@ spec:
       source: Inline
       inline:
         template: |
+          {{- if index .observed.resources "grant-usage" }}
           ---
           apiVersion: protection.crossplane.io/v1beta1
           kind: Usage
@@ -155,6 +156,7 @@ spec:
               kind: PostgreSQLDatabase
               resourceRef:
                 name: {{ .observed.composite.resource.metadata.name }}
+          {{- end }}
   - step: protect-grant-until-database-deleted
     functionRef:
       name: function-go-templating
@@ -164,6 +166,7 @@ spec:
       source: Inline
       inline:
         template: |
+          {{- if index .observed.resources "grant-owner-to-dbadmin" }}
           ---
           apiVersion: protection.crossplane.io/v1beta1
           kind: Usage
@@ -184,6 +187,7 @@ spec:
               kind: Database
               resourceRef:
                 name: {{ .observed.composite.resource.metadata.name }}
+          {{- end }}
   - step: automatically-detect-ready-composed-resources
     functionRef:
       name: function-auto-ready
@@ -195,8 +199,8 @@ spec:
       kind: Input
       rules:
         - sequence:
-          - grant-owner-to-dbadmin
-          - postgresql-database
-          - extension-.*
-          - grant-usage
-          - instance-protection
+            - grant-owner-to-dbadmin
+            - postgresql-database
+            - extension-.*
+            - grant-usage
+            - instance-protection
