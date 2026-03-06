@@ -70,7 +70,7 @@ jobs:
             --cache-to type=gha,mode=max,scope=${{ matrix.function }}-amd64 \
             --target image \
             --build-arg GO_VERSION=${{ env.GO_VERSION }} \
-            --output type=docker,dest=runtime-amd64.tar \
+            --output type=docker,dest=${{ matrix.function }}/runtime-amd64.tar \
             -f ${{ matrix.function }}/Dockerfile \
             . &
 
@@ -80,13 +80,12 @@ jobs:
             --cache-to type=gha,mode=max,scope=${{ matrix.function }}-arm64 \
             --target image \
             --build-arg GO_VERSION=${{ env.GO_VERSION }} \
-            --output type=docker,dest=runtime-arm64.tar \
+            --output type=docker,dest=${{ matrix.function }}/runtime-arm64.tar \
             -f ${{ matrix.function }}/Dockerfile \
             . &
 
           wait
         working-directory: functions/
-
 
       - name: Setup Crossplane CLI
         run: curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
