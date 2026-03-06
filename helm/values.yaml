@@ -87,6 +87,10 @@ zone:
       maintainerGroups: []
       observerGroups: []
       sourceRepos: ["*"]
+      namespaceResourceBlacklist:
+      - group: '*.m.upbound.io'
+        kind: '*'
+      namespaceResourceWhitelist: []
     cluster: eks
     dataKMSAlias: data
     securityGroup: "eks-node"
@@ -102,6 +106,11 @@ zone:
     observerGroups: ["observer"]
     contributorGroups: ["contributor"]
   kyvernoNamespace: kyverno
+  clusterResourceWhitelist:
+  - group: tenancy.entigo.com
+    kind: Zone
+  - group: eks.aws.upbound.io
+    kind: NodeGroup
 
 networking:
   function:
