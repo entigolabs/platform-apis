@@ -31,6 +31,13 @@ mock_observed_resources() {
   ' -
 }
 
+mock_pg_role_as_observed_resource() {
+  yq '
+    select(.kind == "Role") |
+    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
+  ' -
+}
+
 mock_pg_grant_as_observed_resource() {
   yq '
     select(.kind == "Grant") |

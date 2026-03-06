@@ -135,13 +135,16 @@ spec:
       source: Inline
       inline:
         template: |
-          {{- if and .observed.resources (index .observed.resources "grant-usage") }}
+          {{- $grantUsageObserved := and .observed.resources (index .observed.resources "grant-usage") }}
           ---
           apiVersion: protection.crossplane.io/v1beta1
           kind: Usage
           metadata:
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: instance-protection
+              {{- if not $grantUsageObserved }}
+              gotemplating.fn.crossplane.io/ready: "False"
+              {{- end }}
             name: {{ .observed.composite.resource.metadata.name }}-instance-protection
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
@@ -156,7 +159,6 @@ spec:
               kind: PostgreSQLDatabase
               resourceRef:
                 name: {{ .observed.composite.resource.metadata.name }}
-          {{- end }}
   - step: protect-grant-until-database-deleted
     functionRef:
       name: function-go-templating
@@ -203,4 +205,3 @@ spec:
             - postgresql-database
             - extension-.*
             - grant-usage
-            - instance-protection

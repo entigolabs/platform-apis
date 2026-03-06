@@ -127,23 +127,16 @@ spec:
       source: Inline
       inline:
         template: |
-          {{- $prevReady := false }}
-          {{- if .observed.composite.resource.spec.grant }}
-            {{- if .observed.resources }}
-              {{- range $name, $_ := .observed.resources }}
-                {{- if contains "usage-grant-" $name }}{{ $prevReady = true }}{{ end }}
-              {{- end }}
-            {{- end }}
-          {{- else }}
-            {{- if and .observed.resources (index .observed.resources "role") }}{{ $prevReady = true }}{{ end }}
-          {{- end }}
-          {{- if $prevReady }}
+          {{- $roleObserved := and .observed.resources (index .observed.resources "role") }}
           ---
           apiVersion: protection.crossplane.io/v1beta1
           kind: Usage
           metadata:
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: instance-protection
+              {{- if not $roleObserved }}
+              gotemplating.fn.crossplane.io/ready: "False"
+              {{- end }}
             name: {{ .observed.composite.resource.metadata.name }}-instance-protection
             namespace: {{ .observed.composite.resource.metadata.namespace }}
           spec:
@@ -158,7 +151,6 @@ spec:
               kind: PostgreSQLUser
               resourceRef:
                 name: {{ .observed.composite.resource.metadata.name }}
-          {{- end }}
   - step: automatically-detect-ready-composed-resources
     functionRef:
       name: function-auto-ready
@@ -173,4 +165,3 @@ spec:
             - role
             - grant-.*
             - usage-grant-.*
-            - instance-protection
