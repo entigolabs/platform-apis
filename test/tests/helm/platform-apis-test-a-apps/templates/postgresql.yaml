@@ -11,6 +11,6 @@ spec:
   source:
     chart: platform-apis-test-postgresql
     repoURL: ghcr.io/entigolabs
-    targetRevision: '*.*.*-0'
+    targetRevision: ">= 0.0.0-0"
     helm:
       releaseName: postgresql

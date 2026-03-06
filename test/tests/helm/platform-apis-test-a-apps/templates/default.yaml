@@ -11,6 +11,11 @@ spec:
   source:
     chart: platform-apis-test-app
     repoURL: ghcr.io/entigolabs
-    targetRevision: '*.*.*-0'
+    targetRevision: ">= 0.0.0-0"
     helm:
       releaseName: bar
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      enabled: true
