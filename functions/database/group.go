@@ -15,6 +15,7 @@ import (
 	ec2mv1beta1 "github.com/upbound/provider-aws/apis/namespaced/ec2/v1beta1"
 	elasticachemv1beta1 "github.com/upbound/provider-aws/apis/namespaced/elasticache/v1beta1"
 	rdsmv1beta1 "github.com/upbound/provider-aws/apis/namespaced/rds/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -40,6 +41,10 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 			Instantiate: func() runtime.Object { return &v1alpha1.ValkeyInstance{} },
 			Generate:    g.generateValkeyInstance,
 		},
+		apis.XRKindPostgreSQLUser: {
+			Instantiate: func() runtime.Object { return &v1alpha1.PostgreSQLUser{} },
+			Generate:    g.generatePostgreSQLUser,
+		},
 	}
 }
 
@@ -51,8 +56,19 @@ func (g *GroupImpl) generateValkeyInstance(obj runtime.Object, required map[stri
 	return service.GenerateValkeyInstanceObjects(*obj.(*v1alpha1.ValkeyInstance), required, observed)
 }
 
+func (g *GroupImpl) generatePostgreSQLUser(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+	return service.GeneratePgUserObjects(*obj.(*v1alpha1.PostgreSQLUser), required, observed)
+}
+
 func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
 	switch object.GetObjectKind().GroupVersionKind().Kind {
+	case apis.XRKindPostgreSQLUser:
+		return base.NewSequence(true,
+			[]string{"role"},
+			[]string{"grant-.*"},
+			[]string{"usage-grant-.*"},
+			[]string{"instance-protection"},
+		)
 	case apis.XRKindPostgreSQL:
 		instance := *object.(*v1alpha1.PostgreSQLInstance)
 		setHash := base.GenerateFNVHash(instance.GetUID())
@@ -88,6 +104,10 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 }
 
 func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
+	if compositeResource.GetKind() == apis.XRKindPostgreSQLUser {
+		return g.getPostgreSQLUserRequiredResources(compositeResource)
+	}
+
 	resources := map[string]*fnv1.ResourceSelector{
 		base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
 	}
@@ -150,6 +170,22 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		}
 	}
 	return resources, nil
+}
+
+func (g *GroupImpl) getPostgreSQLUserRequiredResources(compositeResource *composite.Unstructured) (map[string]*fnv1.ResourceSelector, error) {
+	instanceName, found, err := unstructured.NestedString(compositeResource.Object, "spec", "instanceRef", "name")
+	if err != nil || !found || instanceName == "" {
+		return nil, fmt.Errorf("cannot get spec.instanceRef.name from PostgreSQLUser %s", compositeResource.GetName())
+	}
+	namespace := compositeResource.GetNamespace()
+	return map[string]*fnv1.ResourceSelector{
+		"PostgreSQLInstance": {
+			Kind:       "PostgreSQLInstance",
+			ApiVersion: "database.entigo.com/v1alpha1",
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: instanceName},
+			Namespace:  &namespace,
+		},
+	}, nil
 }
 
 func (g *GroupImpl) GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error) {
