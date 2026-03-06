@@ -2,6 +2,8 @@ package apis
 
 import (
 	"errors"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Environment struct {
@@ -23,8 +25,11 @@ type Environment struct {
 }
 
 type AppProject struct {
-	MaintainerGroups []string `json:"maintainerGroups,omitempty"`
-	ObserverGroups   []string `json:"observerGroups,omitempty"`
+	MaintainerGroups           []string           `json:"maintainerGroups,omitempty"`
+	ObserverGroups             []string           `json:"observerGroups,omitempty"`
+	SourceRepos                []string           `json:"sourceRepos,omitempty"`
+	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty"`
+	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty"`
 }
 
 func (e Environment) Validate() error {

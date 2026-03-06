@@ -277,6 +277,18 @@ data:
     {{- range .Values.zone.environmentConfig.appProject.sourceRepos }}
       - {{ . | quote }}
     {{- end }}
+    namespaceResourceBlacklist:
+    {{- if .Values.zone.environmentConfig.appProject.namespaceResourceBlacklist }}
+      {{ toYaml .Values.zone.environmentConfig.appProject.namespaceResourceBlacklist | nindent 6 }}
+    {{- else }}
+      []
+    {{- end }}
+    namespaceResourceWhitelist:
+    {{- if .Values.zone.environmentConfig.appProject.namespaceResourceWhitelist }}
+      {{ toYaml .Values.zone.environmentConfig.appProject.namespaceResourceWhitelist | nindent 6 }}
+    {{- else }}
+      []
+    {{- end }}
   cluster: {{ .Values.zone.environmentConfig.cluster }}
   dataKMSAlias: {{ .Values.zone.environmentConfig.dataKMSAlias }}
   securityGroup: {{ .Values.zone.environmentConfig.securityGroup }}
@@ -311,10 +323,11 @@ spec:
     - namespace: "*"
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-  - group: tenancy.entigo.com
-    kind: Zone
-  - group: eks.aws.upbound.io
-    kind: NodeGroup
+  {{- if .Values.zone.clusterResourceWhitelist }}
+    {{ toYaml .Values.zone.clusterResourceWhitelist | nindent 6 }}
+  {{- else }}
+    []
+  {{- end }}
   namespaceResourceBlacklist:
   - group: '*'
     kind: '*'
@@ -795,7 +808,7 @@ spec:
   - expression: "object.metadata.name != 'default'"
     message: "'default' zone cannot be created"
   - expression: |
-      object.spec.namespaces.all(requestedNs,
+      !has(object.spec.namespaces) || object.spec.namespaces.all(requestedNs,
         !dyn(variables.existingNamespaces.items).exists(existingNs,
           existingNs.metadata.name == requestedNs.name &&
           has(existingNs.metadata.labels) &&
@@ -808,6 +821,7 @@ spec:
         )
       )
     messageExpression: |
+      !has(object.spec.namespaces) ? "" :
       "Cannot manage namespace(s): " +
       object.spec.namespaces.filter(requestedNs,
         dyn(variables.existingNamespaces.items).exists(existingNs,
