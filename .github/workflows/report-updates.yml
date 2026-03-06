@@ -1,0 +1,49 @@
+name: Report Updates
+
+on:
+  schedule:
+    - cron: "0 8 * * 2"
+  workflow_dispatch:
+
+
+jobs:
+
+  notify:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for function updates
+        id: msg
+        run: |
+          VALUES_FILE="helm/values.yaml"
+          {
+            echo "message<<EOF"
+            yq eval '.functions | keys | .[]' "$VALUES_FILE" | while read -r func_name
+            do
+              image=$(yq eval ".functions.\"${func_name}\".image" "$VALUES_FILE")
+              old_version=$(yq eval ".functions.\"${func_name}\".tag" "$VALUES_FILE")
+              func_path=$(echo "$image" | cut -d"/" -f2-)
+              latest_version=$(curl -s "https://marketplace.upbound.io/functions/$func_path" | cut -d"/" -f5)
+              if [ "$latest_version" == "" ]; then
+                echo "$func_path latest version not found"
+              elif [ "$old_version" != "$latest_version" ]; then
+                echo "$func_path newer version $latest_version, current $old_version"
+              fi
+            done
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Slack Notification
+        if: steps.msg.outputs.message != ''
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: "warning"
+          SLACK_TITLE: "Crossplane Function Updates Available"
+          SLACK_MESSAGE: ${{ steps.msg.outputs.message }}
+          SLACK_USERNAME: GitHub Actions
+          SLACK_ICON_EMOJI: ':github:'
+          MSG_MINIMAL: true
