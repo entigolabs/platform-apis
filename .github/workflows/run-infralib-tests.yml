@@ -48,9 +48,11 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           set +e
-          trap 'kill -- -$$ 2>/dev/null; exit 1' TERM INT
-          ./test.sh 2>&1 | tee test-output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
+          { ./test.sh 2>&1; echo $? >/tmp/test-exit; } | tee test-output.txt &
+          trap 'pkill -P $$ 2>/dev/null; exit 1' TERM INT
+          wait
+          EXIT_CODE=$(cat /tmp/test-exit 2>/dev/null || echo 1)
+          rm -f /tmp/test-exit
           trap - TERM INT
           set -e
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT

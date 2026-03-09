@@ -60,6 +60,7 @@ func (g *pgDatabaseGenerator) generate() (map[string]runtime.Object, error) {
 	maps.Copy(desired, g.buildGrant())
 	maps.Copy(desired, g.buildDatabase())
 	maps.Copy(desired, g.buildExtensions())
+	maps.Copy(desired, g.buildGrantUsage())
 	maps.Copy(desired, g.buildOwnerProtection())
 	maps.Copy(desired, g.buildInstanceProtection())
 	return desired, nil
@@ -193,6 +194,32 @@ func GetPgDatabaseDatabaseReadyStatus(observed *composed.Unstructured) resource.
 		return resource.ReadyTrue
 	}
 	return resource.ReadyFalse
+}
+
+func (g *pgDatabaseGenerator) buildGrantUsage() map[string]runtime.Object {
+	replayDeletion := true
+	grantName := g.pgDatabase.Name + "-grant-owner-to-dbadmin"
+	usage := &xpv1beta1.Usage{
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: "protection.crossplane.io/v1beta1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      g.pgDatabase.Name + "-grant-usage",
+			Namespace: g.pgDatabase.Namespace,
+		},
+		Spec: xpv1beta1.UsageSpec{
+			ReplayDeletion: &replayDeletion,
+			Of: xpv1beta1.Resource{
+				Kind:        "Grant",
+				APIVersion:  pgSqlApiVersion,
+				ResourceRef: &xpv1beta1.ResourceRef{Name: grantName},
+			},
+			By: &xpv1beta1.Resource{
+				Kind:        "Database",
+				APIVersion:  pgSqlApiVersion,
+				ResourceRef: &xpv1beta1.ResourceRef{Name: g.pgDatabase.Name},
+			},
+		},
+	}
+	return map[string]runtime.Object{"grant-usage": usage}
 }
 
 func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]runtime.Object {
