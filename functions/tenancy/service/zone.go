@@ -730,6 +730,18 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]runtime.Object {
 			"Name": base.StringPtr(zonePool + "-root"),
 		}
 		maps.Copy(volumeTags, tags)
+		var securityGroupIds []*string
+		if g.securityGroup.Status.AtProvider.ID != nil {
+			securityGroupIds = []*string{g.securityGroup.Status.AtProvider.ID}
+		}
+		for _, requirement := range pool.Requirements {
+			switch requirement.Key {
+			case "security-groups":
+				for _, sg := range requirement.Values {
+					securityGroupIds = append(securityGroupIds, &sg)
+				}
+			}
+		}
 
 		lt := &ec2v1beta1.LaunchTemplate{
 			TypeMeta: metav1.TypeMeta{
@@ -764,10 +776,8 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]runtime.Object {
 						HTTPTokens:              base.StringPtr("required"),
 						InstanceMetadataTags:    &emptyString,
 					}},
-					VPCSecurityGroupIDRefs: []v1.Reference{{
-						Name: g.securityGroup.GetName(),
-					}},
-					Tags: tags,
+					VPCSecurityGroupIds: securityGroupIds,
+					Tags:                tags,
 					TagSpecifications: []ec2v1beta1.TagSpecificationsParameters{
 						{
 							ResourceType: base.StringPtr("instance"),
