@@ -19,12 +19,7 @@ echo "$OUTPUT" | mock_pg_database_as_observed_resource | append_observed
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 assert_counts "$OUTPUT" "Grant" 1 "Database" 1 "Extension" 1 "Usage" 0
 
-echo "TEST 4: rendering with observed Extension - grant-usage unblocked..."
+echo "TEST 4: rendering with observed Extension - instance-protection unblocked..."
 echo "$OUTPUT" | mock_pg_extension_as_observed_resource | append_observed
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 assert_counts "$OUTPUT" "Grant" 1 "Database" 1 "Extension" 1 "Usage" 1
-
-echo "TEST 5: rendering with observed grant-usage - instance-protection unblocked..."
-echo "$OUTPUT" | mock_pg_grant_usage_as_observed_resource | append_observed
-OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
-assert_counts "$OUTPUT" "Grant" 1 "Database" 1 "Extension" 1 "Usage" 2

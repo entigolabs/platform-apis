@@ -82,7 +82,6 @@ func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
 			[]string{"grant-owner-to-dbadmin"},
 			[]string{"postgresql-database"},
 			[]string{"extension-.*"},
-			[]string{"grant-usage"},
 			[]string{"instance-protection"},
 		)
 	case apis.XRKindPostgreSQL:
