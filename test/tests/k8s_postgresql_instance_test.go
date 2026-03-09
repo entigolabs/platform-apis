@@ -13,7 +13,7 @@ import (
 
 const (
 	PostgresqlInstanceName = "postgresql-instance-test"
-	PostgresqlInstanceKind = "postgresqlinstance.database.entigo.com"
+	PostgresqlInstanceKind = "pginstances.database.entigo.com"
 	RdsInstanceKind        = "instance.rds.aws.m.upbound.io"
 	SecurityGroupKind      = "securitygroup.ec2.aws.m.upbound.io"
 	SecurityGroupRuleKind  = "securitygrouprule.ec2.aws.m.upbound.io"

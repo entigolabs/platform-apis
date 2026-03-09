@@ -12,7 +12,7 @@ import (
 
 const (
 	PostgresqlAdminUserName       = "test-owner"
-	PostgresqlAdminUserKind       = "postgresqluser.database.entigo.com"
+	PostgresqlAdminUserKind       = "postgresqlusers.database.entigo.com"
 	PostgresqlAdminUserSpecName   = "test_owner"
 	PostgresqlRegularUserName     = "test-user"
 	SqlGrantKind                  = "grant.postgresql.sql.m.crossplane.io"
@@ -21,7 +21,7 @@ const (
 	RegularUserExpectedSecretName = PostgresqlInstanceName + "-" + PostgresqlRegularUserName
 
 	PostgresqlDatabaseName       = "database-one-test"
-	PostgresqlDatabaseKind       = "postgresqldatabase.database.entigo.com"
+	PostgresqlDatabaseKind       = "postgresqldatabases.database.entigo.com"
 	SqlDatabaseKind              = "database.postgresql.sql.m.crossplane.io"
 	SqlRoleKind                  = "role.postgresql.sql.m.crossplane.io"
 	SqlExtensionKind             = "extension.postgresql.sql.m.crossplane.io"
