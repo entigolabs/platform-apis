@@ -20,3 +20,4 @@ func main() {
 	ctx := kong.Parse(cli, kong.Description("Entigo Database Composition Function."))
 	ctx.FatalIfErrorf(ctx.Run())
 }
+
