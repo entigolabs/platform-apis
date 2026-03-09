@@ -60,6 +60,7 @@ func (g *pgDatabaseGenerator) generate() (map[string]runtime.Object, error) {
 	maps.Copy(desired, g.buildGrant())
 	maps.Copy(desired, g.buildDatabase())
 	maps.Copy(desired, g.buildExtensions())
+	maps.Copy(desired, g.buildOwnerProtection())
 	maps.Copy(desired, g.buildInstanceProtection())
 	return desired, nil
 }
@@ -192,6 +193,31 @@ func GetPgDatabaseDatabaseReadyStatus(observed *composed.Unstructured) resource.
 		return resource.ReadyTrue
 	}
 	return resource.ReadyFalse
+}
+
+func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]runtime.Object {
+	replayDeletion := true
+	usage := &xpv1beta1.Usage{
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: "protection.crossplane.io/v1beta1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      g.pgDatabase.Name + "-owner-protection",
+			Namespace: g.pgDatabase.Namespace,
+		},
+		Spec: xpv1beta1.UsageSpec{
+			ReplayDeletion: &replayDeletion,
+			Of: xpv1beta1.Resource{
+				Kind:        "PostgreSQLUser",
+				APIVersion:  "database.entigo.com/v1alpha1",
+				ResourceRef: &xpv1beta1.ResourceRef{Name: g.ownerRole.Name},
+			},
+			By: &xpv1beta1.Resource{
+				Kind:        "Database",
+				APIVersion:  pgSqlApiVersion,
+				ResourceRef: &xpv1beta1.ResourceRef{Name: g.pgDatabase.Name},
+			},
+		},
+	}
+	return map[string]runtime.Object{"owner-protection": usage}
 }
 
 func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]runtime.Object {

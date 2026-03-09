@@ -144,12 +144,18 @@ setup_function() {
     exit 1
   fi
 
-  pushd "$func_path" > /dev/null
-  go run . --insecure --debug &
+  local binary="/tmp/function-$(basename "$func_path")"
+
+  if [ ! -f "$binary" ]; then
+    pushd "$func_path" > /dev/null
+    go build -o "$binary" .
+    popd > /dev/null
+  fi
+
+  "$binary" --insecure --debug &
   local pid=$!
   FUNC_PIDS+=($pid)
   echo "$pid" >> "$FUNC_PIDS_FILE"
-  popd > /dev/null
 
   wait_for_function "9443"
 }

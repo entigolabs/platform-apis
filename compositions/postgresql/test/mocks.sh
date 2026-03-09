@@ -95,6 +95,13 @@ mock_pg_grant_usage_as_observed_resource() {
   ' -
 }
 
+mock_pg_owner_protection_as_observed_resource() {
+  yq '
+    select(.kind == "Usage" and .metadata.annotations["crossplane.io/composition-resource-name"] == "owner-protection") |
+    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
+  ' -
+}
+
 mock_pg_instance_protection_as_observed_resource() {
   yq '
     select(.kind == "Usage" and .metadata.annotations["crossplane.io/composition-resource-name"] == "instance-protection") |

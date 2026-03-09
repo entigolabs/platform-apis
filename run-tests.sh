@@ -19,8 +19,10 @@ run_docker_test() {
   docker run --rm --pull always \
     -v "$GIT_ROOT:/workspace" \
     -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "${HOME}/.cache/platform-apis-go-build:/go/cache" \
     --network host \
     -e TERM=xterm \
+    -e GOCACHE=/go/cache \
     -w "$workdir" \
     $IMAGE_NAME \
     /bin/bash /workspace/test/runner.sh --type="$test_type"

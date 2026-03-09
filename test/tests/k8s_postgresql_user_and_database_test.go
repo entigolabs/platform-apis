@@ -41,6 +41,10 @@ const (
 	DatabaseInstanceProtectionName        = PostgresqlDatabaseName + "-instance-protection"
 	DatabaseTwoInstanceProtectionName     = DatabaseTwoName + "-instance-protection"
 	MinimalDatabaseInstanceProtectionName = MinimalDatabaseName + "-instance-protection"
+
+	DatabaseOwnerProtectionName        = PostgresqlDatabaseName + "-owner-protection"
+	DatabaseTwoOwnerProtectionName     = DatabaseTwoName + "-owner-protection"
+	MinimalDatabaseOwnerProtectionName = MinimalDatabaseName + "-owner-protection"
 )
 
 // runPostgresqlUserAndDatabaseTests orchestrates user and database tests.
@@ -50,8 +54,7 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 	waitSyncedAndReady(t, namespaceOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 60, 10*time.Second)
 	waitSyncedAndReadyByLabel(t, namespaceOptions, SqlRoleKind, PostgresqlAdminUserName, 60, 10*time.Second)
 	testAdminRoleExternalNameVerified(t, namespaceOptions)
-	testSequenceRoleCreatedAfterInstanceReady(t, namespaceOptions, PostgresqlAdminUserName)
-	testInstanceProtectionUsageVerified(t, namespaceOptions, AdminUserInstanceProtectionName, "PostgreSQLUser", PostgresqlAdminUserName)
+	testInstanceProtectionUsageVerified(t, namespaceOptions, AdminUserInstanceProtectionName, "Role", PostgresqlAdminUserName)
 
 	t.Run("parallel-user-and-db", func(t *testing.T) {
 		t.Run("regular-user", func(t *testing.T) {
@@ -59,7 +62,7 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 			waitSyncedAndReady(t, namespaceOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName, 60, 10*time.Second)
 			testGrantSyncedAndVerified(t, namespaceOptions, RegularUserExpectedGrantName, PostgresqlRegularUserName, PostgresqlAdminUserSpecName)
 			testUsageVerified(t, namespaceOptions, RegularUserExpectedUsageName, "Role", PostgresqlRegularUserName, "Grant", RegularUserExpectedGrantName)
-			testInstanceProtectionUsageVerified(t, namespaceOptions, RegularUserInstanceProtectionName, "PostgreSQLUser", PostgresqlRegularUserName)
+			testInstanceProtectionUsageVerified(t, namespaceOptions, RegularUserInstanceProtectionName, "Role", PostgresqlRegularUserName)
 			testUserUsagePreventsRoleDeletion(t, namespaceOptions)
 			testRegularUserExternalNameFallback(t, namespaceOptions)
 			testRegularUserPrivilegesVerified(t, namespaceOptions)
@@ -73,7 +76,8 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 			testSqlDatabaseLocaleFields(t, namespaceOptions, PostgresqlDatabaseName)
 			testDatabaseExtensionsVerified(t, namespaceOptions)
 			testUsageVerified(t, namespaceOptions, DatabaseUsageExpectedName, "Grant", DatabaseGrantExpectedName, "Database", PostgresqlDatabaseName)
-			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseInstanceProtectionName, "PostgreSQLDatabase", PostgresqlDatabaseName)
+			testUsageVerified(t, namespaceOptions, DatabaseOwnerProtectionName, "PostgreSQLUser", PostgresqlAdminUserName, "Database", PostgresqlDatabaseName)
+			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseInstanceProtectionName, "Database", PostgresqlDatabaseName)
 		})
 		t.Run("database-two", func(t *testing.T) {
 			t.Parallel()
@@ -82,7 +86,8 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 			testSqlDatabaseOwnerField(t, namespaceOptions, DatabaseTwoName, PostgresqlAdminUserSpecName)
 			testSqlDatabaseLocaleFields(t, namespaceOptions, DatabaseTwoName)
 			testUsageVerified(t, namespaceOptions, DatabaseTwoUsageExpectedName, "Grant", DatabaseTwoGrantExpectedName, "Database", DatabaseTwoName)
-			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseTwoInstanceProtectionName, "PostgreSQLDatabase", DatabaseTwoName)
+			testUsageVerified(t, namespaceOptions, DatabaseTwoOwnerProtectionName, "PostgreSQLUser", PostgresqlAdminUserName, "Database", DatabaseTwoName)
+			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseTwoInstanceProtectionName, "Database", DatabaseTwoName)
 		})
 	})
 
@@ -94,8 +99,8 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 	waitSyncedAndReady(t, namespaceOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 60, 10*time.Second)
 	testMinimalDatabaseDefaultsVerified(t, namespaceOptions)
 	testUsageVerified(t, namespaceOptions, MinimalDatabaseUsageExpectedName, "Grant", MinimalDatabaseGrantExpectedName, "Database", MinimalDatabaseName)
-	testInstanceProtectionUsageVerified(t, namespaceOptions, MinimalDatabaseInstanceProtectionName, "PostgreSQLDatabase", MinimalDatabaseName)
-	testSequenceMinimalDatabaseGrantAfterUserReady(t, namespaceOptions)
+	testUsageVerified(t, namespaceOptions, MinimalDatabaseOwnerProtectionName, "PostgreSQLUser", PostgresqlRegularUserName, "Database", MinimalDatabaseName)
+	testInstanceProtectionUsageVerified(t, namespaceOptions, MinimalDatabaseInstanceProtectionName, "Database", MinimalDatabaseName)
 	testDatabaseUsagePreventsGrantDeletion(t, namespaceOptions)
 }
 
@@ -321,56 +326,4 @@ func testDatabaseUsagePreventsGrantDeletion(t *testing.T, namespaceOptions *terr
 	grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
 	require.NoError(t, err, "failed to check Grant existence")
 	require.Equal(t, DatabaseGrantExpectedName, grantName, "Grant '%s' was deleted despite Usage protection", DatabaseGrantExpectedName)
-}
-
-// testSequenceRoleCreatedAfterInstanceReady verifies that the SQL Role for the given user
-// was created only after the PostgreSQLInstance became Ready — proving the cross-XR creation gate works.
-func testSequenceRoleCreatedAfterInstanceReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, compositeUserName string) {
-	instanceReadyTimeStr, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlInstanceKind, PostgresqlInstanceName,
-		"-o", `jsonpath={.status.conditions[?(@.type=="Ready")].lastTransitionTime}`)
-	require.NoError(t, err, "failed to get PostgreSQLInstance Ready transition time")
-	require.NotEmpty(t, instanceReadyTimeStr, "PostgreSQLInstance Ready condition not found")
-
-	roleName, err := getFirstByLabel(t, namespaceOptions, SqlRoleKind, compositeUserName)
-	require.NoError(t, err, "failed to find SQL Role for user")
-	require.NotEmpty(t, roleName, "no SQL Role found for composite '%s'", compositeUserName)
-
-	roleCreationTimeStr, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName,
-		"-o", "jsonpath={.metadata.creationTimestamp}")
-	require.NoError(t, err, "failed to get SQL Role creation time")
-
-	instanceReadyTime, err := time.Parse(time.RFC3339, instanceReadyTimeStr)
-	require.NoError(t, err, "failed to parse instance ready time")
-	roleCreationTime, err := time.Parse(time.RFC3339, roleCreationTimeStr)
-	require.NoError(t, err, "failed to parse role creation time")
-
-	require.False(t, roleCreationTime.Before(instanceReadyTime),
-		"SQL Role for '%s' was created at %s before PostgreSQLInstance became Ready at %s — cross-XR sequence gate failed",
-		compositeUserName, roleCreationTime, instanceReadyTime)
-}
-
-// testSequenceMinimalDatabaseGrantAfterUserReady verifies that the minimal database's Grant
-// was created only after the regular user's Role — proving the user-gates-database cross-XR sequence works.
-func testSequenceMinimalDatabaseGrantAfterUserReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	regularUserRoleName, err := getFirstByLabel(t, namespaceOptions, SqlRoleKind, PostgresqlRegularUserName)
-	require.NoError(t, err, "failed to find SQL Role for regular user")
-	require.NotEmpty(t, regularUserRoleName, "no SQL Role found for composite '%s'", PostgresqlRegularUserName)
-
-	roleCreationTimeStr, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, regularUserRoleName,
-		"-o", "jsonpath={.metadata.creationTimestamp}")
-	require.NoError(t, err, "failed to get regular user Role creation time")
-
-	grantCreationTimeStr, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, MinimalDatabaseGrantExpectedName,
-		"-o", "jsonpath={.metadata.creationTimestamp}")
-	require.NoError(t, err, "failed to get minimal database Grant creation time")
-	require.NotEmpty(t, grantCreationTimeStr, "Grant '%s' not found", MinimalDatabaseGrantExpectedName)
-
-	roleCreationTime, err := time.Parse(time.RFC3339, roleCreationTimeStr)
-	require.NoError(t, err, "failed to parse role creation time")
-	grantCreationTime, err := time.Parse(time.RFC3339, grantCreationTimeStr)
-	require.NoError(t, err, "failed to parse grant creation time")
-
-	require.False(t, grantCreationTime.Before(roleCreationTime),
-		"minimal database Grant created at %s before regular user Role at %s — user-gates-database sequence failed",
-		grantCreationTime, roleCreationTime)
 }

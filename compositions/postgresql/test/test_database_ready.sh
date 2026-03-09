@@ -26,6 +26,8 @@ echo "$OUTPUT" | mock_pg_database_as_observed_resource | append_observed
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 echo "$OUTPUT" | mock_pg_extension_as_observed_resource | append_observed
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
+echo "$OUTPUT" | mock_pg_owner_protection_as_observed_resource | append_observed
+OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 echo "$OUTPUT" | mock_pg_instance_protection_as_observed_resource | append_observed
 OUTPUT=$(run_render "$INPUT" "$COMPOSITION" "$FUNC_CONFIG")
 assert_ready "$OUTPUT" "PostgreSQLDatabase"
