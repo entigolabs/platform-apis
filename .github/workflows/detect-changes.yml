@@ -23,9 +23,6 @@ on:
       has_testhelm_changes:
         description: 'Whether any testhelm changed'
         value: ${{ jobs.detect.outputs.has_testhelm_changes }}
-      test_image_changed:
-        description: 'Whether test image sources changed'
-        value: ${{ jobs.detect.outputs.test_image_changed }}
       helm_changed:
         description: 'Whether helm folder changed'
         value: ${{ jobs.detect.outputs.helm_changed }}
@@ -40,7 +37,6 @@ jobs:
       has_composition_changes: ${{ steps.force-all.outputs.has_composition_changes || steps.changes.outputs.has_composition_changes }}
       testhelm: ${{ steps.force-all.outputs.testhelm || steps.changes.outputs.testhelm }}
       has_testhelm_changes: ${{ steps.force-all.outputs.has_testhelm_changes || steps.changes.outputs.has_testhelm_changes }}
-      test_image_changed: ${{ steps.force-all.outputs.test_image_changed || steps.changes.outputs.test_image_changed }}
       helm_changed: ${{ steps.force-all.outputs.helm_changed || steps.changes.outputs.helm_changed }}
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +63,6 @@ jobs:
           echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
           echo "All compositions: $TESTHELM"
 
-          echo "test_image_changed=false" >> $GITHUB_OUTPUT
           echo "helm_changed=true" >> $GITHUB_OUTPUT
 
       - name: Get changed files
@@ -123,14 +118,6 @@ jobs:
             echo "has_testhelm_changes=false" >> $GITHUB_OUTPUT
           else
             echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
-          fi
-
-          # Test image sources (test/build/ for Dockerfile, functions/ for pre-downloaded modules)
-          if echo "$ALL_FILES" | tr ' ' '\n' | grep -qE '^test/build/|^functions/.*go\.(mod|sum)$'; then
-            echo "test_image_changed=true" >> $GITHUB_OUTPUT
-            echo "Test image sources changed"
-          else
-            echo "test_image_changed=false" >> $GITHUB_OUTPUT
           fi
 
           # Helm folder

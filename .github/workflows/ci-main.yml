@@ -23,8 +23,6 @@ jobs:
     name: Ensure Test Image
     needs: detect-changes
     uses: ./.github/workflows/ensure-test-image.yml
-    with:
-      force_rebuild: ${{ needs.detect-changes.outputs.test_image_changed == 'true' }}
     secrets: inherit
 
   test-functions:

@@ -2,16 +2,13 @@ name: Build Test Runner
 
 on:
   workflow_dispatch:
-#  push:
-#    branches:
-#      - main
-#    paths:
-#      - 'test/build/Dockerfile.test'
-#      - 'functions/**/go.mod'
-#  pull_request:
-#    paths:
-#      - 'test/build/Dockerfile.test'
-#      - 'functions/**/go.mod'
+  push:
+    branches:
+      - main
+    paths:
+      - 'test/build/**'
+      - 'functions/**/go.mod'
+      - 'functions/**/go.sum'
 
 jobs:
   build:

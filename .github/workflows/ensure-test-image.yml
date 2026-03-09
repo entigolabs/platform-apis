@@ -1,15 +1,9 @@
 name: Ensure test image
 
-# Checks if test runner image exists in docker hub, to avoid workflow error due to missing image and updates/pulls it, if needed.
+# Checks if test runner image exists in Docker Hub. Builds and pushes it only if missing.
 
 on:
   workflow_call:
-    inputs:
-      force_rebuild:
-        description: 'Force rebuild of test image'
-        required: false
-        type: boolean
-        default: false
 
 env:
   IMAGE_NAME: entigolabs/platform-apis-test-runner:latest
@@ -18,25 +12,20 @@ jobs:
   ensure:
     runs-on: ubuntu-latest
     steps:
-      - name: Check if image needs build
+      - name: Check if image exists
         id: check
         run: |
-          if [ "${{ inputs.force_rebuild }}" == "true" ]; then
-            echo "Force rebuild requested (test folder changed)"
-            echo "needs_build=true" >> $GITHUB_OUTPUT
-          elif docker manifest inspect ${{ env.IMAGE_NAME }} > /dev/null 2>&1; then
+          if docker manifest inspect ${{ env.IMAGE_NAME }} > /dev/null 2>&1; then
             echo "Image exists in Docker Hub"
             echo "needs_build=false" >> $GITHUB_OUTPUT
           else
-            echo "Image does not exist in Docker Hub"
+            echo "Image does not exist in Docker Hub - will build"
             echo "needs_build=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout
         if: steps.check.outputs.needs_build == 'true'
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up QEMU
         if: steps.check.outputs.needs_build == 'true'

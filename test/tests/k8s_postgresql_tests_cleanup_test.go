@@ -54,13 +54,7 @@ func cleanupPostgresqlResources(t *testing.T, clusterOptions *terrak8s.KubectlOp
 	cleanupDisableDeletionProtection(t, pgNsOptions)
 
 	cleanupDeleteForeground(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName)
-	var wgInstances sync.WaitGroup
-	wgInstances.Add(2)
-	go func() {
-		defer wgInstances.Done()
-		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
-	}()
-	wgInstances.Wait()
+	cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
 
 	cleanupWaitForGeneratedResources(t, pgNsOptions)
 
