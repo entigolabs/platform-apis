@@ -210,8 +210,8 @@ func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]runtime.Objec
 				ResourceRef: &xpv1beta1.ResourceRef{Name: g.pgDatabase.Spec.InstanceRef.Name},
 			},
 			By: &xpv1beta1.Resource{
-				Kind:        "PostgreSQLDatabase",
-				APIVersion:  "database.entigo.com/v1alpha1",
+				Kind:        "Database",
+				APIVersion:  pgSqlApiVersion,
 				ResourceRef: &xpv1beta1.ResourceRef{Name: g.pgDatabase.Name},
 			},
 		},

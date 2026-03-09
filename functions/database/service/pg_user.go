@@ -231,8 +231,8 @@ func (g *pgUserGenerator) buildInstanceProtection() map[string]runtime.Object {
 				},
 			},
 			By: &xpv1beta1.Resource{
-				Kind:       "PostgreSQLUser",
-				APIVersion: "database.entigo.com/v1alpha1",
+				Kind:       "Role",
+				APIVersion: pgSqlApiVersion,
 				ResourceRef: &xpv1beta1.ResourceRef{
 					Name: g.pgUser.Name,
 				},

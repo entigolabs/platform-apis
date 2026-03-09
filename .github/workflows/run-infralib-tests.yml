@@ -48,7 +48,7 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           set +e
-          trap 'kill $(pgrep -P $$) 2>/dev/null; exit 1' TERM INT
+          trap 'kill -- -$$ 2>/dev/null; exit 1' TERM INT
           ./test.sh 2>&1 | tee test-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           trap - TERM INT
