@@ -74,9 +74,30 @@ mock_pg_grant_as_observed_resource() {
   ' -
 }
 
+mock_pg_grant_without_ready() {
+  yq '
+    select(.kind == "Grant") |
+    .status.conditions = [{"type": "Synced", "status": "True"}]
+  ' -
+}
+
+mock_pg_extension_without_ready() {
+  yq '
+    select(.kind == "Extension") |
+    .status.conditions = [{"type": "Synced", "status": "True"}]
+  ' -
+}
+
 mock_pg_grant_usage_as_observed_resource() {
   yq '
     select(.kind == "Usage" and .metadata.annotations["crossplane.io/composition-resource-name"] == "grant-usage") |
+    .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
+  ' -
+}
+
+mock_pg_instance_protection_as_observed_resource() {
+  yq '
+    select(.kind == "Usage" and .metadata.annotations["crossplane.io/composition-resource-name"] == "instance-protection") |
     .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
   ' -
 }

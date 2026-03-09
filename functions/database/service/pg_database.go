@@ -10,6 +10,7 @@ import (
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	xpv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/function-sdk-go/resource"
+	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -214,6 +215,13 @@ func (g *pgDatabaseGenerator) buildGrantUsage() map[string]runtime.Object {
 		},
 	}
 	return map[string]runtime.Object{"grant-usage": usage}
+}
+
+func GetPgDatabaseExtensionReadyStatus(observed *composed.Unstructured) resource.Ready {
+	if isResourceReady(observed) {
+		return resource.ReadyTrue
+	}
+	return resource.ReadyFalse
 }
 
 func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]runtime.Object {
