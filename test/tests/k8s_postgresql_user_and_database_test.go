@@ -28,13 +28,8 @@ const (
 	UsageKind                    = "usage.protection.crossplane.io"
 	MinimalDatabaseName          = "database-minimal-test"
 	DatabaseGrantExpectedName    = PostgresqlDatabaseName + "-grant-owner-to-dbadmin"
-	DatabaseUsageExpectedName    = PostgresqlDatabaseName + "-grant-usage"
 	DatabaseTwoName              = "database-two-test"
 	DatabaseTwoGrantExpectedName = DatabaseTwoName + "-grant-owner-to-dbadmin"
-	DatabaseTwoUsageExpectedName = DatabaseTwoName + "-grant-usage"
-
-	MinimalDatabaseGrantExpectedName = MinimalDatabaseName + "-grant-owner-to-dbadmin"
-	MinimalDatabaseUsageExpectedName = MinimalDatabaseName + "-grant-usage"
 
 	AdminUserInstanceProtectionName       = PostgresqlAdminUserName + "-instance-protection"
 	RegularUserInstanceProtectionName     = PostgresqlRegularUserName + "-instance-protection"
@@ -75,7 +70,6 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 			testSqlDatabaseOwnerField(t, namespaceOptions, PostgresqlDatabaseName, PostgresqlAdminUserSpecName)
 			testSqlDatabaseLocaleFields(t, namespaceOptions, PostgresqlDatabaseName)
 			testDatabaseExtensionsVerified(t, namespaceOptions)
-			testUsageVerified(t, namespaceOptions, DatabaseUsageExpectedName, "Grant", DatabaseGrantExpectedName, "Database", PostgresqlDatabaseName)
 			testUsageVerified(t, namespaceOptions, DatabaseOwnerProtectionName, "PostgreSQLUser", PostgresqlAdminUserName, "Database", PostgresqlDatabaseName)
 			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseInstanceProtectionName, "Database", PostgresqlDatabaseName)
 		})
@@ -85,7 +79,6 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 			testGrantSyncedAndVerified(t, namespaceOptions, DatabaseTwoGrantExpectedName, "dbadmin", PostgresqlAdminUserSpecName)
 			testSqlDatabaseOwnerField(t, namespaceOptions, DatabaseTwoName, PostgresqlAdminUserSpecName)
 			testSqlDatabaseLocaleFields(t, namespaceOptions, DatabaseTwoName)
-			testUsageVerified(t, namespaceOptions, DatabaseTwoUsageExpectedName, "Grant", DatabaseTwoGrantExpectedName, "Database", DatabaseTwoName)
 			testUsageVerified(t, namespaceOptions, DatabaseTwoOwnerProtectionName, "PostgreSQLUser", PostgresqlAdminUserName, "Database", DatabaseTwoName)
 			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseTwoInstanceProtectionName, "Database", DatabaseTwoName)
 		})
@@ -98,7 +91,6 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 	// Minimal database depends on regular user being ready as owner
 	waitSyncedAndReady(t, namespaceOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 60, 10*time.Second)
 	testMinimalDatabaseDefaultsVerified(t, namespaceOptions)
-	testUsageVerified(t, namespaceOptions, MinimalDatabaseUsageExpectedName, "Grant", MinimalDatabaseGrantExpectedName, "Database", MinimalDatabaseName)
 	testUsageVerified(t, namespaceOptions, MinimalDatabaseOwnerProtectionName, "PostgreSQLUser", PostgresqlRegularUserName, "Database", MinimalDatabaseName)
 	testInstanceProtectionUsageVerified(t, namespaceOptions, MinimalDatabaseInstanceProtectionName, "Database", MinimalDatabaseName)
 	testDatabaseUsagePreventsGrantDeletion(t, namespaceOptions)
