@@ -176,7 +176,7 @@ jobs:
   notify:
     name: Slack Notification
     needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, create-release, prepare-infralib-branch, run-infralib-tests, cleanup-infralib-test-files, create-infralib-pr]
-    if: always() && !cancelled()
+    if: always() && !cancelled() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:
       - name: Build Slack message
@@ -195,10 +195,7 @@ jobs:
           R_TESTS: ${{ needs.run-infralib-tests.result }}
           R_CLEANUP: ${{ needs.cleanup-infralib-test-files.result }}
           R_INFRALIB_PR: ${{ needs.create-infralib-pr.result }}
-          VERSION: ${{ needs.build-helm.outputs.version }}
-          INFRALIB_PR_URL: ${{ needs.create-infralib-pr.outputs.pr_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           FAILED=""
@@ -217,39 +214,15 @@ jobs:
           add_failed "Cleanup Test Files" "$R_CLEANUP"
           add_failed "Create Infralib PR" "$R_INFRALIB_PR"
 
-          if [ -n "$FAILED" ]; then
-            COLOR="danger"
-            STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
-              --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
-          else
-            COLOR="good"
-            STEP_DETAILS=""
-          fi
+          STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
 
           {
-            echo "color=$COLOR"
-            if [ -n "$FAILED" ]; then
-              echo "title=Main CI: Failed"
-            elif [ -n "$VERSION" ]; then
-              echo "title=Released: platform-apis v${VERSION}"
-            else
-              echo "title=Main CI: Passed"
-            fi
             echo "message<<SLACKMSG"
-            if [ -n "$FAILED" ]; then
-              echo "*Status:* :x: Failed — ${FAILED}"
-              if [ -n "$STEP_DETAILS" ]; then
-                echo "*Failed steps:*"
-                echo "${STEP_DETAILS}"
-              fi
-            else
-              echo "*Status:* :white_check_mark: Released"
-              if [ -n "$VERSION" ]; then
-                echo "*Version:* \`${VERSION}\` — <${REPO_URL}/releases/tag/v${VERSION}|View release>"
-              fi
-              if [ -n "$INFRALIB_PR_URL" ]; then
-                echo "*Infralib PR:* <${INFRALIB_PR_URL}|View PR>"
-              fi
+            echo "*Failed:* ${FAILED}"
+            if [ -n "$STEP_DETAILS" ]; then
+              echo "*Failed steps:*"
+              echo "${STEP_DETAILS}"
             fi
             echo "*Run:* <${RUN_URL}|View details>"
             echo "SLACKMSG"
@@ -259,8 +232,8 @@ jobs:
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_COLOR: ${{ steps.msg.outputs.color }}
-          SLACK_TITLE: ${{ steps.msg.outputs.title }}
+          SLACK_COLOR: danger
+          SLACK_TITLE: "Main CI: Failed"
           SLACK_MESSAGE: ${{ steps.msg.outputs.message }}
           SLACK_USERNAME: GitHub Actions
           SLACK_ICON_EMOJI: ':github:'
