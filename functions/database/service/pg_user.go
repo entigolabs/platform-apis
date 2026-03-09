@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"maps"
 	"strings"
 
@@ -61,7 +62,7 @@ func (g *pgUserGenerator) generate() (map[string]runtime.Object, error) {
 	desired := make(map[string]runtime.Object)
 	instanceReady := isPgInstanceReady(g.pgInstance)
 	if !instanceReady {
-		return desired, nil
+		return desired, fmt.Errorf("temporarily waiting for PostgreSQLInstance %s to become ready", g.pgInstance.Name)
 	}
 
 	maps.Copy(desired, g.buildRole())

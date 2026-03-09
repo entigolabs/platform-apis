@@ -114,8 +114,8 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 		return service.GetRDSInstanceReadyStatus(observed)
 	case "ReplicationGroup":
 		return service.GetValkeyReplicationGroupReadyStatus(observed)
-	case "Extension":
-		return service.GetPgDatabaseExtensionReadyStatus(observed)
+	case "Database":
+		return service.GetPgDatabaseDatabaseReadyStatus(observed)
 	case "Grant":
 		return service.GetPgUserGrantReadyStatus(observed)
 	default:
