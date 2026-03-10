@@ -48,7 +48,7 @@ jobs:
 
   build-functions:
     name: Build Functions
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_function_changes == 'true'
     uses: ./.github/workflows/build-functions.yml
     with:
@@ -61,7 +61,7 @@ jobs:
 
   build-compositions:
     name: Build Compositions
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_composition_changes == 'true'
     uses: ./.github/workflows/build-compositions.yml
     with:
@@ -74,7 +74,7 @@ jobs:
 
   build-testhelm:
     name: Build Test Helm
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_testhelm_changes == 'true'
     uses: ./.github/workflows/build-testhelm.yml
     with:
