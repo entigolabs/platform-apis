@@ -730,6 +730,18 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]runtime.Object {
 			"Name": base.StringPtr(zonePool + "-root"),
 		}
 		maps.Copy(volumeTags, tags)
+		var securityGroupIds []*string
+		if g.securityGroup.Status.AtProvider.ID != nil {
+			securityGroupIds = []*string{g.securityGroup.Status.AtProvider.ID}
+		}
+		for _, requirement := range pool.Requirements {
+			switch requirement.Key {
+			case "security-groups":
+				for _, sg := range requirement.Values {
+					securityGroupIds = append(securityGroupIds, &sg)
+				}
+			}
+		}
 
 		lt := &ec2v1beta1.LaunchTemplate{
 			TypeMeta: metav1.TypeMeta{
@@ -764,10 +776,8 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]runtime.Object {
 						HTTPTokens:              base.StringPtr("required"),
 						InstanceMetadataTags:    &emptyString,
 					}},
-					VPCSecurityGroupIDRefs: []v1.Reference{{
-						Name: g.securityGroup.GetName(),
-					}},
-					Tags: tags,
+					VPCSecurityGroupIds: securityGroupIds,
+					Tags:                tags,
 					TagSpecifications: []ec2v1beta1.TagSpecificationsParameters{
 						{
 							ResourceType: base.StringPtr("instance"),
@@ -1003,15 +1013,18 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 	hash := GetInstanceTypesHash(instanceTypes)
 	name := fmt.Sprintf("%s-%s", zonePool, hash)
 
-	var subnetRefs []v1.Reference
+	var subnetIds []*string
 	for _, subnet := range g.computeSubnets {
-		subnetName := subnet.GetName()
+		subnetId := subnet.Status.AtProvider.ID
+		if subnetId == nil {
+			continue
+		}
 		if zoneFilter.Size() > 0 {
 			if subnet.Status.AtProvider.AvailabilityZone != nil && zoneFilter.Contains(*subnet.Status.AtProvider.AvailabilityZone) {
-				subnetRefs = append(subnetRefs, v1.Reference{Name: subnetName})
+				subnetIds = append(subnetIds, subnetId)
 			}
 		} else {
-			subnetRefs = append(subnetRefs, v1.Reference{Name: subnetName})
+			subnetIds = append(subnetIds, subnetId)
 		}
 	}
 
@@ -1057,7 +1070,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 				Region:        g.vpc.Status.AtProvider.Region,
 				UpdateConfig:  []eksv1beta1.UpdateConfigParameters{{MaxUnavailable: base.Float64Ptr(1)}},
 				InstanceTypes: toInstanceTypePointers(instanceTypes),
-				SubnetIDRefs:  subnetRefs,
+				SubnetIds:     subnetIds,
 				Labels:        eksLabels,
 				NodeRoleArnRef: &v1.Reference{
 					Name: zoneName,
