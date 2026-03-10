@@ -49,7 +49,7 @@ jobs:
 
   build-functions:
     name: Build Functions
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_function_changes == 'true'
     uses: ./.github/workflows/build-functions.yml
     with:
@@ -59,7 +59,7 @@ jobs:
 
   build-compositions:
     name: Build Compositions
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_composition_changes == 'true'
     uses: ./.github/workflows/build-compositions.yml
     with:
@@ -67,20 +67,28 @@ jobs:
       release_type: stable
     secrets: inherit
 
+  build-testhelm:
+    name: Build Test Helm
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.has_testhelm_changes == 'true'
+    uses: ./.github/workflows/build-testhelm.yml
+    with:
+      testhelm: ${{ needs.detect-changes.outputs.testhelm }}
+      release_type: rc
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
+    secrets: inherit
+
   build-helm:
     name: Lint and Build Helm
-    needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions]
+    needs: [detect-changes, test-helm, build-functions, build-compositions]
     if: |
       always() &&
       !cancelled() &&
-      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
-      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped') &&
       (needs.test-helm.result == 'success' || needs.test-helm.result == 'skipped') &&
-      (
-        needs.build-functions.result == 'success' ||
-        needs.build-compositions.result == 'success' ||
-        (needs.detect-changes.outputs.helm_changed == 'true' && needs.build-functions.result == 'skipped' && needs.build-compositions.result == 'skipped')
-      )
+      (needs.build-functions.result == 'success' || needs.build-functions.result == 'skipped') &&
+      (needs.build-compositions.result == 'success' || needs.build-compositions.result == 'skipped')
     uses: ./.github/workflows/build-helm.yml
     with:
       release_type: stable
@@ -97,8 +105,13 @@ jobs:
 
   run-infralib-tests:
     name: Run Infralib Tests
-    needs: [build-helm, prepare-infralib-branch]
-    if: always() && needs.prepare-infralib-branch.result == 'success'
+    needs: [ build-helm, prepare-infralib-branch, build-testhelm, test-functions, test-compositions ]
+    if: |
+      always() &&
+      needs.prepare-infralib-branch.result == 'success' &&
+      (needs.build-testhelm.result == 'success' || needs.build-testhelm.result == 'skipped') &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
+      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
       branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
