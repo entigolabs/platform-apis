@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-postgresql
+  namespace: a-apps
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: test-postgresql
+  project: a
+  source:
+    chart: platform-apis-test-postgresql
+    repoURL: ghcr.io/entigolabs
+    targetRevision: ">= 0.0.0-0"
+    helm:
+      releaseName: postgresql
+  ignoreDifferences:
+  - group: "database.entigo.com"
+    kind: PostgreSQLInstance
+    jsonPointers:
+    - /spec/deletionProtection
+  syncPolicy:
+    syncOptions:
+      - RespectIgnoreDifferences=true
+      - Retry=true

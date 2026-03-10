@@ -1,0 +1,7 @@
+apiVersion: v2
+name: platform-apis-test-postgresql
+description: platform-apis-test-postgresql
+version: 0.1.0
+appVersion: "0.1.0"
+
+

@@ -14,9 +14,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o /function .
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o /function .
 
 FROM gcr.io/distroless/static-debian12:nonroot AS image
 WORKDIR /

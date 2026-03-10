@@ -1,0 +1,112 @@
+name: Build Test Helm
+
+on:
+  workflow_call:
+    inputs:
+      testhelm:
+        description: JSON array of testhelm to build
+        required: true
+        type: string
+      release_type:
+        description: 'stable or rc'
+        required: true
+        type: string
+      pr_number:
+        description: PR number (for rc releases)
+        required: false
+        type: string
+        default: ''
+      run_number:
+        description: Workflow run number
+        required: false
+        type: string
+        default: ''
+      run_attempt:
+        description: Workflow run attempt
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  build:
+    name: Build ${{ matrix.testhelm }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        testhelm: ${{ fromJson(inputs.testhelm) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PKG_NAME="${{ matrix.testhelm }}"
+
+          # Get major.minor from Chart.yaml
+          CHART_VERSION=$(grep '^version:' helm/Chart.yaml | awk '{print $2}')
+          MAJOR_MINOR=$(echo "$CHART_VERSION" | cut -d. -f1,2)
+
+          # Fetch with pagination and extract stable version tags, sorted by semantic version
+          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions?per_page=100" \
+            | jq -r '
+              [.[] | .metadata.container.tags[]? | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))]
+              | map(ltrimstr("v") | split(".") | map(tonumber))
+              | sort_by(.[0], .[1], .[2])
+              | .[-1]
+              | if . then "v" + (map(tostring) | join(".")) else empty end
+            ' 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+            NEXT_PATCH=1
+          elif [[ "$LATEST_TAG" == v${MAJOR_MINOR}.* ]]; then
+            # Latest tag matches current major.minor, increment patch
+            CURRENT_PATCH=$(echo "$LATEST_TAG" | cut -d. -f3)
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+          else
+            # Major.minor changed, start fresh at patch 1
+            NEXT_PATCH=1
+          fi
+
+          if [ "${{ inputs.release_type }}" == "rc" ]; then
+            VERSION="${MAJOR_MINOR}.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
+          else
+            VERSION="${MAJOR_MINOR}.${NEXT_PATCH}"
+          fi
+
+          echo "Latest: $LATEST_TAG -> New: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update chart version
+        working-directory: test/tests/helm/${{ matrix.testhelm }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sed -i "s/^version:.*/version: ${VERSION}/" Chart.yaml
+
+
+      - name: Package and push chart
+        working-directory: test/tests/helm/
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          helm package ${{ matrix.testhelm }}
+          helm push ${{ matrix.testhelm }}-${VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}

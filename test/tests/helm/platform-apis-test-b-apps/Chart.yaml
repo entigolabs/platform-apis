@@ -1,0 +1,7 @@
+apiVersion: v2
+name: platform-apis-test-b-apps
+description: platform-apis-test-b-apps
+version: 0.1.0
+appVersion: "0.1.0"
+
+
