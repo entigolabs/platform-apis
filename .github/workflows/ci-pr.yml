@@ -92,11 +92,8 @@ jobs:
       always() &&
       !cancelled() &&
       (needs.test-helm.result == 'success' || needs.test-helm.result == 'skipped') &&
-      (
-        needs.build-functions.result == 'success' ||
-        needs.build-compositions.result == 'success' ||
-        (needs.detect-changes.outputs.helm_changed == 'true' && needs.build-functions.result == 'skipped' && needs.build-compositions.result == 'skipped')
-      )
+      (needs.build-functions.result == 'success' || needs.build-functions.result == 'skipped') &&
+      (needs.build-compositions.result == 'success' || needs.build-compositions.result == 'skipped')
     uses: ./.github/workflows/build-helm.yml
     with:
       release_type: rc
