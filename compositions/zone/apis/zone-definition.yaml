@@ -81,6 +81,7 @@ spec:
                                 - min-size
                                 - max-size
                                 - desired-size
+                                - security-groups
                             # Single value - accepts string or integer
                             value:
                               x-kubernetes-int-or-string: true
