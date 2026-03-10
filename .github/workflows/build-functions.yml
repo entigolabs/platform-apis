@@ -63,16 +63,11 @@ jobs:
       - name: Remove test files
         run: rm -f *_test.go run_tests.sh
 
-      - name: Create per-arch builders
-        run: |
-          docker buildx create --name builder-amd64 --use=false
-          docker buildx create --name builder-arm64 --use=false
-
       - name: Build runtime images
         run: |
           docker buildx build \
-            --builder builder-amd64 \
             --platform linux/amd64 \
+            --progress=plain \
             --cache-from type=gha,scope=${{ matrix.function }}-amd64 \
             --cache-to type=gha,mode=max,scope=${{ matrix.function }}-amd64 \
             --target image \
@@ -82,8 +77,8 @@ jobs:
             . &
 
           docker buildx build \
-            --builder builder-arm64 \
             --platform linux/arm64 \
+            --progress=plain \
             --cache-from type=gha,scope=${{ matrix.function }}-arm64 \
             --cache-to type=gha,mode=max,scope=${{ matrix.function }}-arm64 \
             --target image \
