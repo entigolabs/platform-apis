@@ -48,8 +48,12 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           set +e
-          ./test.sh 2>&1 | tee test-output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
+          setsid bash -c '{ ./test.sh 2>&1; echo $? >/tmp/test-exit; } | tee test-output.txt' &
+          BGPID=$!
+          trap 'kill -- -$BGPID 2>/dev/null; wait; exit 1' TERM INT
+          wait
+          EXIT_CODE=$(cat /tmp/test-exit 2>/dev/null || echo 1)
+          rm -f /tmp/test-exit
           set -e
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           exit $EXIT_CODE

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 FUNC_PIDS=()
+FUNC_PIDS_FILE="/tmp/func_pids_$$.txt"
 EXTRA_RESOURCES="extra-resources-mock.yaml"
 OBSERVED_RESOURCES="observed-resources-mock.yaml"
 
@@ -93,13 +94,26 @@ cleanup_test() {
 
   rm -f temp_*.yaml
 
+  local pids=()
+  # Collect PIDs from in-process tracking (same shell)
   if [ ${#FUNC_PIDS[@]} -gt 0 ]; then
-    echo -e "Stopping Background Functions (PIDs: ${FUNC_PIDS[*]})..."
-    for pid in "${FUNC_PIDS[@]}"; do
+    pids+=("${FUNC_PIDS[@]}")
+    FUNC_PIDS=()
+  fi
+  # Collect PIDs from file (written by subshells)
+  if [ -f "$FUNC_PIDS_FILE" ]; then
+    while IFS= read -r pid; do
+      pids+=("$pid")
+    done < "$FUNC_PIDS_FILE"
+    rm -f "$FUNC_PIDS_FILE"
+  fi
+
+  if [ ${#pids[@]} -gt 0 ]; then
+    echo -e "Stopping Background Functions (PIDs: ${pids[*]})..."
+    for pid in "${pids[@]}"; do
       pkill -P "$pid" > /dev/null 2>&1 || true
       kill -9 "$pid" > /dev/null 2>&1 || true
     done
-    FUNC_PIDS=()
   fi
 }
 
@@ -134,6 +148,7 @@ setup_function() {
   go run . --insecure --debug &
   local pid=$!
   FUNC_PIDS+=($pid)
+  echo "$pid" >> "$FUNC_PIDS_FILE"
   popd > /dev/null
 
   wait_for_function "9443"
@@ -216,5 +231,20 @@ assert_ready() {
     echo "$output" | yq "select(.kind == \"$kind\")" -
     cleanup_test
     exit 1
+  fi
+}
+
+assert_not_ready() {
+  local output="$1"
+  local kind="$2"
+
+  if echo "$output" | yq "select(.kind == \"$kind\")" - | grep -q 'status: "True"'; then
+    echo -e "${RED} FAIL: $kind is Ready but should NOT be.${NC}"
+    echo -e "${YELLOW}--- Debug Output for $kind ---${NC}"
+    echo "$output" | yq "select(.kind == \"$kind\")" -
+    cleanup_test
+    exit 1
+  else
+    echo -e "${GREEN} SUCCESS: $kind is NOT Ready (as expected).${NC}"
   fi
 }

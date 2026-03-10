@@ -1,0 +1,32 @@
+apiVersion: tenancy.entigo.com/v1alpha1
+kind: Zone
+metadata:
+  name: b
+spec:
+  namespaces:
+    - name: b-apps
+    - name: b1
+    - name: b2
+  pools:
+    - name: default
+      requirements:
+        - key: instance-type
+          values:
+            - t3.large
+        - key: capacity-type
+          value: ON_DEMAND
+        - key: min-size
+          value: 1
+        - key: max-size
+          value: 2
+    - name: second
+      requirements:
+        - key: instance-type
+          values:
+            - t3.medium
+        - key: capacity-type
+          value: ON_DEMAND
+        - key: min-size
+          value: 0
+        - key: max-size
+          value: 0

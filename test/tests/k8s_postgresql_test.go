@@ -15,6 +15,7 @@ const (
 	PostgresqlConfigurationName = "platform-apis-postgresql"
 	DatabaseFunctionName        = "platform-apis-database-fn"
 	PostgresqlNamespaceName     = "test-postgresql"
+	PostgresqlApplicationName   = "test-postgresql"
 )
 
 func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOptions, zonesReady <-chan struct{}, zonesReadySuccess *atomic.Bool) {
@@ -29,9 +30,10 @@ func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOp
 
 	waitForZonesReady(t, zonesReady, zonesReadySuccess)
 
-	testTestNamespaceCreated(t, clusterOptions)
-
+	aAppsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, AAppsNamespace)
 	namespaceOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
+
+	testWaitAndSyncPostgresqlApplication(t, aAppsOptions)
 
 	instanceStart := time.Now()
 	runPostgresqlInstanceTests(t, namespaceOptions)
@@ -41,30 +43,24 @@ func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOp
 		return
 	}
 
-	//snapshotStart := time.Now()
-	//runPostgresqlSnapshotInstanceTests(t, namespaceOptions)
-	//fmt.Printf("TIMING: PostgreSQL snapshot instance tests took %s\n", time.Since(snapshotStart))
-
-	//if t.Failed() {
-	//	return
-	//}
-
 	userDbStart := time.Now()
 	runPostgresqlUserAndDatabaseTests(t, namespaceOptions)
 	fmt.Printf("TIMING: User and database tests took %s\n", time.Since(userDbStart))
 }
 
-func testTestNamespaceCreated(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
-	_, err := retry.DoWithRetryE(t, "create namespace "+PostgresqlNamespaceName, 10, 15*time.Second, func() (string, error) {
-		_, createErr := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "create", "namespace", PostgresqlNamespaceName)
-		if createErr == nil {
-			return "created", nil
+func testWaitAndSyncPostgresqlApplication(t *testing.T, aAppsOptions *terrak8s.KubectlOptions) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Application '%s' to exist", PostgresqlApplicationName), 30, 10*time.Second, func() (string, error) {
+		name, err := terrak8s.RunKubectlAndGetOutputE(t, aAppsOptions, "get", "application", PostgresqlApplicationName, "-o", "jsonpath={.metadata.name}")
+		if err != nil {
+			return "", err
 		}
-		_, getErr := terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "get", "namespace", PostgresqlNamespaceName)
-		if getErr == nil {
-			return "already exists", nil
+		if name == "" {
+			return "", fmt.Errorf("application '%s' not found yet", PostgresqlApplicationName)
 		}
-		return "", createErr
+		return name, nil
 	})
-	require.NoError(t, err, "namespace "+PostgresqlNamespaceName+" not found")
+	require.NoError(t, err, fmt.Sprintf("Application '%s' not found in namespace '%s'", PostgresqlApplicationName, AAppsNamespace))
+
+	syncAndWaitApplication(t, aAppsOptions, PostgresqlApplicationName, 60, 10*time.Second)
 }

@@ -22,8 +22,6 @@ jobs:
     name: Ensure Test Image
     needs: detect-changes
     uses: ./.github/workflows/ensure-test-image.yml
-    with:
-      force_rebuild: ${{ needs.detect-changes.outputs.test_image_changed == 'true' }}
     secrets: inherit
 
   test-functions:
@@ -50,7 +48,7 @@ jobs:
 
   build-functions:
     name: Build Functions
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_function_changes == 'true'
     uses: ./.github/workflows/build-functions.yml
     with:
@@ -63,7 +61,7 @@ jobs:
 
   build-compositions:
     name: Build Compositions
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_composition_changes == 'true'
     uses: ./.github/workflows/build-compositions.yml
     with:
@@ -74,20 +72,28 @@ jobs:
       run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
+  build-testhelm:
+    name: Build Test Helm
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.has_testhelm_changes == 'true'
+    uses: ./.github/workflows/build-testhelm.yml
+    with:
+      testhelm: ${{ needs.detect-changes.outputs.testhelm }}
+      release_type: rc
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
+    secrets: inherit
+
   build-helm:
     name: Lint and Build Helm
-    needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions]
+    needs: [detect-changes, test-helm, build-functions, build-compositions]
     if: |
       always() &&
       !cancelled() &&
-      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
-      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped') &&
       (needs.test-helm.result == 'success' || needs.test-helm.result == 'skipped') &&
-      (
-        needs.build-functions.result == 'success' ||
-        needs.build-compositions.result == 'success' ||
-        (needs.detect-changes.outputs.helm_changed == 'true' && needs.build-functions.result == 'skipped' && needs.build-compositions.result == 'skipped')
-      )
+      (needs.build-functions.result == 'success' || needs.build-functions.result == 'skipped') &&
+      (needs.build-compositions.result == 'success' || needs.build-compositions.result == 'skipped')
     uses: ./.github/workflows/build-helm.yml
     with:
       release_type: rc
@@ -107,8 +113,13 @@ jobs:
 
   run-infralib-tests:
     name: Run Infralib Tests
-    needs: [ build-helm, prepare-infralib-branch ]
-    if: always() && needs.prepare-infralib-branch.result == 'success'
+    needs: [ build-helm, prepare-infralib-branch, build-testhelm, test-functions, test-compositions ]
+    if: |
+      always() &&
+      needs.prepare-infralib-branch.result == 'success' &&
+      (needs.build-testhelm.result == 'success' || needs.build-testhelm.result == 'skipped') &&
+      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
+      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
       branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
@@ -117,8 +128,8 @@ jobs:
 
   notify:
     name: Slack Notification
-    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, prepare-infralib-branch, run-infralib-tests]
-    if: always() && !cancelled()
+    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, prepare-infralib-branch, run-infralib-tests, build-testhelm]
+    if: always() && !cancelled() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:
       - name: Build Slack message
@@ -134,7 +145,6 @@ jobs:
           R_BUILD_HELM: ${{ needs.build-helm.result }}
           R_INFRALIB: ${{ needs.prepare-infralib-branch.result }}
           R_TESTS: ${{ needs.run-infralib-tests.result }}
-          VERSION: ${{ needs.build-helm.outputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_NUMBER: ${{ github.event.number }}
@@ -155,31 +165,18 @@ jobs:
           add_failed "Prepare Infralib Branch" "$R_INFRALIB"
           add_failed "Run Infralib Tests" "$R_TESTS"
 
-          if [ -n "$FAILED" ]; then
-            COLOR="danger"
-            STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
-              --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
-          else
-            COLOR="good"
-            STEP_DETAILS=""
-          fi
+          STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
 
           {
-            echo "color=$COLOR"
             echo "message<<SLACKMSG"
-            echo "*PR:* <${PR_URL}|#${PR_NUMBER} - ${PR_TITLE}>"
-            echo "*Author:* ${PR_AUTHOR}"
-            echo "*Version:* \`${VERSION:-not built}\`"
-            if [ -n "$FAILED" ]; then
-              echo "*Status:* :x: Failed — ${FAILED}"
-              if [ -n "$STEP_DETAILS" ]; then
-                echo "*Failed steps:*"
-                echo "${STEP_DETAILS}"
-              fi
-            else
-              echo "*Status:* :white_check_mark: Passed"
+            echo "*PR:* <${PR_URL}|#${PR_NUMBER} - ${PR_TITLE}> by ${PR_AUTHOR}"
+            echo "*Failed:* ${FAILED}"
+            if [ -n "$STEP_DETAILS" ]; then
+              echo "*Failed steps:*"
+              echo "${STEP_DETAILS}"
             fi
-            echo "*Details:* <${RUN_URL}|View run>"
+            echo "*Run:* <${RUN_URL}|View details>"
             echo "SLACKMSG"
           } >> "$GITHUB_OUTPUT"
 
@@ -187,7 +184,7 @@ jobs:
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_COLOR: ${{ steps.msg.outputs.color }}
+          SLACK_COLOR: danger
           SLACK_TITLE: "PR #${{ github.event.number }}: ${{ github.event.pull_request.title }}"
           SLACK_MESSAGE: ${{ steps.msg.outputs.message }}
           SLACK_USERNAME: GitHub Actions

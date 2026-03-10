@@ -12,7 +12,7 @@ import (
 
 const (
 	PostgresqlAdminUserName       = "test-owner"
-	PostgresqlAdminUserKind       = "postgresqluser.database.entigo.com"
+	PostgresqlAdminUserKind       = "postgresqlusers.database.entigo.com"
 	PostgresqlAdminUserSpecName   = "test_owner"
 	PostgresqlRegularUserName     = "test-user"
 	SqlGrantKind                  = "grant.postgresql.sql.m.crossplane.io"
@@ -20,37 +20,44 @@ const (
 	RegularUserExpectedUsageName  = "usage-" + RegularUserExpectedGrantName
 	RegularUserExpectedSecretName = PostgresqlInstanceName + "-" + PostgresqlRegularUserName
 
-	PostgresqlDatabaseName           = "database-one-test"
-	PostgresqlDatabaseKind           = "postgresqldatabase.database.entigo.com"
-	SqlDatabaseKind                  = "database.postgresql.sql.m.crossplane.io"
-	SqlRoleKind                      = "role.postgresql.sql.m.crossplane.io"
-	SqlExtensionKind                 = "extension.postgresql.sql.m.crossplane.io"
-	UsageKind                        = "usage.protection.crossplane.io"
-	MinimalDatabaseName              = "database-minimal-test"
-	DatabaseGrantExpectedName        = PostgresqlDatabaseName + "-grant-owner-to-dbadmin"
-	DatabaseUsageExpectedName        = PostgresqlDatabaseName + "-grant-usage"
-	MinimalDatabaseUsageExpectedName = MinimalDatabaseName + "-grant-usage"
-	DatabaseTwoName                  = "database-two-test"
-	DatabaseTwoGrantExpectedName     = DatabaseTwoName + "-grant-owner-to-dbadmin"
-	DatabaseTwoUsageExpectedName     = DatabaseTwoName + "-grant-usage"
+	PostgresqlDatabaseName       = "database-one-test"
+	PostgresqlDatabaseKind       = "postgresqldatabases.database.entigo.com"
+	SqlDatabaseKind              = "database.postgresql.sql.m.crossplane.io"
+	SqlRoleKind                  = "role.postgresql.sql.m.crossplane.io"
+	SqlExtensionKind             = "extension.postgresql.sql.m.crossplane.io"
+	UsageKind                    = "usage.protection.crossplane.io"
+	MinimalDatabaseName          = "database-minimal-test"
+	DatabaseGrantExpectedName    = PostgresqlDatabaseName + "-grant-owner-to-dbadmin"
+	DatabaseTwoName              = "database-two-test"
+	DatabaseTwoGrantExpectedName = DatabaseTwoName + "-grant-owner-to-dbadmin"
+
+	AdminUserInstanceProtectionName       = PostgresqlAdminUserName + "-instance-protection"
+	RegularUserInstanceProtectionName     = PostgresqlRegularUserName + "-instance-protection"
+	DatabaseInstanceProtectionName        = PostgresqlDatabaseName + "-instance-protection"
+	DatabaseTwoInstanceProtectionName     = DatabaseTwoName + "-instance-protection"
+	MinimalDatabaseInstanceProtectionName = MinimalDatabaseName + "-instance-protection"
+
+	DatabaseOwnerProtectionName        = PostgresqlDatabaseName + "-owner-protection"
+	DatabaseTwoOwnerProtectionName     = DatabaseTwoName + "-owner-protection"
+	MinimalDatabaseOwnerProtectionName = MinimalDatabaseName + "-owner-protection"
 )
 
 // runPostgresqlUserAndDatabaseTests orchestrates user and database tests.
 // Admin user must be ready first, then regular user and database tests run concurrently.
 // Minimal database depends on regular user, so it runs after the parallel phase.
 func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	testAdminUserApplied(t, namespaceOptions)
-	testAdminUserSyncedAndReady(t, namespaceOptions)
-	testAdminRoleSyncedAndReady(t, namespaceOptions)
+	waitSyncedAndReady(t, namespaceOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 60, 10*time.Second)
+	waitSyncedAndReadyByLabel(t, namespaceOptions, SqlRoleKind, PostgresqlAdminUserName, 60, 10*time.Second)
 	testAdminRoleExternalNameVerified(t, namespaceOptions)
+	testInstanceProtectionUsageVerified(t, namespaceOptions, AdminUserInstanceProtectionName, "Role", PostgresqlAdminUserName)
 
 	t.Run("parallel-user-and-db", func(t *testing.T) {
 		t.Run("regular-user", func(t *testing.T) {
 			t.Parallel()
-			testRegularUserApplied(t, namespaceOptions)
-			testRegularUserSyncedAndReady(t, namespaceOptions)
-			testRegularUserGrantVerified(t, namespaceOptions)
-			testRegularUserUsageVerified(t, namespaceOptions)
+			waitSyncedAndReady(t, namespaceOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName, 60, 10*time.Second)
+			testGrantSyncedAndVerified(t, namespaceOptions, RegularUserExpectedGrantName, PostgresqlRegularUserName, PostgresqlAdminUserSpecName)
+			testUsageVerified(t, namespaceOptions, RegularUserExpectedUsageName, "Role", PostgresqlRegularUserName, "Grant", RegularUserExpectedGrantName)
+			testInstanceProtectionUsageVerified(t, namespaceOptions, RegularUserInstanceProtectionName, "Role", PostgresqlRegularUserName)
 			testUserUsagePreventsRoleDeletion(t, namespaceOptions)
 			testRegularUserExternalNameFallback(t, namespaceOptions)
 			testRegularUserPrivilegesVerified(t, namespaceOptions)
@@ -58,22 +65,22 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 		})
 		t.Run("database", func(t *testing.T) {
 			t.Parallel()
-			testDatabaseApplied(t, namespaceOptions)
-			testDatabaseSyncedAndReady(t, namespaceOptions)
-			testDatabaseGrantOwnerToDbadmin(t, namespaceOptions)
-			testDatabaseOwnerFieldVerified(t, namespaceOptions)
-			testDatabaseFieldsVerified(t, namespaceOptions)
+			waitSyncedAndReady(t, namespaceOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName, 60, 10*time.Second)
+			testGrantSyncedAndVerified(t, namespaceOptions, DatabaseGrantExpectedName, "dbadmin", PostgresqlAdminUserSpecName)
+			testSqlDatabaseOwnerField(t, namespaceOptions, PostgresqlDatabaseName, PostgresqlAdminUserSpecName)
+			testSqlDatabaseLocaleFields(t, namespaceOptions, PostgresqlDatabaseName)
 			testDatabaseExtensionsVerified(t, namespaceOptions)
-			testDatabaseUsageVerified(t, namespaceOptions)
+			testUsageVerified(t, namespaceOptions, DatabaseOwnerProtectionName, "PostgreSQLUser", PostgresqlAdminUserName, "Database", PostgresqlDatabaseName)
+			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseInstanceProtectionName, "Database", PostgresqlDatabaseName)
 		})
 		t.Run("database-two", func(t *testing.T) {
 			t.Parallel()
-			testDatabaseTwoApplied(t, namespaceOptions)
-			testDatabaseTwoSyncedAndReady(t, namespaceOptions)
-			testDatabaseTwoGrantOwnerToDbadmin(t, namespaceOptions)
-			testDatabaseTwoOwnerFieldVerified(t, namespaceOptions)
-			testDatabaseTwoFieldsVerified(t, namespaceOptions)
-			testDatabaseTwoUsageVerified(t, namespaceOptions)
+			waitSyncedAndReady(t, namespaceOptions, PostgresqlDatabaseKind, DatabaseTwoName, 60, 10*time.Second)
+			testGrantSyncedAndVerified(t, namespaceOptions, DatabaseTwoGrantExpectedName, "dbadmin", PostgresqlAdminUserSpecName)
+			testSqlDatabaseOwnerField(t, namespaceOptions, DatabaseTwoName, PostgresqlAdminUserSpecName)
+			testSqlDatabaseLocaleFields(t, namespaceOptions, DatabaseTwoName)
+			testUsageVerified(t, namespaceOptions, DatabaseTwoOwnerProtectionName, "PostgreSQLUser", PostgresqlAdminUserName, "Database", DatabaseTwoName)
+			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseTwoInstanceProtectionName, "Database", DatabaseTwoName)
 		})
 	})
 
@@ -82,115 +89,156 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 	}
 
 	// Minimal database depends on regular user being ready as owner
-	testMinimalDatabaseApplied(t, namespaceOptions)
-	testMinimalDatabaseSyncedAndReady(t, namespaceOptions)
+	waitSyncedAndReady(t, namespaceOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 60, 10*time.Second)
 	testMinimalDatabaseDefaultsVerified(t, namespaceOptions)
-	testMinimalDatabaseUsageVerified(t, namespaceOptions)
+	testUsageVerified(t, namespaceOptions, MinimalDatabaseOwnerProtectionName, "PostgreSQLUser", PostgresqlRegularUserName, "Database", MinimalDatabaseName)
+	testInstanceProtectionUsageVerified(t, namespaceOptions, MinimalDatabaseInstanceProtectionName, "Database", MinimalDatabaseName)
 	testDatabaseUsagePreventsGrantDeletion(t, namespaceOptions)
 }
 
-func testAdminUserApplied(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_owner_user.yaml", "-n", PostgresqlNamespaceName)
-	require.NoError(t, err, "applying PostgreSQL Admin User error")
+// testGrantSyncedAndVerified waits for a Grant to become Synced+Ready then verifies its role and memberOf fields.
+func testGrantSyncedAndVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, grantName, expectedRole, expectedMemberOf string) {
+	t.Helper()
+	waitSyncedAndReady(t, namespaceOptions, SqlGrantKind, grantName, 60, 10*time.Second)
+
+	role, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, grantName, "-o", "jsonpath={.spec.forProvider.role}")
+	require.NoError(t, err, "failed to get Grant role")
+	require.Equal(t, expectedRole, role, "Grant '%s' role mismatch", grantName)
+
+	memberOf, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, grantName, "-o", "jsonpath={.spec.forProvider.memberOf}")
+	require.NoError(t, err, "failed to get Grant memberOf")
+	require.Equal(t, expectedMemberOf, memberOf, "Grant '%s' memberOf mismatch", grantName)
 }
 
-func testAdminUserSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	waitSyncedAndReady(t, namespaceOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 60, 10*time.Second)
+// testSqlDatabaseOwnerField verifies the owner field of the SQL Database for a given composite.
+func testSqlDatabaseOwnerField(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, compositeName, expectedOwner string) {
+	t.Helper()
+	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", compositeName), "-o", "jsonpath={.items[0].metadata.name}")
+	require.NoError(t, err, "failed to find SQL Database for composite '%s'", compositeName)
+	require.NotEmpty(t, dbName, "no SQL Database found for composite '%s'", compositeName)
+
+	owner, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.owner}")
+	require.NoError(t, err, "failed to get owner")
+	require.Equal(t, expectedOwner, owner, "SQL Database '%s' owner mismatch", dbName)
 }
 
-func testAdminRoleSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	waitSyncedAndReadyByLabel(t, namespaceOptions, SqlRoleKind, PostgresqlAdminUserName, 60, 10*time.Second)
+// testSqlDatabaseLocaleFields verifies encoding and locale fields of the SQL Database for a given composite.
+func testSqlDatabaseLocaleFields(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, compositeName string) {
+	t.Helper()
+	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", compositeName), "-o", "jsonpath={.items[0].metadata.name}")
+	require.NoError(t, err, "failed to find SQL Database for composite '%s'", compositeName)
+	require.NotEmpty(t, dbName, "no SQL Database found for composite '%s'", compositeName)
+
+	encoding, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.encoding}")
+	require.NoError(t, err, "failed to get encoding")
+	require.Equal(t, "UTF8", encoding, "SQL Database '%s' encoding mismatch", dbName)
+
+	lcCType, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCType}")
+	require.NoError(t, err, "failed to get lcCType")
+	require.Equal(t, "et_EE.UTF-8", lcCType, "SQL Database '%s' lcCType mismatch", dbName)
+
+	lcCollate, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCollate}")
+	require.NoError(t, err, "failed to get lcCollate")
+	require.Equal(t, "et_EE.UTF-8", lcCollate, "SQL Database '%s' lcCollate mismatch", dbName)
+
+	template, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.template}")
+	require.NoError(t, err, "failed to get template")
+	require.Equal(t, "template0", template, "SQL Database '%s' template mismatch", dbName)
+}
+
+// testUsageVerified waits for a Usage resource and verifies its of/by fields and replayDeletion.
+func testUsageVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, usageName, ofKind, ofName, byKind, byName string) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Usage '%s'", usageName), 30, 10*time.Second, func() (string, error) {
+		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, usageName, "-o", "jsonpath={.metadata.name}")
+		if err != nil {
+			return "", err
+		}
+		if name == "" {
+			return "", fmt.Errorf("Usage '%s' not found", usageName)
+		}
+		return name, nil
+	})
+	require.NoError(t, err, "Usage '%s' not found", usageName)
+
+	actualOfKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, usageName, "-o", "jsonpath={.spec.of.kind}")
+	require.NoError(t, err)
+	require.Equal(t, ofKind, actualOfKind, "Usage '%s' spec.of.kind mismatch", usageName)
+
+	actualOfName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, usageName, "-o", "jsonpath={.spec.of.resourceRef.name}")
+	require.NoError(t, err)
+	require.Equal(t, ofName, actualOfName, "Usage '%s' spec.of.resourceRef.name mismatch", usageName)
+
+	actualByKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, usageName, "-o", "jsonpath={.spec.by.kind}")
+	require.NoError(t, err)
+	require.Equal(t, byKind, actualByKind, "Usage '%s' spec.by.kind mismatch", usageName)
+
+	actualByName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, usageName, "-o", "jsonpath={.spec.by.resourceRef.name}")
+	require.NoError(t, err)
+	require.Equal(t, byName, actualByName, "Usage '%s' spec.by.resourceRef.name mismatch", usageName)
+
+	replayDeletion, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, usageName, "-o", "jsonpath={.spec.replayDeletion}")
+	require.NoError(t, err)
+	require.Equal(t, "true", replayDeletion, "Usage '%s' replayDeletion mismatch", usageName)
+}
+
+// testInstanceProtectionUsageVerified verifies the instance-protection Usage that prevents
+// PostgreSQLInstance deletion while the given user or database resource still exists.
+func testInstanceProtectionUsageVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, usageName, byKind, byName string) {
+	t.Helper()
+	testUsageVerified(t, namespaceOptions, usageName, "PostgreSQLInstance", PostgresqlInstanceName, byKind, byName)
 }
 
 func testAdminRoleExternalNameVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
 	roleName, err := getFirstByLabel(t, namespaceOptions, SqlRoleKind, PostgresqlAdminUserName)
 	require.NoError(t, err, "failed to find SQL Role")
-	require.NotEmpty(t, roleName, fmt.Sprintf("no SQL Role found for composite '%s'", PostgresqlAdminUserName))
+	require.NotEmpty(t, roleName, "no SQL Role found for composite '%s'", PostgresqlAdminUserName)
 
 	externalName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", `jsonpath={.metadata.annotations.crossplane\.io/external-name}`)
 	require.NoError(t, err, "failed to get crossplane.io/external-name annotation")
-	require.Equal(t, PostgresqlAdminUserSpecName, externalName, fmt.Sprintf("SQL Role '%s' crossplane.io/external-name expected '%s', got '%s'", roleName, PostgresqlAdminUserSpecName, externalName))
-}
-
-func testRegularUserApplied(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_user.yaml", "-n", PostgresqlNamespaceName)
-	require.NoError(t, err, "applying PostgreSQL Regular User error")
-}
-
-func testRegularUserSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	waitSyncedAndReady(t, namespaceOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName, 60, 10*time.Second)
-}
-
-func testRegularUserGrantVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Grant '%s'", RegularUserExpectedGrantName), 60, 10*time.Second, func() (string, error) {
-		grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, RegularUserExpectedGrantName, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if grantName == "" {
-			return "", fmt.Errorf("Grant '%s' not found", RegularUserExpectedGrantName)
-		}
-		for _, condType := range []string{"Synced", "Ready"} {
-			status, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, RegularUserExpectedGrantName, "-o",
-				fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))
-			if err != nil {
-				return "", err
-			}
-			if status != "True" {
-				return "", fmt.Errorf("Grant '%s': %s=%s", RegularUserExpectedGrantName, condType, status)
-			}
-		}
-		return "Synced+Ready", nil
-	})
-	require.NoError(t, err, fmt.Sprintf("Grant '%s' failed to become Synced and Ready", RegularUserExpectedGrantName))
-
-	// Verify Grant forProvider.role = metadata.name of the PostgreSQLUser
-	role, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, RegularUserExpectedGrantName, "-o", "jsonpath={.spec.forProvider.role}")
-	require.NoError(t, err, "failed to get Grant role")
-	require.Equal(t, PostgresqlRegularUserName, role, fmt.Sprintf("Grant '%s' role mismatch", RegularUserExpectedGrantName))
-
-	// Verify Grant forProvider.memberOf = test_owner (the PostgreSQL role name)
-	memberOf, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, RegularUserExpectedGrantName, "-o", "jsonpath={.spec.forProvider.memberOf}")
-	require.NoError(t, err, "failed to get Grant memberOf")
-	require.Equal(t, PostgresqlAdminUserSpecName, memberOf, fmt.Sprintf("Grant '%s' memberOf mismatch", RegularUserExpectedGrantName))
+	require.Equal(t, PostgresqlAdminUserSpecName, externalName, "SQL Role '%s' crossplane.io/external-name expected '%s', got '%s'", roleName, PostgresqlAdminUserSpecName, externalName)
 }
 
 func testRegularUserExternalNameFallback(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
 	roleName, err := getFirstByLabel(t, namespaceOptions, SqlRoleKind, PostgresqlRegularUserName)
 	require.NoError(t, err, "failed to find SQL Role for regular user")
-	require.NotEmpty(t, roleName, fmt.Sprintf("no SQL Role found for composite '%s'", PostgresqlRegularUserName))
+	require.NotEmpty(t, roleName, "no SQL Role found for composite '%s'", PostgresqlRegularUserName)
 
 	// When spec.name is not set, external-name should fall back to metadata.name
 	externalName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", `jsonpath={.metadata.annotations.crossplane\.io/external-name}`)
 	require.NoError(t, err, "failed to get crossplane.io/external-name annotation")
-	require.Equal(t, PostgresqlRegularUserName, externalName, fmt.Sprintf("SQL Role '%s' external-name should fall back to metadata.name '%s', got '%s'", roleName, PostgresqlRegularUserName, externalName))
+	require.Equal(t, PostgresqlRegularUserName, externalName, "SQL Role '%s' external-name should fall back to metadata.name '%s', got '%s'", roleName, PostgresqlRegularUserName, externalName)
 }
 
 func testRegularUserPrivilegesVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlRegularUserName), "-o", "jsonpath={.items[0].metadata.name}")
+	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlRegularUserName), "-o", "jsonpath={.items[0].metadata.name}")
 	require.NoError(t, err, "failed to find SQL Role for regular user")
-	require.NotEmpty(t, roleName, fmt.Sprintf("no SQL Role found for composite '%s'", PostgresqlRegularUserName))
+	require.NotEmpty(t, roleName, "no SQL Role found for composite '%s'", PostgresqlRegularUserName)
 
 	createDb, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", "jsonpath={.spec.forProvider.privileges.createDb}")
 	require.NoError(t, err, "failed to get createDb")
-	require.Equal(t, "false", createDb, fmt.Sprintf("SQL Role '%s' createDb mismatch", roleName))
+	require.Equal(t, "false", createDb, "SQL Role '%s' createDb mismatch", roleName)
 
 	login, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", "jsonpath={.spec.forProvider.privileges.login}")
 	require.NoError(t, err, "failed to get login")
-	require.Equal(t, "true", login, fmt.Sprintf("SQL Role '%s' login mismatch", roleName))
+	require.Equal(t, "true", login, "SQL Role '%s' login mismatch", roleName)
 
 	createRole, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", "jsonpath={.spec.forProvider.privileges.createRole}")
 	require.NoError(t, err, "failed to get createRole")
-	require.Equal(t, "false", createRole, fmt.Sprintf("SQL Role '%s' createRole mismatch", roleName))
+	require.Equal(t, "false", createRole, "SQL Role '%s' createRole mismatch", roleName)
 
 	inherit, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "-o", "jsonpath={.spec.forProvider.privileges.inherit}")
 	require.NoError(t, err, "failed to get inherit")
-	require.Equal(t, "true", inherit, fmt.Sprintf("SQL Role '%s' inherit mismatch", roleName))
+	require.Equal(t, "true", inherit, "SQL Role '%s' inherit mismatch", roleName)
 }
 
 func testRegularUserConnectionSecretCreated(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
 	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for connection secret '%s'", RegularUserExpectedSecretName), 60, 10*time.Second, func() (string, error) {
-		secretName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", "secret", RegularUserExpectedSecretName, "-n", PostgresqlNamespaceName, "-o", "jsonpath={.metadata.name}")
+		secretName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", "secret", RegularUserExpectedSecretName,
+			"-n", PostgresqlNamespaceName, "-o", "jsonpath={.metadata.name}")
 		if err != nil {
 			return "", err
 		}
@@ -199,47 +247,14 @@ func testRegularUserConnectionSecretCreated(t *testing.T, namespaceOptions *terr
 		}
 		return secretName, nil
 	})
-	require.NoError(t, err, fmt.Sprintf("connection secret '%s' not found", RegularUserExpectedSecretName))
-}
-
-func testRegularUserUsageVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Usage '%s'", RegularUserExpectedUsageName), 30, 10*time.Second, func() (string, error) {
-		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if name == "" {
-			return "", fmt.Errorf("Usage '%s' not found", RegularUserExpectedUsageName)
-		}
-		return name, nil
-	})
-	require.NoError(t, err, fmt.Sprintf("Usage '%s' not found", RegularUserExpectedUsageName))
-
-	ofKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.of.kind}")
-	require.NoError(t, err)
-	require.Equal(t, "Role", ofKind)
-
-	ofName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.of.resourceRef.name}")
-	require.NoError(t, err)
-	require.Equal(t, PostgresqlRegularUserName, ofName)
-
-	byKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.by.kind}")
-	require.NoError(t, err)
-	require.Equal(t, "Grant", byKind)
-
-	byName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.by.resourceRef.name}")
-	require.NoError(t, err)
-	require.Equal(t, RegularUserExpectedGrantName, byName)
-
-	replayDeletion, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, RegularUserExpectedUsageName, "-o", "jsonpath={.spec.replayDeletion}")
-	require.NoError(t, err)
-	require.Equal(t, "true", replayDeletion)
+	require.NoError(t, err, "connection secret '%s' not found", RegularUserExpectedSecretName)
 }
 
 // testUserUsagePreventsRoleDeletion verifies that the Usage resource blocks
 // deletion of the Role while the Grant still exists.
 func testUserUsagePreventsRoleDeletion(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlRegularUserName), "-o", "jsonpath={.items[0].metadata.name}")
+	roleName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlRegularUserName), "-o", "jsonpath={.items[0].metadata.name}")
 	require.NoError(t, err)
 	require.NotEmpty(t, roleName)
 
@@ -248,167 +263,19 @@ func testUserUsagePreventsRoleDeletion(t *testing.T, namespaceOptions *terrak8s.
 
 	existingRole, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlRoleKind, roleName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
 	require.NoError(t, err, "failed to check Role existence")
-	require.Equal(t, roleName, existingRole, fmt.Sprintf("Role '%s' was deleted despite Usage protection", roleName))
-}
-
-func testDatabaseApplied(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_database_one.yaml", "-n", PostgresqlNamespaceName)
-	require.NoError(t, err, "applying PostgreSQL Database error")
-}
-
-func testDatabaseSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	waitSyncedAndReady(t, namespaceOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName, 60, 10*time.Second)
-}
-
-func testDatabaseGrantOwnerToDbadmin(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Grant '%s'", DatabaseGrantExpectedName), 60, 10*time.Second, func() (string, error) {
-		grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if grantName == "" {
-			return "", fmt.Errorf("Grant '%s' not found", DatabaseGrantExpectedName)
-		}
-		for _, condType := range []string{"Synced", "Ready"} {
-			status, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "-o",
-				fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))
-			if err != nil {
-				return "", err
-			}
-			if status != "True" {
-				return "", fmt.Errorf("Grant '%s': %s=%s", DatabaseGrantExpectedName, condType, status)
-			}
-		}
-		return "Synced+Ready", nil
-	})
-	require.NoError(t, err, fmt.Sprintf("Grant '%s' failed to become Synced and Ready", DatabaseGrantExpectedName))
-
-	role, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "-o", "jsonpath={.spec.forProvider.role}")
-	require.NoError(t, err, "failed to get Grant role")
-	require.Equal(t, "dbadmin", role, fmt.Sprintf("Grant '%s' role mismatch", DatabaseGrantExpectedName))
-
-	memberOf, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "-o", "jsonpath={.spec.forProvider.memberOf}")
-	require.NoError(t, err, "failed to get Grant memberOf")
-	require.Equal(t, PostgresqlAdminUserSpecName, memberOf, fmt.Sprintf("Grant '%s' memberOf mismatch", DatabaseGrantExpectedName))
-}
-
-func testDatabaseOwnerFieldVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
-	require.NoError(t, err, "failed to find SQL Database")
-	require.NotEmpty(t, dbName, fmt.Sprintf("no SQL Database found for composite '%s'", PostgresqlDatabaseName))
-
-	owner, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.owner}")
-	require.NoError(t, err, "failed to get owner")
-	require.Equal(t, PostgresqlAdminUserSpecName, owner, fmt.Sprintf("SQL Database '%s' owner mismatch", dbName))
-}
-
-func testDatabaseFieldsVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
-	require.NoError(t, err, "failed to find SQL Database")
-	require.NotEmpty(t, dbName, fmt.Sprintf("no SQL Database found for composite '%s'", PostgresqlDatabaseName))
-
-	encoding, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.encoding}")
-	require.NoError(t, err, "failed to get encoding")
-	require.Equal(t, "UTF8", encoding, fmt.Sprintf("SQL Database '%s' encoding mismatch", dbName))
-
-	lcCType, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCType}")
-	require.NoError(t, err, "failed to get lcCType")
-	require.Equal(t, "et_EE.UTF-8", lcCType, fmt.Sprintf("SQL Database '%s' lcCType mismatch", dbName))
-
-	lcCollate, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCollate}")
-	require.NoError(t, err, "failed to get lcCollate")
-	require.Equal(t, "et_EE.UTF-8", lcCollate, fmt.Sprintf("SQL Database '%s' lcCollate mismatch", dbName))
-
-	template, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.template}")
-	require.NoError(t, err, "failed to get template")
-	require.Equal(t, "template0", template, fmt.Sprintf("SQL Database '%s' template mismatch", dbName))
-}
-
-func testMinimalDatabaseApplied(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_database_minimal.yaml", "-n", PostgresqlNamespaceName)
-	require.NoError(t, err, "applying minimal PostgreSQL Database error")
-}
-
-func testMinimalDatabaseSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	waitSyncedAndReady(t, namespaceOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 60, 10*time.Second)
+	require.Equal(t, roleName, existingRole, "Role '%s' was deleted despite Usage protection", roleName)
 }
 
 func testMinimalDatabaseDefaultsVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", MinimalDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
+	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", MinimalDatabaseName), "-o", "jsonpath={.items[0].metadata.name}")
 	require.NoError(t, err, "failed to find SQL Database for minimal")
-	require.NotEmpty(t, dbName, fmt.Sprintf("no SQL Database found for composite '%s'", MinimalDatabaseName))
+	require.NotEmpty(t, dbName, "no SQL Database found for composite '%s'", MinimalDatabaseName)
 
-	// Owner should still be set (test-user for minimal database)
+	// Owner should be the regular user (test-user) for minimal database
 	owner, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.owner}")
 	require.NoError(t, err, "failed to get owner")
-	require.Equal(t, PostgresqlRegularUserName, owner, fmt.Sprintf("SQL Database '%s' owner mismatch", dbName))
-}
-
-func testDatabaseUsageVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Usage '%s'", DatabaseUsageExpectedName), 30, 10*time.Second, func() (string, error) {
-		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if name == "" {
-			return "", fmt.Errorf("Usage '%s' not found", DatabaseUsageExpectedName)
-		}
-		return name, nil
-	})
-	require.NoError(t, err, fmt.Sprintf("Usage '%s' not found", DatabaseUsageExpectedName))
-
-	ofKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.of.kind}")
-	require.NoError(t, err)
-	require.Equal(t, "Grant", ofKind)
-
-	ofName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.of.resourceRef.name}")
-	require.NoError(t, err)
-	require.Equal(t, DatabaseGrantExpectedName, ofName)
-
-	byKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.by.kind}")
-	require.NoError(t, err)
-	require.Equal(t, "Database", byKind)
-
-	byName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.by.resourceRef.name}")
-	require.NoError(t, err)
-	require.Equal(t, PostgresqlDatabaseName, byName)
-
-	replayDeletion, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseUsageExpectedName, "-o", "jsonpath={.spec.replayDeletion}")
-	require.NoError(t, err)
-	require.Equal(t, "true", replayDeletion)
-}
-
-func testMinimalDatabaseUsageVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	expectedGrantName := MinimalDatabaseName + "-grant-owner-to-dbadmin"
-
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Usage '%s'", MinimalDatabaseUsageExpectedName), 30, 10*time.Second, func() (string, error) {
-		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, MinimalDatabaseUsageExpectedName, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if name == "" {
-			return "", fmt.Errorf("Usage '%s' not found", MinimalDatabaseUsageExpectedName)
-		}
-		return name, nil
-	})
-	require.NoError(t, err, fmt.Sprintf("Usage '%s' not found", MinimalDatabaseUsageExpectedName))
-
-	ofName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, MinimalDatabaseUsageExpectedName, "-o", "jsonpath={.spec.of.resourceRef.name}")
-	require.NoError(t, err)
-	require.Equal(t, expectedGrantName, ofName)
-
-	byName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, MinimalDatabaseUsageExpectedName, "-o", "jsonpath={.spec.by.resourceRef.name}")
-	require.NoError(t, err)
-	require.Equal(t, MinimalDatabaseName, byName)
-}
-
-func testDatabaseUsagePreventsGrantDeletion(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "delete", SqlGrantKind, DatabaseGrantExpectedName, "--wait=false")
-	time.Sleep(10 * time.Second)
-
-	grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
-	require.NoError(t, err, "failed to check Grant existence")
-	require.Equal(t, DatabaseGrantExpectedName, grantName, fmt.Sprintf("Grant '%s' was deleted despite Usage protection", DatabaseGrantExpectedName))
+	require.Equal(t, PostgresqlRegularUserName, owner, "SQL Database '%s' owner mismatch", dbName)
 }
 
 func testDatabaseExtensionsVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
@@ -429,124 +296,26 @@ func testDatabaseExtensionsVerified(t *testing.T, namespaceOptions *terrak8s.Kub
 	for _, ext := range expected {
 		ext := ext
 		extName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlExtensionKind, ext.k8sName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
-		require.NoError(t, err, fmt.Sprintf("failed to get extension '%s'", ext.k8sName))
-		require.Equal(t, ext.k8sName, extName, fmt.Sprintf("extension '%s' not found", ext.k8sName))
+		require.NoError(t, err, "failed to get extension '%s'", ext.k8sName)
+		require.Equal(t, ext.k8sName, extName, "extension '%s' not found", ext.k8sName)
 
 		forProvider, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlExtensionKind, ext.k8sName, "-o", "jsonpath={.spec.forProvider.extension}")
-		require.NoError(t, err, fmt.Sprintf("failed to get forProvider.extension for '%s'", ext.k8sName))
-		require.Equal(t, ext.extName, forProvider, fmt.Sprintf("extension '%s' forProvider.extension mismatch", ext.k8sName))
+		require.NoError(t, err, "failed to get forProvider.extension for '%s'", ext.k8sName)
+		require.Equal(t, ext.extName, forProvider, "extension '%s' forProvider.extension mismatch", ext.k8sName)
 
 		if ext.schema != "" {
 			schema, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlExtensionKind, ext.k8sName, "-o", "jsonpath={.spec.forProvider.schema}")
-			require.NoError(t, err, fmt.Sprintf("failed to get schema for extension '%s'", ext.k8sName))
-			require.Equal(t, ext.schema, schema, fmt.Sprintf("extension '%s' schema mismatch", ext.k8sName))
+			require.NoError(t, err, "failed to get schema for extension '%s'", ext.k8sName)
+			require.Equal(t, ext.schema, schema, "extension '%s' schema mismatch", ext.k8sName)
 		}
 	}
 }
 
-func testDatabaseTwoApplied(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "apply", "-f", "./templates/postgresql_test_database_two.yaml", "-n", PostgresqlNamespaceName)
-	require.NoError(t, err, "applying PostgreSQL Database Two error")
-}
+func testDatabaseUsagePreventsGrantDeletion(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "delete", SqlGrantKind, DatabaseGrantExpectedName, "--wait=false")
+	time.Sleep(10 * time.Second)
 
-func testDatabaseTwoSyncedAndReady(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	waitSyncedAndReady(t, namespaceOptions, PostgresqlDatabaseKind, DatabaseTwoName, 60, 10*time.Second)
-}
-
-func testDatabaseTwoGrantOwnerToDbadmin(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Grant '%s'", DatabaseTwoGrantExpectedName), 60, 10*time.Second, func() (string, error) {
-		grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseTwoGrantExpectedName, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if grantName == "" {
-			return "", fmt.Errorf("Grant '%s' not found", DatabaseTwoGrantExpectedName)
-		}
-		for _, condType := range []string{"Synced", "Ready"} {
-			status, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseTwoGrantExpectedName, "-o",
-				fmt.Sprintf(`jsonpath={.status.conditions[?(@.type=="%s")].status}`, condType))
-			if err != nil {
-				return "", err
-			}
-			if status != "True" {
-				return "", fmt.Errorf("Grant '%s': %s=%s", DatabaseTwoGrantExpectedName, condType, status)
-			}
-		}
-		return "Synced+Ready", nil
-	})
-	require.NoError(t, err, fmt.Sprintf("Grant '%s' failed to become Synced and Ready", DatabaseTwoGrantExpectedName))
-
-	role, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseTwoGrantExpectedName, "-o", "jsonpath={.spec.forProvider.role}")
-	require.NoError(t, err, "failed to get Grant role")
-	require.Equal(t, "dbadmin", role, fmt.Sprintf("Grant '%s' role mismatch", DatabaseTwoGrantExpectedName))
-
-	memberOf, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseTwoGrantExpectedName, "-o", "jsonpath={.spec.forProvider.memberOf}")
-	require.NoError(t, err, "failed to get Grant memberOf")
-	require.Equal(t, PostgresqlAdminUserSpecName, memberOf, fmt.Sprintf("Grant '%s' memberOf mismatch", DatabaseTwoGrantExpectedName))
-}
-
-func testDatabaseTwoOwnerFieldVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", DatabaseTwoName), "-o", "jsonpath={.items[0].metadata.name}")
-	require.NoError(t, err, "failed to find SQL Database Two")
-	require.NotEmpty(t, dbName, fmt.Sprintf("no SQL Database found for composite '%s'", DatabaseTwoName))
-
-	owner, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.owner}")
-	require.NoError(t, err, "failed to get owner")
-	require.Equal(t, PostgresqlAdminUserSpecName, owner, fmt.Sprintf("SQL Database '%s' owner mismatch", dbName))
-}
-
-func testDatabaseTwoFieldsVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, "-l", fmt.Sprintf("crossplane.io/composite=%s", DatabaseTwoName), "-o", "jsonpath={.items[0].metadata.name}")
-	require.NoError(t, err, "failed to find SQL Database Two")
-	require.NotEmpty(t, dbName, fmt.Sprintf("no SQL Database found for composite '%s'", DatabaseTwoName))
-
-	encoding, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.encoding}")
-	require.NoError(t, err, "failed to get encoding")
-	require.Equal(t, "UTF8", encoding, fmt.Sprintf("SQL Database '%s' encoding mismatch", dbName))
-
-	lcCType, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCType}")
-	require.NoError(t, err, "failed to get lcCType")
-	require.Equal(t, "et_EE.UTF-8", lcCType, fmt.Sprintf("SQL Database '%s' lcCType mismatch", dbName))
-
-	lcCollate, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.lcCollate}")
-	require.NoError(t, err, "failed to get lcCollate")
-	require.Equal(t, "et_EE.UTF-8", lcCollate, fmt.Sprintf("SQL Database '%s' lcCollate mismatch", dbName))
-
-	template, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o", "jsonpath={.spec.forProvider.template}")
-	require.NoError(t, err, "failed to get template")
-	require.Equal(t, "template0", template, fmt.Sprintf("SQL Database '%s' template mismatch", dbName))
-}
-
-func testDatabaseTwoUsageVerified(t *testing.T, namespaceOptions *terrak8s.KubectlOptions) {
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Usage '%s'", DatabaseTwoUsageExpectedName), 30, 10*time.Second, func() (string, error) {
-		name, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseTwoUsageExpectedName, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if name == "" {
-			return "", fmt.Errorf("Usage '%s' not found", DatabaseTwoUsageExpectedName)
-		}
-		return name, nil
-	})
-	require.NoError(t, err, fmt.Sprintf("Usage '%s' not found", DatabaseTwoUsageExpectedName))
-
-	ofKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseTwoUsageExpectedName, "-o", "jsonpath={.spec.of.kind}")
-	require.NoError(t, err)
-	require.Equal(t, "Grant", ofKind)
-
-	ofName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseTwoUsageExpectedName, "-o", "jsonpath={.spec.of.resourceRef.name}")
-	require.NoError(t, err)
-	require.Equal(t, DatabaseTwoGrantExpectedName, ofName)
-
-	byKind, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseTwoUsageExpectedName, "-o", "jsonpath={.spec.by.kind}")
-	require.NoError(t, err)
-	require.Equal(t, "Database", byKind)
-
-	byName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseTwoUsageExpectedName, "-o", "jsonpath={.spec.by.resourceRef.name}")
-	require.NoError(t, err)
-	require.Equal(t, DatabaseTwoName, byName)
-
-	replayDeletion, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", UsageKind, DatabaseTwoUsageExpectedName, "-o", "jsonpath={.spec.replayDeletion}")
-	require.NoError(t, err)
-	require.Equal(t, "true", replayDeletion)
+	grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+	require.NoError(t, err, "failed to check Grant existence")
+	require.Equal(t, DatabaseGrantExpectedName, grantName, "Grant '%s' was deleted despite Usage protection", DatabaseGrantExpectedName)
 }
