@@ -74,7 +74,7 @@ jobs:
     uses: ./.github/workflows/build-testhelm.yml
     with:
       testhelm: ${{ needs.detect-changes.outputs.testhelm }}
-      release_type: rc
+      release_type: stable
       pr_number: ${{ github.event.number }}
       run_number: ${{ github.run_number }}
       run_attempt: ${{ github.run_attempt }}
