@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
@@ -12,7 +13,7 @@ import (
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -20,9 +21,14 @@ const (
 )
 
 type GroupImpl struct {
+	log logging.Logger
 }
 
 var _ base.GroupService = &GroupImpl{}
+
+func (g *GroupImpl) SetLogger(log logging.Logger) {
+	g.log = log
+}
 
 func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
 	return false
@@ -31,17 +37,17 @@ func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
 func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	return map[string]base.ResourceHandler{
 		apis.XRKindRepository: {
-			Instantiate: func() runtime.Object { return &v1alpha1.Repository{} },
+			Instantiate: func() client.Object { return &v1alpha1.Repository{} },
 			Generate:    g.generateRepository,
 		},
 	}
 }
 
-func (g *GroupImpl) generateRepository(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generateRepository(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	return service.GenerateRepositoryObject(*obj.(*v1alpha1.Repository), required)
 }
 
-func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
+func (g *GroupImpl) GetSequence(_ client.Object) base.Sequence {
 	return base.Sequence{}
 }
 

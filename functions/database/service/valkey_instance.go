@@ -14,14 +14,14 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
-	ec2mv1beta1 "github.com/upbound/provider-aws/apis/namespaced/ec2/v1beta1"
-	elasticachemv1beta1 "github.com/upbound/provider-aws/apis/namespaced/elasticache/v1beta1"
-	kmsmv1beta1 "github.com/upbound/provider-aws/apis/namespaced/kms/v1beta1"
-	smv1beta1 "github.com/upbound/provider-aws/apis/namespaced/secretsmanager/v1beta1"
+	ec2mv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/ec2/v1beta1"
+	elasticachemv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/elasticache/v1beta1"
+	kmsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/kms/v1beta1"
+	smv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/secretsmanager/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -56,7 +56,7 @@ func GenerateValkeyInstanceObjects(
 	instance v1alpha1.ValkeyInstance,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
-) (map[string]runtime.Object, error) {
+) (map[string]client.Object, error) {
 	g, err := newValkeyInstanceGenerator(instance, required, observed)
 	if err != nil {
 		return nil, err
@@ -136,8 +136,8 @@ func (g *valkeyInstanceGenerator) computeDerivedValues() {
 	}
 }
 
-func (g *valkeyInstanceGenerator) generate() (map[string]runtime.Object, error) {
-	objects := make(map[string]runtime.Object)
+func (g *valkeyInstanceGenerator) generate() (map[string]client.Object, error) {
+	objects := make(map[string]client.Object)
 
 	g.buildReplicationGroup(objects)
 	g.buildSecurityGroup(objects)
@@ -159,7 +159,7 @@ func (g *valkeyInstanceGenerator) buildTags() map[string]*string {
 	return tags
 }
 
-func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]runtime.Object) {
+func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]client.Object) {
 	name := g.instance.GetName()
 	tags := g.buildTags()
 
@@ -217,7 +217,7 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]runti
 	objects["replication-group"] = rg
 }
 
-func (g *valkeyInstanceGenerator) buildSecurityGroup(objects map[string]runtime.Object) {
+func (g *valkeyInstanceGenerator) buildSecurityGroup(objects map[string]client.Object) {
 	name := g.instance.GetName()
 	description := fmt.Sprintf("Security group for Valkey %s", name)
 	tags := g.buildTags()
@@ -239,7 +239,7 @@ func (g *valkeyInstanceGenerator) buildSecurityGroup(objects map[string]runtime.
 	}
 }
 
-func (g *valkeyInstanceGenerator) buildSecurityGroupRules(objects map[string]runtime.Object) {
+func (g *valkeyInstanceGenerator) buildSecurityGroupRules(objects map[string]client.Object) {
 	name := g.instance.GetName()
 
 	for _, subnet := range g.computeSubnets {
@@ -280,7 +280,7 @@ func (g *valkeyInstanceGenerator) buildSecurityGroupRules(objects map[string]run
 	}
 }
 
-func (g *valkeyInstanceGenerator) buildSecretsManagerResources(objects map[string]runtime.Object) {
+func (g *valkeyInstanceGenerator) buildSecretsManagerResources(objects map[string]client.Object) {
 	name := g.instance.GetName()
 	tags := g.buildTags()
 
@@ -329,7 +329,7 @@ func (g *valkeyInstanceGenerator) buildSecretsManagerResources(objects map[strin
 	}
 }
 
-func (g *valkeyInstanceGenerator) buildCredentialsSecret(objects map[string]runtime.Object) {
+func (g *valkeyInstanceGenerator) buildCredentialsSecret(objects map[string]client.Object) {
 	rgObserved, ok := g.observed["replication-group"]
 	if !ok {
 		return

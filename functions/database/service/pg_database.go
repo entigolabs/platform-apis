@@ -14,7 +14,7 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type pgDatabaseGenerator struct {
@@ -26,7 +26,7 @@ type pgDatabaseGenerator struct {
 func GeneratePgDatabaseObjects(
 	pgDatabase v1alpha1.PostgreSQLDatabase,
 	required map[string][]resource.Required,
-) (map[string]runtime.Object, error) {
+) (map[string]client.Object, error) {
 	g, err := newPgDatabaseGenerator(pgDatabase, required)
 	if err != nil {
 		return nil, err
@@ -50,8 +50,8 @@ func newPgDatabaseGenerator(
 	}, nil
 }
 
-func (g *pgDatabaseGenerator) generate() (map[string]runtime.Object, error) {
-	desired := make(map[string]runtime.Object)
+func (g *pgDatabaseGenerator) generate() (map[string]client.Object, error) {
+	desired := make(map[string]client.Object)
 	roleReady := isRoleReady(g.ownerRole)
 	if !roleReady {
 		return desired, fmt.Errorf("temporarily waiting for Owner Role %s to become ready", g.ownerRole.Name)
@@ -75,7 +75,7 @@ func isRoleReady(role postgresv1alpha1.Role) bool {
 	return false
 }
 
-func (g *pgDatabaseGenerator) buildGrant() map[string]runtime.Object {
+func (g *pgDatabaseGenerator) buildGrant() map[string]client.Object {
 	grantName := g.pgDatabase.Name + "-grant-owner-to-dbadmin"
 	dbAdmin := "dbadmin"
 	owner := g.pgDatabase.Spec.Owner
@@ -101,10 +101,10 @@ func (g *pgDatabaseGenerator) buildGrant() map[string]runtime.Object {
 			},
 		},
 	}
-	return map[string]runtime.Object{"grant-owner-to-dbadmin": grant}
+	return map[string]client.Object{"grant-owner-to-dbadmin": grant}
 }
 
-func (g *pgDatabaseGenerator) buildDatabase() map[string]runtime.Object {
+func (g *pgDatabaseGenerator) buildDatabase() map[string]client.Object {
 	owner := g.pgDatabase.Spec.Owner
 	var encoding, lcCType, lcCollate, template *string
 	if g.pgDatabase.Spec.Encoding != "" {
@@ -144,11 +144,11 @@ func (g *pgDatabaseGenerator) buildDatabase() map[string]runtime.Object {
 			},
 		},
 	}
-	return map[string]runtime.Object{"postgresql-database": db}
+	return map[string]client.Object{"postgresql-database": db}
 }
 
-func (g *pgDatabaseGenerator) buildExtensions() map[string]runtime.Object {
-	extensions := make(map[string]runtime.Object)
+func (g *pgDatabaseGenerator) buildExtensions() map[string]client.Object {
+	extensions := make(map[string]client.Object)
 	dbName := g.pgDatabase.Name
 	for i, extensionName := range g.pgDatabase.Spec.Extensions {
 		convertedName := strings.ReplaceAll(extensionName, "_", "-")
@@ -196,7 +196,7 @@ func GetPgDatabaseDatabaseReadyStatus(observed *composed.Unstructured) resource.
 	return resource.ReadyFalse
 }
 
-func (g *pgDatabaseGenerator) buildGrantUsage() map[string]runtime.Object {
+func (g *pgDatabaseGenerator) buildGrantUsage() map[string]client.Object {
 	replayDeletion := true
 	grantName := g.pgDatabase.Name + "-grant-owner-to-dbadmin"
 	usage := &xpv1beta1.Usage{
@@ -219,10 +219,10 @@ func (g *pgDatabaseGenerator) buildGrantUsage() map[string]runtime.Object {
 			},
 		},
 	}
-	return map[string]runtime.Object{"grant-usage": usage}
+	return map[string]client.Object{"grant-usage": usage}
 }
 
-func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]runtime.Object {
+func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]client.Object {
 	replayDeletion := true
 	usage := &xpv1beta1.Usage{
 		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: "protection.crossplane.io/v1beta1"},
@@ -244,10 +244,10 @@ func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]runtime.Object {
 			},
 		},
 	}
-	return map[string]runtime.Object{"owner-protection": usage}
+	return map[string]client.Object{"owner-protection": usage}
 }
 
-func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]runtime.Object {
+func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]client.Object {
 	replayDeletion := true
 	usage := &xpv1beta1.Usage{
 		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: "protection.crossplane.io/v1beta1"},
@@ -269,5 +269,5 @@ func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]runtime.Objec
 			},
 		},
 	}
-	return map[string]runtime.Object{"instance-protection": usage}
+	return map[string]client.Object{"instance-protection": usage}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
@@ -13,16 +14,22 @@ import (
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	environmentName = "platform-apis-storage"
 )
 
-type GroupImpl struct{}
+type GroupImpl struct {
+	log logging.Logger
+}
 
 var _ base.GroupService = &GroupImpl{}
+
+func (g *GroupImpl) SetLogger(log logging.Logger) {
+	g.log = log
+}
 
 func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
 	return false
@@ -31,17 +38,17 @@ func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
 func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	return map[string]base.ResourceHandler{
 		apis.XRKindS3Bucket: {
-			Instantiate: func() runtime.Object { return &v1alpha1.S3Bucket{} },
+			Instantiate: func() client.Object { return &v1alpha1.S3Bucket{} },
 			Generate:    g.generateS3Bucket,
 		},
 	}
 }
 
-func (g *GroupImpl) generateS3Bucket(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
-	return service.GenerateS3BucketObjects(*obj.(*v1alpha1.S3Bucket), required, observed)
+func (g *GroupImpl) generateS3Bucket(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
+	return service.GenerateS3BucketObjects(*obj.(*v1alpha1.S3Bucket), required, observed, g.log)
 }
 
-func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
+func (g *GroupImpl) GetSequence(_ client.Object) base.Sequence {
 	return base.NewSequence(false,
 		[]string{"bucket", "iam-user", "iam-role"},
 		[]string{"iam-access-key", "iam-policy"},
@@ -52,7 +59,7 @@ func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
 	)
 }
 
-func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Ready {
+func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {
 	return ""
 }
 
@@ -69,7 +76,6 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		ns := compositeResource.GetNamespace()
 		resources[service.KMSDataKey] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
 		resources[service.KMSConfigKey] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
 		resources[service.EKSKey] = &fnv1.ResourceSelector{
@@ -77,11 +83,6 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			ApiVersion: "eks.aws.m.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: "eks"},
 			Namespace:  &env.AWSProvider,
-		}
-		resources[service.NamespaceKey] = &fnv1.ResourceSelector{
-			Kind:       "Namespace",
-			ApiVersion: "v1",
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: ns},
 		}
 		return resources, nil
 	default:

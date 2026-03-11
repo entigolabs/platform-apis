@@ -48,13 +48,13 @@ func EnvironmentConfigResourceWithData(name string, data map[string]interface{})
 	}
 }
 
-func KMSKeyResource(name, namespace string) *fnv1.Resources {
+func KMSKeyResource(name, namespace, arnSuffix string) *fnv1.Resources {
 	resourceStruct, err := structpb.NewStruct(map[string]interface{}{
 		"apiVersion": base.KMSKeyApiVersion,
 		"kind":       base.KMSKeyKind,
 		"metadata": map[string]interface{}{
 			"annotations": map[string]interface{}{
-				"crossplane.io/external-name": "arn:aws:kms:eu-north-1:111111111111:key/mrk-6c709a49a34940a48025f3bbc412827e",
+				"crossplane.io/external-name": "arn:aws:kms:eu-north-1:111111111111:key/" + arnSuffix,
 			},
 			"name":      name,
 			"namespace": namespace,
@@ -66,8 +66,31 @@ func KMSKeyResource(name, namespace string) *fnv1.Resources {
 		},
 		"status": map[string]interface{}{
 			"atProvider": map[string]interface{}{
-				"arn":    "arn:aws:kms:eu-north-1:111111111111:key/mrk-6c709a49a34940a48025f3bbc412827e",
+				"arn":    "arn:aws:kms:eu-north-1:111111111111:key/" + arnSuffix,
 				"region": "eu-north-1",
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &fnv1.Resources{
+		Items: []*fnv1.Resource{
+			{
+				Resource: resourceStruct,
+			},
+		},
+	}
+}
+
+func Namespace(name, zone string) *fnv1.Resources {
+	resourceStruct, err := structpb.NewStruct(map[string]interface{}{
+		"apiVersion": "v1",
+		"kind":       "Namespace",
+		"metadata": map[string]interface{}{
+			"name": name,
+			"labels": map[string]interface{}{
+				base.TenancyZoneLabel: zone,
 			},
 		},
 	})
@@ -107,7 +130,9 @@ func RunFunctionCases(t *testing.T, serviceFn func() base.GroupService, cases ma
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			f := base.NewFunction(log, serviceFn())
+			service := serviceFn()
+			service.SetLogger(log)
+			f := base.NewFunction(log, service)
 			rsp, err := f.RunFunction(tc.Args.Ctx, tc.Args.Req)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
