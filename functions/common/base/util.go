@@ -210,21 +210,26 @@ func GetCrossplaneReadyStatus(observed *composed.Unstructured) resource.Ready {
 		return defaultCrossplaneReadyStatus(observed)
 	}
 
+	readyStatus := resource.Ready("")
 	for _, condition := range conditions {
 		conditionMap, ok := condition.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		if conditionMap["type"] == "Synced" && conditionMap["status"] == "False" {
+		if conditionMap["type"] == "Synced" && conditionMap["status"] != "True" {
 			return resource.ReadyFalse
 		}
 		if conditionMap["type"] != "Ready" {
 			continue
 		}
 		if conditionMap["status"] == "True" {
-			return resource.ReadyTrue
+			readyStatus = resource.ReadyTrue
+		} else {
+			readyStatus = resource.ReadyFalse
 		}
-		return resource.ReadyFalse
+	}
+	if readyStatus != "" {
+		return readyStatus
 	}
 	return defaultCrossplaneReadyStatus(observed)
 }
