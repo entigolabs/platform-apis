@@ -59,19 +59,20 @@ s3bucket:
     image: ghcr.io/entigolabs/platform-apis-s3bucket
     tag: v0.0.0
 
-kafka:
-  install: false
-  environmentConfig:
-    awsProvider: "crossplane-aws"
-    tags: {}
-  package:
-    image: ghcr.io/entigolabs/platform-apis-kafka
-    tag: v0.0.0
-
 queue:
+  install: false
+  type: kafka
   function:
     image: ghcr.io/entigolabs/platform-apis-queue-fn
     tag: v0.0.0
+
+  kafka:
+    environmentConfig:
+      awsProvider: "crossplane-aws"
+      tags: {}
+    package:
+      image: ghcr.io/entigolabs/platform-apis-kafka
+      tag: v0.0.0
 
 tenancy:
   function:
@@ -93,8 +94,8 @@ zone:
       observerGroups: []
       sourceRepos: ["*"]
       namespaceResourceBlacklist:
-      - group: '*.m.upbound.io'
-        kind: '*'
+        - group: "*.m.upbound.io"
+          kind: "*"
       namespaceResourceWhitelist: []
     cluster: eks
     dataKMSAlias: data
@@ -112,10 +113,10 @@ zone:
     contributorGroups: ["contributor"]
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
-  - group: tenancy.entigo.com
-    kind: Zone
-  - group: eks.aws.upbound.io
-    kind: NodeGroup
+    - group: tenancy.entigo.com
+      kind: Zone
+    - group: eks.aws.upbound.io
+      kind: NodeGroup
 
 networking:
   function:

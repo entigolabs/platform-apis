@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	environmentName = "platform-apis-kafka"
+	environmentName = "platform-apis-queue"
 )
 
 type GroupImpl struct{}
