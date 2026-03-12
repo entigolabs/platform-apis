@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
@@ -11,6 +12,7 @@ import (
 	"github.com/entigolabs/platform-apis/service"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -20,9 +22,14 @@ const (
 )
 
 type GroupImpl struct {
+	log logging.Logger
 }
 
 var _ base.GroupService = &GroupImpl{}
+
+func (g *GroupImpl) SetLogger(log logging.Logger) {
+	g.log = log
+}
 
 func (g *GroupImpl) SkipGeneration(compositeResource *composite.Unstructured) bool {
 	return compositeResource.GetKind() == apis.XRKindZone && compositeResource.GetName() == infralibZone
@@ -31,17 +38,17 @@ func (g *GroupImpl) SkipGeneration(compositeResource *composite.Unstructured) bo
 func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	return map[string]base.ResourceHandler{
 		apis.XRKindZone: {
-			Instantiate: func() runtime.Object { return &v1alpha1.Zone{} },
+			Instantiate: func() client.Object { return &v1alpha1.Zone{} },
 			Generate:    g.generateZone,
 		},
 	}
 }
 
-func (g *GroupImpl) generateZone(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generateZone(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed)
 }
 
-func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
+func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 	switch object.GetObjectKind().GroupVersionKind().Kind {
 	case apis.XRKindZone:
 		return base.NewSequence(true, []string{"namespace-.*", "launchtemplate-.*", "kyverno-mutate-.*"}, []string{"netpol-.*", "role-.*", "sidecar-.*", "kyverno-validate-.*"},
@@ -69,7 +76,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 				Kind:       "Namespace",
 				ApiVersion: "v1",
 				Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{
-					service.ZoneAnnotation: zone.Name,
+					base.TenancyZoneLabel: zone.Name,
 				}}},
 			},
 		}

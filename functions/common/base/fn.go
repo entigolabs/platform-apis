@@ -17,6 +17,7 @@ import (
 	"github.com/crossplane/function-sdk-go/response"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Function composes entigo resources.
@@ -127,8 +128,15 @@ func (f *Function) addRequiredResources(rsp *fnv1.RunFunctionResponse, composite
 	if err != nil {
 		return err
 	}
-	if len(resources) == 0 {
+	namespace := composite.Resource.GetNamespace()
+	if len(resources) == 0 && namespace == "" {
 		return nil
+	}
+	if resources == nil {
+		resources = make(map[string]*fnv1.ResourceSelector)
+	}
+	if namespace != "" {
+		resources[NamespaceKey] = RequiredNamespace(namespace)
 	}
 	rsp.Requirements = &fnv1.Requirements{
 		Resources: resources,
@@ -155,7 +163,13 @@ func (f *Function) addDesiredComposedResources(
 	if err != nil {
 		return err
 	}
-	processedNames, err := f.addDesiredSequenceResources(object, observed, desired, allGeneratedObjects)
+	var zone string
+	if compositeResource.Resource.GetNamespace() != "" {
+		zone = GetTenancyZone(requiredResources, f.log)
+	} else if compositeResource.Resource.GetKind() == "Zone" && compositeResource.Resource.GroupVersionKind().Group == "tenancy.entigo.com" {
+		zone = compositeResource.Resource.GetName()
+	}
+	processedNames, err := f.addDesiredSequenceResources(object, observed, desired, allGeneratedObjects, zone)
 	if err != nil {
 		return err
 	}
@@ -163,7 +177,7 @@ func (f *Function) addDesiredComposedResources(
 		if processedNames[name] {
 			continue
 		}
-		if err := f.addDesiredResource(desired, name, obj, observed); err != nil {
+		if err := f.addDesiredResource(desired, name, obj, observed, zone); err != nil {
 			return fmt.Errorf("cannot add non-sequenced desired resource %s: %w", name, err)
 		}
 	}
@@ -171,10 +185,11 @@ func (f *Function) addDesiredComposedResources(
 }
 
 func (f *Function) addDesiredSequenceResources(
-	object runtime.Object,
+	object client.Object,
 	observed map[resource.Name]resource.ObservedComposed,
 	desired map[resource.Name]*resource.DesiredComposed,
-	allGeneratedObjects map[string]runtime.Object,
+	allGeneratedObjects map[string]client.Object,
+	zone string,
 ) (Set[string], error) {
 	processedNames := NewSet[string]()
 	previousStepIsReady := true
@@ -198,7 +213,7 @@ func (f *Function) addDesiredSequenceResources(
 				currentStepAllReady = false
 				continue
 			}
-			if err = f.addDesiredResource(desired, name, obj, observed); err != nil {
+			if err = f.addDesiredResource(desired, name, obj, observed, zone); err != nil {
 				return nil, fmt.Errorf("cannot add desired resource %s: %w", name, err)
 			}
 			if desired[resource.Name(name)].Ready != resource.ReadyTrue {
@@ -210,7 +225,7 @@ func (f *Function) addDesiredSequenceResources(
 	return processedNames, nil
 }
 
-func getStepResourceNames(step Step, isRegex bool, allGeneratedObjects map[string]runtime.Object) (Set[string], error) {
+func getStepResourceNames(step Step, isRegex bool, allGeneratedObjects map[string]client.Object) (Set[string], error) {
 	currentStepResources := NewSet[string]()
 	for _, nameOrPattern := range step.Objects {
 		if !isRegex {
@@ -240,7 +255,7 @@ func getPatternRegex(pattern string) (*regexp.Regexp, error) {
 	return regexp.Compile(pattern)
 }
 
-func (f *Function) addDesiredResource(desired map[resource.Name]*resource.DesiredComposed, name string, obj runtime.Object, observed map[resource.Name]resource.ObservedComposed) error {
+func (f *Function) addDesiredResource(desired map[resource.Name]*resource.DesiredComposed, name string, obj client.Object, observed map[resource.Name]resource.ObservedComposed, zone string) error {
 	ready := resource.ReadyUnspecified
 	if observedResource, ok := observed[resource.Name(name)]; ok {
 		ready = f.getReadyStatus(observedResource.Resource)
@@ -250,12 +265,49 @@ func (f *Function) addDesiredResource(desired map[resource.Name]*resource.Desire
 	if err != nil {
 		return fmt.Errorf("cannot convert object to unstructured: %w", err)
 	}
+	err = f.injectZone(obj, unstructuredObject, zone)
+	if err != nil {
+		return err
+	}
 
 	desired[resource.Name(name)] = &resource.DesiredComposed{
 		Resource: &composed.Unstructured{
 			Unstructured: *unstructuredObject,
 		},
 		Ready: ready,
+	}
+	return nil
+}
+
+func (f *Function) injectZone(obj client.Object, unstructuredObject *unstructured.Unstructured, zone string) error {
+	if zone == "" {
+		return nil
+	}
+	labels := unstructuredObject.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[TenancyZoneLabel] = zone
+	unstructuredObject.SetLabels(labels)
+	if obj.GetObjectKind().GroupVersionKind().Kind == "NodeGroup" {
+		fmt.Println("Here")
+	}
+	if !supportsField(obj, "spec", "forProvider", "tags") {
+		return nil
+	}
+	tags, _, err := unstructured.NestedMap(unstructuredObject.Object, "spec", "forProvider", "tags")
+	if err != nil {
+		f.log.Info("Cannot get tags from object to set tenancy zone tag", "gvk",
+			unstructuredObject.GetObjectKind().GroupVersionKind(), "name", unstructuredObject.GetName(), "error", err)
+		return nil
+	}
+	if tags == nil {
+		tags = make(map[string]interface{})
+	}
+	tags[TenancyZoneAWSTag] = zone
+	if err := unstructured.SetNestedMap(unstructuredObject.Object, tags, "spec", "forProvider", "tags"); err != nil {
+		return fmt.Errorf("cannot set tenancy zone tag for %s %s %w",
+			unstructuredObject.GetObjectKind().GroupVersionKind(), unstructuredObject.GetName(), err)
 	}
 	return nil
 }

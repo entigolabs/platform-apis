@@ -3,13 +3,13 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"maps"
 	"strings"
 
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
@@ -21,20 +21,19 @@ import (
 	smv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/secretsmanager/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	EKSKey       = "EKS"
 	KMSDataKey   = "KMSDataKey"
 	KMSConfigKey = "KMSConfigKey"
-	NamespaceKey = "Namespace"
 
 	AnnotationServiceAccount = "storage.entigo.com/service-account-name"
-	TenancyZoneLabel         = "tenancy.entigo.com/zone"
 )
 
 type s3BucketGenerator struct {
+	log logging.Logger
 	// Inputs
 	bucket   v1alpha1.S3Bucket
 	observed map[resource.Name]resource.ObservedComposed
@@ -43,7 +42,6 @@ type s3BucketGenerator struct {
 	cluster      eksmv1beta1.Cluster
 	kmsDataKey   kmsmv1beta1.Key
 	kmsConfigKey kmsmv1beta1.Key
-	namespace    corev1.Namespace
 	// Derived values
 	bucketName         string
 	serviceAccountName string
@@ -59,8 +57,9 @@ func GenerateS3BucketObjects(
 	bucket v1alpha1.S3Bucket,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
-) (map[string]runtime.Object, error) {
-	g, err := newS3BucketGenerator(bucket, required, observed)
+	log logging.Logger,
+) (map[string]client.Object, error) {
+	g, err := newS3BucketGenerator(bucket, required, observed, log)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +70,7 @@ func newS3BucketGenerator(
 	bucket v1alpha1.S3Bucket,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
+	log logging.Logger,
 ) (*s3BucketGenerator, error) {
 	env, err := GetEnvironment(required)
 	if err != nil {
@@ -92,19 +92,15 @@ func newS3BucketGenerator(
 		return nil, err
 	}
 
-	var ns corev1.Namespace
-	if err := base.ExtractRequiredResource(required, NamespaceKey, &ns); err != nil {
-		log.Printf("Namespace not found, tenancy zone label will not be set: %v", err)
-	}
-
 	g := &s3BucketGenerator{
+		log:          log,
 		bucket:       bucket,
 		observed:     observed,
 		env:          env,
 		cluster:      cluster,
 		kmsDataKey:   kmsDataKey,
 		kmsConfigKey: kmsConfigKey,
-		namespace:    ns,
+		tenancyZone:  base.GetTenancyZone(required, log),
 	}
 
 	g.computeDerivedValues()
@@ -117,10 +113,6 @@ func (g *s3BucketGenerator) computeDerivedValues() {
 	g.serviceAccountName = g.bucket.Spec.ServiceAccountName
 	if g.serviceAccountName == "" {
 		g.serviceAccountName = g.bucketName
-	}
-
-	if g.namespace.Labels != nil {
-		g.tenancyZone = g.namespace.Labels[TenancyZoneLabel]
 	}
 
 	// Extract OIDC issuer from cluster identity
@@ -151,8 +143,8 @@ func (g *s3BucketGenerator) computeDerivedValues() {
 	}
 }
 
-func (g *s3BucketGenerator) generate() (map[string]runtime.Object, error) {
-	objects := make(map[string]runtime.Object)
+func (g *s3BucketGenerator) generate() (map[string]client.Object, error) {
+	objects := make(map[string]client.Object)
 
 	g.buildBucketResources(objects)
 	g.buildIAMResources(objects)
@@ -174,25 +166,20 @@ func (g *s3BucketGenerator) providerConfigRef() *xpvcommon.ProviderConfigReferen
 func (g *s3BucketGenerator) buildTags() map[string]*string {
 	tags := make(map[string]*string)
 	maps.Copy(tags, g.env.Tags)
-	tags["Name"] = base.StringPtr(g.bucketName)
+	tags["Name"] = &g.bucketName
 	return tags
 }
 
 func (g *s3BucketGenerator) buildBucketTags() map[string]*string {
 	tags := g.buildTags()
 	if g.tenancyZone != "" {
-		tags[TenancyZoneLabel] = base.StringPtr(g.tenancyZone)
+		tags[base.TenancyZoneLabel] = base.StringPtr(g.tenancyZone)
 	}
 	return tags
 }
 
-func (g *s3BucketGenerator) buildBucketResources(objects map[string]runtime.Object) {
+func (g *s3BucketGenerator) buildBucketResources(objects map[string]client.Object) {
 	tags := g.buildBucketTags()
-
-	var labels map[string]string
-	if g.tenancyZone != "" {
-		labels = map[string]string{TenancyZoneLabel: g.tenancyZone}
-	}
 
 	// Bucket
 	objects["bucket"] = &s3v1beta1.Bucket{
@@ -203,7 +190,6 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]runtime.Obje
 			Annotations: map[string]string{
 				AnnotationServiceAccount: g.serviceAccountName,
 			},
-			Labels: labels,
 		},
 		Spec: s3v1beta1.BucketSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
@@ -296,7 +282,7 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]runtime.Obje
 	}
 }
 
-func (g *s3BucketGenerator) buildIAMResources(objects map[string]runtime.Object) {
+func (g *s3BucketGenerator) buildIAMResources(objects map[string]client.Object) {
 	tags := g.buildTags()
 
 	// IAM User
@@ -382,7 +368,7 @@ func (g *s3BucketGenerator) buildIAMResources(objects map[string]runtime.Object)
 	}
 }
 
-func (g *s3BucketGenerator) buildSecretsManagerResources(objects map[string]runtime.Object) {
+func (g *s3BucketGenerator) buildSecretsManagerResources(objects map[string]client.Object) {
 	tags := make(map[string]*string)
 	maps.Copy(tags, g.env.Tags)
 	tags["Name"] = base.StringPtr(g.bucketName + "-credentials")
@@ -429,7 +415,7 @@ func (g *s3BucketGenerator) buildSecretsManagerResources(objects map[string]runt
 	}
 }
 
-func (g *s3BucketGenerator) buildServiceAccount(objects map[string]runtime.Object) {
+func (g *s3BucketGenerator) buildServiceAccount(objects map[string]client.Object) {
 	objects["service-account"] = &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -445,7 +431,7 @@ func (g *s3BucketGenerator) buildServiceAccount(objects map[string]runtime.Objec
 	}
 }
 
-func (g *s3BucketGenerator) buildCredentialsSecret(objects map[string]runtime.Object) {
+func (g *s3BucketGenerator) buildCredentialsSecret(objects map[string]client.Object) {
 	akObserved, akOk := g.observed["iam-access-key"]
 	bucketObserved, bOk := g.observed["bucket"]
 	if !akOk || !bOk {
@@ -469,11 +455,11 @@ func (g *s3BucketGenerator) buildCredentialsSecret(objects map[string]runtime.Ob
 
 	credJSON := fmt.Sprintf(
 		`{"AWS_ACCESS_KEY_ID": %s, "AWS_SECRET_ACCESS_KEY": %s, "BUCKET_REGION": %s, "BUCKET_ARN": %s, "BUCKET_NAME": %s}`,
-		mustJSONString(accessKeyID),
-		mustJSONString(secretAccessKey),
-		mustJSONString(bucketRegion),
-		mustJSONString(bucketArn),
-		mustJSONString(bucketNameVal),
+		g.mustJSONString(accessKeyID),
+		g.mustJSONString(secretAccessKey),
+		g.mustJSONString(bucketRegion),
+		g.mustJSONString(bucketArn),
+		g.mustJSONString(bucketNameVal),
 	)
 
 	objects["credentials"] = &corev1.Secret{
@@ -560,10 +546,10 @@ func (g *s3BucketGenerator) buildAssumeRolePolicy() string {
 	return string(b)
 }
 
-func mustJSONString(s string) string {
+func (g *s3BucketGenerator) mustJSONString(s string) string {
 	b, err := json.Marshal(s)
 	if err != nil {
-		log.Printf("mustJSONString: failed to marshal string: %v", err)
+		g.log.Info("mustJSONString: failed to marshal string:", "err", err)
 		return ""
 	}
 	return string(b)

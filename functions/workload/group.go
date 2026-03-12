@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
@@ -10,7 +11,7 @@ import (
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -18,9 +19,14 @@ const (
 )
 
 type GroupImpl struct {
+	log logging.Logger
 }
 
 var _ base.GroupService = &GroupImpl{}
+
+func (g *GroupImpl) SetLogger(log logging.Logger) {
+	g.log = log
+}
 
 func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
 	return false
@@ -29,32 +35,32 @@ func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
 func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	return map[string]base.ResourceHandler{
 		apis.XRKindWebApp: {
-			Instantiate: func() runtime.Object { return &v1alpha1.WebApp{} },
+			Instantiate: func() client.Object { return &v1alpha1.WebApp{} },
 			Generate:    g.generateWebApp,
 		},
 		apis.XRKindCronJob: {
-			Instantiate: func() runtime.Object { return &v1alpha1.CronJob{} },
+			Instantiate: func() client.Object { return &v1alpha1.CronJob{} },
 			Generate:    g.generateCronJob,
 		},
 	}
 }
 
-func (g *GroupImpl) generateWebApp(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generateWebApp(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	webapp := obj.(*v1alpha1.WebApp)
 	err := addWorkloadSpecValues(webapp, required)
 	if err != nil {
 		return nil, err
 	}
-	return service.GenerateWebAppObjects(*webapp), nil
+	return service.GenerateWebAppObjects(*webapp, g.getCommonLabels(required)), nil
 }
 
-func (g *GroupImpl) generateCronJob(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generateCronJob(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	cronjob := obj.(*v1alpha1.CronJob)
 	err := addWorkloadSpecValues(cronjob, required)
 	if err != nil {
 		return nil, err
 	}
-	return service.GenerateCronJobObjects(*cronjob), nil
+	return service.GenerateCronJobObjects(*cronjob, g.getCommonLabels(required)), nil
 }
 
 func addWorkloadSpecValues(workload v1alpha1.Workload, required map[string][]resource.Required) error {
@@ -71,7 +77,11 @@ func addWorkloadSpecValues(workload v1alpha1.Workload, required map[string][]res
 	return nil
 }
 
-func (g *GroupImpl) GetSequence(_ runtime.Object) base.Sequence {
+func (g *GroupImpl) getCommonLabels(required map[string][]resource.Required) map[string]string {
+	return base.GetTenancyLabels(base.GetTenancyZone(required, g.log))
+}
+
+func (g *GroupImpl) GetSequence(_ client.Object) base.Sequence {
 	return base.Sequence{}
 }
 

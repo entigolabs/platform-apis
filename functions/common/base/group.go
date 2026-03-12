@@ -1,11 +1,12 @@
 package base
 
 import (
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/crossplane/function-sdk-go/resource/composite"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -17,11 +18,14 @@ const (
 	EnvironmentApiVersion = "apiextensions.crossplane.io/v1beta1"
 	KMSKeyKind            = "Key"
 	KMSKeyApiVersion      = "kms.aws.m.upbound.io/v1beta1"
+	NamespaceKey          = "Namespace"
+	TenancyZoneLabel      = "tenancy.entigo.com/zone"
+	TenancyZoneAWSTag     = "entigo:zone"
 )
 
 type ResourceHandler struct {
-	Instantiate func() runtime.Object
-	Generate    func(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error)
+	Instantiate func() client.Object
+	Generate    func(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error)
 }
 
 type Sequence struct {
@@ -46,10 +50,11 @@ func NewSequence(regex bool, stepObjects ...[]string) Sequence {
 }
 
 type GroupService interface {
+	SetLogger(log logging.Logger)
 	SkipGeneration(compositeResource *composite.Unstructured) bool
 	GetResourceHandlers() map[string]ResourceHandler
 	// GetSequence Objects not listed in the sequence are created during the first step.
-	GetSequence(object runtime.Object) Sequence
+	GetSequence(object client.Object) Sequence
 	GetReadyStatus(observed *composed.Unstructured) resource.Ready
 	GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error)
 	GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error)
