@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
@@ -12,20 +13,27 @@ import (
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
-	ec2mv1beta1 "github.com/upbound/provider-aws/apis/namespaced/ec2/v1beta1"
-	elasticachemv1beta1 "github.com/upbound/provider-aws/apis/namespaced/elasticache/v1beta1"
-	rdsmv1beta1 "github.com/upbound/provider-aws/apis/namespaced/rds/v1beta1"
+	ec2mv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/ec2/v1beta1"
+	elasticachemv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/elasticache/v1beta1"
+	rdsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/rds/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	environmentName = "platform-apis-database"
 )
 
-type GroupImpl struct{}
+type GroupImpl struct {
+	log logging.Logger
+}
 
 var _ base.GroupService = &GroupImpl{}
+
+func (g *GroupImpl) SetLogger(log logging.Logger) {
+	g.log = log
+}
 
 func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
 	return false
@@ -34,41 +42,41 @@ func (g *GroupImpl) SkipGeneration(_ *composite.Unstructured) bool {
 func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	return map[string]base.ResourceHandler{
 		apis.XRKindPostgreSQL: {
-			Instantiate: func() runtime.Object { return &v1alpha1.PostgreSQLInstance{} },
+			Instantiate: func() client.Object { return &v1alpha1.PostgreSQLInstance{} },
 			Generate:    g.generatePostgreSQL,
 		},
 		apis.XRKindValkey: {
-			Instantiate: func() runtime.Object { return &v1alpha1.ValkeyInstance{} },
+			Instantiate: func() client.Object { return &v1alpha1.ValkeyInstance{} },
 			Generate:    g.generateValkeyInstance,
 		},
 		apis.XRKindPostgreSQLUser: {
-			Instantiate: func() runtime.Object { return &v1alpha1.PostgreSQLUser{} },
+			Instantiate: func() client.Object { return &v1alpha1.PostgreSQLUser{} },
 			Generate:    g.generatePostgreSQLUser,
 		},
 		apis.XRKindPostgreSQLDatabase: {
-			Instantiate: func() runtime.Object { return &v1alpha1.PostgreSQLDatabase{} },
+			Instantiate: func() client.Object { return &v1alpha1.PostgreSQLDatabase{} },
 			Generate:    g.generatePostgreSQLDatabase,
 		},
 	}
 }
 
-func (g *GroupImpl) generatePostgreSQL(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generatePostgreSQL(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	return service.GeneratePgInstanceObjects(*obj.(*v1alpha1.PostgreSQLInstance), required, observed)
 }
 
-func (g *GroupImpl) generateValkeyInstance(obj runtime.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generateValkeyInstance(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	return service.GenerateValkeyInstanceObjects(*obj.(*v1alpha1.ValkeyInstance), required, observed)
 }
 
-func (g *GroupImpl) generatePostgreSQLUser(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generatePostgreSQLUser(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	return service.GeneratePgUserObjects(*obj.(*v1alpha1.PostgreSQLUser), required)
 }
 
-func (g *GroupImpl) generatePostgreSQLDatabase(obj runtime.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]runtime.Object, error) {
+func (g *GroupImpl) generatePostgreSQLDatabase(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	return service.GeneratePgDatabaseObjects(*obj.(*v1alpha1.PostgreSQLDatabase), required)
 }
 
-func (g *GroupImpl) GetSequence(object runtime.Object) base.Sequence {
+func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 	switch object.GetObjectKind().GroupVersionKind().Kind {
 	case apis.XRKindPostgreSQLUser:
 		return base.NewSequence(true,

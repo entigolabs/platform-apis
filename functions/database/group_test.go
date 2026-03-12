@@ -10,12 +10,10 @@ import (
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/response"
@@ -30,24 +28,18 @@ const (
 		"metadata": {"annotations": {"crossplane.io/external-name": "vpc-01cda48a237c4850f"}, "name": "test-net-vpc", "namespace":"aws-provider"},
 		"spec": {"forProvider": {"region": "eu-north-1"}}
 	}`
-	requiredKMSDataKeyJson = `{"apiVersion":"kms.aws.m.upbound.io/v1beta1","kind":"Key",
-		"metadata":{"annotations":{"crossplane.io/external-name":"arn:aws:kms:eu-north-1:111111111111:key/mrk-6c709a49a34940a48025f3bbc412827e"},"name":"data", "namespace":"aws-provider"}
-	}`
-	requiredKMSConfigKeyJson = `{"apiVersion":"kms.aws.m.upbound.io/v1beta1","kind":"Key",
-		"metadata":{"annotations":{"crossplane.io/external-name":"arn:aws:kms:eu-north-1:222222222222:key/mrk-6c709a49a34940a48025f3bbc412827e"},"name":"config", "namespace":"aws-provider"}
-	}`
 	requiredDBSubnetGroupJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"SubnetGroup",
 		"metadata":{"annotations":{"crossplane.io/external-name":"test-net-vpc"},"name":"test-net-vpc", "namespace":"aws-provider"}
 	}`
 	postgresInputJson           = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "PostgreSQLInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"engineVersion": "17.2","instanceType": "db.t3.micro"}}`
 	postgresSnapshotInputJson   = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "PostgreSQLInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"engineVersion": "17.2","instanceType": "db.t3.micro","snapshotIdentifier":"rds:test-snapshot-id"}}`
-	sgResJson                   = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"description":"allow traffic from vpc","region":"eu-north-1","tags":{"Name":"%s"}, "vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	ingressResJson              = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":5432,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":5432,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	egressResJson               = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":0,"protocol":"-1","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":0,"type":"egress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	instanceResJson             = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
-	instanceWithSnapshotResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"snapshotIdentifier":"rds:test-snapshot-id","storageEncrypted":true,"storageType":"gp3","username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
-	esResJson                   = `{"apiVersion":"external-secrets.io/v1","kind":"ExternalSecret","metadata":{"name":"%s","namespace":"testspace"},"spec":{"data":[{"remoteRef":{"key":"arn:aws:secretsmanager:eu-north-1:123456789012:secret:test-db-secret-xyz","property":"password","version":"AWSCURRENT"},"secretKey":"password"}],"refreshInterval":"15m0s","refreshPolicy":"Periodic","secretStoreRef":{"kind":"ClusterSecretStore","name":"external-secrets"},"target":{"creationPolicy":"Owner","deletionPolicy":"Delete","name":"%s", "template":{"metadata":{},"data":{"endpoint":"test.rds.amazonaws.com","password":"{{ .password | toString }}","port":"5432","username":"dbadmin"}}}},"status":{"binding":{},"refreshTime":null}}`
-	providerConfigJson          = `{"apiVersion":"postgresql.sql.m.crossplane.io/v1alpha1","kind":"ProviderConfig","metadata":{"name":"%s","namespace":"testspace"},"spec":{"credentials":{"connectionSecretRef":{"name":"test-db-dbadmin"},"source":"PostgreSQLConnectionSecret"},"sslMode":"require"},"status":{}}`
+	sgResJson                   = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"description":"allow traffic from vpc","region":"eu-north-1","tags":{"Name":"%s","entigo:zone":"zone-a"}, "vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	ingressResJson              = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":5432,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":5432,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	egressResJson               = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":0,"protocol":"-1","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":0,"type":"egress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	instanceResJson             = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	instanceWithSnapshotResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"snapshotIdentifier":"rds:test-snapshot-id","storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	esResJson                   = `{"apiVersion":"external-secrets.io/v1","kind":"ExternalSecret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"data":[{"remoteRef":{"key":"arn:aws:secretsmanager:eu-north-1:123456789012:secret:test-db-secret-xyz","property":"password","version":"AWSCURRENT"},"secretKey":"password"}],"refreshInterval":"15m0s","refreshPolicy":"Periodic","secretStoreRef":{"kind":"ClusterSecretStore","name":"external-secrets"},"target":{"creationPolicy":"Owner","deletionPolicy":"Delete","name":"%s", "template":{"metadata":{},"data":{"endpoint":"test.rds.amazonaws.com","password":"{{ .password | toString }}","port":"5432","username":"dbadmin"}}}},"status":{"binding":{},"refreshTime":null}}`
+	providerConfigJson          = `{"apiVersion":"postgresql.sql.m.crossplane.io/v1alpha1","kind":"ProviderConfig","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"credentials":{"connectionSecretRef":{"name":"test-db-dbadmin"},"source":"PostgreSQLConnectionSecret"},"sslMode":"require"},"status":{}}`
 )
 
 func withReadyStatus(jsonStr string) *fnv1.Resource {
@@ -103,18 +95,11 @@ func withReadyStatus(jsonStr string) *fnv1.Resource {
 }
 
 func TestDatabaseFunction(t *testing.T) {
-	type compositeResource struct {
-		Spec     v1alpha1.PostgreSQLInstanceSpec `json:"spec"`
-		Metadata struct {
-			UID types.UID `json:"uid"`
-		} `json:"metadata"`
-	}
-
-	var cr compositeResource
+	var cr v1alpha1.PostgreSQLInstance
 	if err := json.Unmarshal([]byte(postgresInputJson), &cr); err != nil {
 		t.Fatalf("Failed to unmarshal test composite resource: %v", err)
 	}
-	setHash := base.GenerateFNVHash(cr.Metadata.UID)
+	setHash := base.GenerateFNVHash(cr.UID)
 
 	environmentData := map[string]interface{}{
 		"awsProvider":            "aws-provider",
@@ -142,7 +127,7 @@ func TestDatabaseFunction(t *testing.T) {
 	esName := service.GetESName(pgInstanceName, setHash)
 	pcName := service.GetPCName(pgInstanceName)
 	secretName := "test-db-dbadmin"
-	secretNs := "testspace"
+	ns := "testspace"
 	reqResNs := "aws-provider"
 
 	cases := map[string]test.Case{
@@ -155,9 +140,10 @@ func TestDatabaseFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 						"VPC":               {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
-						"KMSDataKey":        {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
-						"KMSConfigKey":      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
+						"KMSDataKey":        test.KMSKeyResource("data", reqResNs, "mrk-data123"),
+						"KMSConfigKey":      test.KMSKeyResource("config", reqResNs, "mrk-config456"),
 						"DBSubnetGroup":     {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredDBSubnetGroupJson)}}},
 						"Secret":            {Items: []*fnv1.Resource{}},
 					},
@@ -176,11 +162,12 @@ func TestDatabaseFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace(ns),
 							"VPC":               {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"KMSDataKey":        {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
-							"KMSConfigKey":      {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "config"}},
+							"KMSDataKey":        base.RequiredKMSKey(environmentData["dataKMSKey"].(string), reqResNs),
+							"KMSConfigKey":      base.RequiredKMSKey(environmentData["configKMSKey"].(string), reqResNs),
 							"DBSubnetGroup":     {Kind: "SubnetGroup", ApiVersion: "rds.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &secretNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
+							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
 						},
 					},
 				},
@@ -202,9 +189,10 @@ func TestDatabaseFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 						"VPC":               {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
-						"KMSDataKey":        {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
-						"KMSConfigKey":      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
+						"KMSDataKey":        test.KMSKeyResource("data", reqResNs, "mrk-data123"),
+						"KMSConfigKey":      test.KMSKeyResource("config", reqResNs, "mrk-config456"),
 						"DBSubnetGroup":     {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredDBSubnetGroupJson)}}},
 						"Secret":            {Items: []*fnv1.Resource{}},
 					},
@@ -224,11 +212,12 @@ func TestDatabaseFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace(ns),
 							"VPC":               {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"KMSDataKey":        {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
-							"KMSConfigKey":      {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "config"}},
+							"KMSDataKey":        base.RequiredKMSKey(environmentData["dataKMSKey"].(string), reqResNs),
+							"KMSConfigKey":      base.RequiredKMSKey(environmentData["configKMSKey"].(string), reqResNs),
 							"DBSubnetGroup":     {Kind: "SubnetGroup", ApiVersion: "rds.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &secretNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
+							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
 						},
 					},
 				},
@@ -246,14 +235,15 @@ func TestDatabaseFunction(t *testing.T) {
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
-							instanceName:  withReadyStatus(fmt.Sprintf(`{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"creationTimestamp":null,"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`, instanceName, snapshotName, instanceName, sgName)),
+							instanceName:  withReadyStatus(fmt.Sprintf(`{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"creationTimestamp":null,"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`, instanceName, snapshotName, instanceName, sgName)),
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 						"VPC":               {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
-						"KMSDataKey":        {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
-						"KMSConfigKey":      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
+						"KMSDataKey":        test.KMSKeyResource("data", reqResNs, "mrk-data123"),
+						"KMSConfigKey":      test.KMSKeyResource("config", reqResNs, "mrk-config456"),
 						"DBSubnetGroup":     {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredDBSubnetGroupJson)}}},
 						"Secret":            {Items: []*fnv1.Resource{}},
 					},
@@ -268,7 +258,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
-							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`, instanceName, snapshotName, instanceName, sgName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`, instanceName, snapshotName, instanceName, sgName)), Ready: 1},
 							esName:        {Resource: resource.MustStructJSON(fmt.Sprintf(esResJson, esName, secretName))},
 							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName))},
 						},
@@ -276,11 +266,12 @@ func TestDatabaseFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace(ns),
 							"VPC":               {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"KMSDataKey":        {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
-							"KMSConfigKey":      {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "config"}},
+							"KMSDataKey":        base.RequiredKMSKey(environmentData["dataKMSKey"].(string), reqResNs),
+							"KMSConfigKey":      base.RequiredKMSKey(environmentData["configKMSKey"].(string), reqResNs),
 							"DBSubnetGroup":     {Kind: "SubnetGroup", ApiVersion: "rds.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &secretNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
+							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
 						},
 					},
 				},
@@ -305,9 +296,10 @@ func TestDatabaseFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 						"VPC":               {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
-						"KMSDataKey":        {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
-						"KMSConfigKey":      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
+						"KMSDataKey":        test.KMSKeyResource("data", reqResNs, "mrk-data123"),
+						"KMSConfigKey":      test.KMSKeyResource("config", reqResNs, "mrk-config456"),
 						"DBSubnetGroup":     {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredDBSubnetGroupJson)}}},
 						"Secret":            {Items: []*fnv1.Resource{}},
 					},
@@ -332,11 +324,12 @@ func TestDatabaseFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace(ns),
 							"VPC":               {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"KMSDataKey":        {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
-							"KMSConfigKey":      {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "config"}},
+							"KMSDataKey":        base.RequiredKMSKey(environmentData["dataKMSKey"].(string), reqResNs),
+							"KMSConfigKey":      base.RequiredKMSKey(environmentData["configKMSKey"].(string), reqResNs),
 							"DBSubnetGroup":     {Kind: "SubnetGroup", ApiVersion: "rds.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &secretNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
+							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
 						},
 					},
 				},
@@ -360,9 +353,10 @@ func TestDatabaseFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, optEnvironmentData),
+						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 						"VPC":               {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
-						"KMSDataKey":        {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
-						"KMSConfigKey":      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
+						"KMSDataKey":        test.KMSKeyResource("data", reqResNs, "mrk-data123"),
+						"KMSConfigKey":      test.KMSKeyResource("config", reqResNs, "mrk-config456"),
 						"DBSubnetGroup":     {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredDBSubnetGroupJson)}}},
 						"Secret":            {Items: []*fnv1.Resource{}},
 					},
@@ -380,7 +374,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							instanceName: {Resource: resource.MustStructJSON(`
-{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"test-db-instance-811c9dc5","namespace":"testspace"},"spec":{"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"test-db-instance-snapshot-811c9dc5","identifier":"test-db-instance-811c9dc5","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"env":"test-environment"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"test-db-sg-811c9dc5"}]},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
+{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-db-instance-811c9dc5","namespace":"testspace"},"spec":{"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"test-db-instance-snapshot-811c9dc5","identifier":"test-db-instance-811c9dc5","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"env":"test-environment","entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"test-db-sg-811c9dc5"}]},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
 							`), Ready: 1},
 							esName: {Resource: resource.MustStructJSON(fmt.Sprintf(esResJson, esName, secretName)), Ready: 1},
 							pcName: {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName))},
@@ -389,11 +383,12 @@ func TestDatabaseFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace(ns),
 							"VPC":               {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"KMSDataKey":        {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
-							"KMSConfigKey":      {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "config"}},
+							"KMSDataKey":        base.RequiredKMSKey(environmentData["dataKMSKey"].(string), reqResNs),
+							"KMSConfigKey":      base.RequiredKMSKey(environmentData["configKMSKey"].(string), reqResNs),
 							"DBSubnetGroup":     {Kind: "SubnetGroup", ApiVersion: "rds.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &secretNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
+							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
 						},
 					},
 				},
@@ -415,9 +410,10 @@ func TestDatabaseFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 						"VPC":               {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
-						"KMSDataKey":        {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
-						"KMSConfigKey":      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
+						"KMSDataKey":        test.KMSKeyResource("data", reqResNs, "mrk-data123"),
+						"KMSConfigKey":      test.KMSKeyResource("config", reqResNs, "mrk-config456"),
 						"DBSubnetGroup":     {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredDBSubnetGroupJson)}}},
 						"Secret":            {Items: []*fnv1.Resource{}},
 					},
@@ -437,11 +433,12 @@ func TestDatabaseFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace(ns),
 							"VPC":               {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"KMSDataKey":        {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
-							"KMSConfigKey":      {Kind: "Key", ApiVersion: "kms.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "config"}},
+							"KMSDataKey":        base.RequiredKMSKey(environmentData["dataKMSKey"].(string), reqResNs),
+							"KMSConfigKey":      base.RequiredKMSKey(environmentData["configKMSKey"].(string), reqResNs),
 							"DBSubnetGroup":     {Kind: "SubnetGroup", ApiVersion: "rds.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
-							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &secretNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
+							"Secret":            {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
 						},
 					},
 				},
@@ -528,8 +525,8 @@ func TestAddDBInstanceStatus(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			service := &GroupImpl{}
-			got, err := service.GetObservedStatus(tc.observed["db-instance-test"].Resource)
+			groupService := &GroupImpl{}
+			got, err := groupService.GetObservedStatus(tc.observed["db-instance-test"].Resource)
 			if err != nil {
 				t.Errorf("AllStatusFieldsProperlyPopulated() = function getCompositeResourceStatus returned err")
 			}
@@ -592,8 +589,8 @@ func TestInstanceGetReadyStatus(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			service := &GroupImpl{}
-			if got := service.GetReadyStatus(tc.observed); !cmp.Equal(got, tc.want, cmpopts.EquateEmpty()) {
+			groupService := &GroupImpl{}
+			if got := groupService.GetReadyStatus(tc.observed); !cmp.Equal(got, tc.want, cmpopts.EquateEmpty()) {
 				t.Errorf("getReadyStatus() = %v, want %v", got, tc.want)
 			}
 		})
@@ -604,18 +601,15 @@ func TestInstanceGetReadyStatus(t *testing.T) {
 const (
 	valkeyInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"ValkeyInstance","metadata":{"name":"test-valkey","namespace":"testspace"},"spec":{"engineVersion":"8.2","instanceType":"cache.t4g.small","numCacheClusters":2,"autoMinorVersionUpgrade":true,"maintenanceWindow":"sun:05:00-sun:06:00","snapshotWindow":"03:00-05:00","snapshotRetentionLimit":7}}`
 
-	valkeyKMSDataKeyJson   = `{"apiVersion":"kms.aws.m.upbound.io/v1beta1","kind":"Key","metadata":{"name":"data","namespace":"aws-provider"},"status":{"atProvider":{"arn":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data"}}}`
-	valkeyKMSConfigKeyJson = `{"apiVersion":"kms.aws.m.upbound.io/v1beta1","kind":"Key","metadata":{"name":"config","namespace":"aws-provider"},"status":{"atProvider":{"arn":"arn:aws:kms:eu-north-1:222222222222:key/mrk-config"}}}`
-
 	valkeyElasticacheSubnetGroupJson = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"SubnetGroup","metadata":{"name":"test-elasticache-sg","namespace":"aws-provider"},"status":{"atProvider":{"id":"test-elasticache-sg"}}}`
 	valkeyComputeSubnetJson          = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"Subnet","metadata":{"name":"compute-1a","namespace":"aws-provider","labels":{"subnet-type":"compute"}},"status":{"atProvider":{"cidrBlock":"10.0.1.0/24"}}}`
 
-	valkeySGResJson              = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"name":"test-valkey"},"spec":{"forProvider":{"description":"Security group for Valkey test-valkey","region":"eu-north-1","tags":{"Name":"test-valkey"},"vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	valkeySMSecretResJson        = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"Secret","metadata":{"name":"test-valkey-credentials"},"spec":{"forProvider":{"description":"Valkey connection credentials for test-valkey","kmsKeyId":"arn:aws:kms:eu-north-1:222222222222:key/mrk-config","name":"test-valkey-credentials","recoveryWindowInDays":0,"region":"eu-north-1","tags":{"Name":"test-valkey"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	valkeySMSecretVersionResJson = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"SecretVersion","metadata":{"name":"test-valkey-credentials"},"spec":{"forProvider":{"region":"eu-north-1","secretIdRef":{"name":"test-valkey-credentials"},"secretStringSecretRef":{"key":"credentials.json","name":"test-valkey-credentials"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	valkeyRGResJson              = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"name":"test-valkey"},"spec":{"forProvider":{"applyImmediately":true,"atRestEncryptionEnabled":"true","authTokenSecretRef":{"key":"auth-token","name":"test-valkey-auth-token"},"authTokenUpdateStrategy":"SET","autoGenerateAuthToken":true,"autoMinorVersionUpgrade":"true","automaticFailoverEnabled":true,"description":"test-valkey","engine":"valkey","engineVersion":"8.2","finalSnapshotIdentifier":"test-valkey-final-snapshot","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data","maintenanceWindow":"sun:05:00-sun:06:00","multiAzEnabled":true,"nodeType":"cache.t4g.small","numCacheClusters":2,"region":"eu-north-1","securityGroupIdRefs":[{"name":"test-valkey"}],"snapshotRetentionLimit":7,"snapshotWindow":"03:00-05:00","subnetGroupName":"test-elasticache-sg","tags":{"Name":"test-valkey"},"transitEncryptionEnabled":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"test-valkey"}},"status":{"atProvider":{}}}`
-	valkeySGRuleResJson          = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"name":"test-valkey-ingress-compute-1a"},"spec":{"forProvider":{"cidrBlocks":["10.0.1.0/24"],"description":"Allow Valkey access from compute-1a","fromPort":6379,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"test-valkey"},"toPort":6379,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	valkeyCredentialsResJson     = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-valkey-credentials","namespace":"testspace"},"stringData":{"AUTH_TOKEN":"test-auth-token","PORT":"6379","PRIMARY_ENDPOINT":"test-valkey.eun1.cache.amazonaws.com","READER_ENDPOINT":"test-valkey-ro.eun1.cache.amazonaws.com","credentials.json":"{\"AUTH_TOKEN\": \"test-auth-token\", \"PORT\": \"6379\", \"PRIMARY_ENDPOINT\": \"test-valkey.eun1.cache.amazonaws.com\", \"READER_ENDPOINT\": \"test-valkey-ro.eun1.cache.amazonaws.com\"}"},"type":"Opaque"}`
+	valkeySGResJson              = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey"},"spec":{"forProvider":{"description":"Security group for Valkey test-valkey","region":"eu-north-1","tags":{"Name":"test-valkey","entigo:zone":"zone-a"},"vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeySMSecretResJson        = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"Secret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-credentials"},"spec":{"forProvider":{"description":"Valkey connection credentials for test-valkey","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-config456","name":"test-valkey-credentials","recoveryWindowInDays":0,"region":"eu-north-1","tags":{"Name":"test-valkey","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeySMSecretVersionResJson = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"SecretVersion","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-credentials"},"spec":{"forProvider":{"region":"eu-north-1","secretIdRef":{"name":"test-valkey-credentials"},"secretStringSecretRef":{"key":"credentials.json","name":"test-valkey-credentials"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeyRGResJson              = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey"},"spec":{"forProvider":{"applyImmediately":true,"atRestEncryptionEnabled":"true","authTokenSecretRef":{"key":"auth-token","name":"test-valkey-auth-token"},"authTokenUpdateStrategy":"SET","autoGenerateAuthToken":true,"autoMinorVersionUpgrade":"true","automaticFailoverEnabled":true,"description":"test-valkey","engine":"valkey","engineVersion":"8.2","finalSnapshotIdentifier":"test-valkey-final-snapshot","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","maintenanceWindow":"sun:05:00-sun:06:00","multiAzEnabled":true,"nodeType":"cache.t4g.small","numCacheClusters":2,"region":"eu-north-1","securityGroupIdRefs":[{"name":"test-valkey"}],"snapshotRetentionLimit":7,"snapshotWindow":"03:00-05:00","subnetGroupName":"test-elasticache-sg","tags":{"Name":"test-valkey","entigo:zone":"zone-a"},"transitEncryptionEnabled":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"test-valkey"}},"status":{"atProvider":{}}}`
+	valkeySGRuleResJson          = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-ingress-compute-1a"},"spec":{"forProvider":{"cidrBlocks":["10.0.1.0/24"],"description":"Allow Valkey access from compute-1a","fromPort":6379,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"test-valkey"},"toPort":6379,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeyCredentialsResJson     = `{"apiVersion":"v1","kind":"Secret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-credentials","namespace":"testspace"},"stringData":{"AUTH_TOKEN":"test-auth-token","PORT":"6379","PRIMARY_ENDPOINT":"test-valkey.eun1.cache.amazonaws.com","READER_ENDPOINT":"test-valkey-ro.eun1.cache.amazonaws.com","credentials.json":"{\"AUTH_TOKEN\": \"test-auth-token\", \"PORT\": \"6379\", \"PRIMARY_ENDPOINT\": \"test-valkey.eun1.cache.amazonaws.com\", \"READER_ENDPOINT\": \"test-valkey-ro.eun1.cache.amazonaws.com\"}"},"type":"Opaque"}`
 )
 
 func valkeyRequiredResources() map[string]*fnv1.Resources {
@@ -631,10 +625,11 @@ func valkeyRequiredResources() map[string]*fnv1.Resources {
 	}
 	return map[string]*fnv1.Resources{
 		base.EnvironmentKey:               test.EnvironmentConfigResourceWithData(environmentName, envData),
+		base.NamespaceKey:                 test.Namespace("testspace", "zone-a"),
 		service.VPCKey:                    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
 		service.ElasticacheSubnetGroupKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(valkeyElasticacheSubnetGroupJson)}}},
-		"KMSDataKey":                      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(valkeyKMSDataKeyJson)}}},
-		"KMSConfigKey":                    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(valkeyKMSConfigKeyJson)}}},
+		"KMSDataKey":                      test.KMSKeyResource("data", "aws-provider", "mrk-data123"),
+		"KMSConfigKey":                    test.KMSKeyResource("config", "aws-provider", "mrk-config456"),
 		service.ComputeSubnetsKey:         {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(valkeyComputeSubnetJson)}}},
 	}
 }
@@ -644,6 +639,7 @@ func valkeyExpectedRequirements() *fnv1.Requirements {
 	return &fnv1.Requirements{
 		Resources: map[string]*fnv1.ResourceSelector{
 			base.EnvironmentKey:               base.RequiredEnvironmentConfig(environmentName),
+			base.NamespaceKey:                 base.RequiredNamespace("testspace"),
 			service.VPCKey:                    {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
 			service.ElasticacheSubnetGroupKey: {Kind: "SubnetGroup", ApiVersion: "elasticache.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-elasticache-sg"}},
 			"KMSDataKey":                      base.RequiredKMSKey("data", "aws-provider"),
@@ -717,7 +713,7 @@ func TestValkeyInstanceFunction(t *testing.T) {
 								Resource: resource.MustStructJSON(`{
 									"apiVersion": "elasticache.aws.m.upbound.io/v1beta1", "kind": "ReplicationGroup",
 									"metadata": {"name": "test-valkey"},
-									"status": {"atProvider": {"primaryEndpointAddress": "test-valkey.eun1.cache.amazonaws.com", "port": 6379, "autoMinorVersionUpgrade": "true", "kmsKeyId": "arn:aws:kms:eu-north-1:111111111111:key/mrk-data", "multiAzEnabled": true, "parameterGroupName": "default.valkey8"},
+									"status": {"atProvider": {"primaryEndpointAddress": "test-valkey.eun1.cache.amazonaws.com", "port": 6379, "autoMinorVersionUpgrade": "true", "kmsKeyId": "arn:aws:kms:eu-north-1:111111111111:key/mrk-data123", "multiAzEnabled": true, "parameterGroupName": "default.valkey8"},
 										"conditions": [{"type": "Ready", "status": "True"}]}
 								}`),
 								ConnectionDetails: map[string][]byte{

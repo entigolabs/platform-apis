@@ -16,12 +16,12 @@ import (
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	esv1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
-	ec2mv1beta1 "github.com/upbound/provider-aws/apis/namespaced/ec2/v1beta1"
-	kmsmv1beta1 "github.com/upbound/provider-aws/apis/namespaced/kms/v1beta1"
-	rdsmv1beta1 "github.com/upbound/provider-aws/apis/namespaced/rds/v1beta1"
+	ec2mv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/ec2/v1beta1"
+	kmsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/kms/v1beta1"
+	rdsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/rds/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -54,7 +54,7 @@ func GeneratePgInstanceObjects(
 	pgInstance v1alpha1.PostgreSQLInstance,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
-) (map[string]runtime.Object, error) {
+) (map[string]client.Object, error) {
 	g, err := newPgInstanceGenerator(pgInstance, required, observed)
 	if err != nil {
 		return nil, err
@@ -121,8 +121,8 @@ func newPgInstanceGenerator(
 	return g, nil
 }
 
-func (g *pgInstanceGenerator) generate() (map[string]runtime.Object, error) {
-	desired := make(map[string]runtime.Object)
+func (g *pgInstanceGenerator) generate() (map[string]client.Object, error) {
+	desired := make(map[string]client.Object)
 
 	maps.Copy(desired, g.buildSecurityGroup())
 
@@ -230,8 +230,8 @@ func (g *pgInstanceGenerator) generateNames() {
 	g.names.pc = resource.Name(GetPCName(g.pgInstance.Name))
 }
 
-func (g *pgInstanceGenerator) buildSecurityGroup() map[string]runtime.Object {
-	groups := make(map[string]runtime.Object)
+func (g *pgInstanceGenerator) buildSecurityGroup() map[string]client.Object {
+	groups := make(map[string]client.Object)
 	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
 	description := "allow traffic from vpc"
@@ -306,8 +306,8 @@ func (g *pgInstanceGenerator) buildSecurityGroup() map[string]runtime.Object {
 	return groups
 }
 
-func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
-	rdsInstances := make(map[string]runtime.Object)
+func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
+	rdsInstances := make(map[string]client.Object)
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
 	finalSnapshotIdentifier := string(g.names.rdsInstanceFinalSnapshot)
@@ -385,8 +385,8 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]runtime.Object {
 	return rdsInstances
 }
 
-func (g *pgInstanceGenerator) buildSqlProviderConfig() map[string]runtime.Object {
-	providerConfigs := make(map[string]runtime.Object)
+func (g *pgInstanceGenerator) buildSqlProviderConfig() map[string]client.Object {
+	providerConfigs := make(map[string]client.Object)
 	pcName := string(g.names.pc)
 	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.pgInstance.Name, "dbadmin"))
 	sslMode := "require"
@@ -407,8 +407,8 @@ func (g *pgInstanceGenerator) buildSqlProviderConfig() map[string]runtime.Object
 	return providerConfigs
 }
 
-func (g *pgInstanceGenerator) buildExternalSecret(secretARN string, endpoint string, port float64) map[string]runtime.Object {
-	externalSecrets := make(map[string]runtime.Object)
+func (g *pgInstanceGenerator) buildExternalSecret(secretARN string, endpoint string, port float64) map[string]client.Object {
+	externalSecrets := make(map[string]client.Object)
 	esName := string(g.names.es)
 	targetName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.pgInstance.Name, "dbadmin"))
 

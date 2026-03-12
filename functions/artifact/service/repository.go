@@ -10,13 +10,13 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
-	"github.com/upbound/provider-aws/apis/namespaced/ecr/v1beta1"
-	kmsmv1beta1 "github.com/upbound/provider-aws/apis/namespaced/kms/v1beta1"
+	"github.com/upbound/provider-aws/v2/apis/namespaced/ecr/v1beta1"
+	kmsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/kms/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required) (map[string]runtime.Object, error) {
+func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required) (map[string]client.Object, error) {
 	env, err := GetEnvironment(required)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 	if repository.Spec.Path != "" || repository.Spec.Name != "" {
 		annotations = map[string]string{"crossplane.io/external-name": getExternalRepoName(repository)}
 	}
-	objects := make(map[string]runtime.Object)
+	objects := make(map[string]client.Object)
 	region := kms.Status.AtProvider.Region
 	if region == nil {
 		region = kms.Spec.ForProvider.Region

@@ -9,13 +9,16 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/mozillazg/go-unidecode"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func GenerateFNVHash(uid types.UID) string {
@@ -28,7 +31,7 @@ func GenerateHash(bytes []byte) string {
 	return strings.ToLower(fmt.Sprintf("%x", hasher.Sum32()))
 }
 
-func ToUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {
+func ToUnstructured(obj client.Object) (*unstructured.Unstructured, error) {
 	m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
 		return nil, err
@@ -51,6 +54,14 @@ func RequiredKMSKey(name, namespace string) *fnv1.ResourceSelector {
 		ApiVersion: KMSKeyApiVersion,
 		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
 		Namespace:  &namespace,
+	}
+}
+
+func RequiredNamespace(name string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       "Namespace",
+		ApiVersion: "v1",
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
 	}
 }
 
@@ -90,7 +101,39 @@ func getEnvironment(resources []resource.Required, obj Validatable) error {
 	return nil
 }
 
-func ExtractRequiredResource(requiredResources map[string][]resource.Required, key string, target runtime.Object) error {
+func GetTenancyZone(required map[string][]resource.Required, log logging.Logger) (zone string) {
+	defer func() {
+		if zone == "" {
+			log.Debug("Tenancy zone not set")
+		}
+	}()
+	namespace := GetNamespace(required)
+	if namespace == nil {
+		return ""
+	}
+	if len(namespace.Labels) == 0 {
+		return ""
+	}
+	return namespace.Labels[TenancyZoneLabel]
+}
+
+func GetTenancyLabels(zone string) map[string]string {
+	var labels map[string]string
+	if zone != "" {
+		labels = map[string]string{TenancyZoneLabel: zone}
+	}
+	return labels
+}
+
+func GetNamespace(required map[string][]resource.Required) *corev1.Namespace {
+	var ns corev1.Namespace
+	if err := ExtractRequiredResource(required, NamespaceKey, &ns); err != nil {
+		return nil
+	}
+	return &ns
+}
+
+func ExtractRequiredResource(requiredResources map[string][]resource.Required, key string, target client.Object) error {
 	if requiredResources == nil || len(requiredResources[key]) == 0 {
 		return errors.Errorf("%s not found in required resources", key)
 	}
@@ -100,7 +143,7 @@ func ExtractRequiredResource(requiredResources map[string][]resource.Required, k
 	return nil
 }
 
-func ExtractResources[T runtime.Object](requiredResources map[string][]resource.Required, key string) ([]T, error) {
+func ExtractResources[T client.Object](requiredResources map[string][]resource.Required, key string) ([]T, error) {
 	if requiredResources == nil {
 		return nil, errors.Errorf("%s not found in required resources", key)
 	}

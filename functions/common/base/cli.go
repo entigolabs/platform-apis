@@ -16,6 +16,7 @@ func (c *CLI) Run(service GroupService) error {
 	if err != nil {
 		return err
 	}
+	service.SetLogger(log)
 	return function.Serve(&Function{log: log, groupService: service},
 		function.Listen(c.Network, c.Address),
 		function.MTLSCertificates(c.TLSCertsDir),

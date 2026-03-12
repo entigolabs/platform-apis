@@ -29,20 +29,6 @@ const (
 			"identity": [{"oidc": [{"issuer": "https://oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890"}]}]
 		}}
 	}`
-	requiredKMSDataKeyJson = `{
-		"apiVersion": "kms.aws.m.upbound.io/v1beta1", "kind": "Key",
-		"metadata": {"name": "data"},
-		"status": {"atProvider": {"arn": "arn:aws:kms:eu-north-1:111111111111:key/mrk-data123"}}
-	}`
-	requiredKMSConfigKeyJson = `{
-		"apiVersion": "kms.aws.m.upbound.io/v1beta1", "kind": "Key",
-		"metadata": {"name": "config"},
-		"status": {"atProvider": {"arn": "arn:aws:kms:eu-north-1:111111111111:key/mrk-config456"}}
-	}`
-	requiredNamespaceJson = `{
-		"apiVersion": "v1", "kind": "Namespace",
-		"metadata": {"name": "default", "labels": {"tenancy.entigo.com/zone": "zone-a"}}
-	}`
 )
 
 const (
@@ -93,30 +79,30 @@ const (
 )
 
 const (
-	bucketResJson                  = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"Bucket","metadata":{"annotations":{"storage.entigo.com/service-account-name":"%s"},"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"default"},"spec":{"forProvider":{"region":"eu-north-1","tags":{"Name":"%s","tenancy.entigo.com/zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s-bucket"}},"status":{"atProvider":{}}}`
-	bucketPublicAccessBlockResJson = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketPublicAccessBlock","metadata":{"name":"%s"},"spec":{"forProvider":{"blockPublicAcls":true,"blockPublicPolicy":true,"bucketRef":{"name":"%s"},"ignorePublicAcls":true,"region":"eu-north-1","restrictPublicBuckets":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	bucketSSEResJson               = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketServerSideEncryptionConfiguration","metadata":{"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","rule":[{"applyServerSideEncryptionByDefault":{"kmsMasterKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","sseAlgorithm":"aws:kms"},"bucketKeyEnabled":true}]},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	bucketVersioningResJson        = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketVersioning","metadata":{"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","versioningConfiguration":{"status":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	bucketOwnershipResJson         = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketOwnershipControls","metadata":{"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","rule":{"objectOwnership":"BucketOwnerEnforced"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	iamUserResJson                 = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"User","metadata":{"name":"%s"},"spec":{"forProvider":{"tags":{"Name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	iamPolicyResJson               = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"Policy","metadata":{"name":"%s"},"spec":{"forProvider":{"policy":"{\"Statement\":[{\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\",\"kms:ReEncrypt*\",\"kms:GenerateDataKey*\",\"kms:DescribeKey\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123\"]},{\"Action\":\"s3:*\",\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::%s\",\"arn:aws:s3:::%s/*\"]}],\"Version\":\"2012-10-17\"}","tags":{"Name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	iamUserPolicyAttachmentResJson = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"UserPolicyAttachment","metadata":{"name":"%s"},"spec":{"forProvider":{"policyArnRef":{"name":"%s"},"userRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	iamAccessKeyResJson            = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"AccessKey","metadata":{"name":"%s"},"spec":{"forProvider":{"userRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s-access-key"}},"status":{"atProvider":{}}}`
-	iamRoleResJson                 = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"Role","metadata":{"name":"%s"},"spec":{"forProvider":{"assumeRolePolicy":"{\"Statement\":[{\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890:aud\":\"sts.amazonaws.com\",\"oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890:sub\":\"system:serviceaccount:default:%s\"}},\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"arn:aws:iam::111111111111:oidc-provider/oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890\"}}],\"Version\":\"2012-10-17\"}","tags":{"Name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	iamRolePolicyAttachmentResJson = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"RolePolicyAttachment","metadata":{"name":"%s"},"spec":{"forProvider":{"policyArn":"arn:aws:iam::111111111111:policy/%s","roleRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	serviceAccountResJson          = `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"annotations":{"eks.amazonaws.com/role-arn":"arn:aws:iam::111111111111:role/%s"},"name":"%s","namespace":"default"}}`
-	smSecretResJson                = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"Secret","metadata":{"name":"%s-credentials"},"spec":{"forProvider":{"description":"Credentials for bucket %s","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-config456","name":"%s-credentials","recoveryWindowInDays":0,"region":"eu-north-1","tags":{"Name":"%s-credentials"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	smSecretVersionResJson         = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"SecretVersion","metadata":{"name":"%s-credentials"},"spec":{"forProvider":{"region":"eu-north-1","secretIdRef":{"name":"%s-credentials"},"secretStringSecretRef":{"key":"credentials.json","name":"%s-credentials"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	credentialsResJson             = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"%s-credentials","namespace":"default"},"stringData":{"AWS_ACCESS_KEY_ID":"AKIAIOSFODNN7EXAMPLE","AWS_SECRET_ACCESS_KEY":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY","BUCKET_ARN":"arn:aws:s3:::%s","BUCKET_NAME":"%s","BUCKET_REGION":"eu-north-1","credentials.json":"{\"AWS_ACCESS_KEY_ID\": \"AKIAIOSFODNN7EXAMPLE\", \"AWS_SECRET_ACCESS_KEY\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\", \"BUCKET_REGION\": \"eu-north-1\", \"BUCKET_ARN\": \"arn:aws:s3:::%s\", \"BUCKET_NAME\": \"%s\"}"},"type":"Opaque"}`
+	bucketResJson                  = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"Bucket","metadata":{"annotations":{"storage.entigo.com/service-account-name":"%s"},"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"default"},"spec":{"forProvider":{"region":"eu-north-1","tags":{"Name":"%s","entigo:zone":"zone-a","tenancy.entigo.com/zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s-bucket"}},"status":{"atProvider":{}}}`
+	bucketPublicAccessBlockResJson = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketPublicAccessBlock","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"blockPublicAcls":true,"blockPublicPolicy":true,"bucketRef":{"name":"%s"},"ignorePublicAcls":true,"region":"eu-north-1","restrictPublicBuckets":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	bucketSSEResJson               = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketServerSideEncryptionConfiguration","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","rule":[{"applyServerSideEncryptionByDefault":{"kmsMasterKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","sseAlgorithm":"aws:kms"},"bucketKeyEnabled":true}]},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	bucketVersioningResJson        = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketVersioning","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","versioningConfiguration":{"status":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	bucketOwnershipResJson         = `{"apiVersion":"s3.aws.m.upbound.io/v1beta1","kind":"BucketOwnershipControls","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"bucketRef":{"name":"%s"},"region":"eu-north-1","rule":{"objectOwnership":"BucketOwnerEnforced"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamUserResJson                 = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"User","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"tags":{"Name":"%s","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamPolicyResJson               = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"Policy","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"policy":"{\"Statement\":[{\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\",\"kms:ReEncrypt*\",\"kms:GenerateDataKey*\",\"kms:DescribeKey\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123\"]},{\"Action\":\"s3:*\",\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::%s\",\"arn:aws:s3:::%s/*\"]}],\"Version\":\"2012-10-17\"}","tags":{"Name":"%s","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamUserPolicyAttachmentResJson = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"UserPolicyAttachment","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"policyArnRef":{"name":"%s"},"userRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamAccessKeyResJson            = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"AccessKey","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"userRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s-access-key"}},"status":{"atProvider":{}}}`
+	iamRoleResJson                 = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"Role","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"assumeRolePolicy":"{\"Statement\":[{\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890:aud\":\"sts.amazonaws.com\",\"oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890:sub\":\"system:serviceaccount:default:%s\"}},\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"arn:aws:iam::111111111111:oidc-provider/oidc.eks.eu-north-1.amazonaws.com/id/ABCDEF1234567890\"}}],\"Version\":\"2012-10-17\"}","tags":{"Name":"%s","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	iamRolePolicyAttachmentResJson = `{"apiVersion":"iam.aws.m.upbound.io/v1beta1","kind":"RolePolicyAttachment","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"policyArn":"arn:aws:iam::111111111111:policy/%s","roleRef":{"name":"%s"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	serviceAccountResJson          = `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"annotations":{"eks.amazonaws.com/role-arn":"arn:aws:iam::111111111111:role/%s"},"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"default"}}`
+	smSecretResJson                = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"Secret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s-credentials"},"spec":{"forProvider":{"description":"Credentials for bucket %s","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-config456","name":"%s-credentials","recoveryWindowInDays":0,"region":"eu-north-1","tags":{"Name":"%s-credentials","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	smSecretVersionResJson         = `{"apiVersion":"secretsmanager.aws.m.upbound.io/v1beta1","kind":"SecretVersion","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s-credentials"},"spec":{"forProvider":{"region":"eu-north-1","secretIdRef":{"name":"%s-credentials"},"secretStringSecretRef":{"key":"credentials.json","name":"%s-credentials"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	credentialsResJson             = `{"apiVersion":"v1","kind":"Secret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s-credentials","namespace":"default"},"stringData":{"AWS_ACCESS_KEY_ID":"AKIAIOSFODNN7EXAMPLE","AWS_SECRET_ACCESS_KEY":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY","BUCKET_ARN":"arn:aws:s3:::%s","BUCKET_NAME":"%s","BUCKET_REGION":"eu-north-1","credentials.json":"{\"AWS_ACCESS_KEY_ID\": \"AKIAIOSFODNN7EXAMPLE\", \"AWS_SECRET_ACCESS_KEY\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\", \"BUCKET_REGION\": \"eu-north-1\", \"BUCKET_ARN\": \"arn:aws:s3:::%s\", \"BUCKET_NAME\": \"%s\"}"},"type":"Opaque"}`
 )
 
-func allRequiredResources(environmentData map[string]interface{}) map[string]*fnv1.Resources {
+func allRequiredResources(awsProvider string, environmentData map[string]interface{}) map[string]*fnv1.Resources {
 	return map[string]*fnv1.Resources{
 		base.EnvironmentKey:  test.EnvironmentConfigResourceWithData(environmentName, environmentData),
 		service.EKSKey:       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredEKSJson)}}},
-		service.KMSDataKey:   {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSDataKeyJson)}}},
-		service.KMSConfigKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSConfigKeyJson)}}},
-		service.NamespaceKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredNamespaceJson)}}},
+		service.KMSDataKey:   test.KMSKeyResource("data", awsProvider, "mrk-data123"),
+		service.KMSConfigKey: test.KMSKeyResource("config", awsProvider, "mrk-config456"),
+		base.NamespaceKey:    test.Namespace("default", "zone-a"),
 	}
 }
 
@@ -178,7 +164,7 @@ func expectedRequirements(awsProvider string, environmentData map[string]interfa
 			},
 			service.KMSDataKey:   base.RequiredKMSKey(environmentData["dataKMSKey"].(string), awsProvider),
 			service.KMSConfigKey: base.RequiredKMSKey(environmentData["configKMSKey"].(string), awsProvider),
-			service.NamespaceKey: {
+			base.NamespaceKey: {
 				Kind:       "Namespace",
 				ApiVersion: "v1",
 				Match:      &fnv1.ResourceSelector_MatchName{MatchName: "default"},
@@ -226,6 +212,7 @@ func TestS3BucketPhaseOne(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace("default"),
 						},
 					},
 				},
@@ -290,7 +277,7 @@ func TestS3BucketGeneration(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketJson)},
 						Resources: allObservedComposedResources(),
 					},
-					RequiredResources: allRequiredResources(environmentData),
+					RequiredResources: allRequiredResources(awsProvider, environmentData),
 				},
 			},
 			Want: test.Want{
@@ -311,7 +298,7 @@ func TestS3BucketGeneration(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketNoSAJson)},
 						Resources: allObservedComposedResources(),
 					},
-					RequiredResources: allRequiredResources(environmentData),
+					RequiredResources: allRequiredResources(awsProvider, environmentData),
 				},
 			},
 			Want: test.Want{
@@ -331,7 +318,7 @@ func TestS3BucketGeneration(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketJson)},
 					},
-					RequiredResources: allRequiredResources(environmentData),
+					RequiredResources: allRequiredResources(awsProvider, environmentData),
 				},
 			},
 			Want: test.Want{
@@ -352,7 +339,7 @@ func TestS3BucketGeneration(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketCustomSAJson)},
 						Resources: allObservedComposedResources(),
 					},
-					RequiredResources: allRequiredResources(environmentData),
+					RequiredResources: allRequiredResources(awsProvider, environmentData),
 				},
 			},
 			Want: test.Want{

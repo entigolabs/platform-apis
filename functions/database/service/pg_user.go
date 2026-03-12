@@ -15,7 +15,7 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type pgUserGenerator struct {
@@ -28,7 +28,7 @@ type pgUserGenerator struct {
 func GeneratePgUserObjects(
 	pgUser v1alpha1.PostgreSQLUser,
 	required map[string][]resource.Required,
-) (map[string]runtime.Object, error) {
+) (map[string]client.Object, error) {
 	g, err := newPgUserGenerator(pgUser, required)
 	if err != nil {
 		return nil, err
@@ -58,8 +58,8 @@ func newPgUserGenerator(
 	}, nil
 }
 
-func (g *pgUserGenerator) generate() (map[string]runtime.Object, error) {
-	desired := make(map[string]runtime.Object)
+func (g *pgUserGenerator) generate() (map[string]client.Object, error) {
+	desired := make(map[string]client.Object)
 	instanceReady := isPgInstanceReady(g.pgInstance)
 	if !instanceReady {
 		return desired, fmt.Errorf("temporarily waiting for PostgreSQLInstance %s to become ready", g.pgInstance.Name)
@@ -82,7 +82,7 @@ func isPgInstanceReady(pgInstance v1alpha1.PostgreSQLInstance) bool {
 	return false
 }
 
-func (g *pgUserGenerator) buildRole() map[string]runtime.Object {
+func (g *pgUserGenerator) buildRole() map[string]client.Object {
 	connSecretName := base.GenerateEligibleKubernetesFullName(g.pgUser.Spec.InstanceRef.Name + "-" + g.pgUser.Name)
 	role := &postgresv1alpha1.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -117,11 +117,11 @@ func (g *pgUserGenerator) buildRole() map[string]runtime.Object {
 			},
 		},
 	}
-	return map[string]runtime.Object{"role": role}
+	return map[string]client.Object{"role": role}
 }
 
-func (g *pgUserGenerator) buildGrants() map[string]runtime.Object {
-	grants := make(map[string]runtime.Object)
+func (g *pgUserGenerator) buildGrants() map[string]client.Object {
+	grants := make(map[string]client.Object)
 	if g.pgUser.Spec.Grant == nil {
 		return grants
 	}
@@ -157,8 +157,8 @@ func (g *pgUserGenerator) buildGrants() map[string]runtime.Object {
 	return grants
 }
 
-func (g *pgUserGenerator) buildGrantUsages() map[string]runtime.Object {
-	usages := make(map[string]runtime.Object)
+func (g *pgUserGenerator) buildGrantUsages() map[string]client.Object {
+	usages := make(map[string]client.Object)
 	if g.pgUser.Spec.Grant == nil {
 		return usages
 	}
@@ -207,8 +207,8 @@ func GetPgUserGrantReadyStatus(observed *composed.Unstructured) resource.Ready {
 	return resource.ReadyFalse
 }
 
-func (g *pgUserGenerator) buildInstanceProtection() map[string]runtime.Object {
-	instanceUsages := make(map[string]runtime.Object)
+func (g *pgUserGenerator) buildInstanceProtection() map[string]client.Object {
+	instanceUsages := make(map[string]client.Object)
 
 	replayDeletion := true
 

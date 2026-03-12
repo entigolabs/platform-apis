@@ -9,25 +9,45 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func GenerateCronJobObjects(cronJob v1alpha1.CronJob) map[string]runtime.Object {
-	objs := make(map[string]runtime.Object)
-	secrets := getSecrets(&cronJob)
+type cronJobGenerator struct {
+	workloadGenerator[*v1alpha1.CronJob]
+}
+
+func GenerateCronJobObjects(cronJob v1alpha1.CronJob, labels map[string]string) map[string]client.Object {
+	generator := cronJobGenerator{
+		workloadGenerator: workloadGenerator[*v1alpha1.CronJob]{
+			labels:   labels,
+			workload: &cronJob,
+		},
+	}
+	return generator.generate()
+}
+
+func (g *cronJobGenerator) generate() map[string]client.Object {
+	objs := make(map[string]client.Object)
+	secrets := g.getSecrets()
 	maps.Copy(objs, secrets)
-	objs[cronJob.Name] = getCronJob(cronJob)
-	name, service := getServices(&cronJob)
+	objs[g.workload.Name] = g.getCronJob()
+	name, service := g.getServices()
 	if service != nil {
 		objs[name] = service
 	}
 	return objs
 }
 
-func getCronJob(cronJob v1alpha1.CronJob) runtime.Object {
-	containers := getContainers(cronJob.Name, cronJob.Spec.WorkloadSpec)
-	initContainers := getInitContainers(cronJob.Name, cronJob.Spec.WorkloadSpec)
-	imagePullSecretsRefs := getImagePullSecrets(cronJob.Spec.WorkloadSpec)
+func (g *cronJobGenerator) getCronJob() client.Object {
+	containers := g.getContainers()
+	initContainers := g.getInitContainers()
+	imagePullSecretsRefs := g.getImagePullSecrets()
+	labels := map[string]string{
+		base.AppLabel:          g.workload.GetName(),
+		base.ResourceLabel:     g.workload.GetName(),
+		base.ResourceKindLabel: apis.XRKindCronJob,
+	}
+	maps.Copy(labels, g.labels)
 
 	return &batchv1.CronJob{
 		TypeMeta: metav1.TypeMeta{
@@ -35,29 +55,24 @@ func getCronJob(cronJob v1alpha1.CronJob) runtime.Object {
 			Kind:       "CronJob",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cronJob.Name,
-			Namespace: cronJob.Namespace,
-			Labels: map[string]string{
-				base.AppLabel:          cronJob.Name,
-				base.ResourceLabel:     cronJob.Name,
-				base.ResourceKindLabel: apis.XRKindCronJob,
-			},
+			Name:      g.workload.GetName(),
+			Namespace: g.workload.GetNamespace(),
+			Labels:    labels,
 		},
 		Spec: batchv1.CronJobSpec{
-			Schedule:          cronJob.Spec.Schedule,
-			ConcurrencyPolicy: batchv1.ConcurrencyPolicy(cronJob.Spec.ConcurrencyPolicy),
+			Schedule:          g.workload.Spec.Schedule,
+			ConcurrencyPolicy: batchv1.ConcurrencyPolicy(g.workload.Spec.ConcurrencyPolicy),
 			JobTemplate: batchv1.JobTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								base.AppLabel:          cronJob.Name,
-								base.ResourceLabel:     cronJob.Name,
-								base.ResourceKindLabel: apis.XRKindCronJob,
-							},
+							Labels: labels,
 						},
 						Spec: corev1.PodSpec{
-							RestartPolicy:    corev1.RestartPolicy(cronJob.Spec.RestartPolicy),
+							RestartPolicy:    corev1.RestartPolicy(g.workload.Spec.RestartPolicy),
 							Containers:       containers,
 							InitContainers:   initContainers,
 							ImagePullSecrets: imagePullSecretsRefs,
