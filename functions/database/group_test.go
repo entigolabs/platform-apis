@@ -99,7 +99,7 @@ func TestDatabaseFunction(t *testing.T) {
 	if err := json.Unmarshal([]byte(postgresInputJson), &cr); err != nil {
 		t.Fatalf("Failed to unmarshal test composite resource: %v", err)
 	}
-	setHash := base.GenerateFNVHash(cr.ObjectMeta.UID)
+	setHash := base.GenerateFNVHash(cr.UID)
 
 	environmentData := map[string]interface{}{
 		"awsProvider":            "aws-provider",
