@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"golang.org/x/sync/singleflight"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,6 +34,10 @@ func supportsField(obj client.Object, fieldPath ...string) bool {
 }
 
 func resolveFieldPath(obj client.Object, fieldPath []string) bool {
+	if u, ok := obj.(*unstructured.Unstructured); ok {
+		_, found, _ := unstructured.NestedFieldNoCopy(u.Object, fieldPath...)
+		return found
+	}
 	t := reflect.TypeOf(obj)
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()

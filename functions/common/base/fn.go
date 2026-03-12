@@ -289,7 +289,9 @@ func (f *Function) injectZone(obj client.Object, unstructuredObject *unstructure
 	}
 	labels[TenancyZoneLabel] = zone
 	unstructuredObject.SetLabels(labels)
-
+	if obj.GetObjectKind().GroupVersionKind().Kind == "NodeGroup" {
+		fmt.Println("Here")
+	}
 	if !supportsField(obj, "spec", "forProvider", "tags") {
 		return nil
 	}
