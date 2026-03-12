@@ -1,7 +1,7 @@
 #!/bin/bash
 
 load_mocks
-init_test "kafka-user"
+init_test "kafka-user" "/workspace/functions/queue"
 INPUT="../examples/user-a.yaml"  # override default input
 COMPOSITION="../apis/kafka-user-composition.yaml"  # override default
 setup_resources --required

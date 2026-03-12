@@ -68,6 +68,11 @@ kafka:
     image: ghcr.io/entigolabs/platform-apis-kafka
     tag: v0.0.0
 
+queue:
+  function:
+    image: ghcr.io/entigolabs/platform-apis-queue-fn
+    tag: v0.0.0
+
 tenancy:
   function:
     image: ghcr.io/entigolabs/platform-apis-tenancy-fn

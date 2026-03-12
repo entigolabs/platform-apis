@@ -1,0 +1,65 @@
+{{- if .Values.kafka.install }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-queue-fn
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        metadata:
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8080"
+            prometheus.io/path: "/metrics"
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 1m
+                memory: 21Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+          securityContext:
+            fsGroup: 2000
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-queue-fn
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ .Values.queue.function.image }}:{{ .Values.queue.function.tag }}
+  runtimeConfigRef:
+    name: platform-apis-queue-fn
+{{- end }}

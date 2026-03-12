@@ -11,12 +11,15 @@ NC='\033[0m'
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 
+log_info "Building test runner image..."
+docker build -q -f "$GIT_ROOT/test/build/Dockerfile.test" -t "$IMAGE_NAME" "$GIT_ROOT"
+
 # Unified docker test runner
 run_docker_test() {
   local test_type="$1"
   local workdir="$2"
 
-  docker run --rm --pull always \
+  docker run --rm --pull never \
     -v "$GIT_ROOT:/workspace" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     --network host \

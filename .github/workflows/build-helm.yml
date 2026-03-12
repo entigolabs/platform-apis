@@ -116,6 +116,7 @@ jobs:
             ["cronjob"]="platform-apis-cronjob"
             ["database"]="platform-apis-database-fn"
             ["kafka"]="platform-apis-kafka"
+            ["queue"]="platform-apis-queue-fn"
             ["networking"]="platform-apis-networking-fn"
             ["postgresql"]="platform-apis-postgresql"
             ["repository"]="platform-apis-repository"
