@@ -14,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type kafkaUserGenerator struct {
@@ -30,7 +30,7 @@ func GenerateKafkaUserObjects(
 	user v1alpha1.KafkaUser,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
-) (map[string]runtime.Object, error) {
+) (map[string]client.Object, error) {
 	g, err := newKafkaUserGenerator(user, required, observed)
 	if err != nil {
 		return nil, err
@@ -105,8 +105,8 @@ func generatePassword() (string, error) {
 	return string(b), nil
 }
 
-func (g *kafkaUserGenerator) generate() (map[string]runtime.Object, error) {
-	desired := make(map[string]runtime.Object)
+func (g *kafkaUserGenerator) generate() (map[string]client.Object, error) {
+	desired := make(map[string]client.Object)
 	username := g.user.Name
 	clusterName := g.user.Spec.ClusterName
 
@@ -135,7 +135,7 @@ func (g *kafkaUserGenerator) generate() (map[string]runtime.Object, error) {
 	return desired, nil
 }
 
-func (g *kafkaUserGenerator) buildK8sSecret(clusterName, username string) runtime.Object {
+func (g *kafkaUserGenerator) buildK8sSecret(clusterName, username string) client.Object {
 	type secretData struct {
 		Username         string `json:"username"`
 		Password         string `json:"password"`
@@ -168,7 +168,7 @@ func (g *kafkaUserGenerator) buildK8sSecret(clusterName, username string) runtim
 	}
 }
 
-func (g *kafkaUserGenerator) buildAWSSecret(clusterName, username string) runtime.Object {
+func (g *kafkaUserGenerator) buildAWSSecret(clusterName, username string) client.Object {
 	tags := map[string]interface{}{
 		"KafkaCluster": clusterName,
 		"KafkaUser":    username,
@@ -210,7 +210,7 @@ func (g *kafkaUserGenerator) buildAWSSecret(clusterName, username string) runtim
 	}
 }
 
-func (g *kafkaUserGenerator) buildSecretVersion(clusterName, username string) runtime.Object {
+func (g *kafkaUserGenerator) buildSecretVersion(clusterName, username string) client.Object {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "secretsmanager.aws.m.upbound.io/v1beta1",
@@ -247,7 +247,7 @@ func (g *kafkaUserGenerator) buildSecretVersion(clusterName, username string) ru
 	}
 }
 
-func (g *kafkaUserGenerator) buildSecretPolicy(clusterName, username string) runtime.Object {
+func (g *kafkaUserGenerator) buildSecretPolicy(clusterName, username string) client.Object {
 	policy := `{"Version":"2012-10-17","Statement":[{"Sid":"AWSKafkaResourcePolicy","Effect":"Allow","Principal":{"Service":"kafka.amazonaws.com"},"Action":"secretsmanager:GetSecretValue","Resource":"*"}]}`
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -280,7 +280,7 @@ func (g *kafkaUserGenerator) buildSecretPolicy(clusterName, username string) run
 	}
 }
 
-func (g *kafkaUserGenerator) buildScramAssociation(clusterName, username string) runtime.Object {
+func (g *kafkaUserGenerator) buildScramAssociation(clusterName, username string) client.Object {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "kafka.aws.m.upbound.io/v1beta1",
@@ -305,7 +305,7 @@ func (g *kafkaUserGenerator) buildScramAssociation(clusterName, username string)
 	}
 }
 
-func (g *kafkaUserGenerator) buildConsumerGroupACL(username, group string) runtime.Object {
+func (g *kafkaUserGenerator) buildConsumerGroupACL(username, group string) client.Object {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "acl.kafka.m.crossplane.io/v1alpha1",
@@ -333,7 +333,7 @@ func (g *kafkaUserGenerator) buildConsumerGroupACL(username, group string) runti
 	}
 }
 
-func (g *kafkaUserGenerator) buildTopicACL(username, topic, operation string) runtime.Object {
+func (g *kafkaUserGenerator) buildTopicACL(username, topic, operation string) client.Object {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "acl.kafka.m.crossplane.io/v1alpha1",

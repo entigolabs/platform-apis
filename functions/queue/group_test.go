@@ -181,7 +181,12 @@ func TestMSKPhase(t *testing.T) {
 			},
 			Want: test.Want{
 				Rsp: &fnv1.RunFunctionResponse{
-					Meta:    &fnv1.ResponseMeta{Tag: "test", Ttl: nil},
+					Meta: &fnv1.ResponseMeta{Tag: "test", Ttl: nil},
+					Requirements: &fnv1.Requirements{
+						Resources: map[string]*fnv1.ResourceSelector{
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+						},
+					},
 					Results: []*fnv1.Result{},
 				},
 			},
@@ -239,7 +244,8 @@ func TestKafkaUserPhase1(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Tag: "test", Ttl: nil},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig("platform-apis-kafka"),
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace("default"),
 						},
 					},
 					Results: []*fnv1.Result{},
@@ -264,7 +270,7 @@ func TestKafkaUserPhase2(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData("platform-apis-kafka", map[string]interface{}{
+						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
 							"awsProvider": testAWSProvider,
 							"tags":        map[string]interface{}{},
 						}),
@@ -276,7 +282,8 @@ func TestKafkaUserPhase2(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Tag: "test", Ttl: nil},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig("platform-apis-kafka"),
+							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
+							base.NamespaceKey:   base.RequiredNamespace("default"),
 							"MSKObserver": {
 								Kind:       "MSK",
 								ApiVersion: "kafka.entigo.com/v1alpha1",
@@ -307,7 +314,7 @@ func TestKafkaUserPhase3(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData("platform-apis-kafka", map[string]interface{}{
+						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
 							"awsProvider": testAWSProvider,
 							"tags":        map[string]interface{}{},
 						}),
@@ -346,7 +353,7 @@ func TestKafkaUserPhase4(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData("platform-apis-kafka", map[string]interface{}{
+						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
 							"awsProvider": testAWSProvider,
 							"tags":        map[string]interface{}{},
 						}),
@@ -382,7 +389,7 @@ func TestKafkaUserPasswordPreservation(t *testing.T) {
 		Meta:     &fnv1.RequestMeta{Tag: "test"},
 		Observed: observedState,
 		RequiredResources: map[string]*fnv1.Resources{
-			base.EnvironmentKey: test.EnvironmentConfigResourceWithData("platform-apis-kafka", map[string]interface{}{
+			base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
 				"awsProvider": testAWSProvider,
 				"tags":        map[string]interface{}{},
 			}),

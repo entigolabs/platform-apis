@@ -15,11 +15,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type mskInstanceGenerator struct {
 	mskInstance  v1alpha1.MSKInstance
+	env          apis.Environment
 	observed     map[resource.Name]resource.ObservedComposed
 	hash         string
 	names        resourceNames
@@ -31,14 +32,15 @@ type resourceNames struct {
 }
 
 const (
-	mskApiVersion = "kafka.aws.upbound.io/v1beta3"
+	mskApiVersion  = "kafka.aws.upbound.io/v1beta3"
+	kafkaNamespace = "crossplane-kafka"
 )
 
 func GenerateMskInstanceObjects(
 	mskInstance v1alpha1.MSKInstance,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
-) (map[string]runtime.Object, error) {
+) (map[string]client.Object, error) {
 	g, err := newMskInstanceGenerator(mskInstance, required, observed)
 	if err != nil {
 		return nil, err
@@ -46,19 +48,18 @@ func GenerateMskInstanceObjects(
 	return g.generate()
 }
 
-func GetEnvironment(required map[string][]resource.Required) (apis.Environment, error) {
-	var env apis.Environment
-	err := base.GetEnvironment(base.EnvironmentKey, required, &env)
-	return env, err
-}
-
 func newMskInstanceGenerator(
 	mskInstance v1alpha1.MSKInstance,
-	_ map[string][]resource.Required,
+	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
 ) (*mskInstanceGenerator, error) {
+	env, err := GetEnvironment(required)
+	if err != nil {
+		return nil, err
+	}
 	g := &mskInstanceGenerator{
 		mskInstance: mskInstance,
+		env:         env,
 		observed:    observed,
 		hash:        base.GenerateFNVHash(mskInstance.UID),
 	}
@@ -73,8 +74,8 @@ func newMskInstanceGenerator(
 	return g, nil
 }
 
-func (g *mskInstanceGenerator) generate() (map[string]runtime.Object, error) {
-	desired := make(map[string]runtime.Object)
+func (g *mskInstanceGenerator) generate() (map[string]client.Object, error) {
+	desired := make(map[string]client.Object)
 
 	cluster, err := g.buildMskCluster()
 	if err != nil {
@@ -107,7 +108,7 @@ func (g *mskInstanceGenerator) generate() (map[string]runtime.Object, error) {
 	return desired, nil
 }
 
-func (g *mskInstanceGenerator) buildMskCluster() (runtime.Object, error) {
+func (g *mskInstanceGenerator) buildMskCluster() (client.Object, error) {
 	arn := g.mskInstance.Spec.ClusterARN
 	parts := strings.Split(arn, ":")
 	if len(parts) < 4 {
@@ -131,7 +132,7 @@ func (g *mskInstanceGenerator) buildMskCluster() (runtime.Object, error) {
 					"region": region,
 				},
 				"providerConfigRef": map[string]interface{}{
-					"name": "crossplane-aws",
+					"name": g.env.AWSProvider,
 				},
 			},
 		},
@@ -139,7 +140,7 @@ func (g *mskInstanceGenerator) buildMskCluster() (runtime.Object, error) {
 	return cluster, nil
 }
 
-func (g *mskInstanceGenerator) buildKafkaSecret(brokersStr string) (runtime.Object, error) {
+func (g *mskInstanceGenerator) buildKafkaSecret(brokersStr string) (client.Object, error) {
 	brokers := strings.Split(brokersStr, ",")
 
 	type Sasl struct {
@@ -175,7 +176,7 @@ func (g *mskInstanceGenerator) buildKafkaSecret(brokersStr string) (runtime.Obje
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
-			Namespace: "crossplane-kafka",
+			Namespace: kafkaNamespace,
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
@@ -185,7 +186,7 @@ func (g *mskInstanceGenerator) buildKafkaSecret(brokersStr string) (runtime.Obje
 	return secret, nil
 }
 
-func (g *mskInstanceGenerator) buildClusterProviderConfig() (runtime.Object, error) {
+func (g *mskInstanceGenerator) buildClusterProviderConfig() (client.Object, error) {
 	pcName := string(g.names.clusterProviderConfig)
 	pc := &kafkanv1alpha1.ClusterProviderConfig{
 		TypeMeta: metav1.TypeMeta{
@@ -202,7 +203,7 @@ func (g *mskInstanceGenerator) buildClusterProviderConfig() (runtime.Object, err
 					SecretRef: &xpv1.SecretKeySelector{
 						SecretReference: xpv1.SecretReference{
 							Name:      string(g.names.configSecret),
-							Namespace: "crossplane-kafka",
+							Namespace: kafkaNamespace,
 						},
 						Key: "credentials",
 					},

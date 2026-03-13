@@ -7,14 +7,14 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func GenerateTopicObjects(
 	topic v1alpha1.Topic,
 	required map[string][]resource.Required,
 	_ map[resource.Name]resource.ObservedComposed,
-) (map[string]runtime.Object, error) {
+) (map[string]client.Object, error) {
 	var msk v1alpha1.MSKInstance
 	if err := base.ExtractRequiredResource(required, "MSKObserver", &msk); err != nil {
 		return nil, fmt.Errorf("cannot get MSKObserver: %w", err)
@@ -64,7 +64,7 @@ func GenerateTopicObjects(
 	}
 
 	resourceName := "topic-" + topic.Name
-	return map[string]runtime.Object{
+	return map[string]client.Object{
 		resourceName: topicResource,
 	}, nil
 }
