@@ -1,7 +1,7 @@
 #!/bin/bash
 
 load_mocks
-init_test "msk-observer"
+init_test "msk-observer" "/workspace/functions/queue"
 COMPOSITION="../apis/msk-observer-composition.yaml"  # override default
 setup_resources --env --required
 

@@ -103,14 +103,10 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 	}
 }
 
-func (g *GroupImpl) getMSKRequiredResources(required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
-	resources := map[string]*fnv1.ResourceSelector{
+func (g *GroupImpl) getMSKRequiredResources(_ map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
+	return map[string]*fnv1.ResourceSelector{
 		base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-	}
-	if _, envPresent := required[base.EnvironmentKey]; !envPresent {
-		return resources, nil
-	}
-	return resources, nil
+	}, nil
 }
 
 func (g *GroupImpl) getTopicRequiredResources(compositeResource *composite.Unstructured) (map[string]*fnv1.ResourceSelector, error) {
@@ -168,6 +164,8 @@ func (g *GroupImpl) GetObservedStatus(observed *composed.Unstructured) (map[stri
 		externalName := annotations["crossplane.io/external-name"]
 		if slashParts := strings.Split(externalName, "/"); len(slashParts) >= 2 {
 			providerConfig = slashParts[1] + "-observed"
+		} else {
+			g.log.Debug("could not parse provider config from external-name annotation", "externalName", externalName)
 		}
 	}
 

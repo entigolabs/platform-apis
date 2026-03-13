@@ -16,7 +16,7 @@ ARG TARGETARCH
 
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o /function .
 
-FROM gcr.io/distroless/static-debian12:nonroot AS image
+FROM gcr.io/distroless/static-debian13:nonroot AS image
 WORKDIR /
 COPY --from=build /function /function
 EXPOSE 9443

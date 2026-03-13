@@ -1,7 +1,7 @@
 #!/bin/bash
 
 load_mocks
-init_test "kafka-topic"
+init_test "kafka-topic" "/workspace/functions/queue"
 INPUT="../examples/topic-a.yaml"  # override default input
 COMPOSITION="../apis/kafka-topic-composition.yaml"  # override default
 setup_resources --required

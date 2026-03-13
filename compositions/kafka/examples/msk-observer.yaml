@@ -3,4 +3,10 @@ kind: MSK
 metadata:
   name: test-crossplane-cluster-observed
 spec:
-  clusterARN: "" # MSK arn
+  clusterARN: ""
+status:
+  brokers: "b-1.test.kafka.eu-north-1.amazonaws.com:9098"
+  brokersscram: "b-1.test.kafka.eu-north-1.amazonaws.com:9096"
+  arn: "arn:aws:kafka:eu-north-1:012345678901:cluster/test-crossplane-cluster/abc-123"
+  region: "eu-north-1"
+  providerConfig: "test-crossplane-cluster-observed"

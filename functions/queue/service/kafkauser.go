@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/crossplane/function-sdk-go/resource"
@@ -80,13 +81,15 @@ func resolvePassword(username string, observed map[resource.Name]resource.Observ
 		secretStringB64, found, _ := unstructured.NestedString(observedSecret.Resource.Object, "data", "secretString")
 		if found && secretStringB64 != "" {
 			secretStringBytes, err := base64.StdEncoding.DecodeString(secretStringB64)
-			if err == nil {
-				var secretData map[string]string
-				if err := json.Unmarshal(secretStringBytes, &secretData); err == nil {
-					if pw := secretData["password"]; pw != "" {
-						return pw, nil
-					}
-				}
+			if err != nil {
+				return "", fmt.Errorf("failed to base64 decode existing secret for user %s: %w", username, err)
+			}
+			var secretData map[string]string
+			if err := json.Unmarshal(secretStringBytes, &secretData); err != nil {
+				return "", fmt.Errorf("failed to unmarshal existing secret for user %s: %w", username, err)
+			}
+			if pw := secretData["password"]; pw != "" {
+				return pw, nil
 			}
 		}
 	}
@@ -96,11 +99,12 @@ func resolvePassword(username string, observed map[resource.Name]resource.Observ
 func generatePassword() (string, error) {
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	for i, v := range b {
-		b[i] = chars[v%byte(len(chars))]
+	for i := range b {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = chars[n.Int64()]
 	}
 	return string(b), nil
 }
@@ -111,7 +115,11 @@ func (g *kafkaUserGenerator) generate() (map[string]client.Object, error) {
 	clusterName := g.user.Spec.ClusterName
 
 	k8sSecretName := "k8s-secret-" + username
-	desired[k8sSecretName] = g.buildK8sSecret(clusterName, username)
+	k8sSecret, err := g.buildK8sSecret(clusterName, username)
+	if err != nil {
+		return nil, err
+	}
+	desired[k8sSecretName] = k8sSecret
 
 	if _, ok := g.observed[resource.Name(k8sSecretName)]; !ok {
 		return desired, nil
@@ -135,7 +143,7 @@ func (g *kafkaUserGenerator) generate() (map[string]client.Object, error) {
 	return desired, nil
 }
 
-func (g *kafkaUserGenerator) buildK8sSecret(clusterName, username string) client.Object {
+func (g *kafkaUserGenerator) buildK8sSecret(clusterName, username string) (client.Object, error) {
 	type secretData struct {
 		Username         string `json:"username"`
 		Password         string `json:"password"`
@@ -146,7 +154,10 @@ func (g *kafkaUserGenerator) buildK8sSecret(clusterName, username string) client
 		Password:         g.password,
 		BootstrapServers: g.msk.Status.BrokersScram,
 	}
-	dataBytes, _ := json.Marshal(data)
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal secret data for user %s: %w", username, err)
+	}
 
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -165,7 +176,7 @@ func (g *kafkaUserGenerator) buildK8sSecret(clusterName, username string) client
 		StringData: map[string]string{
 			"secretString": string(dataBytes),
 		},
-	}
+	}, nil
 }
 
 func (g *kafkaUserGenerator) buildAWSSecret(clusterName, username string) client.Object {
