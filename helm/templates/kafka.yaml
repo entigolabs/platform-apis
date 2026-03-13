@@ -1,0 +1,44 @@
+{{- if .Values.kafka.install }}
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-queue
+data:
+  awsProvider: {{ .Values.kafka.environmentConfig.awsProvider }}
+  configKMSKey: {{ .Values.kafka.environmentConfig.configKMSKey }}
+  kafkaNamespace: {{ .Values.kafka.environmentConfig.kafkaNamespace }}
+  {{- if .Values.kafka.environmentConfig.tags }}
+  tags: {{- toYaml .Values.kafka.environmentConfig.tags | nindent 4 }}
+  {{- else }}
+  tags: {}
+  {{- end }}
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-queue-kafka
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+    - clusters.kafka.aws.upbound.io
+    - topics.topic.kafka.m.crossplane.io
+    - topics.topic.kafka.crossplane.io
+    - accesscontrollists.acl.kafka.m.crossplane.io
+    - accesscontrollists.acl.kafka.crossplane.io
+    - clusterproviderconfigs.kafka.m.crossplane.io
+    - clusterproviderconfigusages.kafka.m.crossplane.io
+    - secrets.secretsmanager.aws.m.upbound.io
+    - secretversions.secretsmanager.aws.m.upbound.io
+    - secretpolicies.secretsmanager.aws.m.upbound.io
+    - singlescramsecretassociations.kafka.aws.m.upbound.io
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-kafka
+spec:
+  package: {{ .Values.kafka.package.image }}:{{ .Values.kafka.package.tag }}
+  skipDependencyResolution: true
+{{- end }}

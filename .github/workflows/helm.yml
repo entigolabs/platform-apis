@@ -65,6 +65,7 @@ jobs:
             ["artifact"]="platform-apis-artifact-fn"
             ["cronjob"]="platform-apis-cronjob"
             ["database"]="platform-apis-database-fn"
+            ["kafka"]="platform-apis-kafka"
             ["queue"]="platform-apis-queue-fn"
             ["networking"]="platform-apis-networking-fn"
             ["postgresql"]="platform-apis-postgresql"
@@ -103,17 +104,6 @@ jobs:
 
             yq -i "$YQ_PATH = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
           done
-
-          # Update queue.kafka.package.tag — nested path, handled separately from the loop
-          KAFKA_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/orgs/entigolabs/packages/container/platform-apis-kafka/versions" \
-            | jq -r "[.[] | select(.metadata.container.tags[] | $JQ_FILTER)] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select($JQ_FILTER)" \
-            | head -n 1)
-          if [ -z "$KAFKA_TAG" ] || [ "$KAFKA_TAG" = "null" ]; then
-            echo "Error: Could not find a matching tag for platform-apis-kafka using filter."
-            exit 1
-          fi
-          yq -i ".queue.kafka.package.tag = \"$KAFKA_TAG\"" ${{ env.CHART_PATH }}/values.yaml
 
           echo "Updated values.yaml"
           cat ${{ env.CHART_PATH }}/values.yaml

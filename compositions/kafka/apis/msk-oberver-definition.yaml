@@ -1,12 +1,12 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: msks.kafka.entigo.com
+  name: msks.queue.entigo.com
 spec:
   defaultCompositionRef:
     name: msk-observed
   scope: Cluster
-  group: kafka.entigo.com
+  group: queue.entigo.com
   names:
     kind: MSK
     plural: msks

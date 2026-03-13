@@ -1,10 +1,10 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: topics.kafka.entigo.com
+  name: topics.queue.entigo.com
 spec:
   scope: Namespaced
-  group: kafka.entigo.com
+  group: queue.entigo.com
   names:
     kind: Topic
     plural: topics

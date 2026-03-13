@@ -4,3 +4,5 @@ metadata:
   name: platform-apis-queue
 data:
   awsProvider: crossplane-aws
+  configKMSKey: config
+  kafkaNamespace: crossplane-kafka

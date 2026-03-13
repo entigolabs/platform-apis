@@ -60,19 +60,20 @@ s3bucket:
     tag: v0.0.0
 
 queue:
-  install: false
-  type: kafka
   function:
     image: ghcr.io/entigolabs/platform-apis-queue-fn
     tag: v0.0.0
 
-  kafka:
-    environmentConfig:
-      awsProvider: "crossplane-aws"
-      tags: {}
-    package:
-      image: ghcr.io/entigolabs/platform-apis-kafka
-      tag: v0.0.0
+kafka:
+  install: false
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    configKMSKey: config
+    kafkaNamespace: crossplane-kafka
+    tags: {}
+  package:
+    image: ghcr.io/entigolabs/platform-apis-kafka
+    tag: v0.0.0
 
 tenancy:
   function:

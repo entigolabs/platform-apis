@@ -5,13 +5,10 @@ metadata:
   name: msk-observed
 spec:
   compositeTypeRef:
-    apiVersion: kafka.entigo.com/v1alpha1
+    apiVersion: queue.entigo.com/v1alpha1
     kind: MSK
   mode: Pipeline
   pipeline:
   - step: queue-function
     functionRef:
       name: platform-apis-queue-fn
-  - step: auto-ready
-    functionRef:
-      name: function-auto-ready

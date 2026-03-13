@@ -166,26 +166,6 @@ jobs:
             fi
           done
 
-          # Update queue.kafka.package.tag — nested path, handled separately from the loop
-          KAFKA_VERSIONS_JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/platform-apis-kafka/versions?per_page=100")
-          KAFKA_TAG=""
-          if [ "$IS_PR" == "true" ]; then
-            KAFKA_TAG=$(echo "$KAFKA_VERSIONS_JSON" \
-              | jq -r "[.[] | .metadata.container.tags[]? | select($JQ_FILTER_RC)] | sort_by(ltrimstr(\"v\") | split(\"-rc.\") | [(.[0] | split(\".\") | map(tonumber)), (.[1] | split(\".\") | map(tonumber))] | flatten) | .[-1] // empty" \
-              2>/dev/null || echo "")
-          fi
-          if [ -z "$KAFKA_TAG" ] || [ "$KAFKA_TAG" == "null" ]; then
-            KAFKA_TAG=$(echo "$KAFKA_VERSIONS_JSON" \
-              | jq -r "[.[] | .metadata.container.tags[]? | select($JQ_FILTER_STABLE)] | sort_by(ltrimstr(\"v\") | split(\".\") | map(tonumber)) | .[-1] // empty" \
-              2>/dev/null || echo "")
-          fi
-          if [ -z "$KAFKA_TAG" ] || [ "$KAFKA_TAG" == "null" ]; then
-            echo "Error: Could not find tag for platform-apis-kafka"
-            exit 1
-          fi
-          yq -i ".queue.kafka.package.tag = \"$KAFKA_TAG\"" ${{ env.CHART_PATH }}/values.yaml
-
           echo "Updated values.yaml:"
           cat ${{ env.CHART_PATH }}/values.yaml
 

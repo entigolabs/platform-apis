@@ -12,6 +12,7 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
+	kafkacv1beta3 "github.com/upbound/provider-aws/v2/apis/cluster/kafka/v1beta3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -32,8 +33,7 @@ type resourceNames struct {
 }
 
 const (
-	mskApiVersion  = "kafka.aws.upbound.io/v1beta3"
-	kafkaNamespace = "crossplane-kafka"
+	mskApiVersion = "kafka.aws.upbound.io/v1beta3"
 )
 
 func GenerateMskInstanceObjects(
@@ -116,27 +116,24 @@ func (g *mskInstanceGenerator) buildMskCluster() (client.Object, error) {
 	}
 	region := parts[3]
 
-	cluster := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": mskApiVersion,
-			"kind":       "Cluster",
-			"metadata": map[string]interface{}{
-				"name": string(g.names.mskCluster),
-				"annotations": map[string]interface{}{
-					"crossplane.io/external-name": arn,
-				},
+	cluster := &kafkacv1beta3.Cluster{
+		TypeMeta: metav1.TypeMeta{Kind: "Cluster", APIVersion: mskApiVersion},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: string(g.names.mskCluster),
+			Annotations: map[string]string{
+				"crossplane.io/external-name": arn,
 			},
-			"spec": map[string]interface{}{
-				"managementPolicies": []interface{}{"Observe"},
-				"forProvider": map[string]interface{}{
-					"region": region,
-				},
-				"providerConfigRef": map[string]interface{}{
-					"name": g.env.AWSProvider,
-				},
+		},
+		Spec: kafkacv1beta3.ClusterSpec{
+			ResourceSpec: xpv1.ResourceSpec{
+				ProviderConfigReference: &xpv1.Reference{Name: g.env.AWSProvider},
+			},
+			ForProvider: kafkacv1beta3.ClusterParameters{
+				Region: &region,
 			},
 		},
 	}
+	cluster.SetManagementPolicies(xpv1.ManagementPolicies{"Observe"})
 	return cluster, nil
 }
 
@@ -176,7 +173,7 @@ func (g *mskInstanceGenerator) buildKafkaSecret(brokersStr string) (client.Objec
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
-			Namespace: kafkaNamespace,
+			Namespace: g.env.KafkaNamespace,
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
@@ -203,7 +200,7 @@ func (g *mskInstanceGenerator) buildClusterProviderConfig() (client.Object, erro
 					SecretRef: &xpv1.SecretKeySelector{
 						SecretReference: xpv1.SecretReference{
 							Name:      string(g.names.configSecret),
-							Namespace: kafkaNamespace,
+							Namespace: g.env.KafkaNamespace,
 						},
 						Key: "credentials",
 					},

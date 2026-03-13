@@ -80,14 +80,7 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 }
 
 func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Ready {
-	switch observed.GetKind() {
-	case "Secret":
-		return resource.ReadyTrue
-	case "ClusterProviderConfig":
-		return resource.ReadyTrue
-	default:
-		return ""
-	}
+	return ""
 }
 
 func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
@@ -114,7 +107,7 @@ func (g *GroupImpl) getTopicRequiredResources(compositeResource *composite.Unstr
 	return map[string]*fnv1.ResourceSelector{
 		"MSKObserver": {
 			Kind:       "MSK",
-			ApiVersion: "kafka.entigo.com/v1alpha1",
+			ApiVersion: "queue.entigo.com/v1alpha1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: clusterName + "-observed"},
 		},
 	}, nil
@@ -134,10 +127,10 @@ func (g *GroupImpl) getKafkaUserRequiredResources(compositeResource *composite.U
 	clusterName, _, _ := unstructured.NestedString(compositeResource.Object, "spec", "clusterName")
 	resources["MSKObserver"] = &fnv1.ResourceSelector{
 		Kind:       "MSK",
-		ApiVersion: "kafka.entigo.com/v1alpha1",
+		ApiVersion: "queue.entigo.com/v1alpha1",
 		Match:      &fnv1.ResourceSelector_MatchName{MatchName: clusterName + "-observed"},
 	}
-	resources["KMSConfigKey"] = base.RequiredKMSKey("config", env.AWSProvider)
+	resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
 	return resources, nil
 }
 

@@ -29,7 +29,7 @@ const (
 
 func mskXR(arn string) *structpb.Struct {
 	s, err := structpb.NewStruct(map[string]interface{}{
-		"apiVersion": "kafka.entigo.com/v1alpha1",
+		"apiVersion": "queue.entigo.com/v1alpha1",
 		"kind":       "MSK",
 		"metadata":   map[string]interface{}{"name": "my-cluster-observed", "uid": "test-uid-msk"},
 		"spec":       map[string]interface{}{"clusterARN": arn},
@@ -42,7 +42,7 @@ func mskXR(arn string) *structpb.Struct {
 
 func topicXR(clusterName string) *structpb.Struct {
 	s, err := structpb.NewStruct(map[string]interface{}{
-		"apiVersion": "kafka.entigo.com/v1alpha1",
+		"apiVersion": "queue.entigo.com/v1alpha1",
 		"kind":       "Topic",
 		"metadata":   map[string]interface{}{"name": "my-topic", "namespace": "default"},
 		"spec": map[string]interface{}{
@@ -59,7 +59,7 @@ func topicXR(clusterName string) *structpb.Struct {
 
 func kafkaUserXR(clusterName string) *structpb.Struct {
 	s, err := structpb.NewStruct(map[string]interface{}{
-		"apiVersion": "kafka.entigo.com/v1alpha1",
+		"apiVersion": "queue.entigo.com/v1alpha1",
 		"kind":       "KafkaUser",
 		"metadata":   map[string]interface{}{"name": testUsername, "namespace": "default"},
 		"spec": map[string]interface{}{
@@ -81,7 +81,7 @@ func kafkaUserXR(clusterName string) *structpb.Struct {
 
 func mskObserverResource() *fnv1.Resources {
 	s, err := structpb.NewStruct(map[string]interface{}{
-		"apiVersion": "kafka.entigo.com/v1alpha1",
+		"apiVersion": "queue.entigo.com/v1alpha1",
 		"kind":       "MSK",
 		"metadata":   map[string]interface{}{"name": testClusterName + "-observed"},
 		"spec":       map[string]interface{}{"clusterARN": testClusterARN},
@@ -271,8 +271,10 @@ func TestKafkaUserPhase2(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
-							"awsProvider": testAWSProvider,
-							"tags":        map[string]interface{}{},
+							"awsProvider":    testAWSProvider,
+							"configKMSKey":   "config",
+							"kafkaNamespace": "crossplane-kafka",
+							"tags":           map[string]interface{}{},
 						}),
 					},
 				},
@@ -286,10 +288,11 @@ func TestKafkaUserPhase2(t *testing.T) {
 							base.NamespaceKey:   base.RequiredNamespace("default"),
 							"MSKObserver": {
 								Kind:       "MSK",
-								ApiVersion: "kafka.entigo.com/v1alpha1",
+								ApiVersion: "queue.entigo.com/v1alpha1",
 								Match:      &fnv1.ResourceSelector_MatchName{MatchName: testClusterName + "-observed"},
 							},
 							"KMSConfigKey": base.RequiredKMSKey("config", testAWSProvider),
+
 						},
 					},
 					Results: []*fnv1.Result{},
@@ -315,8 +318,10 @@ func TestKafkaUserPhase3(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
-							"awsProvider": testAWSProvider,
-							"tags":        map[string]interface{}{},
+							"awsProvider":    testAWSProvider,
+							"configKMSKey":   "config",
+							"kafkaNamespace": "crossplane-kafka",
+							"tags":           map[string]interface{}{},
 						}),
 						"MSKObserver":  mskObserverResource(),
 						"KMSConfigKey": kmsKeyResourceWithKeyID("config", testAWSProvider, testKMSKeyID),
@@ -354,8 +359,10 @@ func TestKafkaUserPhase4(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
-							"awsProvider": testAWSProvider,
-							"tags":        map[string]interface{}{},
+							"awsProvider":    testAWSProvider,
+							"configKMSKey":   "config",
+							"kafkaNamespace": "crossplane-kafka",
+							"tags":           map[string]interface{}{},
 						}),
 						"MSKObserver":  mskObserverResource(),
 						"KMSConfigKey": kmsKeyResourceWithKeyID("config", testAWSProvider, testKMSKeyID),
@@ -390,8 +397,10 @@ func TestKafkaUserPasswordPreservation(t *testing.T) {
 		Observed: observedState,
 		RequiredResources: map[string]*fnv1.Resources{
 			base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, map[string]interface{}{
-				"awsProvider": testAWSProvider,
-				"tags":        map[string]interface{}{},
+				"awsProvider":    testAWSProvider,
+				"configKMSKey":   "config",
+				"kafkaNamespace": "crossplane-kafka",
+				"tags":           map[string]interface{}{},
 			}),
 			"MSKObserver":  mskObserverResource(),
 			"KMSConfigKey": kmsKeyResourceWithKeyID("config", testAWSProvider, testKMSKeyID),

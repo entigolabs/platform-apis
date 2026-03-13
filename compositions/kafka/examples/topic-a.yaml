@@ -1,4 +1,4 @@
-apiVersion: kafka.entigo.com/v1alpha1
+apiVersion: queue.entigo.com/v1alpha1
 kind: Topic
 metadata:
   name: topic-a
