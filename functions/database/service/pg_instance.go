@@ -125,7 +125,7 @@ func (g *pgInstanceGenerator) generate() (map[string]client.Object, error) {
 	desired := make(map[string]client.Object)
 
 	maps.Copy(desired, g.buildSecurityGroup())
-
+	maps.Copy(desired, g.buildSqlProviderConfig())
 	maps.Copy(desired, g.buildRDSInstance())
 	observedRDSInstance, ok := g.observed[g.names.rdsInstance]
 	if !ok {
@@ -144,7 +144,6 @@ func (g *pgInstanceGenerator) generate() (map[string]client.Object, error) {
 		return desired, nil
 	}
 	maps.Copy(desired, g.buildExternalSecret(secretARN, endpoint, port))
-	maps.Copy(desired, g.buildSqlProviderConfig())
 
 	return desired, nil
 }
