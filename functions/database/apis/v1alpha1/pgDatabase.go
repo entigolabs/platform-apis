@@ -19,6 +19,7 @@ type PostgreSQLDatabase struct {
 }
 
 type PostgreSQLDatabaseSpec struct {
+	Name            string                               `json:"name,omitempty"`
 	Owner           string                               `json:"owner"`
 	InstanceRef     PostgreSQLDatabaseInstanceRef        `json:"instanceRef"`
 	Encoding        string                               `json:"encoding,omitempty"`
@@ -27,6 +28,8 @@ type PostgreSQLDatabaseSpec struct {
 	DBTemplate      string                               `json:"dbTemplate,omitempty"`
 	Extensions      []string                             `json:"extensions,omitempty"`
 	ExtensionConfig map[string]PostgreSQLExtensionConfig `json:"extensionConfig,omitempty"`
+	// +kubebuilder:default=true
+	DeletionProtection bool `json:"deletionProtection"`
 }
 
 type PostgreSQLDatabaseInstanceRef struct {

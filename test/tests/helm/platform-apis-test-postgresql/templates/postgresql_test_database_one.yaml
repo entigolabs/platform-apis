@@ -3,6 +3,7 @@ kind: PostgreSQLDatabase
 metadata:
   name: database-one-test
 spec:
+  name: database_one_test
   owner: test_owner
   encoding: "UTF8"
   lcCType: "et_EE.UTF-8"

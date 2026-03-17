@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 )
 
 const (
+	PostgresqlDatabaseSpecName = "database_one_test"
+
 	PostgresqlAdminUserName       = "test-owner"
 	PostgresqlAdminUserKind       = "postgresqlusers.database.entigo.com"
 	PostgresqlAdminUserSpecName   = "test_owner"
@@ -69,9 +72,12 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 			testGrantSyncedAndVerified(t, namespaceOptions, DatabaseGrantExpectedName, "dbadmin", PostgresqlAdminUserSpecName)
 			testSqlDatabaseOwnerField(t, namespaceOptions, PostgresqlDatabaseName, PostgresqlAdminUserSpecName)
 			testSqlDatabaseLocaleFields(t, namespaceOptions, PostgresqlDatabaseName)
+			testSqlDatabaseExternalName(t, namespaceOptions, PostgresqlDatabaseName, PostgresqlDatabaseSpecName)
 			testDatabaseExtensionsVerified(t, namespaceOptions)
+			testDatabaseExtensionsTargetDatabase(t, namespaceOptions, PostgresqlDatabaseName, PostgresqlDatabaseSpecName)
 			testUsageVerified(t, namespaceOptions, DatabaseOwnerProtectionName, "PostgreSQLUser", PostgresqlAdminUserName, "Database", PostgresqlDatabaseName)
 			testInstanceProtectionUsageVerified(t, namespaceOptions, DatabaseInstanceProtectionName, "Database", PostgresqlDatabaseName)
+			testDatabaseDeletionProtectionEnabled(t, namespaceOptions, PostgresqlDatabaseName)
 		})
 		t.Run("database-two", func(t *testing.T) {
 			t.Parallel()
@@ -93,6 +99,7 @@ func runPostgresqlUserAndDatabaseTests(t *testing.T, namespaceOptions *terrak8s.
 	testMinimalDatabaseDefaultsVerified(t, namespaceOptions)
 	testUsageVerified(t, namespaceOptions, MinimalDatabaseOwnerProtectionName, "PostgreSQLUser", PostgresqlRegularUserName, "Database", MinimalDatabaseName)
 	testInstanceProtectionUsageVerified(t, namespaceOptions, MinimalDatabaseInstanceProtectionName, "Database", MinimalDatabaseName)
+	testDatabaseDeletionProtectionBlocked(t, namespaceOptions, PostgresqlDatabaseName)
 	testDatabaseUsagePreventsGrantDeletion(t, namespaceOptions)
 }
 
@@ -318,4 +325,54 @@ func testDatabaseUsagePreventsGrantDeletion(t *testing.T, namespaceOptions *terr
 	grantName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlGrantKind, DatabaseGrantExpectedName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
 	require.NoError(t, err, "failed to check Grant existence")
 	require.Equal(t, DatabaseGrantExpectedName, grantName, "Grant '%s' was deleted despite Usage protection", DatabaseGrantExpectedName)
+}
+
+// testSqlDatabaseExternalName verifies that crossplane.io/external-name on the SQL Database matches spec.name.
+func testSqlDatabaseExternalName(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, compositeName, expectedExternalName string) {
+	t.Helper()
+	dbName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", compositeName), "-o", "jsonpath={.items[0].metadata.name}")
+	require.NoError(t, err, "failed to find SQL Database for composite '%s'", compositeName)
+	require.NotEmpty(t, dbName, "no SQL Database found for composite '%s'", compositeName)
+
+	externalName, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlDatabaseKind, dbName, "-o",
+		`jsonpath={.metadata.annotations.crossplane\.io/external-name}`)
+	require.NoError(t, err, "failed to get crossplane.io/external-name for SQL Database '%s'", dbName)
+	require.Equal(t, expectedExternalName, externalName, "SQL Database '%s' crossplane.io/external-name mismatch", dbName)
+}
+
+// testDatabaseExtensionsTargetDatabase verifies that all extensions for the given composite reference the expected database name.
+func testDatabaseExtensionsTargetDatabase(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, compositeName, expectedDbName string) {
+	t.Helper()
+	extNames, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlExtensionKind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", compositeName), "-o", "jsonpath={.items[*].metadata.name}")
+	require.NoError(t, err, "failed to list extensions for composite '%s'", compositeName)
+	require.NotEmpty(t, extNames, "no extensions found for composite '%s'", compositeName)
+
+	for _, extName := range strings.Fields(extNames) {
+		extName := extName
+		dbField, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", SqlExtensionKind, extName, "-o", "jsonpath={.spec.forProvider.database}")
+		require.NoError(t, err, "failed to get forProvider.database for extension '%s'", extName)
+		require.Equal(t, expectedDbName, dbField, "extension '%s' forProvider.database mismatch", extName)
+	}
+}
+
+// testDatabaseDeletionProtectionEnabled verifies that spec.deletionProtection defaults to true on a PostgreSQLDatabase.
+func testDatabaseDeletionProtectionEnabled(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, dbName string) {
+	t.Helper()
+	dp, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "get", PostgresqlDatabaseKind, dbName, "-o", "jsonpath={.spec.deletionProtection}")
+	require.NoError(t, err, "failed to get deletionProtection for PostgreSQLDatabase '%s'", dbName)
+	require.Equal(t, "true", dp, "PostgreSQLDatabase '%s' deletionProtection should be true by default", dbName)
+}
+
+// testDatabaseDeletionProtectionBlocked verifies that deleting a PostgreSQLDatabase with deletionProtection=true is rejected.
+func testDatabaseDeletionProtectionBlocked(t *testing.T, namespaceOptions *terrak8s.KubectlOptions, dbName string) {
+	t.Helper()
+	output, err := terrak8s.RunKubectlAndGetOutputE(t, namespaceOptions, "delete", PostgresqlDatabaseKind, dbName, "--wait=false")
+	combined := output
+	if err != nil {
+		combined += err.Error()
+	}
+	require.Error(t, err, "expected deletion of PostgreSQLDatabase '%s' with deletionProtection=true to be rejected, but it succeeded", dbName)
+	require.Contains(t, combined, "protected", "expected deletion rejection message to mention protection, got: %s", combined)
 }
