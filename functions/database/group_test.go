@@ -157,6 +157,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName))},
 						},
 					},
 					Requirements: &fnv1.Requirements{
@@ -185,6 +186,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
@@ -207,6 +209,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceResJson, instanceName, snapshotName, instanceName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
 						},
 					},
 					Requirements: &fnv1.Requirements{
@@ -406,6 +409,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
@@ -428,6 +432,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceWithSnapshotResJson, instanceName, snapshotName, instanceName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
 						},
 					},
 					Requirements: &fnv1.Requirements{

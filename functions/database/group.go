@@ -100,10 +100,10 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 		sg := service.GetSGName(instance.GetName(), setHash)
 		sgIngress := service.GetSGIngressName(instance.GetName(), setHash)
 		sgEgress := service.GetSGEgressName(instance.GetName(), setHash)
+		pc := service.GetPCName(instance.GetName())
 		rdsInstance := service.GetRDSInstanceName(instance.GetName(), setHash)
 		es := service.GetESName(instance.GetName(), setHash)
-		pc := service.GetPCName(instance.GetName())
-		return base.NewSequence(false, []string{sg, sgIngress, sgEgress}, []string{rdsInstance}, []string{es, pc})
+		return base.NewSequence(false, []string{sg, sgIngress, sgEgress, pc}, []string{rdsInstance}, []string{es})
 	case apis.XRKindValkey:
 		return base.NewSequence(true,
 			[]string{"security-group"},

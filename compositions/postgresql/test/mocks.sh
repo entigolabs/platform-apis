@@ -118,8 +118,7 @@ mock_pg_usage_grants_as_observed_resource() {
 
 mock_sg_as_observed_resource() {
   yq '
-    select(.kind == "SecurityGroup" or .kind == "SecurityGroupRule") |
-    .status.atProvider.securityGroupId = "sg-mock-123" |
+    select(.kind == "SecurityGroup" or .kind == "SecurityGroupRule" or .kind == "ProviderConfig") |
     .status.conditions = [{"type": "Synced", "status": "True"}, {"type": "Ready", "status": "True"}]
   ' -
 }
