@@ -30,10 +30,10 @@ func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOp
 
 	waitForZonesReady(t, zonesReady, zonesReadySuccess)
 
-	//aAppsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, AAppsNamespace)
+	aAppsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, AAppsNamespace)
 	namespaceOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
-	//testWaitAndSyncPostgresqlApplication(t, aAppsOptions)
+	testWaitAndSyncPostgresqlApplication(t, aAppsOptions)
 
 	instanceStart := time.Now()
 	runPostgresqlInstanceTests(t, namespaceOptions)
