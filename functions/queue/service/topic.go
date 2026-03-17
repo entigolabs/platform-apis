@@ -6,8 +6,12 @@ import (
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	// The official API package for the Kafka Topic
+	kafkav1alpha1 "github.com/crossplane-contrib/provider-kafka/apis/namespaced/topic/v1alpha1"
+	common "github.com/crossplane-contrib/provider-kafka/apis/v1alpha1"
 )
 
 func GenerateTopicObjects(
@@ -24,41 +28,26 @@ func GenerateTopicObjects(
 		return nil, fmt.Errorf("MSK for cluster %s is not ready: providerConfig is empty", topic.Spec.ClusterName)
 	}
 
-	partitions := int64(topic.Spec.Partitions)
+	partitions := int(topic.Spec.Partitions)
 	if partitions == 0 {
 		partitions = 3
 	}
-	replicationFactor := int64(topic.Spec.ReplicationFactor)
+	replicationFactor := int(topic.Spec.ReplicationFactor)
 	if replicationFactor == 0 {
 		replicationFactor = 3
 	}
 
-	forProvider := map[string]interface{}{
-		"partitions":        partitions,
-		"replicationFactor": replicationFactor,
-	}
-	if len(topic.Spec.Config) > 0 {
-		configMap := make(map[string]interface{}, len(topic.Spec.Config))
-		for k, v := range topic.Spec.Config {
-			configMap[k] = v
-		}
-		forProvider["config"] = configMap
-	}
-
-	topicResource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "topic.kafka.m.crossplane.io/v1alpha1",
-			"kind":       "Topic",
-			"metadata": map[string]interface{}{
-				"name":      topic.Name,
-				"namespace": topic.Namespace,
-			},
-			"spec": map[string]interface{}{
-				"forProvider": forProvider,
-				"providerConfigRef": map[string]interface{}{
-					"kind": "ClusterProviderConfig",
-					"name": msk.Status.ProviderConfig,
-				},
+	topicResource := &kafkav1alpha1.Topic{
+		TypeMeta: metav1.TypeMeta{Kind: "Topic", APIVersion: "topic.kafka.m.crossplane.io/v1alpha1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      topic.Name,
+			Namespace: topic.Namespace,
+		},
+		Spec: kafkav1alpha1.TopicSpec{
+			ForProvider: common.TopicParameters{
+				Partitions:        partitions,
+				ReplicationFactor: replicationFactor,
+				Config:            topic.Spec.Config,
 			},
 		},
 	}

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
-	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/function-base/test"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -292,7 +291,6 @@ func TestKafkaUserPhase2(t *testing.T) {
 								Match:      &fnv1.ResourceSelector_MatchName{MatchName: testClusterName + "-observed"},
 							},
 							"KMSConfigKey": base.RequiredKMSKey("config", testAWSProvider),
-
 						},
 					},
 					Results: []*fnv1.Result{},
@@ -421,6 +419,3 @@ func TestKafkaUserPasswordPreservation(t *testing.T) {
 		},
 	}, "desired", "meta", "requirements")
 }
-
-// helper to shut up the unused import linter
-var _ = resource.Name("")

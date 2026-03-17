@@ -8,7 +8,6 @@ import (
 	kafkanv1alpha1 "github.com/crossplane-contrib/provider-kafka/apis/namespaced/v1alpha1"
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/function-sdk-go/resource"
-	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
@@ -20,12 +19,11 @@ import (
 )
 
 type mskInstanceGenerator struct {
-	mskInstance  v1alpha1.MSKInstance
-	env          apis.Environment
-	observed     map[resource.Name]resource.ObservedComposed
-	hash         string
-	names        resourceNames
-	readinessMap map[resource.Name]bool
+	mskInstance v1alpha1.MSKInstance
+	env         apis.Environment
+	observed    map[resource.Name]resource.ObservedComposed
+	hash        string
+	names       resourceNames
 }
 
 type resourceNames struct {
@@ -66,11 +64,6 @@ func newMskInstanceGenerator(
 
 	g.generateNames()
 
-	g.readinessMap = make(map[resource.Name]bool)
-	for name, obs := range observed {
-		g.readinessMap[name] = isResourceReady(obs.Resource)
-	}
-
 	return g, nil
 }
 
@@ -99,11 +92,7 @@ func (g *mskInstanceGenerator) generate() (map[string]client.Object, error) {
 	}
 	desired[string(g.names.configSecret)] = secret
 
-	providerConfig, err := g.buildClusterProviderConfig()
-	if err != nil {
-		return nil, err
-	}
-	desired[string(g.names.clusterProviderConfig)] = providerConfig
+	desired[string(g.names.clusterProviderConfig)] = g.buildClusterProviderConfig()
 
 	return desired, nil
 }
@@ -116,7 +105,7 @@ func (g *mskInstanceGenerator) buildMskCluster() (client.Object, error) {
 	}
 	region := parts[3]
 
-	cluster := &kafkacv1beta3.Cluster{
+	return &kafkacv1beta3.Cluster{
 		TypeMeta: metav1.TypeMeta{Kind: "Cluster", APIVersion: mskApiVersion},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: string(g.names.mskCluster),
@@ -127,14 +116,13 @@ func (g *mskInstanceGenerator) buildMskCluster() (client.Object, error) {
 		Spec: kafkacv1beta3.ClusterSpec{
 			ResourceSpec: xpv1.ResourceSpec{
 				ProviderConfigReference: &xpv1.Reference{Name: g.env.AWSProvider},
+				ManagementPolicies:      xpv1.ManagementPolicies{"Observe"},
 			},
 			ForProvider: kafkacv1beta3.ClusterParameters{
 				Region: &region,
 			},
 		},
-	}
-	cluster.SetManagementPolicies(xpv1.ManagementPolicies{"Observe"})
-	return cluster, nil
+	}, nil
 }
 
 func (g *mskInstanceGenerator) buildKafkaSecret(brokersStr string) (client.Object, error) {
@@ -183,15 +171,14 @@ func (g *mskInstanceGenerator) buildKafkaSecret(brokersStr string) (client.Objec
 	return secret, nil
 }
 
-func (g *mskInstanceGenerator) buildClusterProviderConfig() (client.Object, error) {
-	pcName := string(g.names.clusterProviderConfig)
-	pc := &kafkanv1alpha1.ClusterProviderConfig{
+func (g *mskInstanceGenerator) buildClusterProviderConfig() client.Object {
+	return &kafkanv1alpha1.ClusterProviderConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "kafka.m.crossplane.io/v1alpha1",
 			Kind:       "ClusterProviderConfig",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: pcName,
+			Name: string(g.names.clusterProviderConfig),
 		},
 		Spec: kafkanv1alpha1.ProviderConfigSpec{
 			Credentials: kafkanv1alpha1.ProviderCredentials{
@@ -208,24 +195,6 @@ func (g *mskInstanceGenerator) buildClusterProviderConfig() (client.Object, erro
 			},
 		},
 	}
-	return pc, nil
-}
-
-func isResourceReady(observed *composed.Unstructured) bool {
-	conditions, found, err := unstructured.NestedSlice(observed.Object, "status", "conditions")
-	if err != nil || !found {
-		return false
-	}
-	for _, condition := range conditions {
-		conditionMap, ok := condition.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		if conditionMap["type"] == "Ready" && conditionMap["status"] == "True" {
-			return true
-		}
-	}
-	return false
 }
 
 func (g *mskInstanceGenerator) generateNames() {

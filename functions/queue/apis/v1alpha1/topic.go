@@ -24,9 +24,9 @@ type TopicSpec struct {
 	// +kubebuilder:default=3
 	Partitions int32 `json:"partitions,omitempty"`
 	// +kubebuilder:default=3
-	ReplicationFactor int32             `json:"replicationFactor,omitempty"`
-	Config            map[string]string `json:"config,omitempty"`
-	ClusterName       string            `json:"clusterName"`
+	ReplicationFactor int32              `json:"replicationFactor,omitempty"`
+	Config            map[string]*string `json:"config,omitempty"`
+	ClusterName       string             `json:"clusterName"`
 }
 
 // TopicStatus specifies the observed state of a Topic.
