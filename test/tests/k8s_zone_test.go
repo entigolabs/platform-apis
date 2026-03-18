@@ -64,24 +64,24 @@ func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *
 	require.NoError(t, err, "applying b-apps Application error")
 
 	// Sync a-apps first — its child 'test-postgresql' Application must exist before postgresql tests start
-	syncAndWaitApplication(t, aAppsOpts, AAppsApplicationName, 30, 10*time.Second)
+	syncAndWaitApplication(t, aAppsOpts, AAppsApplicationName, 10, 10*time.Second)
 	signalZonesReady(!t.Failed())
 
 	if t.Failed() {
 		return
 	}
 
-	syncAndWaitApplication(t, bAppsOpts, BAppsApplicationName, 30, 10*time.Second)
+	syncAndWaitApplication(t, bAppsOpts, BAppsApplicationName, 10, 10*time.Second)
 
 	t.Run("zone-apps-running", func(t *testing.T) {
 		t.Run("a1", func(t *testing.T) {
 			t.Parallel()
-			syncAndWaitApplication(t, aAppsOpts, "a1", 30, 10*time.Second)
+			syncAndWaitApplication(t, aAppsOpts, "a1", 10, 10*time.Second)
 			testPodsRunning(t, clusterOptions, "a1", "a1-curl")
 		})
 		t.Run("b1", func(t *testing.T) {
 			t.Parallel()
-			syncAndWaitApplication(t, bAppsOpts, "b1", 30, 10*time.Second)
+			syncAndWaitApplication(t, bAppsOpts, "b1", 10, 10*time.Second)
 			testPodsRunning(t, clusterOptions, "b1", "b1-curl")
 		})
 	})
@@ -115,7 +115,7 @@ func testPodsRunning(t *testing.T, clusterOptions *terrak8s.KubectlOptions, name
 	t.Helper()
 	nsOpts := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, namespace)
 	for _, pod := range []string{releaseName, releaseName} {
-		_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for pod '%s/%s'", namespace, pod), 30, 10*time.Second, func() (string, error) {
+		_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for pod '%s/%s'", namespace, pod), 10, 10*time.Second, func() (string, error) {
 			phase, err := terrak8s.RunKubectlAndGetOutputE(t, nsOpts, "get", "pod", pod, "-o", "jsonpath={.status.phase}")
 			if err != nil {
 				return "", err
