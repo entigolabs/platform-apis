@@ -161,7 +161,7 @@ metadata:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
 spec:
-  ingressClassName: service
+  ingressClassName: {{ .Values.ingressClassName }}
   rules:
     - host: {{ .Release.Name }}.biz-net-route53.infralib.entigo.io
       http:

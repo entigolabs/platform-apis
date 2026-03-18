@@ -15,6 +15,7 @@ spec:
     helm:
       values: |
         targetRevision: '{{ .Values.targetRevision }}'
+        ingressClassName: service
       releaseName: b1
   syncPolicy:
     automated:
