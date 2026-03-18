@@ -88,27 +88,32 @@ jobs:
       - name: Detect changes
         if: github.event_name != 'workflow_dispatch'
         id: changes
+        env:
+          FUNCS_FILES: ${{ steps.changed-files.outputs.functions_all_changed_files }}
+          COMPS_FILES: ${{ steps.changed-files.outputs.compositions_all_changed_files }}
+          COMMON_LIB_CHANGED: ${{ steps.changed-files.outputs.common_lib_any_changed }}
+          FUNCS_ANY_CHANGED: ${{ steps.changed-files.outputs.functions_any_changed || 'false' }}
+          COMPS_ANY_CHANGED: ${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}
+          HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
         run: |
-          if [ "${{ steps.changed-files.outputs.common_lib_any_changed }}" == "true" ]; then
+          if [ "$COMMON_LIB_CHANGED" == "true" ]; then
             FUNCTIONS=$(ls -d functions/*/ 2>/dev/null | xargs -I{} basename {} | grep -v '^common$' | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
             echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
             echo "has_function_changes=true" >> $GITHUB_OUTPUT
           else
-            FUNCS_FILES='${{ steps.changed-files.outputs.functions_all_changed_files }}'
             FUNCTIONS=$(echo "${FUNCS_FILES:-[]}" | jq -c 'map(split("/") | .[1]) | unique | map(select(. != null))')
             echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
-            echo "has_function_changes=${{ steps.changed-files.outputs.functions_any_changed || 'false' }}" >> $GITHUB_OUTPUT
+            echo "has_function_changes=$FUNCS_ANY_CHANGED" >> $GITHUB_OUTPUT
           fi
-          
-          COMPS_FILES='${{ steps.changed-files.outputs.compositions_all_changed_files }}'
+
           COMPOSITIONS=$(echo "${COMPS_FILES:-[]}" | jq -c 'map(split("/") | .[1]) | unique | map(select(. != null))')
           echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
-          echo "has_composition_changes=${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}" >> $GITHUB_OUTPUT
-          
+          echo "has_composition_changes=$COMPS_ANY_CHANGED" >> $GITHUB_OUTPUT
+
           #We always want to build all test helm packages.
-          echo "testhelm=$(get_dirs 'test/tests/helm/')" >> $GITHUB_OUTPUT
+          TESTHELM=$(ls -d test/tests/helm/*/ 2>/dev/null | xargs -I{} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
+          echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
           echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
 
-          
           # Helm
-          echo "helm_changed=${{ steps.changed-files.outputs.helm_any_changed || 'false' }}" >> $GITHUB_OUTPUT
+          echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
