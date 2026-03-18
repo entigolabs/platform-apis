@@ -1,28 +1,95 @@
-apiVersion: v1
-kind: Pod
+# Deployment - PSA restricted compliant
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: {{ .Release.Name }}
   labels:
     app: {{ .Release.Name }}
 spec:
-  containers:
-  - name: nginx
-    image: nginx
-    ports:
-    - containerPort: 80
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      terminationGracePeriodSeconds: 1
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101 # nginx user in the nginx image
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: nginx
+        image: 877483565445.dkr.ecr.eu-north-1.amazonaws.com/biz-net-ecr-proxy-hub/nginxinc/nginx-unprivileged
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 1m
+            memory: 12Mi
+            ephemeral-storage: 1Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+            ephemeral-storage: 500Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
 ---
-apiVersion: v1
-kind: Pod
+# StatefulSet - PSA restricted compliant
+apiVersion: apps/v1
+kind: StatefulSet
 metadata:
   name: {{ .Release.Name }}second
   labels:
     app: {{ .Release.Name }}second
 spec:
-  containers:
-  - name: nginx
-    image: nginx
-    ports:
-    - containerPort: 80
+  replicas: 1
+  serviceName: {{ .Release.Name }}second
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}second
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}second
+    spec:
+      terminationGracePeriodSeconds: 1
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101 # nginx user in the nginx image
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: nginx
+        image: 877483565445.dkr.ecr.eu-north-1.amazonaws.com/biz-net-ecr-proxy-hub/nginxinc/nginx-unprivileged
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 1m
+            memory: 12Mi
+            ephemeral-storage: 1Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+            ephemeral-storage: 500Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
 ---
 apiVersion: v1
 kind: Service
@@ -58,10 +125,32 @@ metadata:
   labels:
     app: {{ .Release.Name }}-curl
 spec:
+  terminationGracePeriodSeconds: 1
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100 # curl_user in curlimages/curl
+    runAsGroup: 101
+    seccompProfile:
+      type: RuntimeDefault
   containers:
   - name: curl
-    image: curlimages/curl
+    image: 877483565445.dkr.ecr.eu-north-1.amazonaws.com/biz-net-ecr-proxy-hub/curlimages/curl
+    imagePullPolicy: IfNotPresent
     command: ["sleep", "infinity"]
+    resources:
+      requests:
+        cpu: 1m
+        memory: 12Mi
+        ephemeral-storage: 1Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+        ephemeral-storage: 500Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
