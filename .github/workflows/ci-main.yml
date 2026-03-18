@@ -77,7 +77,7 @@ jobs:
   build-helm:
     name: Lint and Build Helm
     needs: [detect-changes, test-helm, build-functions, build-compositions]
-    if: ${{ !failure() && !cancelled() }}
+    if: always() &&!failure() && !cancelled()
     uses: ./.github/workflows/build-helm.yml
     with:
       release_type: stable
@@ -86,7 +86,7 @@ jobs:
   prepare-infralib-branch:
     name: Prepare Infralib Branch
     needs: build-helm
-    if: ${{ needs.build-helm.result == 'success' }}
+    if: always() && needs.build-helm.result == 'success'
     uses: ./.github/workflows/prepare-infralib-branch.yml
     with:
       helm_version: ${{ needs.build-helm.outputs.version }}
@@ -95,7 +95,7 @@ jobs:
   run-infralib-tests:
     name: Run Infralib Tests
     needs: [ build-helm, prepare-infralib-branch, build-testhelm, test-functions, test-compositions ]
-    if: ${{ !failure() && !cancelled() && needs.prepare-infralib-branch.result == 'success' }}
+    if: always() && !failure() && !cancelled() && needs.prepare-infralib-branch.result == 'success'
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
       branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
