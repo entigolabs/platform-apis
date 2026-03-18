@@ -25,29 +25,30 @@ jobs:
         run: |
           PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
 
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+
           if [ -z "$PREV_TAG" ]; then
-            NOTES="Initial release"
+            echo "Initial release" >> $GITHUB_OUTPUT
           else
             CHANGED_FILES=$(git diff --name-only "$PREV_TAG" HEAD)
+          
+            echo "## Changed components" >> $GITHUB_OUTPUT
 
-            FUNCTIONS=$(echo "$CHANGED_FILES" | grep '^functions/' | grep -v '^functions/common/' | cut -d'/' -f2 | sort -u | grep -v '^$' || true)
-            COMPOSITIONS=$(echo "$CHANGED_FILES" | grep '^compositions/' | cut -d'/' -f2 | sort -u | grep -v '^$' || true)
-            HELM=$(echo "$CHANGED_FILES" | grep -c '^helm/' || true)
-
-            NOTES="## Changed components"
+            FUNCTIONS=$(echo "$CHANGED_FILES" | grep '^functions/' | grep -v '^functions/common/' | cut -d'/' -f2 | sort -u || true)
             if [ -n "$FUNCTIONS" ]; then
-              NOTES="${NOTES}"$'\n'"**Functions:** $(echo "$FUNCTIONS" | tr '\n' ' ' | sed 's/ $//')"
+              echo "**Functions:** ${FUNCTIONS}" >> $GITHUB_OUTPUT
             fi
+
+            COMPOSITIONS=$(echo "$CHANGED_FILES" | grep '^compositions/' | cut -d'/' -f2 | sort -u || true)
             if [ -n "$COMPOSITIONS" ]; then
-              NOTES="${NOTES}"$'\n'"**Compositions:** $(echo "$COMPOSITIONS" | tr '\n' ' ' | sed 's/ $//')"
+              echo "**Compositions:** ${COMPOSITIONS}" >> $GITHUB_OUTPUT
             fi
-            if [ "$HELM" -gt 0 ]; then
-              NOTES="${NOTES}"$'\n'"**Helm chart** updated"
+
+            if echo "$CHANGED_FILES" | grep -q '^helm/'; then
+              echo "**Helm chart** updated" >> $GITHUB_OUTPUT
             fi
           fi
 
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create release
