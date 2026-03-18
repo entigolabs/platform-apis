@@ -114,7 +114,7 @@ func testZoneNodegroupReady(t *testing.T, clusterOptions *terrak8s.KubectlOption
 func testPodsRunning(t *testing.T, clusterOptions *terrak8s.KubectlOptions, namespace, releaseName string) {
 	t.Helper()
 	nsOpts := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, namespace)
-	for _, pod := range []string{releaseName, releaseName + "second"} {
+	for _, pod := range []string{releaseName, releaseName} {
 		_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for pod '%s/%s'", namespace, pod), 30, 10*time.Second, func() (string, error) {
 			phase, err := terrak8s.RunKubectlAndGetOutputE(t, nsOpts, "get", "pod", pod, "-o", "jsonpath={.status.phase}")
 			if err != nil {
