@@ -1,6 +1,6 @@
-name: Detect changes
-
 # Detects changes in code and splits them into categories to trigger right jobs.
+
+name: Detect changes
 
 on:
   workflow_call:
@@ -48,82 +48,73 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         id: force-all
         run: |
-          FUNCTIONS=$(ls -d functions/*/ | xargs -I{} basename {} | grep -v '^common$' | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+          get_dirs() {
+            ls -d $1*/ 2>/dev/null | xargs -I{} basename {} | grep -vE '^(common|examples)$' | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]"
+          }
+          
+          echo "functions=$(get_dirs 'functions/')" >> $GITHUB_OUTPUT
           echo "has_function_changes=true" >> $GITHUB_OUTPUT
-          echo "All functions: $FUNCTIONS"
 
-          COMPOSITIONS=$(ls -d compositions/*/ | xargs -I{} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
+          echo "compositions=$(get_dirs 'compositions/')" >> $GITHUB_OUTPUT
           echo "has_composition_changes=true" >> $GITHUB_OUTPUT
-          echo "All compositions: $COMPOSITIONS"
 
-          TESTHELM=$(ls -d test/tests/helm/*/ | xargs -I{} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
+          echo "testhelm=$(get_dirs 'test/tests/helm/')" >> $GITHUB_OUTPUT
           echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
-          echo "All compositions: $TESTHELM"
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
 
       - name: Get changed files
         if: github.event_name != 'workflow_dispatch'
         id: changed-files
-        uses: tj-actions/changed-files@v42
+        uses: tj-actions/changed-files@v47
         with:
           base_sha: ${{ github.event.pull_request.base.sha }}
           sha: ${{ github.event.pull_request.head.sha }}
+          json: true
+          escape_json: false
+          files_yaml: |
+            functions:
+              - 'functions/**'
+              - '!functions/common/**'
+            common_lib:
+              - 'functions/common/**'
+            compositions:
+              - 'compositions/**'
+              - '!compositions/examples/**'
+            testhelm:
+              - 'test/tests/helm/**'
+            helm:
+              - 'helm/**'
 
       - name: Detect changes
         if: github.event_name != 'workflow_dispatch'
         id: changes
+        env:
+          FUNCS_FILES: ${{ steps.changed-files.outputs.functions_all_changed_files }}
+          COMPS_FILES: ${{ steps.changed-files.outputs.compositions_all_changed_files }}
+          COMMON_LIB_CHANGED: ${{ steps.changed-files.outputs.common_lib_any_changed }}
+          FUNCS_ANY_CHANGED: ${{ steps.changed-files.outputs.functions_any_changed || 'false' }}
+          COMPS_ANY_CHANGED: ${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}
+          HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
         run: |
-          ALL_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
-
-          # Functions: if common changed, test all; otherwise only changed ones
-          if echo "$ALL_FILES" | tr ' ' '\n' | grep -q '^functions/common/'; then
-            echo "Common folder changed - will test all functions"
-            FUNCTIONS='["artifact","database","networking","storage","tenancy","workload"]'
-          else
-            FUNCTIONS=$(echo "$ALL_FILES" | tr ' ' '\n' | grep '^functions/' | grep -v '^functions/common/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          fi
-
-          echo "Changed functions: $FUNCTIONS"
-          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
-
-          if [ "$FUNCTIONS" == "[]" ]; then
-            echo "has_function_changes=false" >> $GITHUB_OUTPUT
-          else
+          if [ "$COMMON_LIB_CHANGED" == "true" ]; then
+            FUNCTIONS=$(ls -d functions/*/ 2>/dev/null | xargs -I{} basename {} | grep -v '^common$' | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
+            echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
             echo "has_function_changes=true" >> $GITHUB_OUTPUT
+          else
+            FUNCTIONS=$(echo "${FUNCS_FILES:-[]}" | jq -c 'map(split("/") | .[1]) | unique | map(select(. != null))')
+            echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+            echo "has_function_changes=$FUNCS_ANY_CHANGED" >> $GITHUB_OUTPUT
           fi
 
-          # Compositions (excluding examples)
-          COMPOSITIONS=$(echo "$ALL_FILES" | tr ' ' '\n' | grep '^compositions/' | grep -v '/examples/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
-
-          echo "Changed compositions: $COMPOSITIONS"
+          COMPOSITIONS=$(echo "${COMPS_FILES:-[]}" | jq -c 'map(split("/") | .[1]) | unique | map(select(. != null))')
           echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
+          echo "has_composition_changes=$COMPS_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          if [ "$COMPOSITIONS" == "[]" ]; then
-            echo "has_composition_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_composition_changes=true" >> $GITHUB_OUTPUT
-          fi
-
-          # Test Helm Charts
-          TESTHELM=$(echo "$ALL_FILES" | tr ' ' '\n' | grep '^test/tests/helm/' | cut -d'/' -f4 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
-
-          echo "Changed testhelm: $TESTHELM"
+          #We always want to build all test helm packages.
+          TESTHELM=$(ls -d test/tests/helm/*/ 2>/dev/null | xargs -I{} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
           echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
+          echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
 
-          if [ "$TESTHELM" == "[]" ]; then
-            echo "has_testhelm_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
-          fi
-
-          # Helm folder
-          if echo "$ALL_FILES" | tr ' ' '\n' | grep -qE '^helm/'; then
-            echo "helm_changed=true" >> $GITHUB_OUTPUT
-            echo "Helm folder changed"
-          else
-            echo "helm_changed=false" >> $GITHUB_OUTPUT
-          fi
+          # Helm
+          echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
