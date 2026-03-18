@@ -125,10 +125,23 @@ func (g *pgInstanceGenerator) generate() (map[string]client.Object, error) {
 	desired := make(map[string]client.Object)
 
 	maps.Copy(desired, g.buildSecurityGroup())
+	maps.Copy(desired, g.buildSqlProviderConfig())
 
-	maps.Copy(desired, g.buildRDSInstance())
-	observedRDSInstance, ok := g.observed[g.names.rdsInstance]
-	if !ok {
+	recreateRDS := false
+	observedRDSInstance, rdsExists := g.observed[g.names.rdsInstance]
+
+	if rdsExists {
+		observedSnapshot := getSnapshotIdentifierFromObserved(observedRDSInstance.Resource)
+		desiredSnapshot := g.pgInstance.Spec.SnapshotIdentifier
+
+		if desiredSnapshot != "" && desiredSnapshot != observedSnapshot {
+			recreateRDS = true
+		}
+	}
+	if !recreateRDS {
+		maps.Copy(desired, g.buildRDSInstance())
+	}
+	if !rdsExists || recreateRDS {
 		return desired, nil
 	}
 	secretARN, secretStatus, found := getSecretARNFromRDSInstanceStatus(observedRDSInstance.Resource)
@@ -144,7 +157,6 @@ func (g *pgInstanceGenerator) generate() (map[string]client.Object, error) {
 		return desired, nil
 	}
 	maps.Copy(desired, g.buildExternalSecret(secretARN, endpoint, port))
-	maps.Copy(desired, g.buildSqlProviderConfig())
 
 	return desired, nil
 }
@@ -594,6 +606,14 @@ func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1
 
 	status.VpcSecurityGroupIds = vpcSecurityGroupsIds
 	return status
+}
+
+func getSnapshotIdentifierFromObserved(instance *composed.Unstructured) string {
+	snapshot, found, err := unstructured.NestedString(instance.Object, "spec", "forProvider", "snapshotIdentifier")
+	if err != nil || !found {
+		return ""
+	}
+	return snapshot
 }
 
 func GetRDSInstanceReadyStatus(observed *composed.Unstructured) resource.Ready {

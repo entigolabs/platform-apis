@@ -18,15 +18,9 @@ jobs:
     name: Detect Changes
     uses: ./.github/workflows/detect-changes.yml
 
-  ensure-test-image:
-    name: Ensure Test Image
-    needs: detect-changes
-    uses: ./.github/workflows/ensure-test-image.yml
-    secrets: inherit
-
   test-functions:
     name: Test Functions
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_function_changes == 'true'
     uses: ./.github/workflows/test-functions.yml
     with:
@@ -34,7 +28,7 @@ jobs:
 
   test-compositions:
     name: Test Compositions
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_composition_changes == 'true'
     uses: ./.github/workflows/test-compositions.yml
     with:
@@ -42,7 +36,7 @@ jobs:
 
   test-helm:
     name: Test Helm
-    needs: [detect-changes, ensure-test-image]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.helm_changed == 'true'
     uses: ./.github/workflows/test-helm.yml
 
@@ -128,7 +122,7 @@ jobs:
 
   notify:
     name: Slack Notification
-    needs: [detect-changes, ensure-test-image, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, prepare-infralib-branch, run-infralib-tests, build-testhelm]
+    needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, prepare-infralib-branch, run-infralib-tests, build-testhelm]
     if: always() && !cancelled() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:

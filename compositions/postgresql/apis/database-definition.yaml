@@ -20,6 +20,9 @@ spec:
             spec:
               type: object
               properties:
+                name:
+                  type: string
+                  description: Alternative, i.e. non kubernetes compliant name
                 owner:
                   description: Owner role name (PostgreSQL conventional name)
                   type: string
@@ -64,6 +67,10 @@ spec:
                       schema:
                         description: Schema in which to create the extension objects
                         type: string
+                deletionProtection:
+                  default: true
+                  type: boolean
+                  description: Prevents accidental deletion of PostgreSQLDatabase resource
               required:
                 - owner
                 - instanceRef

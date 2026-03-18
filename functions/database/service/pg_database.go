@@ -17,10 +17,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const CrossplaneProtectionApi = "protection.crossplane.io/v1beta1"
+
 type pgDatabaseGenerator struct {
 	pgDatabase         v1alpha1.PostgreSQLDatabase
 	ownerRole          postgresv1alpha1.Role
 	providerConfigName string
+	dbDisplayName      string
 }
 
 func GeneratePgDatabaseObjects(
@@ -43,10 +46,16 @@ func newPgDatabaseGenerator(
 		return nil, err
 	}
 
+	dbDisplayName := pgDatabase.Name
+	if pgDatabase.Spec.Name != "" {
+		dbDisplayName = pgDatabase.Spec.Name
+	}
+
 	return &pgDatabaseGenerator{
 		pgDatabase:         pgDatabase,
 		ownerRole:          ownerRole,
 		providerConfigName: pgDatabase.Spec.InstanceRef.Name + "-providerconfig",
+		dbDisplayName:      dbDisplayName,
 	}, nil
 }
 
@@ -127,6 +136,9 @@ func (g *pgDatabaseGenerator) buildDatabase() map[string]client.Object {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.pgDatabase.Name,
 			Namespace: g.pgDatabase.Namespace,
+			Annotations: map[string]string{
+				"crossplane.io/external-name": g.dbDisplayName,
+			},
 		},
 		Spec: postgresv1alpha1.DatabaseSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{
@@ -149,7 +161,7 @@ func (g *pgDatabaseGenerator) buildDatabase() map[string]client.Object {
 
 func (g *pgDatabaseGenerator) buildExtensions() map[string]client.Object {
 	extensions := make(map[string]client.Object)
-	dbName := g.pgDatabase.Name
+	dbName := g.dbDisplayName
 	for i, extensionName := range g.pgDatabase.Spec.Extensions {
 		convertedName := strings.ReplaceAll(extensionName, "_", "-")
 		resourceName := fmt.Sprintf("extension-%s-%d", convertedName, i)
@@ -200,7 +212,7 @@ func (g *pgDatabaseGenerator) buildGrantUsage() map[string]client.Object {
 	replayDeletion := true
 	grantName := g.pgDatabase.Name + "-grant-owner-to-dbadmin"
 	usage := &xpv1beta1.Usage{
-		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: "protection.crossplane.io/v1beta1"},
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: CrossplaneProtectionApi},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.pgDatabase.Name + "-grant-usage",
 			Namespace: g.pgDatabase.Namespace,
@@ -225,7 +237,7 @@ func (g *pgDatabaseGenerator) buildGrantUsage() map[string]client.Object {
 func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]client.Object {
 	replayDeletion := true
 	usage := &xpv1beta1.Usage{
-		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: "protection.crossplane.io/v1beta1"},
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: CrossplaneProtectionApi},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.pgDatabase.Name + "-owner-protection",
 			Namespace: g.pgDatabase.Namespace,
@@ -250,7 +262,7 @@ func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]client.Object {
 func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]client.Object {
 	replayDeletion := true
 	usage := &xpv1beta1.Usage{
-		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: "protection.crossplane.io/v1beta1"},
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: CrossplaneProtectionApi},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.pgDatabase.Name + "-instance-protection",
 			Namespace: g.pgDatabase.Namespace,

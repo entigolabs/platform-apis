@@ -75,9 +75,9 @@ spec:
                 snapshotIdentifier:
                   type: string
                   description: Specifies whether or not to create this database from a snapshot. This corresponds to the snapshot ID in the RDS console.
-                  x-kubernetes-validations:
-                    - rule: "self == oldSelf"
-                      message: "snapshotIdentifier is immutable"
+              x-kubernetes-validations:
+                - rule: "!self.deletionProtection || (has(self.snapshotIdentifier) ? self.snapshotIdentifier : '') == (has(oldSelf.snapshotIdentifier) ? oldSelf.snapshotIdentifier : '')"
+                  message: "snapshotIdentifier cannot be changed when deletionProtection is enabled"
               required:
                 - allocatedStorage
                 - engineVersion

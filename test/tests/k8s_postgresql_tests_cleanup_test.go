@@ -14,6 +14,8 @@ import (
 func cleanupPostgresqlResources(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
 	pgNsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
 
+	cleanupDisableDatabasesDeletionProtection(t, pgNsOptions)
+
 	cleanupDeleteForeground(t, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName)
 	cleanupDeleteForeground(t, pgNsOptions, PostgresqlDatabaseKind, DatabaseTwoName)
 	cleanupDeleteForeground(t, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName)
@@ -98,6 +100,20 @@ func cleanupDeleteAllOfKind(t *testing.T, opts *terrak8s.KubectlOptions, kind st
 	}
 	for _, name := range names {
 		cleanupWaitForDeletion(t, opts, kind, name, 30)
+	}
+}
+
+func cleanupDisableDatabasesDeletionProtection(t *testing.T, opts *terrak8s.KubectlOptions) {
+	for _, dbName := range []string{PostgresqlDatabaseName, DatabaseTwoName, MinimalDatabaseName} {
+		exists, _ := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", PostgresqlDatabaseKind, dbName, "-n", PostgresqlNamespaceName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+		if exists == "" {
+			continue
+		}
+		dp, _ := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", PostgresqlDatabaseKind, dbName, "-n", PostgresqlNamespaceName, "-o", "jsonpath={.spec.deletionProtection}")
+		if dp != "true" {
+			continue
+		}
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", PostgresqlDatabaseKind, dbName, "-n", PostgresqlNamespaceName, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
 	}
 }
 
