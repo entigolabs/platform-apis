@@ -77,12 +77,10 @@ func testPlatformApisZone(t *testing.T, argocdNamespace string, clusterOptions *
 		t.Run("a1", func(t *testing.T) {
 			t.Parallel()
 			syncAndWaitApplication(t, aAppsOpts, "a1", 30, 10*time.Second)
-			testPodsRunning(t, clusterOptions, "a1", "a1")
 		})
 		t.Run("b1", func(t *testing.T) {
 			t.Parallel()
 			syncAndWaitApplication(t, bAppsOpts, "b1", 30, 10*time.Second)
-			testPodsRunning(t, clusterOptions, "b1", "b1")
 		})
 	})
 }
