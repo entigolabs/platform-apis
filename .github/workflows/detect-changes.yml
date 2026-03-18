@@ -105,10 +105,10 @@ jobs:
           echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
           echo "has_composition_changes=${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}" >> $GITHUB_OUTPUT
           
-          THELM_FILES='${{ steps.changed-files.outputs.testhelm_all_changed_files }}'
-          TESTHELM=$(echo "${THELM_FILES:-[]}" | jq -c 'map(split("/") | .[3]) | unique | map(select(. != null))')
-          echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
-          echo "has_testhelm_changes=${{ steps.changed-files.outputs.testhelm_any_changed || 'false' }}" >> $GITHUB_OUTPUT
+          #We always want to build all test helm packages.
+          echo "testhelm=$(get_dirs 'test/tests/helm/')" >> $GITHUB_OUTPUT
+          echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
+
           
           # Helm
           echo "helm_changed=${{ steps.changed-files.outputs.helm_any_changed || 'false' }}" >> $GITHUB_OUTPUT
