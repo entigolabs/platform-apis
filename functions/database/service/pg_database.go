@@ -18,7 +18,6 @@ import (
 )
 
 const CrossplaneProtectionApi = "protection.crossplane.io/v1beta1"
-const dummyTestConst = "dummy"
 
 type pgDatabaseGenerator struct {
 	pgDatabase         v1alpha1.PostgreSQLDatabase
