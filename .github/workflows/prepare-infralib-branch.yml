@@ -42,36 +42,48 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and Push Branch
+      - name: Setup Git and Create Branch
         id: branch
         working-directory: infralib
         env:
           VERSION: ${{ inputs.helm_version }}
         run: |
-          BRANCH_NAME="${CHART_NAME}-${VERSION}"
           echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
+          
           git checkout -b "$BRANCH_NAME"
 
-          # Update Chart.yaml versions
+      - name: Update Chart and Dependencies
+        working-directory: infralib
+        env:
+          VERSION: ${{ inputs.helm_version }}
+        run: |
           CHART_FILE="${{ env.INFRALIB_MODULE_PATH }}/Chart.yaml"
-          yq -i ".version = \"${VERSION}\"" "$CHART_FILE"
-          yq -i ".appVersion = \"${VERSION}\"" "$CHART_FILE"
-          yq -i "(.dependencies[] | select(.name == \"platform-apis\")).version = \"${VERSION}\"" "$CHART_FILE"
+          yq -i '
+            .version = env(VERSION) | 
+            .appVersion = env(VERSION) | 
+            (.dependencies[] | select(.name == "platform-apis")).version = env(VERSION)
+          ' "$CHART_FILE"
 
-          # Update dependencies
           helm dependency update ${{ env.INFRALIB_MODULE_PATH }}
 
-          # Replace Test Files from platform-apis to infralib
-          rm -f ${{ env.INFRALIB_MODULE_PATH }}/test/*_test.go
-          cp ../platform-apis/test/tests/*_test.go ${{ env.INFRALIB_MODULE_PATH }}/test/
-          cp ../platform-apis/test/tests/config/*.yaml ${{ env.INFRALIB_MODULE_PATH }}/test/
-          mkdir -p ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
-          cp ../platform-apis/test/tests/templates/* ${{ env.INFRALIB_MODULE_PATH }}/test/templates/
+      - name: Sync Test Files
+        run: |
+          TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test"
+          SOURCE="platform-apis/test/tests"
 
+          rm -f $TARGET/*_test.go
+          mkdir -p $TARGET/templates/
+          cp $SOURCE/*_test.go $TARGET/
+          cp $SOURCE/config/*.yaml $TARGET/
+          cp $SOURCE/templates/* $TARGET/templates/
+
+      - name: Commit and Push
+        working-directory: infralib
+        run: |
           git add .
           git commit -m "Update ${CHART_NAME} to ${VERSION} for testing"
           git push --force origin "$BRANCH_NAME"
