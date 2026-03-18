@@ -112,11 +112,9 @@ jobs:
         run: |
           PKG_NAME="platform-apis-${{ matrix.function }}-fn"
 
-          # Get major.minor from Chart.yaml
           CHART_VERSION=$(grep '^version:' ${{ github.workspace }}/helm/Chart.yaml | awk '{print $2}')
           MAJOR_MINOR=$(echo "$CHART_VERSION" | cut -d. -f1,2)
 
-          # Fetch with pagination and extract stable version tags, sorted by semantic version
           LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions?per_page=100" \
             | jq -r '
@@ -127,15 +125,10 @@ jobs:
               | if . then "v" + (map(tostring) | join(".")) else empty end
             ' 2>/dev/null || echo "")
 
-          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
-            NEXT_PATCH=1
-          elif [[ "$LATEST_TAG" == v${MAJOR_MINOR}.* ]]; then
-            # Latest tag matches current major.minor, increment patch
+          NEXT_PATCH=1
+          if [[ "$LATEST_TAG" == v${MAJOR_MINOR}.* ]]; then
             CURRENT_PATCH=$(echo "$LATEST_TAG" | cut -d. -f3)
             NEXT_PATCH=$((CURRENT_PATCH + 1))
-          else
-            # Major.minor changed, start fresh at patch 1
-            NEXT_PATCH=1
           fi
 
           if [ "${{ inputs.release_type }}" == "rc" ]; then
