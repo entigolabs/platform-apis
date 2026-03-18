@@ -71,6 +71,7 @@ jobs:
           base_sha: ${{ github.event.pull_request.base.sha }}
           sha: ${{ github.event.pull_request.head.sha }}
           json: true
+          escape_json: false
           files_yaml: |
             functions:
               - 'functions/**'
