@@ -108,38 +108,14 @@ jobs:
 
       - name: Calculate version
         id: version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PKG_NAME="platform-apis-${{ matrix.function }}-fn"
-
-          CHART_VERSION=$(grep '^version:' ${{ github.workspace }}/helm/Chart.yaml | awk '{print $2}')
-          MAJOR_MINOR=$(echo "$CHART_VERSION" | cut -d. -f1,2)
-
-          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions?per_page=100" \
-            | jq -r '
-              [.[] | .metadata.container.tags[]? | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))]
-              | map(ltrimstr("v") | split(".") | map(tonumber))
-              | sort_by(.[0], .[1], .[2])
-              | .[-1]
-              | if . then "v" + (map(tostring) | join(".")) else empty end
-            ' 2>/dev/null || echo "")
-
-          NEXT_PATCH=1
-          if [[ "$LATEST_TAG" == v${MAJOR_MINOR}.* ]]; then
-            CURRENT_PATCH=$(echo "$LATEST_TAG" | cut -d. -f3)
-            NEXT_PATCH=$((CURRENT_PATCH + 1))
-          fi
-
-          if [ "${{ inputs.release_type }}" == "rc" ]; then
-            VERSION="v${MAJOR_MINOR}.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
-          else
-            VERSION="v${MAJOR_MINOR}.${NEXT_PATCH}"
-          fi
-
-          echo "Latest: $LATEST_TAG -> New: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        uses: ./.github/actions/calculate-version
+        with:
+          pkg_name: "platform-apis-${{ matrix.function }}-fn"
+          release_type: ${{ inputs.release_type }}
+          pr_number: ${{ inputs.pr_number }}
+          run_number: ${{ inputs.run_number }}
+          run_attempt: ${{ inputs.run_attempt }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push package
         run: |
