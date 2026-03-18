@@ -105,7 +105,7 @@ jobs:
   cleanup-infralib-test-files:
     name: Remove Test Files from Infralib Branch
     needs: [build-helm, prepare-infralib-branch, run-infralib-tests]
-    if: ${{ needs.run-infralib-tests.result == 'success' }}
+    if: always() && needs.run-infralib-tests.result == 'success'
     runs-on: ubuntu-latest
     env:
       INFRALIB_REPO: entigolabs/entigo-infralib
@@ -162,7 +162,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [build-helm, prepare-infralib-branch, run-infralib-tests]
-    if: ${{ needs.run-infralib-tests.result == 'success' }}
+    if: always() && needs.build-helm.result == 'success'
     uses: ./.github/workflows/create-release.yml
     with:
       version: ${{ needs.build-helm.outputs.version }}
@@ -171,7 +171,7 @@ jobs:
   create-infralib-pr:
     name: Create Infralib PR
     needs: [build-helm, prepare-infralib-branch, run-infralib-tests, cleanup-infralib-test-files]
-    if: ${{ needs.cleanup-infralib-test-files.result == 'success' }}
+    if: always() && needs.cleanup-infralib-test-files.result == 'success'
     runs-on: ubuntu-latest
     env:
       INFRALIB_REPO: entigolabs/entigo-infralib
@@ -194,7 +194,7 @@ jobs:
   notify:
     name: Slack Notification
     needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, create-release, prepare-infralib-branch, run-infralib-tests, cleanup-infralib-test-files, create-infralib-pr]
-    if: failure()
+    if: always() && failure()
     runs-on: ubuntu-latest
     steps:
       - name: Build Slack message

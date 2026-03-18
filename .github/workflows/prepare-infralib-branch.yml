@@ -48,6 +48,7 @@ jobs:
         env:
           VERSION: ${{ inputs.helm_version }}
         run: |
+          BRANCH_NAME="${CHART_NAME}-${VERSION}"
           echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           
