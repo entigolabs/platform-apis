@@ -1,0 +1,18 @@
+apiVersion: kafka.aws.upbound.io/v1beta2
+kind: Cluster
+metadata:
+  name: test-kafka-cluster
+spec:
+  providerConfigRef:
+    name: crossplane-aws
+  forProvider:
+    region: eu-north-1
+    clusterName: test-kafka-cluster
+    kafkaVersion: "3.9.0"
+    numberOfBrokerNodes: 2
+    brokerNodeGroupInfo:
+      instanceType: kafka.t3.small
+    clientAuthentication:
+      sasl:
+        iam: true
+        scram: true

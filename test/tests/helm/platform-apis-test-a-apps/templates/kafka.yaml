@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-kafka
+  namespace: a-apps
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: test-kafka
+  project: a
+  source:
+    chart: platform-apis-test-kafka
+    repoURL: ghcr.io/entigolabs
+    targetRevision: ">= 0.0.0-0"
+    helm:
+      releaseName: kafka
+  syncPolicy:
+    syncOptions:
+      - RespectIgnoreDifferences=true
+      - Retry=true

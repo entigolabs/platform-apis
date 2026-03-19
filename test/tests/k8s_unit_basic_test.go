@@ -61,6 +61,14 @@ func testK8sPlatformApis(t *testing.T, cloudName string, envName string) {
 			t.Parallel()
 			waitCrossplanePackageReady(t, clusterOptions, FunctionKind, DatabaseFunctionName)
 		})
+		t.Run("kafka-configuration", func(t *testing.T) {
+			t.Parallel()
+			waitCrossplanePackageReady(t, clusterOptions, ConfigurationKind, KafkaConfigurationName)
+		})
+		t.Run("queue-function", func(t *testing.T) {
+			t.Parallel()
+			waitCrossplanePackageReady(t, clusterOptions, FunctionKind, QueueFunctionName)
+		})
 	})
 	fmt.Printf("[%s] TIMING: Platform-api config and functions tests took %s\n", argocdNamespace, time.Since(configStart))
 	if t.Failed() {
@@ -75,6 +83,11 @@ func testK8sPlatformApis(t *testing.T, cloudName string, envName string) {
 	t.Run("postgresql", func(t *testing.T) {
 		t.Parallel()
 		testPlatformApisPostgresql(t, clusterOptions, zonesReady, &zonesReadySuccess)
+	})
+
+	t.Run("kafka", func(t *testing.T) {
+		t.Parallel()
+		testPlatformApisKafka(t, clusterOptions, zonesReady, &zonesReadySuccess)
 	})
 }
 
