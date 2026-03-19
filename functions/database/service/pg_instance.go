@@ -134,7 +134,7 @@ func (g *pgInstanceGenerator) generate() (map[string]client.Object, error) {
 		observedSnapshot := getSnapshotIdentifierFromObserved(observedRDSInstance.Resource)
 		desiredSnapshot := g.pgInstance.Spec.SnapshotIdentifier
 
-		if desiredSnapshot != "" && desiredSnapshot != observedSnapshot {
+		if desiredSnapshot != observedSnapshot {
 			recreateRDS = true
 		}
 	}
@@ -323,6 +323,9 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
 	finalSnapshotIdentifier := string(g.names.rdsInstanceFinalSnapshot)
+	if observedRDSInstance, ok := g.observed[g.names.rdsInstance]; ok {
+		finalSnapshotIdentifier += getInstanceCreationTimestampSuffix(observedRDSInstance.Resource)
+	}
 	region := g.vpc.Spec.ForProvider.Region
 	availabilityZone := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a"))
 
@@ -395,6 +398,24 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 
 	rdsInstances[rdsInstance.Name] = rdsInstance
 	return rdsInstances
+}
+
+func getInstanceCreationTimestampSuffix(instance *composed.Unstructured) string {
+	if instance == nil {
+		return ""
+	}
+
+	creationTimestamp, found, err := unstructured.NestedString(instance.Object, "metadata", "creationTimestamp")
+	if !found || err != nil || creationTimestamp == "" {
+		return ""
+	}
+
+	t, err := time.Parse(time.RFC3339, creationTimestamp)
+	if err != nil {
+		return ""
+	}
+
+	return fmt.Sprintf("-%s", t.Format("20060102-150405"))
 }
 
 func (g *pgInstanceGenerator) buildSqlProviderConfig() map[string]client.Object {

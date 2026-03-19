@@ -13,5 +13,5 @@ platform-apis:
           kind: '*'
   database:
     environmentConfig:
-      backupBeforeDeletion: false
+      backupBeforeDeletion: true
       backupRetentionPeriod: 0
