@@ -2,22 +2,25 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: a-apps
-  annotations:
+  labels:
     tenancy.entigo.com/zone: a
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: test-postgresql
-  annotations:
+  labels:
     tenancy.entigo.com/zone: a
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: a1
-  annotations:
+  labels:
     tenancy.entigo.com/zone: a
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    istio-injection: enabled
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -35,6 +38,8 @@ spec:
     targetRevision: '*.*.*-0'
     helm:
       releaseName: platform-apis-test-a-apps
+      values: |
+        targetRevision: '*.*.*-0'
   syncPolicy:
     automated:
       prune: true

@@ -46,47 +46,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          set +e
-          setsid bash -c '{ ./test.sh 2>&1; echo $? >/tmp/test-exit; } | tee test-output.txt' &
-          BGPID=$!
-          trap 'kill -- -$BGPID 2>/dev/null; wait; exit 1' TERM INT
-          wait
-          EXIT_CODE=$(cat /tmp/test-exit 2>/dev/null || echo 1)
-          rm -f /tmp/test-exit
-          set -e
-          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          exit $EXIT_CODE
-        continue-on-error: true
-
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        env:
-          VERSION: ${{ inputs.helm_version }}
-          BRANCH: ${{ inputs.branch_name }}
-          EXIT_CODE: ${{ steps.tests.outputs.exit_code }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            let output = fs.readFileSync('infralib/${{ env.INFRALIB_MODULE_PATH }}/test-output.txt', 'utf8');
-            const status = process.env.EXIT_CODE === '0' ? 'Passed' : 'Failed';
-            const header = `## Infralib E2E Results\n\n**Helm Version:** \`${process.env.VERSION}\`\n**Branch:** \`${process.env.BRANCH}\`\n**Status:** ${status}\n\n<details><summary>Output</summary>\n\n\`\`\`\n`;
-            const footer = `\n\`\`\`\n</details>`;
-            const maxBody = 65536;
-            const maxOutput = maxBody - header.length - footer.length - 100;
-            if (output.length > maxOutput) {
-              output = '...(truncated, showing last lines)\n' + output.slice(-maxOutput);
-            }
-            const body = header + output + footer;
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: body
-            });
+        run: ./test.sh
 
       - name: Fail if tests failed
         if: steps.tests.outputs.exit_code != '0'

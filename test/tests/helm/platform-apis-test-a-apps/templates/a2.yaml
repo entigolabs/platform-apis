@@ -11,8 +11,11 @@ spec:
   source:
     chart: platform-apis-test-app
     repoURL: ghcr.io/entigolabs
-    targetRevision: ">= 0.0.0-0"
+    targetRevision: '{{ .Values.targetRevision }}'
     helm:
+      values: |
+        targetRevision: '{{ .Values.targetRevision }}'
+        ingressClassName: external
       releaseName: a2
   syncPolicy:
     automated:
