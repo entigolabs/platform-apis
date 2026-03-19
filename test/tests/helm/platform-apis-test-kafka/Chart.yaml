@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-apis-test-kafka
+description: platform-apis-test-kafka
+version: 0.1.0
+appVersion: "0.1.0"

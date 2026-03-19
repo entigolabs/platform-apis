@@ -15,6 +15,13 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: test-kafka
+  annotations:
+    tenancy.entigo.com/zone: a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: a1
   annotations:
     tenancy.entigo.com/zone: a

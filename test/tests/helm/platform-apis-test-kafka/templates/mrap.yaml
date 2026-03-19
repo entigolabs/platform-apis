@@ -1,0 +1,7 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-test-kafka
+spec:
+  activate:
+    - clusters.kafka.aws.upbound.io
