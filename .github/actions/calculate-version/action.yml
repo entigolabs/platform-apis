@@ -36,7 +36,7 @@ runs:
       id: calc
       shell: bash
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ inputs.token }}
       run: |
         PKG_NAME="${{ inputs.pkg_name }}"
         CHART_VERSION=$(grep '^version:' ${{ github.workspace }}/helm/Chart.yaml | awk '{print $2}')
