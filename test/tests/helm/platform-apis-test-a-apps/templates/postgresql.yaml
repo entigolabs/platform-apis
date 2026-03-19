@@ -11,8 +11,10 @@ spec:
   source:
     chart: platform-apis-test-postgresql
     repoURL: ghcr.io/entigolabs
-    targetRevision: ">= 0.0.0-0"
+    targetRevision: '{{ .Values.targetRevision }}'
     helm:
+      values: |
+        targetRevision: '{{ .Values.targetRevision }}'
       releaseName: postgresql
   ignoreDifferences:
   - group: "database.entigo.com"

@@ -13,6 +13,8 @@ spec:
     targetRevision: '*.*.*-0'
     helm:
       releaseName: platform-apis-test-zones
+      values: |
+        targetRevision: '*.*.*-0'
   syncPolicy:
     automated:
       prune: true

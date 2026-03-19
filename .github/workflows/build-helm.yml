@@ -53,64 +53,22 @@ jobs:
 
       - name: Calculate version
         id: version
+        uses: ./.github/actions/calculate-version
+        with:
+          pkg_name: "${{ env.CHART_NAME }}"
+          release_type: ${{ inputs.release_type }}
+          pr_number: ${{ inputs.pr_number }}
+          run_number: ${{ inputs.run_number }}
+          run_attempt: ${{ inputs.run_attempt }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update chart and dependencies
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          PKG_NAME="${{ env.CHART_NAME }}"
-
-          # Get major.minor from Chart.yaml
-          CHART_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
-          MAJOR_MINOR=$(echo "$CHART_VERSION" | cut -d. -f1,2)
-
-          # Fetch with pagination (up to 100 results) and extract stable version tags
-          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${PKG_NAME}/versions?per_page=100" \
-            | jq -r '
-              [.[] | .metadata.container.tags[]? | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))]
-              | map(split(".") | map(tonumber))
-              | sort_by(.[0], .[1], .[2])
-              | .[-1]
-              | if . then map(tostring) | join(".") else empty end
-            ' 2>/dev/null || echo "")
-
-          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
-            NEXT_PATCH=1
-          elif [[ "$LATEST_TAG" == ${MAJOR_MINOR}.* ]]; then
-            # Latest tag matches current major.minor, increment patch
-            CURRENT_PATCH=$(echo "$LATEST_TAG" | cut -d. -f3)
-            NEXT_PATCH=$((CURRENT_PATCH + 1))
-          else
-            # Major.minor changed, start fresh at patch 1
-            NEXT_PATCH=1
-          fi
-
-          if [ "${{ inputs.release_type }}" == "rc" ]; then
-            VERSION="${MAJOR_MINOR}.${NEXT_PATCH}-rc.${{ inputs.pr_number }}.${{ inputs.run_number }}.${{ inputs.run_attempt }}"
-          else
-            VERSION="${MAJOR_MINOR}.${NEXT_PATCH}"
-          fi
-
-          echo "Latest: $LATEST_TAG -> New: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Set version filters
-        id: filters
-        run: |
-          if [ "${{ inputs.release_type }}" == "rc" ]; then
-            echo "is_pr=true" >> $GITHUB_OUTPUT
-            echo "rc_filter=test(\"-rc\\\\.${{ inputs.pr_number }}\\\\.\")" >> $GITHUB_OUTPUT
-          else
-            echo "is_pr=false" >> $GITHUB_OUTPUT
-          fi
-          echo "stable_filter=test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")" >> $GITHUB_OUTPUT
-
-      - name: Update dependency versions
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IS_PR: ${{ steps.filters.outputs.is_pr }}
-          JQ_FILTER_RC: ${{ steps.filters.outputs.rc_filter }}
-          JQ_FILTER_STABLE: ${{ steps.filters.outputs.stable_filter }}
-        run: |
+          sed -i "s/^version:.*/version: ${VERSION}/" ${{ env.CHART_PATH }}/Chart.yaml
+          
           declare -A PACKAGES=(
             ["artifact"]="platform-apis-artifact-fn"
             ["cronjob"]="platform-apis-cronjob"
@@ -129,36 +87,40 @@ jobs:
             ["workload"]="platform-apis-workload-fn"
             ["zone"]="platform-apis-zone"
           )
+          
+          fetch_tag() {
+            local pkg=$1
+            local json=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/$pkg/versions?per_page=100")
+            
+            local tag=""
+            if [ "${{ inputs.release_type }}" == "rc" ]; then
+              tag=$(echo "$json" | jq -r --arg pr "${{ inputs.pr_number }}" '
+                [.[] | .metadata.container.tags[]? | select(test("-rc\\." + $pr + "\\."))]
+                | sort_by(ltrimstr("v") | split("-rc.") | [(.[0] | split(".") | map(tonumber)), (.[1] | split(".") | map(tonumber))] | flatten)
+                | .[-1] // empty
+              ' 2>/dev/null)
+            fi
+          
+            if [ -z "$tag" ]; then
+              tag=$(echo "$json" | jq -r '
+                [.[] | .metadata.container.tags[]? | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))]
+                | sort_by(ltrimstr("v") | split(".") | map(tonumber))
+                | .[-1] // empty
+              ' 2>/dev/null)
+            fi
+            echo "$tag"
+          }
 
           for KEY in "${!PACKAGES[@]}"; do
             PKG_NAME="${PACKAGES[$KEY]}"
-            echo "Fetching tag for $PKG_NAME..."
+            TAG=$(fetch_tag "$PKG_NAME")
 
-            # Fetch all versions with pagination
-            VERSIONS_JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-              "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/$PKG_NAME/versions?per_page=100")
-
-            TAG=""
-            if [ "$IS_PR" == "true" ]; then
-              # Find latest RC tag for this PR, sorted by semantic version
-              TAG=$(echo "$VERSIONS_JSON" \
-                | jq -r "[.[] | .metadata.container.tags[]? | select($JQ_FILTER_RC)] | sort_by(ltrimstr(\"v\") | split(\"-rc.\") | [(.[0] | split(\".\") | map(tonumber)), (.[1] | split(\".\") | map(tonumber))] | flatten) | .[-1] // empty" \
-                2>/dev/null || echo "")
-            fi
-
-            if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
-              # Find latest stable tag, sorted by semantic version
-              TAG=$(echo "$VERSIONS_JSON" \
-                | jq -r "[.[] | .metadata.container.tags[]? | select($JQ_FILTER_STABLE)] | sort_by(ltrimstr(\"v\") | split(\".\") | map(tonumber)) | .[-1] // empty" \
-                2>/dev/null || echo "")
-            fi
-
-            if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
-              echo "Error: Could not find tag for $PKG_NAME"
+            if [ -z "$TAG" ]; then
+              echo "Error: Could not find valid tag for $PKG_NAME" >&2
               exit 1
             fi
-
-            echo "Found tag: $TAG"
+            echo "Updated $PKG_NAME -> $TAG"
 
             if [[ "$PKG_NAME" == *"-fn" ]]; then
               yq -i ".$KEY.function.tag = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
@@ -166,15 +128,6 @@ jobs:
               yq -i ".$KEY.package.tag = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
             fi
           done
-
-          echo "Updated values.yaml:"
-          cat ${{ env.CHART_PATH }}/values.yaml
-
-      - name: Update chart version
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          sed -i "s/^version:.*/version: ${VERSION}/" ${{ env.CHART_PATH }}/Chart.yaml
 
       - name: Remove test files
         run: rm -f ${{ env.CHART_PATH }}/run_tests.sh

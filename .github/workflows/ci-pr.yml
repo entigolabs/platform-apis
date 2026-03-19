@@ -82,12 +82,7 @@ jobs:
   build-helm:
     name: Lint and Build Helm
     needs: [detect-changes, test-helm, build-functions, build-compositions]
-    if: |
-      always() &&
-      !cancelled() &&
-      (needs.test-helm.result == 'success' || needs.test-helm.result == 'skipped') &&
-      (needs.build-functions.result == 'success' || needs.build-functions.result == 'skipped') &&
-      (needs.build-compositions.result == 'success' || needs.build-compositions.result == 'skipped')
+    if: always() && !failure() && !cancelled()
     uses: ./.github/workflows/build-helm.yml
     with:
       release_type: rc
@@ -108,12 +103,7 @@ jobs:
   run-infralib-tests:
     name: Run Infralib Tests
     needs: [ build-helm, prepare-infralib-branch, build-testhelm, test-functions, test-compositions ]
-    if: |
-      always() &&
-      needs.prepare-infralib-branch.result == 'success' &&
-      (needs.build-testhelm.result == 'success' || needs.build-testhelm.result == 'skipped') &&
-      (needs.test-functions.result == 'success' || needs.test-functions.result == 'skipped') &&
-      (needs.test-compositions.result == 'success' || needs.test-compositions.result == 'skipped')
+    if: always() && !failure() && !cancelled() && needs.prepare-infralib-branch.result == 'success'
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
       branch_name: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
@@ -123,22 +113,13 @@ jobs:
   notify:
     name: Slack Notification
     needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, prepare-infralib-branch, run-infralib-tests, build-testhelm]
-    if: always() && !cancelled() && contains(needs.*.result, 'failure')
+    if: always() && failure()
     runs-on: ubuntu-latest
     steps:
       - name: Build Slack message
         id: msg
         env:
-          R_DETECT: ${{ needs.detect-changes.result }}
-          R_ENSURE: ${{ needs.ensure-test-image.result }}
-          R_TEST_FN: ${{ needs.test-functions.result }}
-          R_TEST_COMP: ${{ needs.test-compositions.result }}
-          R_TEST_HELM: ${{ needs.test-helm.result }}
-          R_BUILD_FN: ${{ needs.build-functions.result }}
-          R_BUILD_COMP: ${{ needs.build-compositions.result }}
-          R_BUILD_HELM: ${{ needs.build-helm.result }}
-          R_INFRALIB: ${{ needs.prepare-infralib-branch.result }}
-          R_TESTS: ${{ needs.run-infralib-tests.result }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_NUMBER: ${{ github.event.number }}
@@ -146,18 +127,7 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          FAILED=""
-          add_failed() { [ "$2" = "failure" ] && FAILED="${FAILED:+$FAILED, }$1" || true; }
-          add_failed "Detect Changes" "$R_DETECT"
-          add_failed "Ensure Test Image" "$R_ENSURE"
-          add_failed "Test Functions" "$R_TEST_FN"
-          add_failed "Test Compositions" "$R_TEST_COMP"
-          add_failed "Test Helm" "$R_TEST_HELM"
-          add_failed "Build Functions" "$R_BUILD_FN"
-          add_failed "Build Compositions" "$R_BUILD_COMP"
-          add_failed "Build Helm" "$R_BUILD_HELM"
-          add_failed "Prepare Infralib Branch" "$R_INFRALIB"
-          add_failed "Run Infralib Tests" "$R_TESTS"
+          FAILED=$(echo "$NEEDS_JSON" | jq -r 'to_entries | map(select(.value.result == "failure") | .key) | join(", ")')
 
           STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
             --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
@@ -165,9 +135,9 @@ jobs:
           {
             echo "message<<SLACKMSG"
             echo "*PR:* <${PR_URL}|#${PR_NUMBER} - ${PR_TITLE}> by ${PR_AUTHOR}"
-            echo "*Failed:* ${FAILED}"
+            echo "*Failed Jobs:* ${FAILED}"
             if [ -n "$STEP_DETAILS" ]; then
-              echo "*Failed steps:*"
+              echo "*Failed Steps:*"
               echo "${STEP_DETAILS}"
             fi
             echo "*Run:* <${RUN_URL}|View details>"

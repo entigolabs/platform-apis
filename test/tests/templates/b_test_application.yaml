@@ -14,6 +14,8 @@ spec:
     targetRevision: '*.*.*-0'
     helm:
       releaseName: platform-apis-test-b-apps
+      values: |
+        targetRevision: '*.*.*-0'
   syncPolicy:
     automated:
       prune: true
