@@ -1,7 +1,14 @@
-name: Main CI Pipeline
+name: CI Pipeline
 
 on:
   push:
+    branches: [main]
+    paths:
+      - 'functions/**'
+      - 'compositions/**'
+      - 'test/**'
+      - 'helm/**'
+  pull_request:
     branches: [main]
     paths:
       - 'functions/**'
@@ -48,7 +55,10 @@ jobs:
     uses: ./.github/workflows/build-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
-      release_type: stable
+      release_type: ${{ github.event_name == 'pull_request' && 'rc' || 'stable' }}
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
   build-compositions:
@@ -58,7 +68,10 @@ jobs:
     uses: ./.github/workflows/build-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
-      release_type: stable
+      release_type: ${{ github.event_name == 'pull_request' && 'rc' || 'stable' }}
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
   build-testhelm:
@@ -68,7 +81,7 @@ jobs:
     uses: ./.github/workflows/build-testhelm.yml
     with:
       testhelm: ${{ needs.detect-changes.outputs.testhelm }}
-      release_type: stable
+      release_type: ${{ github.event_name == 'pull_request' && 'rc' || 'stable' }}
       pr_number: ${{ github.event.number }}
       run_number: ${{ github.run_number }}
       run_attempt: ${{ github.run_attempt }}
@@ -77,24 +90,28 @@ jobs:
   build-helm:
     name: Lint and Build Helm
     needs: [detect-changes, test-helm, build-functions, build-compositions]
-    if: always() &&!failure() && !cancelled()
+    if: always() && !failure() && !cancelled()
     uses: ./.github/workflows/build-helm.yml
     with:
-      release_type: stable
+      release_type: ${{ github.event_name == 'pull_request' && 'rc' || 'stable' }}
+      pr_number: ${{ github.event.number }}
+      run_number: ${{ github.run_number }}
+      run_attempt: ${{ github.run_attempt }}
     secrets: inherit
 
   prepare-infralib-branch:
     name: Prepare Infralib Branch
-    needs: build-helm
-    if: always() && needs.build-helm.result == 'success'
+    needs: [build-helm, build-testhelm]
+    if: always() && needs.build-helm.result == 'success' && needs.build-testhelm.result != 'failure' && needs.build-testhelm.result != 'cancelled'
     uses: ./.github/workflows/prepare-infralib-branch.yml
     with:
       helm_version: ${{ needs.build-helm.outputs.version }}
+      testhelm_version: ${{ needs.build-testhelm.outputs.version }}
     secrets: inherit
 
   run-infralib-tests:
     name: Run Infralib Tests
-    needs: [ build-helm, prepare-infralib-branch, build-testhelm, test-functions, test-compositions ]
+    needs: [build-helm, prepare-infralib-branch, build-testhelm, test-functions, test-compositions]
     if: always() && !failure() && !cancelled() && needs.prepare-infralib-branch.result == 'success'
     uses: ./.github/workflows/run-infralib-tests.yml
     with:
@@ -105,7 +122,7 @@ jobs:
   cleanup-infralib-test-files:
     name: Remove Test Files from Infralib Branch
     needs: [build-helm, prepare-infralib-branch, run-infralib-tests]
-    if: always() && needs.run-infralib-tests.result == 'success'
+    if: always() && github.event_name != 'pull_request' && needs.run-infralib-tests.result == 'success'
     runs-on: ubuntu-latest
     env:
       INFRALIB_REPO: entigolabs/entigo-infralib
@@ -149,7 +166,7 @@ jobs:
           	_, _ = k8s.CheckKubectlConnection(t, cloudName, envName)
           }
           EOF
-          
+
           git add "$INFRALIB_MODULE_PATH/test/k8s_unit_basic_test.go"
 
           if git diff --staged --quiet; then
@@ -162,7 +179,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [build-helm, prepare-infralib-branch, run-infralib-tests]
-    if: always() && needs.build-helm.result == 'success'
+    if: always() && github.event_name != 'pull_request' && needs.build-helm.result == 'success'
     uses: ./.github/workflows/create-release.yml
     with:
       version: ${{ needs.build-helm.outputs.version }}
@@ -171,7 +188,7 @@ jobs:
   create-infralib-pr:
     name: Create Infralib PR
     needs: [build-helm, prepare-infralib-branch, run-infralib-tests, cleanup-infralib-test-files]
-    if: always() && needs.cleanup-infralib-test-files.result == 'success'
+    if: always() && github.event_name != 'pull_request' && needs.cleanup-infralib-test-files.result == 'success'
     runs-on: ubuntu-latest
     env:
       INFRALIB_REPO: entigolabs/entigo-infralib
@@ -193,7 +210,7 @@ jobs:
 
   notify:
     name: Slack Notification
-    needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-helm, create-release, prepare-infralib-branch, run-infralib-tests, cleanup-infralib-test-files, create-infralib-pr]
+    needs: [detect-changes, test-functions, test-compositions, test-helm, build-functions, build-compositions, build-testhelm, build-helm, prepare-infralib-branch, run-infralib-tests, cleanup-infralib-test-files, create-release, create-infralib-pr]
     if: always() && failure()
     runs-on: ubuntu-latest
     steps:
@@ -202,6 +219,10 @@ jobs:
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           FAILED=$(echo "$NEEDS_JSON" | jq -r 'to_entries | map(select(.value.result == "failure") | .key) | join(", ")')
@@ -209,8 +230,18 @@ jobs:
           STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
             --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
 
+          if [ -n "$PR_URL" ]; then
+            SLACK_TITLE_VALUE="PR #${PR_NUMBER}: ${PR_TITLE}"
+          else
+            SLACK_TITLE_VALUE="Main CI: Failed"
+          fi
+          echo "title=$SLACK_TITLE_VALUE" >> "$GITHUB_OUTPUT"
+
           {
             echo "message<<SLACKMSG"
+            if [ -n "$PR_URL" ]; then
+              echo "*PR:* <${PR_URL}|#${PR_NUMBER} - ${PR_TITLE}> by ${PR_AUTHOR}"
+            fi
             echo "*Failed Jobs:* ${FAILED}"
             if [ -n "$STEP_DETAILS" ]; then
               echo "*Failed Steps:*"
@@ -225,7 +256,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: danger
-          SLACK_TITLE: "Main CI: Failed"
+          SLACK_TITLE: ${{ steps.msg.outputs.title }}
           SLACK_MESSAGE: ${{ steps.msg.outputs.message }}
           SLACK_USERNAME: GitHub Actions
           SLACK_ICON_EMOJI: ':github:'
