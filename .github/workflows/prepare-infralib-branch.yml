@@ -7,6 +7,11 @@ on:
         description: "Helm chart version to use"
         required: true
         type: string
+      testhelm_version:
+        description: "Test helm package version to pin in templates (empty = keep wildcard)"
+        required: false
+        type: string
+        default: ''
     outputs:
       branch_name:
         description: "The name of the created branch"
@@ -81,6 +86,16 @@ jobs:
           cp $SOURCE/*_test.go $TARGET/
           cp $SOURCE/config/*.yaml $TARGET/
           cp $SOURCE/templates/* $TARGET/templates/
+
+      - name: Pin testhelm version in templates
+        if: inputs.testhelm_version != ''
+        env:
+          VERSION: ${{ inputs.testhelm_version }}
+        run: |
+          TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test/templates"
+          for f in "$TARGET"/*.yaml; do
+            sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$f"
+          done
 
       - name: Commit and Push
         working-directory: infralib

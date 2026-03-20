@@ -26,10 +26,37 @@ on:
         required: false
         type: string
         default: ''
+    outputs:
+      version:
+        description: The testhelm version that was built
+        value: ${{ jobs.calculate.outputs.version }}
 
 jobs:
+  calculate:
+    name: Calculate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Calculate version
+        id: version
+        uses: ./.github/actions/calculate-version
+        with:
+          pkg_name: "${{ fromJson(inputs.testhelm)[0] }}"
+          release_type: ${{ inputs.release_type }}
+          pr_number: ${{ inputs.pr_number }}
+          run_number: ${{ inputs.run_number }}
+          run_attempt: ${{ inputs.run_attempt }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build:
     name: Build ${{ matrix.testhelm }}
+    needs: calculate
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -53,28 +80,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Calculate version
-        id: version
-        uses: ./.github/actions/calculate-version
-        with:
-          pkg_name: "${{ matrix.testhelm }}"
-          release_type: ${{ inputs.release_type }}
-          pr_number: ${{ inputs.pr_number }}
-          run_number: ${{ inputs.run_number }}
-          run_attempt: ${{ inputs.run_attempt }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Update chart version
         working-directory: test/tests/helm/${{ matrix.testhelm }}
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.calculate.outputs.version }}
         run: |
           sed -i "s/^version:.*/version: ${VERSION}/" Chart.yaml
 
       - name: Package and push chart
         working-directory: test/tests/helm/
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.calculate.outputs.version }}
         run: |
           helm package ${{ matrix.testhelm }}
           helm push ${{ matrix.testhelm }}-${VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}
