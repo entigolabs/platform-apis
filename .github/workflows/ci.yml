@@ -230,6 +230,13 @@ jobs:
           STEP_DETAILS=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
             --jq '[.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [] | .[] | select(.conclusion == "failure") | "• " + $job + " → " + .name)] | join("\n")' 2>/dev/null || true)
 
+          if [ -n "$PR_URL" ]; then
+            SLACK_TITLE_VALUE="PR #${PR_NUMBER}: ${PR_TITLE}"
+          else
+            SLACK_TITLE_VALUE="Main CI: Failed"
+          fi
+          echo "title=$SLACK_TITLE_VALUE" >> "$GITHUB_OUTPUT"
+
           {
             echo "message<<SLACKMSG"
             if [ -n "$PR_URL" ]; then
@@ -249,7 +256,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: danger
-          SLACK_TITLE: ${{ github.event_name == 'pull_request' && format('PR #{0}: {1}', github.event.number, github.event.pull_request.title) || 'Main CI: Failed' }}
+          SLACK_TITLE: ${{ steps.msg.outputs.title }}
           SLACK_MESSAGE: ${{ steps.msg.outputs.message }}
           SLACK_USERNAME: GitHub Actions
           SLACK_ICON_EMOJI: ':github:'
