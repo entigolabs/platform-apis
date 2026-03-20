@@ -57,9 +57,9 @@ jobs:
           VERSION: ${{ inputs.version }}
           NOTES: ${{ steps.changes.outputs.notes }}
         run: |
-          gh release create "v${VERSION}" \
+          gh release create "${VERSION}" \
             --repo "${{ github.repository }}" \
-            --title "v${VERSION}" \
+            --title "${VERSION}" \
             --generate-notes \
             --notes "$NOTES" \
             --target "${{ github.sha }}" \
