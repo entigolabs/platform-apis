@@ -16,7 +16,7 @@ platform-apis:
     environmentConfig:
       awsProvider: crossplane-aws
       configKMSKey: config
-      kafkaNamespace: crossplane-kafka
+      kafkaNamespace: crossplane-kafka-biz
   database:
     environmentConfig:
       backupBeforeDeletion: false
