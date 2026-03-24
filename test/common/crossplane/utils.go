@@ -3,9 +3,11 @@ package crossplane
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -234,4 +236,82 @@ func AppendYamlToResources(t *testing.T, sourceFilename string, destFilename str
 
 	file.Write([]byte("\n---\n"))
 	file.Write(data)
+}
+
+func ParseYamlFileToUnstructured(t *testing.T, filename string) []*unstructured.Unstructured {
+	t.Helper()
+
+	data, err := os.ReadFile(filename)
+	require.NoError(t, err, "Can not read file %s", filename)
+
+	var resources []*unstructured.Unstructured
+
+	yamlStrings := strings.Split(string(data), "---")
+
+	for _, yamlString := range yamlStrings {
+		yamlString = strings.TrimSpace(yamlString)
+		if yamlString == "" {
+			continue
+		}
+
+		obj := &unstructured.Unstructured{}
+
+		err := yaml.Unmarshal([]byte(yamlString), &obj.Object)
+		require.NoError(t, err, "Can not parse from filename %s:\n%s", filename, yamlString)
+
+		resources = append(resources, obj)
+	}
+
+	return resources
+}
+
+//TODO: Used in Kafka only. Remove functions below when Kafka transitioned to golang custom function
+
+// GenerateFunctionsConfig generates a functions config YAML from helm values,
+// appending the dev functions overlay. Returns the path to the generated temp file.
+func GenerateFunctionsConfig(t *testing.T, helmValuesPath, devFunctionsPath string) string {
+	t.Helper()
+
+	data, err := os.ReadFile(helmValuesPath)
+	require.NoError(t, err, "cannot read helm values")
+
+	var values struct {
+		Functions map[string]struct {
+			Install bool   `yaml:"install"`
+			Image   string `yaml:"image"`
+			Tag     string `yaml:"tag"`
+		} `yaml:"functions"`
+	}
+	require.NoError(t, yaml.Unmarshal(data, &values), "cannot parse helm values")
+
+	outputPath := filepath.Join(t.TempDir(), "functions.yaml")
+	f, err := os.Create(outputPath)
+	require.NoError(t, err, "cannot create functions config file")
+	defer f.Close()
+
+	for name, fn := range values.Functions {
+		if !fn.Install {
+			continue
+		}
+		fmt.Fprintf(f, "---\napiVersion: pkg.crossplane.io/v1beta1\nkind: Function\nmetadata:\n  name: %s\nspec:\n  package: %s:%s\n", name, fn.Image, fn.Tag)
+	}
+
+	dev, err := os.ReadFile(devFunctionsPath)
+	require.NoError(t, err, "cannot read dev functions")
+	fmt.Fprint(f, "---\n")
+	_, _ = f.Write(dev)
+
+	return outputPath
+}
+
+// RemovePipelineStep copies src to dst and removes the named pipeline step using yq.
+// Use this when the composition contains Go template syntax that Go's YAML parser cannot handle.
+func RemovePipelineStep(t *testing.T, srcPath, dstPath, stepName string) {
+	t.Helper()
+	data, err := os.ReadFile(srcPath)
+	require.NoError(t, err, "cannot read %s", srcPath)
+	require.NoError(t, os.WriteFile(dstPath, data, 0644), "cannot write %s", dstPath)
+	cmd := exec.Command("yq", "-i", fmt.Sprintf("del(.spec.pipeline[] | select(.step == %q))", stepName), dstPath)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "yq failed: %s", string(out))
 }
