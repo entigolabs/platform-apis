@@ -1,7 +1,7 @@
 package test
 
 import (
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/entigolabs/crossplane-common"
@@ -9,38 +9,36 @@ import (
 
 const (
 	env             = "../examples/environment-config.yaml"
-	extra           = "extra-resources-mock.yaml"
 	functionsConfig = "../../../test/common/functions-dev.yaml"
 	// TODO: Remove when Kafka transitioned to golang custom function
 	helmValues = "../../../helm/values.yaml"
-	observed   = "observed-resources-mock.yaml"
 	required   = "../examples/required-resources.yaml"
 
 	// User Test Files
-	userComposition     = "../apis/kafka-user-composition.yaml"
-	userResource        = "../examples/user-a.yaml"
-	tempUserComposition = "temp-user-composition.yaml"
-	tempUserResource    = "temp-user-resource.yaml"
+	userComposition = "../apis/kafka-user-composition.yaml"
+	userResource    = "../examples/user-a.yaml"
 
 	// MSK Test Files
-	mskObserverResource     = "../examples/msk-observer.yaml"
-	mskObserverComposition  = "../apis/msk-observer-composition.yaml"
-	tempMskObserverResource = "temp-msk-observer-resource.yaml"
+	mskObserverResource    = "../examples/msk-observer.yaml"
+	mskObserverComposition = "../apis/msk-observer-composition.yaml"
 
 	// Topic Test Files
-	topicComposition  = "../apis/kafka-topic-composition.yaml"
-	topicResource     = "../examples/topic-a.yaml"
-	tempTopicResource = "temp-topic-resource.yaml"
+	topicComposition = "../apis/kafka-topic-composition.yaml"
+	topicResource    = "../examples/topic-a.yaml"
 )
 
+func TestKafkaCrossplaneRender(t *testing.T) {
+	t.Run("User", TestKafkaUserCrossplaneRender)
+	t.Run("MskObserver", TestMskObserverCrossplaneRender)
+	t.Run("Topic", TestTopicCrossplaneRender)
+}
+
 func TestKafkaUserCrossplaneRender(t *testing.T) {
-	defer func() {
-		_ = os.Remove(tempUserResource)
-		_ = os.Remove(observed)
-		_ = os.Remove(extra)
-		//TODO: Remove when Kafka transitioned to golang custom function
-		_ = os.Remove(tempUserComposition)
-	}()
+	t.Parallel()
+	tmpDir := t.TempDir()
+	extra := filepath.Join(tmpDir, "extra.yaml")
+	tempUserResource := filepath.Join(tmpDir, "user.yaml")
+	tempUserComposition := filepath.Join(tmpDir, "user-composition.yaml")
 
 	crossplane.AppendYamlToResources(t, env, extra)
 	crossplane.AppendYamlToResources(t, required, extra)
@@ -174,11 +172,11 @@ func TestKafkaUserCrossplaneRender(t *testing.T) {
 }
 
 func TestMskObserverCrossplaneRender(t *testing.T) {
-	defer func() {
-		_ = os.Remove(tempMskObserverResource)
-		_ = os.Remove(observed)
-		_ = os.Remove(extra)
-	}()
+	t.Parallel()
+	tmpDir := t.TempDir()
+	extra := filepath.Join(tmpDir, "extra.yaml")
+	observed := filepath.Join(tmpDir, "observed.yaml")
+	tempMskObserverResource := filepath.Join(tmpDir, "msk-observer.yaml")
 
 	crossplane.AppendYamlToResources(t, env, extra)
 	crossplane.AppendYamlToResources(t, required, extra)
@@ -261,11 +259,11 @@ func TestMskObserverCrossplaneRender(t *testing.T) {
 }
 
 func TestTopicCrossplaneRender(t *testing.T) {
-	defer func() {
-		_ = os.Remove(tempTopicResource)
-		_ = os.Remove(observed)
-		_ = os.Remove(extra)
-	}()
+	t.Parallel()
+	tmpDir := t.TempDir()
+	extra := filepath.Join(tmpDir, "extra.yaml")
+	observed := filepath.Join(tmpDir, "observed.yaml")
+	tempTopicResource := filepath.Join(tmpDir, "topic.yaml")
 
 	crossplane.AppendYamlToResources(t, env, extra)
 	crossplane.AppendYamlToResources(t, required, extra)

@@ -2,9 +2,7 @@ module test
 
 go 1.25.7
 
-require (
-	github.com/entigolabs/crossplane-common v0.0.0
-)
+require github.com/entigolabs/crossplane-common v0.0.0
 
 require (
 	cel.dev/expr v0.25.1 // indirect
@@ -125,6 +123,7 @@ require (
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482 // indirect
+	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
 replace github.com/entigolabs/crossplane-common => ./../../../test/common/crossplane
