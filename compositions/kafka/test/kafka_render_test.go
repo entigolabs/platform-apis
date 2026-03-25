@@ -44,11 +44,11 @@ func testKafkaUserCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, required, extra)
 
 	mskObserverUnstructured := crossplane.ParseYamlFileToUnstructured(t, mskObserverResource)
-	mockedMskObserver := crossplane.MockResource(t, mskObserverUnstructured, "MSK", "kafka.entigo.com/v1alpha1", true, nil)
+	mockedMskObserver := crossplane.MockByKind(t, mskObserverUnstructured, "MSK", "kafka.entigo.com/v1alpha1", true, nil)
 	crossplane.AppendToResources(t, extra, mockedMskObserver)
 
 	userResourceUnstructured := crossplane.ParseYamlFileToUnstructured(t, userResource)
-	mockedUser := crossplane.MockResource(t, userResourceUnstructured, "KafkaUser", "kafka.entigo.com/v1alpha1", false, map[string]interface{}{
+	mockedUser := crossplane.MockByKind(t, userResourceUnstructured, "KafkaUser", "kafka.entigo.com/v1alpha1", false, map[string]interface{}{
 		"spec.claimRef.name":      "user-claimRef",
 		"spec.claimRef.namespace": "default",
 	})
@@ -182,7 +182,7 @@ func testMskObserverCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, required, extra)
 
 	mskObserverResourceUnstructured := crossplane.ParseYamlFileToUnstructured(t, mskObserverResource)
-	mockedMskObserver := crossplane.MockResource(t, mskObserverResourceUnstructured, "MSK", "kafka.entigo.com/v1alpha1", false, map[string]interface{}{
+	mockedMskObserver := crossplane.MockByKind(t, mskObserverResourceUnstructured, "MSK", "kafka.entigo.com/v1alpha1", false, map[string]interface{}{
 		"spec.clusterARN":     "arn:aws:ecs:region:eu-north-1:01234567891:cluster/test-cluster",
 		"spec.providerConfig": "aws-provider",
 	})
@@ -217,7 +217,7 @@ func testMskObserverCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedCluster := crossplane.MockResource(t, resources, "Cluster", "kafka.aws.upbound.io/v1beta3", true, map[string]interface{}{
+	mockedCluster := crossplane.MockByKind(t, resources, "Cluster", "kafka.aws.upbound.io/v1beta3", true, map[string]interface{}{
 		"status.atProvider.bootstrapBrokersSaslIam": "test-broker-saas-iam",
 	})
 	crossplane.AppendToResources(t, observed, mockedCluster)
@@ -269,11 +269,11 @@ func testTopicCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, required, extra)
 
 	mskObserverUnstructured := crossplane.ParseYamlFileToUnstructured(t, mskObserverResource)
-	mockedMskObserver := crossplane.MockResource(t, mskObserverUnstructured, "MSK", "kafka.entigo.com/v1alpha1", true, nil)
+	mockedMskObserver := crossplane.MockByKind(t, mskObserverUnstructured, "MSK", "kafka.entigo.com/v1alpha1", true, nil)
 	crossplane.AppendToResources(t, extra, mockedMskObserver)
 
 	topicResourceUnstructured := crossplane.ParseYamlFileToUnstructured(t, topicResource)
-	mockedTopic := crossplane.MockResource(t, topicResourceUnstructured, "Topic", "kafka.entigo.com/v1alpha1", false, map[string]interface{}{
+	mockedTopic := crossplane.MockByKind(t, topicResourceUnstructured, "Topic", "kafka.entigo.com/v1alpha1", false, map[string]interface{}{
 		"spec.claimRef.name": "topic-claimRef",
 	})
 	crossplane.AppendToResources(t, tempTopicResource, mockedTopic)
@@ -309,7 +309,7 @@ func testTopicCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedKafkaTopic := crossplane.MockResource(t, resources, "Topic", "topic.kafka.m.crossplane.io/v1alpha1", true, map[string]interface{}{})
+	mockedKafkaTopic := crossplane.MockByKind(t, resources, "Topic", "topic.kafka.m.crossplane.io/v1alpha1", true, map[string]interface{}{})
 	crossplane.AppendToResources(t, observed, mockedKafkaTopic)
 
 	t.Log("Rerendering...")

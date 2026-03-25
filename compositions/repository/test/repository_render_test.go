@@ -54,7 +54,7 @@ func TestRepositoryCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedRepo := crossplane.MockResource(t, resources, "Repository", "ecr.aws.m.upbound.io/v1beta1", true, nil)
+	mockedRepo := crossplane.MockByKind(t, resources, "Repository", "ecr.aws.m.upbound.io/v1beta1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedRepo)
 
 	t.Log("Rerendering...")

@@ -81,8 +81,8 @@ func TestCronJobCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedBatchCronJob := crossplane.MockResource(t, resources, "CronJob", "batch/v1", true, nil)
-	mockedService := crossplane.MockResource(t, resources, "Service", "v1", true, nil)
+	mockedBatchCronJob := crossplane.MockByKind(t, resources, "CronJob", "batch/v1", true, nil)
+	mockedService := crossplane.MockByKind(t, resources, "Service", "v1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedBatchCronJob)
 	crossplane.AppendToResources(t, observed, mockedService)
 	for _, res := range resources {

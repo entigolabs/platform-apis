@@ -114,7 +114,7 @@ an observed state and re-rendering:
 
 ```go
 // Mock a resource as ready, optionally overriding status or spec fields
-mockedDeploy := crossplane.MockResource(
+mockedDeploy := crossplane.MockByKind(
     t, resources,
     "Deployment", "apps/v1",
     true,  // makeReady: adds Synced+Ready conditions when true
@@ -126,7 +126,7 @@ mockedDeploy := crossplane.MockResource(
 )
 
 // A resource with no interesting status or spec overrides — just mark it ready
-mockedService := crossplane.MockResource(t, resources, "Service", "v1", true, nil)
+mockedService := crossplane.MockByKind(t, resources, "Service", "v1", true, nil)
 
 // Append mocked resources to the observed file
 crossplane.AppendToResources(t, observed, mockedDeploy, mockedService)
@@ -152,12 +152,22 @@ for _, u := range allInstances {
 }
 ```
 
-Use `MockResource` to create a mock with field overrides from an already-parsed resource:
+Use `MockByKind` to find and mock the first matching resource from a parsed slice:
 
 ```go
 mskUnstructured := crossplane.ParseYamlFileToUnstructured(t, mskObserverResource)
-mockedMsk := crossplane.MockResource(t, mskUnstructured, "MSK", "kafka.entigo.com/v1alpha1", true, nil)
+mockedMsk := crossplane.MockByKind(t, mskUnstructured, "MSK", "kafka.entigo.com/v1alpha1", true, nil)
 crossplane.AppendToResources(t, extra, mockedMsk)
+```
+
+Use `Mock` when you already hold a specific resource (e.g. inside a `range` loop) and don't need to search:
+
+```go
+for _, res := range resources {
+    if res.GetKind() == "SecurityGroupRule" {
+        crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
+    }
+}
 ```
 
 ### Complete Minimal Example
@@ -205,7 +215,7 @@ func TestMyResourceCrossplaneRender(t *testing.T) {
 
     t.Log("Mocking observed state")
     crossplane.AppendToResources(t, observed,
-        crossplane.MockResource(t, resources, "SomeManagedResource", "example.com/v1beta1", true, nil))
+        crossplane.MockByKind(t, resources, "SomeManagedResource", "example.com/v1beta1", true, nil))
 
     t.Log("Re-rendering with observed state")
     resources = crossplane.CrossplaneRender(t, myResourceYAML, composition, functionsConfig,

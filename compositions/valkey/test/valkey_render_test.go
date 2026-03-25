@@ -68,7 +68,7 @@ func TestValkeyCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	crossplane.AppendToResources(t, observed, crossplane.MockResource(t, resources, "SecurityGroup", "ec2.aws.m.upbound.io/v1beta1", true, nil))
+	crossplane.AppendToResources(t, observed, crossplane.MockByKind(t, resources, "SecurityGroup", "ec2.aws.m.upbound.io/v1beta1", true, nil))
 
 	t.Log("Rerendering...")
 	resources = crossplane.CrossplaneRender(t, tempInstance, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
@@ -94,7 +94,7 @@ func TestValkeyCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	crossplane.AppendToResources(t, observed, crossplane.MockResource(t, resources, "ReplicationGroup", "elasticache.aws.m.upbound.io/v1beta1", true, map[string]interface{}{
+	crossplane.AppendToResources(t, observed, crossplane.MockByKind(t, resources, "ReplicationGroup", "elasticache.aws.m.upbound.io/v1beta1", true, map[string]interface{}{
 		"status.atProvider.primaryEndpointAddress": "example.cache.amazonaws.com",
 		"status.atProvider.port":                   float64(6379),
 	}))
@@ -119,7 +119,7 @@ func TestValkeyCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	crossplane.AppendToResources(t, observed, crossplane.MockResource(t, resources, "SecurityGroupRule", "ec2.aws.m.upbound.io/v1beta1", true, nil))
+	crossplane.AppendToResources(t, observed, crossplane.MockByKind(t, resources, "SecurityGroupRule", "ec2.aws.m.upbound.io/v1beta1", true, nil))
 
 	t.Log("Rerendering...")
 	resources = crossplane.CrossplaneRender(t, tempInstance, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
@@ -142,7 +142,7 @@ func TestValkeyCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	crossplane.AppendToResources(t, observed, crossplane.MockResource(t, resources, "Secret", "secretsmanager.aws.m.upbound.io/v1beta1", true, nil))
+	crossplane.AppendToResources(t, observed, crossplane.MockByKind(t, resources, "Secret", "secretsmanager.aws.m.upbound.io/v1beta1", true, nil))
 
 	t.Log("Rerendering...")
 	resources = crossplane.CrossplaneRender(t, tempInstance, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))

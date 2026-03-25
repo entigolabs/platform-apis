@@ -28,9 +28,9 @@ func TestPostgreSQLCrossplaneRender(t *testing.T) {
 	t.Logf("Starting database function. Function path %s", function)
 	crossplane.StartCustomFunction(t, function, "9443")
 
-	t.Run("TestInstanceCrossplaneRender", testInstanceCrossplaneRender)
-	t.Run("TestDatabaseCrossplaneRender", testDatabaseCrossplaneRender)
-	t.Run("TestUserCrossplaneRender", testUserCrossplaneRender)
+	t.Run("Instance", testInstanceCrossplaneRender)
+	t.Run("Database", testDatabaseCrossplaneRender)
+	t.Run("User", testUserCrossplaneRender)
 }
 
 func testInstanceCrossplaneRender(t *testing.T) {
@@ -44,7 +44,7 @@ func testInstanceCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, required, extra)
 
 	instanceUnstructured := crossplane.ParseYamlFileToUnstructured(t, instanceResource)
-	mockedInstance := crossplane.MockResource(t, instanceUnstructured, "PostgreSQLInstance", "database.entigo.com/v1alpha1", false, map[string]interface{}{
+	mockedInstance := crossplane.MockByKind(t, instanceUnstructured, "PostgreSQLInstance", "database.entigo.com/v1alpha1", false, map[string]interface{}{
 		"metadata.uid":            "000000000000",
 		"spec.snapshotIdentifier": "postgresql-instance-test-instance-snapshot",
 	})
@@ -113,13 +113,12 @@ func testInstanceCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedSecurityGroup := crossplane.MockResource(t, resources, "SecurityGroup", "ec2.aws.m.upbound.io/v1beta1", true, nil)
-	mockedProviderConfig := crossplane.MockResource(t, resources, "ProviderConfig", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
+	mockedSecurityGroup := crossplane.MockByKind(t, resources, "SecurityGroup", "ec2.aws.m.upbound.io/v1beta1", true, nil)
+	mockedProviderConfig := crossplane.MockByKind(t, resources, "ProviderConfig", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedSecurityGroup, mockedProviderConfig)
 	for _, res := range resources {
 		if res.GetKind() == "SecurityGroupRule" {
-			mockedRes := crossplane.MockResource(t, []*unstructured.Unstructured{res}, "SecurityGroupRule", "ec2.aws.m.upbound.io/v1beta1", true, nil)
-			crossplane.AppendToResources(t, observed, mockedRes)
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
 
@@ -151,7 +150,7 @@ func testInstanceCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedRdsInstance := crossplane.MockResource(t, resources, "Instance", "rds.aws.m.upbound.io/v1beta1", true, map[string]interface{}{
+	mockedRdsInstance := crossplane.MockByKind(t, resources, "Instance", "rds.aws.m.upbound.io/v1beta1", true, map[string]interface{}{
 		"status.atProvider.status":       "Available",
 		"status.atProvider.address":      "mock-db.cluster-123.eu-north-1.rds.amazonaws.com",
 		"status.atProvider.port":         float64(5432),
@@ -197,7 +196,7 @@ func testInstanceCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 
-	mockedExternalSecret := crossplane.MockResource(t, resources, "ExternalSecret", "external-secrets.io/v1", true, nil)
+	mockedExternalSecret := crossplane.MockByKind(t, resources, "ExternalSecret", "external-secrets.io/v1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedExternalSecret)
 
 	t.Log("Rendering...")
@@ -247,7 +246,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedGrant := crossplane.MockResource(t, resources, "Grant", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
+	mockedGrant := crossplane.MockByKind(t, resources, "Grant", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedGrant)
 
 	t.Log("Rendering...")
@@ -272,7 +271,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedDatabase := crossplane.MockResource(t, resources, "Database", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
+	mockedDatabase := crossplane.MockByKind(t, resources, "Database", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedDatabase)
 
 	t.Log("Rendering...")
@@ -296,7 +295,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedExtension := crossplane.MockResource(t, resources, "Extension", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
+	mockedExtension := crossplane.MockByKind(t, resources, "Extension", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedExtension)
 
 	t.Log("Rendering...")
@@ -325,7 +324,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedUsage := crossplane.MockResource(t, resources, "Usage", "protection.crossplane.io/v1beta1", true, nil)
+	mockedUsage := crossplane.MockByKind(t, resources, "Usage", "protection.crossplane.io/v1beta1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedUsage)
 
 	t.Log("Rendering...")
@@ -356,8 +355,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
 		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "database-example-owner-protection" {
-			mockedRes := crossplane.MockResource(t, []*unstructured.Unstructured{res}, "Usage", "protection.crossplane.io/v1beta1", true, nil)
-			crossplane.AppendToResources(t, observed, mockedRes)
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
 
@@ -389,8 +387,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
 		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "database-example-instance-protection" {
-			mockedRes := crossplane.MockResource(t, []*unstructured.Unstructured{res}, "Usage", "protection.crossplane.io/v1beta1", true, nil)
-			crossplane.AppendToResources(t, observed, mockedRes)
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
 
@@ -440,7 +437,7 @@ func testUserCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedRole := crossplane.MockResource(t, resources, "Role", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
+	mockedRole := crossplane.MockByKind(t, resources, "Role", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedRole)
 
 	t.Log("Rendering...")
@@ -462,7 +459,7 @@ func testUserCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedGrant := crossplane.MockResource(t, resources, "Grant", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
+	mockedGrant := crossplane.MockByKind(t, resources, "Grant", "postgresql.sql.m.crossplane.io/v1alpha1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedGrant)
 
 	t.Log("Rendering...")
@@ -492,8 +489,7 @@ func testUserCrossplaneRender(t *testing.T) {
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
 		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "usage-grant-user-example-example-role-postgresql-example" {
-			mockedRes := crossplane.MockResource(t, []*unstructured.Unstructured{res}, "Usage", "protection.crossplane.io/v1beta1", true, nil)
-			crossplane.AppendToResources(t, observed, mockedRes)
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
 
@@ -524,8 +520,7 @@ func testUserCrossplaneRender(t *testing.T) {
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
 		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "user-example-instance-protection" {
-			mockedRes := crossplane.MockResource(t, []*unstructured.Unstructured{res}, "Usage", "protection.crossplane.io/v1beta1", true, nil)
-			crossplane.AppendToResources(t, observed, mockedRes)
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
 

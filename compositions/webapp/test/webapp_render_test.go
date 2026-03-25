@@ -100,7 +100,7 @@ func TestWebAppCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	mockedDeploy := crossplane.MockResource(t, resources, "Deployment", "apps/v1", false, map[string]interface{}{
+	mockedDeploy := crossplane.MockByKind(t, resources, "Deployment", "apps/v1", false, map[string]interface{}{
 		"status.readyReplicas":   float64(1),
 		"status.replicas":        float64(1),
 		"status.updatedReplicas": float64(1),
@@ -109,8 +109,8 @@ func TestWebAppCrossplaneRender(t *testing.T) {
 			map[string]interface{}{"type": "Available", "status": "True"},
 		},
 	})
-	mockedService := crossplane.MockResource(t, resources, "Service", "v1", true, nil)
-	mockedSecret := crossplane.MockResource(t, resources, "Secret", "v1", true, nil)
+	mockedService := crossplane.MockByKind(t, resources, "Service", "v1", true, nil)
+	mockedSecret := crossplane.MockByKind(t, resources, "Secret", "v1", true, nil)
 	crossplane.AppendToResources(t, observed, mockedDeploy, mockedService, mockedSecret)
 
 	t.Log("Rerendering...")

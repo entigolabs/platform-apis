@@ -196,11 +196,11 @@ func AssertFieldValues(t *testing.T, resources []*unstructured.Unstructured, kin
 	}
 }
 
-// MockResource returns a deep copy of the first resource matching kind+apiVersion,
+// MockByKind returns a deep copy of the first resource matching kind+apiVersion,
 // optionally marking it ready and applying field overrides.
 // fieldChanges keys use dot-separated paths of any depth: "spec.forProvider.region".
 // Pass nil for fieldChanges to skip field overrides.
-func MockResource(t *testing.T, resources []*unstructured.Unstructured, kind, apiVersion string, makeReady bool, fieldChanges map[string]interface{}) *unstructured.Unstructured {
+func MockByKind(t *testing.T, resources []*unstructured.Unstructured, kind, apiVersion string, makeReady bool, fieldChanges map[string]interface{}) *unstructured.Unstructured {
 	t.Helper()
 	for _, res := range resources {
 		if res.GetKind() != kind || res.GetAPIVersion() != apiVersion {
@@ -222,6 +222,14 @@ func MockResource(t *testing.T, resources []*unstructured.Unstructured, kind, ap
 	}
 	t.Fatalf("Resource %s/%s for mocking not found", apiVersion, kind)
 	return nil
+}
+
+// Mock makes a ready copy of a single already-found resource, optionally applying field overrides.
+// Use this instead of MockByKind when you already hold the specific resource (e.g. inside a range loop)
+// and don't need to search a slice.
+func Mock(t *testing.T, res *unstructured.Unstructured, makeReady bool, fieldChanges map[string]interface{}) *unstructured.Unstructured {
+	t.Helper()
+	return MockByKind(t, []*unstructured.Unstructured{res}, res.GetKind(), res.GetAPIVersion(), makeReady, fieldChanges)
 }
 
 // AppendToResources appends resources to observed state resources

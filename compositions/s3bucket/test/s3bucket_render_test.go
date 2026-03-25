@@ -73,9 +73,9 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	crossplane.AppendToResources(t, observed,
-		crossplane.MockResource(t, resources, "Bucket", "s3.aws.m.upbound.io/v1beta1", true, nil),
-		crossplane.MockResource(t, resources, "User", "iam.aws.m.upbound.io/v1beta1", true, nil),
-		crossplane.MockResource(t, resources, "Role", "iam.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "Bucket", "s3.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "User", "iam.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "Role", "iam.aws.m.upbound.io/v1beta1", true, nil),
 	)
 
 	t.Log("Rendering...")
@@ -111,8 +111,8 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	crossplane.AppendToResources(t, observed,
-		crossplane.MockResource(t, resources, "AccessKey", "iam.aws.m.upbound.io/v1beta1", true, nil),
-		crossplane.MockResource(t, resources, "Policy", "iam.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "AccessKey", "iam.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "Policy", "iam.aws.m.upbound.io/v1beta1", true, nil),
 	)
 
 	t.Log("Rendering...")
@@ -141,7 +141,7 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	crossplane.AppendToResources(t, observed,
-		crossplane.MockResource(t, resources, "Secret", "secretsmanager.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "Secret", "secretsmanager.aws.m.upbound.io/v1beta1", true, nil),
 	)
 
 	t.Log("Rendering...")
@@ -193,9 +193,9 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	crossplane.AppendToResources(t, observed,
-		crossplane.MockResource(t, resources, "SecretVersion", "secretsmanager.aws.m.upbound.io/v1beta1", true, nil),
-		crossplane.MockResource(t, resources, "UserPolicyAttachment", "iam.aws.m.upbound.io/v1beta1", true, nil),
-		crossplane.MockResource(t, resources, "RolePolicyAttachment", "iam.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "SecretVersion", "secretsmanager.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "UserPolicyAttachment", "iam.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "RolePolicyAttachment", "iam.aws.m.upbound.io/v1beta1", true, nil),
 	)
 
 	t.Log("Rendering...")
@@ -237,8 +237,8 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	crossplane.AppendToResources(t, observed,
-		crossplane.MockResource(t, resources, "BucketVersioning", "s3.aws.m.upbound.io/v1beta1", true, nil),
-		crossplane.MockResource(t, resources, "BucketOwnershipControls", "s3.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "BucketVersioning", "s3.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "BucketOwnershipControls", "s3.aws.m.upbound.io/v1beta1", true, nil),
 	)
 
 	t.Log("Rendering...")
@@ -288,8 +288,8 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	crossplane.AppendToResources(t, observed,
-		crossplane.MockResource(t, resources, "BucketPublicAccessBlock", "s3.aws.m.upbound.io/v1beta1", true, nil),
-		crossplane.MockResource(t, resources, "BucketServerSideEncryptionConfiguration", "s3.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "BucketPublicAccessBlock", "s3.aws.m.upbound.io/v1beta1", true, nil),
+		crossplane.MockByKind(t, resources, "BucketServerSideEncryptionConfiguration", "s3.aws.m.upbound.io/v1beta1", true, nil),
 	)
 
 	t.Log("Rendering...")

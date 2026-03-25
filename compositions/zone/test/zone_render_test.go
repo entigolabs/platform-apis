@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/entigolabs/crossplane-common"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -159,12 +158,10 @@ func TestZoneCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
-		if res.GetKind() != "LaunchTemplate" || res.GetName() != "Zone" {
-			crossplane.AppendToResources(t, observed, res)
-		}
 		if res.GetKind() == "LaunchTemplate" {
-			mockedRes := crossplane.MockResource(t, []*unstructured.Unstructured{res}, "LaunchTemplate", "ec2.aws.upbound.io/v1beta1", true, nil)
-			crossplane.AppendToResources(t, observed, mockedRes)
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
+		} else {
+			crossplane.AppendToResources(t, observed, res)
 		}
 	}
 
@@ -240,7 +237,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 			crossplane.AppendToResources(t, observed, res)
 		}
 	}
-	crossplane.AppendToResources(t, observed, crossplane.MockResource(t, resources, "Role", "iam.aws.upbound.io/v1beta1", true, nil))
+	crossplane.AppendToResources(t, observed, crossplane.MockByKind(t, resources, "Role", "iam.aws.upbound.io/v1beta1", true, nil))
 
 	t.Log("Rendering...")
 	resources = crossplane.CrossplaneRender(t, zone, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
@@ -350,14 +347,13 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	})
 
 	t.Log("Mocking observed resources")
-	crossplane.AppendToResources(t, observed, crossplane.MockResource(t, resources, "AccessEntry", "eks.aws.upbound.io/v1beta1", true, nil))
+	crossplane.AppendToResources(t, observed, crossplane.MockByKind(t, resources, "AccessEntry", "eks.aws.upbound.io/v1beta1", true, nil))
 	for _, res := range resources {
 		if res.GetKind() == "Role" && res.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
 			crossplane.AppendToResources(t, observed, res)
 		}
 		if res.GetKind() == "RolePolicyAttachment" {
-			mockedRes := crossplane.MockResource(t, []*unstructured.Unstructured{res}, "RolePolicyAttachment", "iam.aws.upbound.io/v1beta1", true, nil)
-			crossplane.AppendToResources(t, observed, mockedRes)
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
 
