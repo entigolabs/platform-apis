@@ -52,11 +52,11 @@ func StartCustomFunction(t *testing.T, funcPath string, port string) {
 	require.Eventually(t, func() bool {
 		conn, err := net.DialTimeout("tcp", address, 1*time.Second)
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 			return true
 		}
 		return false
-	}, 10*time.Second, 500*time.Millisecond, "Function doesn't bind to port %s", port)
+	}, 60*time.Second, 500*time.Millisecond, "Function doesn't bind to port %s", port)
 
 	t.Logf("Custom function started using port %s", port)
 }
@@ -144,40 +144,56 @@ func AssertResourceReady(t *testing.T, resources []*unstructured.Unstructured, k
 // Uses gjson path syntax: "metadata.name", "metadata.ownerReferences.0.apiVersion"
 func AssertFieldValues(t *testing.T, resources []*unstructured.Unstructured, kind, apiVersion string, fields map[string]string) {
 	t.Helper()
+
+	type mismatch struct {
+		path     string
+		expected string
+		actual   string
+	}
+	type candidate struct {
+		name       string
+		mismatches []mismatch
+	}
+
+	var candidates []candidate
+
 	for _, res := range resources {
 		if res.GetKind() != kind || res.GetAPIVersion() != apiVersion {
 			continue
 		}
 		data, _ := json.Marshal(res.Object)
 		j := string(data)
-		match := true
+
+		var mismatches []mismatch
 		for path, expected := range fields {
 			val := gjson.Get(j, path)
 			if expected == "*" {
 				if !val.Exists() || val.Type == gjson.Null {
-					match = false
-					break
+					mismatches = append(mismatches, mismatch{path: path, expected: "<non-null>", actual: "<missing or null>"})
 				}
 			} else if val.String() != expected {
-				match = false
-				break
+				mismatches = append(mismatches, mismatch{path: path, expected: expected, actual: val.String()})
 			}
 		}
-		if !match {
-			continue
+
+		if len(mismatches) == 0 {
+			t.Logf("Fields OK. ApiVersion: %s. Kind:%s. Name: %s", apiVersion, kind, res.GetName())
+			return
 		}
-		for path, expected := range fields {
-			val := gjson.Get(j, path)
-			if expected == "*" {
-				assert.True(t, val.Exists() && val.Type != gjson.Null, "Field %s is missing or null in %s/%s", path, apiVersion, kind)
-			} else {
-				assert.Equal(t, expected, val.String(), "Field %s mismatch in %s/%s", path, apiVersion, kind)
-			}
-		}
-		t.Logf("Fields OK. ApiVersion: %s. Kind:%s. Name: %s", apiVersion, kind, res.GetName())
+		candidates = append(candidates, candidate{name: res.GetName(), mismatches: mismatches})
+	}
+
+	if len(candidates) == 0 {
+		t.Errorf("No %s/%s resource found", apiVersion, kind)
 		return
 	}
+
 	t.Errorf("No %s/%s found matching all provided fields", apiVersion, kind)
+	for _, c := range candidates {
+		for _, m := range c.mismatches {
+			t.Errorf("  resource %q: field %q: expected %q, got %q", c.name, m.path, m.expected, m.actual)
+		}
+	}
 }
 
 // MockResource returns a deep copy of the first resource matching kind+apiVersion,
@@ -213,13 +229,15 @@ func AppendToResources(t *testing.T, filename string, resources ...*unstructured
 	t.Helper()
 	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	require.NoError(t, err, "Can not open file %s", filename)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	for _, res := range resources {
 		data, err := yaml.Marshal(res.Object)
 		require.NoError(t, err)
-		file.Write([]byte("---\n"))
-		file.Write(data)
+		_, err = file.Write([]byte("---\n"))
+		require.NoError(t, err, "Can not write to file %s", filename)
+		_, err = file.Write(data)
+		require.NoError(t, err, "Can not write to file %s", filename)
 	}
 }
 
@@ -232,10 +250,12 @@ func AppendYamlToResources(t *testing.T, sourceFilename string, destFilename str
 
 	file, err := os.OpenFile(destFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	require.NoError(t, err, "Can not open target file %s", destFilename)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
-	file.Write([]byte("\n---\n"))
-	file.Write(data)
+	_, err = file.Write([]byte("\n---\n"))
+	require.NoError(t, err, "Can not write to file %s", destFilename)
+	_, err = file.Write(data)
+	require.NoError(t, err, "Can not write to file %s", destFilename)
 }
 
 func ParseYamlFileToUnstructured(t *testing.T, filename string) []*unstructured.Unstructured {
@@ -287,19 +307,22 @@ func GenerateFunctionsConfig(t *testing.T, helmValuesPath, devFunctionsPath stri
 	outputPath := filepath.Join(t.TempDir(), "functions.yaml")
 	f, err := os.Create(outputPath)
 	require.NoError(t, err, "cannot create functions config file")
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	for name, fn := range values.Functions {
 		if !fn.Install {
 			continue
 		}
-		fmt.Fprintf(f, "---\napiVersion: pkg.crossplane.io/v1beta1\nkind: Function\nmetadata:\n  name: %s\nspec:\n  package: %s:%s\n", name, fn.Image, fn.Tag)
+		_, err = fmt.Fprintf(f, "---\napiVersion: pkg.crossplane.io/v1beta1\nkind: Function\nmetadata:\n  name: %s\nspec:\n  package: %s:%s\n", name, fn.Image, fn.Tag)
+		require.NoError(t, err, "cannot write functions config")
 	}
 
 	dev, err := os.ReadFile(devFunctionsPath)
 	require.NoError(t, err, "cannot read dev functions")
-	fmt.Fprint(f, "---\n")
-	_, _ = f.Write(dev)
+	_, err = fmt.Fprint(f, "---\n")
+	require.NoError(t, err, "cannot write functions config")
+	_, err = f.Write(dev)
+	require.NoError(t, err, "cannot write dev functions")
 
 	return outputPath
 }

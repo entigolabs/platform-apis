@@ -28,12 +28,12 @@ const (
 )
 
 func TestKafkaCrossplaneRender(t *testing.T) {
-	t.Run("User", TestKafkaUserCrossplaneRender)
-	t.Run("MskObserver", TestMskObserverCrossplaneRender)
-	t.Run("Topic", TestTopicCrossplaneRender)
+	t.Run("User", testKafkaUserCrossplaneRender)
+	t.Run("MskObserver", testMskObserverCrossplaneRender)
+	t.Run("Topic", testTopicCrossplaneRender)
 }
 
-func TestKafkaUserCrossplaneRender(t *testing.T) {
+func testKafkaUserCrossplaneRender(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	extra := filepath.Join(tmpDir, "extra.yaml")
@@ -171,7 +171,7 @@ func TestKafkaUserCrossplaneRender(t *testing.T) {
 	})
 }
 
-func TestMskObserverCrossplaneRender(t *testing.T) {
+func testMskObserverCrossplaneRender(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	extra := filepath.Join(tmpDir, "extra.yaml")
@@ -258,7 +258,7 @@ func TestMskObserverCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceReady(t, resources, "MSK", "kafka.entigo.com/v1alpha1")
 }
 
-func TestTopicCrossplaneRender(t *testing.T) {
+func testTopicCrossplaneRender(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	extra := filepath.Join(tmpDir, "extra.yaml")

@@ -6,6 +6,8 @@ spec:
   name: user_example
   instanceRef:
     name: postgresql-example
+  login: true
+  inherit: true
   grant:
     roles:
     - example-role

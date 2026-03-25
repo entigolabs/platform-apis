@@ -12,3 +12,7 @@ spec:
     name: postgresql-example
   extensions:
     - postgis
+  extensionConfig:
+    postgis:
+      schema: topology
+  deletionProtection: true

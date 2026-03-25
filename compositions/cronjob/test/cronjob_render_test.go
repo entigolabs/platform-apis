@@ -1,7 +1,7 @@
 package test
 
 import (
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/entigolabs/crossplane-common"
@@ -10,18 +10,15 @@ import (
 const (
 	composition     = "../apis/cronjob-composition.yaml"
 	env             = "../examples/environment-config.yaml"
-	extra           = "extra-resources-mock.yaml"
 	function        = "../../../functions/workload"
 	functionsConfig = "../../../test/common/functions-dev.yaml"
-	observed        = "observed-resources-mock.yaml"
 	testResource    = "../examples/cronjob.yaml"
 )
 
 func TestCronJobCrossplaneRender(t *testing.T) {
-	defer func() {
-		_ = os.Remove(observed)
-		_ = os.Remove(extra)
-	}()
+	tmpDir := t.TempDir()
+	extra := filepath.Join(tmpDir, "extra.yaml")
+	observed := filepath.Join(tmpDir, "observed.yaml")
 
 	crossplane.AppendYamlToResources(t, env, extra)
 	t.Logf("Starting custom function. Function path %s", function)
