@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/entigolabs/crossplane-common"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -34,11 +33,6 @@ func TestRepositoryCrossplaneRender(t *testing.T) {
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "Repository", 2)
-
-	for _, resource := range resources {
-		data, _ := yaml.Marshal(resource)
-		t.Log(string(data))
-	}
 
 	t.Log("Validating artifact.entigo.com Repository fields")
 	crossplane.AssertFieldValues(t, resources, "Repository", "artifact.entigo.com/v1alpha1", map[string]string{
