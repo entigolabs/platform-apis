@@ -9,6 +9,10 @@ on:
       - 'test/build/**'
       - 'functions/**/go.mod'
       - 'functions/**/go.sum'
+      - 'test/common/crossplane/go.mod'
+      - 'test/common/crossplane/go.sum'
+      - 'compositions/**/go.mod'
+      - 'compositions/**/go.sum'
 
 jobs:
   build:

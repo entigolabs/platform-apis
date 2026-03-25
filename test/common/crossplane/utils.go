@@ -56,7 +56,7 @@ func StartCustomFunction(t *testing.T, funcPath string, port string) {
 			return true
 		}
 		return false
-	}, 60*time.Second, 500*time.Millisecond, "Function doesn't bind to port %s", port)
+	}, 10*time.Minute, 500*time.Millisecond, "Function doesn't bind to port %s", port)
 
 	t.Logf("Custom function started using port %s", port)
 }

@@ -69,6 +69,35 @@ cd functions/database && go test -v ./...
 
 ---
 
+## Running Tests via Docker (CI)
+
+The `run-tests.sh` script runs tests inside the `entigolabs/platform-apis-test-runner` Docker image,
+which mirrors the CI environment and has Go module caches pre-warmed.
+
+```bash
+# All tests (auto-discovers compositions, functions, helm)
+./run-tests.sh
+
+# Single composition
+./run-tests.sh compositions/repository
+
+# Single function
+./run-tests.sh functions/artifact
+
+# Helm tests
+./run-tests.sh helm
+```
+
+The script mounts the repository root into the container as `/workspace` and passes the target
+workdir to `test/runner.sh` via `--type=<composition|function|helm>`.
+
+To use a locally built test image instead of pulling the published one:
+```bash
+IMAGE_NAME=my-local-test-runner:latest ./run-tests.sh compositions/webapp
+```
+
+---
+
 ### Tests Writing Guides
 
 [Writing Composition Render Tests](common/crossplane/GUIDE.md).
