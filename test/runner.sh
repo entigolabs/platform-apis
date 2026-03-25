@@ -25,58 +25,9 @@ log_info "Test Runner started..."
 log_info "Workdir: $CURRENT_DIR"
 log_info "Test type: ${TEST_TYPE:-not specified}"
 
-# ============ COMPOSITION TESTS ============
-generate_crossplane_functions_configs() {
-  local output="/workspace/test/common/functions.yaml"
-  log_info "Generating $output from helm/values.yaml..."
-
-  yq -r '
-    .functions | to_entries[] | select(.value.install == true) |
-    "---\napiVersion: pkg.crossplane.io/v1beta1\nkind: Function\nmetadata:\n  name: " + .key + "\nspec:\n  package: " + .value.image + ":" + .value.tag
-  ' /workspace/helm/values.yaml | tail -n +2 > "$output"
-
-  echo "---" >> "$output"
-  cat /workspace/test/common/functions-dev.yaml >> "$output"
-}
-
-cleanup_test_functions() {
-  rm -f /workspace/test/common/functions.yaml
-}
-
-run_composition_tests() {
-  generate_crossplane_functions_configs
-  trap cleanup_test_functions EXIT
-
-  source /workspace/test/lib.sh
-  source /workspace/test/mock_lib.sh
-
-  TEST_FILES=$(find . -maxdepth 1 -name "test_*.sh" | sort)
-  if [ -z "$TEST_FILES" ]; then
-    log_info "No test_*.sh files found. Skipping..."
-    return 0
-  fi
-
-  FAILED_TESTS=0
-  for test_file in $TEST_FILES; do
-    echo -e "\nRunning Suite: $test_file..."
-    ( set -e; source "$test_file" )
-    EXIT_CODE=$?
-
-    if [ $EXIT_CODE -eq 0 ]; then
-      log_pass "Suite: $test_file"
-    else
-      log_fail "Suite: $test_file"
-      FAILED_TESTS=$((FAILED_TESTS+1))
-    fi
-    cleanup_test 2>/dev/null || true
-  done
-
-  return $FAILED_TESTS
-}
-
-# ============ FUNCTION TESTS ============
-run_function_tests() {
-  log_info "Running Go unit tests..."
+# ============ GO TESTS (compositions and functions) ============
+run_go_tests() {
+  log_info "Running Go tests..."
   export CGO_ENABLED=1
 
   if go test -v ./...; then
@@ -115,8 +66,8 @@ run_helm_tests() {
 
 # ============ MAIN ============
 case "$TEST_TYPE" in
-  composition) run_composition_tests ;;
-  function)    run_function_tests ;;
+  composition) run_go_tests ;;
+  function)    run_go_tests ;;
   helm)        run_helm_tests ;;
   *)
     echo "Usage: runner.sh --type=<composition|function|helm>"
