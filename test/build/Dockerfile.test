@@ -1,11 +1,5 @@
 # syntax=docker/dockerfile:1
 
-# Extract the kyverno CLI binary from the official image (handles multi-arch automatically).
-FROM ghcr.io/kyverno/kyverno-cli:latest AS kyverno-cli
-
-# Build stage: runs natively on the build host (linux/amd64 in CI) and
-# cross-compiles Go packages for the target arch via GOARCH. This eliminates
-# QEMU emulation for the expensive compilation steps.
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
 
 ARG TARGETARCH
@@ -39,8 +33,6 @@ RUN find functions -mindepth 1 -maxdepth 1 -type d -not -name "common" | \
     done
 
 # Pre-compile all packages (dependencies + composition tests) for the target arch.
-# Uses -exec true so the compiled arm64 test binaries are never executed on the
-# amd64 build host; package .a files are still cached for later use.
 RUN find functions compositions -name "go.mod" -exec dirname {} \; | sort | \
     while read dir; do \
       echo "Pre-compiling: $dir" && \
@@ -63,7 +55,10 @@ RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
     mv kubeconform /usr/bin/kubeconform && \
     chmod +x /usr/bin/kubeconform
 
-COPY --from=kyverno-cli /ko-app/kyverno /usr/bin/kyverno
+RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
+    curl -L "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_linux_${ARCH}.tar.gz" | tar xz && \
+    mv kyverno /usr/bin/kyverno && \
+    chmod +x /usr/bin/kyverno
 
 ENV GOPATH=/go
 ENV GOCACHE=/go/cache
