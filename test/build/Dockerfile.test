@@ -1,6 +1,6 @@
 FROM golang:1.25-alpine
 
-RUN apk add --no-cache bash curl git jq build-base binutils-gold docker-cli
+RUN apk add --no-cache bash curl git jq build-base binutils-gold docker-cli findutils
 
 RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
     curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${ARCH}" -o /usr/bin/yq && \
@@ -37,7 +37,10 @@ COPY test/common/kyverno/ test/common/kyverno/
 COPY compositions/ compositions/
 
 RUN find functions test/common/crossplane test/common/kyverno compositions \
-      -name "go.mod" -exec dirname {} \; | sort | \
-    while read dir; do \
-      echo "Downloading modules: $dir" && (cd "$dir" && go mod download); \
-    done
+      -name "go.mod" -exec dirname {} \; | \
+    xargs -P $(nproc) -I {} sh -c ' \
+      echo "==> Working with {}" && \
+      cd "{}" && \
+      go mod download && \
+      go test -run=^$ ./... || true \
+    '
