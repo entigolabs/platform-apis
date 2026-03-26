@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
         function: ${{ fromJson(inputs.functions) }}
     name: Lint ${{ matrix.function }}
@@ -54,7 +53,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
         function: ${{ fromJson(inputs.functions) }}
     name: Test ${{ matrix.function }}
