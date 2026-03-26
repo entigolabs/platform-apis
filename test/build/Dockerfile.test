@@ -47,8 +47,6 @@ RUN find functions compositions -name "go.mod" -exec dirname {} \; | sort | \
 # Final image for the target arch.
 FROM golang:1.25-alpine
 
-ARG TARGETARCH
-
 RUN apk add --no-cache bash curl git jq docker-cli
 
 RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
@@ -56,11 +54,14 @@ RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/s
     VERIFY_CHECKSUM=false ./get_helm.sh && \
     rm get_helm.sh
 
-RUN curl -L "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${TARGETARCH}.tar.gz" | tar xz && \
+# uname -m returns x86_64 on amd64 and aarch64 on arm64; translate to the names used in release filenames.
+RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
+    curl -L "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${ARCH}.tar.gz" | tar xz && \
     mv kubeconform /usr/bin/kubeconform && \
     chmod +x /usr/bin/kubeconform
 
-RUN curl -L "https://github.com/kyverno/kyverno/releases/latest/download/kyverno-cli_linux_${TARGETARCH}.tar.gz" | tar xz && \
+RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
+    curl -L "https://github.com/kyverno/kyverno/releases/latest/download/kyverno-cli_linux_${ARCH}.tar.gz" | tar xz && \
     mv kyverno /usr/bin/kyverno && \
     chmod +x /usr/bin/kyverno
 
