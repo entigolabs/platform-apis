@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/entigolabs/crossplane-common"
+	"github.com/entigolabs/static-common/crossplane"
 )
 
 const (

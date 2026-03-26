@@ -12,13 +12,12 @@ ENV GOARCH=$TARGETARCH
 WORKDIR /workspace
 
 COPY functions/ functions/
-COPY test/common/crossplane/ test/common/crossplane/
-COPY test/common/kyverno/ test/common/kyverno/
+COPY test/common/ test/common/
 COPY compositions/ compositions/
 
 RUN apk add --no-cache findutils
 
-RUN find functions test/common/crossplane test/common/kyverno compositions \
+RUN find functions \
       -name "go.mod" -exec dirname {} \; | \
     xargs -P $(nproc) -I {} sh -c ' \
       echo "==> Pre-compiling {} for architecture: $GOARCH" && \
@@ -26,6 +25,16 @@ RUN find functions test/common/crossplane test/common/kyverno compositions \
       go mod download && \
       go test -run=^$ ./... || true \
     '
+
+RUN echo "==> Pre-compiling test/common for architecture: $GOARCH" && \
+    cd test/common && \
+    go mod download && \
+    go test -run=^$ ./... || true
+
+RUN echo "==> Pre-compiling compositions for architecture: $GOARCH" && \
+    cd compositions && \
+    go mod download && \
+    go test -run=^$ ./... || true
 
 FROM golang:1.25-alpine
 
@@ -60,8 +69,7 @@ ENV CGO_ENABLED=0
 WORKDIR /workspace
 
 COPY functions/ functions/
-COPY test/common/crossplane/ test/common/crossplane/
-COPY test/common/kyverno/ test/common/kyverno/
+COPY test/common/ test/common/
 COPY compositions/ compositions/
 
 COPY --from=cacher /go/pkg/mod /go/pkg/mod

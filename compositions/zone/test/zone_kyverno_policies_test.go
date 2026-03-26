@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"github.com/entigolabs/kyverno-common"
+	"github.com/entigolabs/static-common/kyverno"
 )
 
 const chartDir = "../../../helm"

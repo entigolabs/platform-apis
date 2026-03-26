@@ -1,6 +1,6 @@
 ## Writing Kyverno Policy Tests
 
-Kyverno policy tests verify that the policies shipped with a Helm chart correctly allow or deny Kubernetes resource operations — without needing a real cluster. The test library lives in `test/common/kyverno/` and is imported as `github.com/entigolabs/kyverno-common`.
+Kyverno policy tests verify that the policies shipped with a Helm chart correctly allow or deny Kubernetes resource operations — without needing a real cluster. The test library lives in `test/common/kyverno/` and is imported as `github.com/entigolabs/static-common/kyverno`.
 
 ### What these tests do
 
@@ -23,7 +23,7 @@ package test
 
 import (
     "testing"
-    "github.com/entigolabs/kyverno-common"
+    "github.com/entigolabs/static-common/kyverno"
 )
 
 const chartDir = "../../../helm"
@@ -226,7 +226,7 @@ package test
 
 import (
     "testing"
-    "github.com/entigolabs/kyverno-common"
+    "github.com/entigolabs/static-common/kyverno"
 )
 
 const chartDir = "../../../helm"
