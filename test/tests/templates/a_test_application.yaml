@@ -4,6 +4,8 @@ metadata:
   name: a-apps
   labels:
     tenancy.entigo.com/zone: a
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: v1
 kind: Namespace
@@ -11,6 +13,8 @@ metadata:
   name: test-postgresql
   labels:
     tenancy.entigo.com/zone: a
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: v1
 kind: Namespace
