@@ -33,6 +33,7 @@ jobs:
     uses: ./.github/workflows/test-functions.yml
     with:
       functions: ${{ needs.detect-changes.outputs.functions }}
+    secrets: inherit
 
   test-compositions:
     name: Test Compositions
@@ -41,12 +42,14 @@ jobs:
     uses: ./.github/workflows/test-compositions.yml
     with:
       compositions: ${{ needs.detect-changes.outputs.compositions }}
+    secrets: inherit
 
   test-helm:
     name: Test Helm
     needs: [detect-changes]
     if: needs.detect-changes.outputs.helm_changed == 'true'
     uses: ./.github/workflows/test-helm.yml
+    secrets: inherit
 
   build-functions:
     name: Build Functions
