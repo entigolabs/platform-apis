@@ -25,6 +25,27 @@ All test written in Go (v. 1.25.7)
 
 ## Running Tests Locally
 
+### Kyverno Policy Tests
+
+Kyverno policy tests (e.g. `zone_kyverno_policies_test.go`) require two CLI tools to be installed:
+
+- [`helm`](https://helm.sh/docs/intro/install/) — renders the Helm chart before applying policies
+- [`kyverno`](https://kyverno.io/docs/kyverno-cli/) — evaluates Kyverno policies against rendered resources
+
+```bash
+brew install helm kyverno
+```
+
+Tests live alongside other composition tests in `compositions/<name>/test/` and are run the same way:
+
+```bash
+cd compositions/zone/test
+go test -v ./...
+
+# Run a single policy group
+go test -v -run TestKyvernoPolicies/ZoneDeletionCheck ./...
+```
+
 ### Composition Render Tests
 
 Composition render tests live in `compositions/<name>/test/` and are standard Go tests that can be run directly without Docker.
@@ -100,4 +121,5 @@ IMAGE_NAME=my-local-test-runner:latest ./run-tests.sh compositions/webapp
 
 ### Tests Writing Guides
 
-[Writing Composition Render Tests](common/crossplane/GUIDE.md).
+- [Writing Composition Render Tests](common/crossplane/GUIDE.md)
+- [Writing Kyverno Policy Tests](common/kyverno/GUIDE.md)

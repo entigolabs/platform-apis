@@ -1,43 +1,76 @@
+# syntax=docker/dockerfile:1
+
+# Build stage: runs natively on the build host (linux/amd64 in CI) and
+# cross-compiles Go packages for the target arch via GOARCH. This eliminates
+# QEMU emulation for the expensive compilation steps.
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+
+ARG TARGETARCH
+ARG TARGETOS=linux
+
+ENV GOPATH=/go
+ENV GOCACHE=/go/cache
+# CGO must be off for cross-compilation without a matching C toolchain.
+ENV CGO_ENABLED=0
+
+WORKDIR /workspace
+
+# All local replace directives must be present before module download.
+COPY functions/ functions/
+COPY test/common/crossplane/ test/common/crossplane/
+COPY test/common/kyverno/ test/common/kyverno/
+COPY compositions/ compositions/
+
+# Pre-download modules for every Go module in the workspace.
+RUN find functions test/common/crossplane test/common/kyverno compositions \
+      -name "go.mod" -exec dirname {} \; | sort | \
+    while read dir; do \
+      echo "Downloading modules: $dir" && (cd "$dir" && go mod download); \
+    done
+
+# Pre-compile function main packages for the target arch (cross-compiled, no QEMU).
+RUN find functions -mindepth 1 -maxdepth 1 -type d -not -name "common" | \
+    while read dir; do \
+      echo "Pre-building function: $dir" && \
+      (cd "$dir" && GOARCH=$TARGETARCH GOOS=$TARGETOS go build -o /dev/null . 2>/dev/null || true); \
+    done
+
+# Pre-compile all packages (dependencies + composition tests) for the target arch.
+# Uses -exec true so the compiled arm64 test binaries are never executed on the
+# amd64 build host; package .a files are still cached for later use.
+RUN find functions compositions -name "go.mod" -exec dirname {} \; | sort | \
+    while read dir; do \
+      echo "Pre-compiling: $dir" && \
+      (cd "$dir" && GOARCH=$TARGETARCH GOOS=$TARGETOS go test -run=^$ -exec true ./... 2>/dev/null || true); \
+    done
+
+# Final image for the target arch.
 FROM golang:1.25-alpine
 
-RUN apk add --no-cache bash curl git jq build-base binutils-gold docker-cli
+ARG TARGETARCH
+
+RUN apk add --no-cache bash curl git jq docker-cli
 
 RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
     chmod 700 get_helm.sh && \
     VERIFY_CHECKSUM=false ./get_helm.sh && \
     rm get_helm.sh
 
-RUN curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz && \
+RUN curl -L "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${TARGETARCH}.tar.gz" | tar xz && \
     mv kubeconform /usr/bin/kubeconform && \
     chmod +x /usr/bin/kubeconform
 
+RUN curl -L "https://github.com/kyverno/kyverno/releases/latest/download/kyverno-cli_linux_${TARGETARCH}.tar.gz" | tar xz && \
+    mv kyverno /usr/bin/kyverno && \
+    chmod +x /usr/bin/kyverno
+
 ENV GOPATH=/go
 ENV GOCACHE=/go/cache
-ENV CGO_ENABLED=1
+ENV CGO_ENABLED=0
 
 WORKDIR /workspace
 
-# Copy all Go source trees.
-# Composition tests use a `replace` directive pointing to test/common/crossplane,
-# so all three trees must be present together before module download.
-COPY functions/ functions/
-COPY test/common/crossplane/ test/common/crossplane/
-COPY compositions/ compositions/
-
-# Pre-download modules for every Go module in the image.
-RUN find functions test/common/crossplane compositions -name "go.mod" -exec dirname {} \; | sort | \
-    while read dir; do \
-      echo "Downloading modules: $dir" && (cd "$dir" && go mod download); \
-    done
-
-# Pre-compile function main packages so `go run .` at test time is fast.
-RUN find functions -mindepth 1 -maxdepth 1 -type d -not -name "common" | \
-    while read dir; do \
-      echo "Pre-building function: $dir" && (cd "$dir" && go build -o /dev/null . 2>/dev/null || true); \
-    done
-
-# Pre-compile all test packages (functions + composition tests) to warm the build cache.
-RUN find functions compositions -name "go.mod" -exec dirname {} \; | sort | \
-    while read dir; do \
-      echo "Pre-compiling tests: $dir" && (cd "$dir" && go test -run=^$ ./... 2>/dev/null || true); \
-    done
+# Bring in pre-downloaded modules and pre-compiled build cache from the builder.
+COPY --from=builder /go/pkg /go/pkg
+COPY --from=builder /go/cache /go/cache
+COPY --from=builder /workspace /workspace

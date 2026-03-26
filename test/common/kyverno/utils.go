@@ -10,16 +10,28 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
-// TestScenario describes a single Kyverno policy test case
+// TestScenario describes a single Kyverno policy test case.
 type TestScenario struct {
 	HelmValues       map[string]string
 	ResourceYAML     string
-	VariablesYAML    string // values file (kind: Values) — policy variables and globalValues
-	UserInfoYAML     string // user info file (kind: UserInfo) — request.userInfo.groups, username
+	VariablesYAML    string // values file (kind: Values) — overrides request.operation and other globals
+	UserInfoYAML     string // user info file (kind: UserInfo) — sets request.userInfo.groups and username
 	ExpectedAction   string // "pass" or "fail"
-	ExpectedInOutput string // substring expected in kyverno output (e.g. for mutations)
+	ExpectedInOutput string // substring that must appear in kyverno output (e.g. generated resource name)
+}
+
+// K8sResource holds the fields parsed from a resource YAML needed for policy routing.
+type K8sResource struct {
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	Metadata   struct {
+		Name string `yaml:"name"`
+	} `yaml:"metadata"`
+	Spec map[string]interface{} `yaml:"spec"`
 }
 
 const defaultUserInfo = `
@@ -40,90 +52,46 @@ func RunPolicyCheck(t *testing.T, chartDir string, scenario TestScenario) {
 	t.Helper()
 
 	output := applyPolicies(t, chartDir, scenario)
-
 	passed := strings.Contains(output, "fail: 0") && strings.Contains(output, "error: 0")
 
-	switch scenario.ExpectedAction {
-	case "pass":
-		if !passed {
-			t.Errorf("expected policy PASS\n%s", output)
-		}
-	case "fail":
-		if passed {
-			t.Errorf("expected policy FAIL\n%s", output)
-		}
-	}
-
-	if scenario.ExpectedInOutput != "" && !strings.Contains(output, scenario.ExpectedInOutput) {
-		t.Errorf("expected %q in output\n%s", scenario.ExpectedInOutput, output)
-	}
+	assertAction(t, scenario.ExpectedAction, passed, output)
+	assertOutputContains(t, scenario.ExpectedInOutput, output)
 }
 
-// applyPolicies orchestrator of policies rendering, mocks injecting, kyverno command. Returns the combined output.
+// applyPolicies renders policies, writes temp files, runs kyverno, and returns the combined output.
 func applyPolicies(t *testing.T, chartDir string, scenario TestScenario) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 
 	policyFile := preparePolicies(t, chartDir, tmpDir, scenario)
 	userInfoFile := prepareUserInfo(t, tmpDir, scenario.UserInfoYAML)
-
 	args, env := buildKyvernoCommand(t, tmpDir, policyFile, userInfoFile, scenario)
 
-	cmd := exec.Command("kyverno", args...)
-	cmd.Env = env
-	out, _ := cmd.CombinedOutput()
-	output := string(out)
+	output := runCommand(t, env, "kyverno", args...)
 
 	if !strings.Contains(output, "pass:") {
 		t.Fatalf("kyverno did not produce a summary — check policy syntax\n%s", output)
 	}
-	t.Logf("kyverno args: %v\noutput:\n%s", args, output)
 	return output
 }
 
-// preparePolicies renders policies and injects offline mocks
-func preparePolicies(t *testing.T, chartDir, tmpDir string, s TestScenario) string {
-	apiVersion, kind, _ := parseResourceMeta(s.ResourceYAML)
-	// In file mode (builtin resources), inject a static inline namespace mock so that
-	// zone-targeting policies with resource.List("v1","namespaces","") don't try to hit
-	// the API server (KUBECONFIG=/dev/null). In cluster mode the fake server handles it.
-	rendered := injectOfflineMocks(renderHelm(t, chartDir, s.HelmValues), isBuiltinResource(apiVersion))
-
-	policies := extractKyvernoPolicies(rendered, kind)
-	if policies == "" {
-		t.Fatalf("no Kyverno policies found for resource kind %q (API: %s)", kind, apiVersion)
-	}
-	return writeTempFile(t, tmpDir, "policy.yaml", policies)
-}
-
-// prepareUserInfo prepares user info
-func prepareUserInfo(t *testing.T, tmpDir, userYAML string) string {
-	if userYAML == "" {
-		userYAML = defaultUserInfo
-	}
-	return writeTempFile(t, tmpDir, "userinfo.yaml", userYAML)
-}
-
-// buildKyvernoCommand builds required for test kyverno CLI command
-// For built-in Kubernetes resource types (Namespace, Pod, …) it uses file-based offline mode.
-// For custom resources (e.g. Zone) it spins up a minimal fake Kubernetes API server so that
-// kyverno can not resolve the CRD GVR without requiring a live cluster.
+// buildKyvernoCommand assembles the kyverno apply arguments and environment.
+// Built-in resources (Namespace, Pod, …) use file-based offline mode with KUBECONFIG=/dev/null.
+// Custom resources (Zone, Application, …) require a fake Kubernetes API server to resolve the CRD GVR.
 func buildKyvernoCommand(t *testing.T, tmpDir, policyFile, userInfoFile string, s TestScenario) ([]string, []string) {
-	apiVersion, _, _ := parseResourceMeta(s.ResourceYAML)
-
+	res := parseK8sYAML(t, s.ResourceYAML)
 	args := []string{"apply", policyFile, "--userinfo", userInfoFile}
 	env := os.Environ()
 
-	if isBuiltinResource(apiVersion) {
-		// file based offline mode
+	if isBuiltinResource(res.APIVersion) {
 		resourcePath := writeTempFile(t, tmpDir, "resource.yaml", s.ResourceYAML)
 		args = append(args, "--resource", resourcePath)
 		env = append(env, "KUBECONFIG=/dev/null")
 	} else {
-		// K8 API server mode
-		kubeconfigFile := startFakeCluster(t, tmpDir, s.ResourceYAML)
+		kubeconfigFile := startFakeCluster(t, tmpDir, res)
 		args = append(args, "--cluster", "--kubeconfig", kubeconfigFile)
 	}
+
 	if s.VariablesYAML != "" {
 		varsPath := writeTempFile(t, tmpDir, "values.yaml", s.VariablesYAML)
 		args = append(args, "--values-file", varsPath)
@@ -132,8 +100,42 @@ func buildKyvernoCommand(t *testing.T, tmpDir, policyFile, userInfoFile string, 
 	return args, env
 }
 
-// isBuiltinResource returns true when apiVersion belongs to a built-in Kubernetes group.
-// Custom resources (e.g. tenancy.entigo.com/v1alpha1) require a live or fake cluster to resolve GVR.
+// preparePolicies renders the Helm chart, injects offline mocks, extracts policies
+// relevant to the tested resource kind, and writes them to a temp file.
+func preparePolicies(t *testing.T, chartDir, tmpDir string, s TestScenario) string {
+	res := parseK8sYAML(t, s.ResourceYAML)
+	isBuiltin := isBuiltinResource(res.APIVersion)
+
+	helmOutput := renderHelm(t, chartDir, s.HelmValues)
+	rendered := injectOfflineMocks(helmOutput, isBuiltin)
+	policies := extractKyvernoPolicies(rendered, res.Kind)
+
+	if policies == "" {
+		t.Fatalf("no Kyverno policies found for resource kind %q", res.Kind)
+	}
+	return writeTempFile(t, tmpDir, "policy.yaml", policies)
+}
+
+// prepareUserInfo writes the user info YAML to a temp file, using a default non-privileged user if none is provided.
+func prepareUserInfo(t *testing.T, tmpDir, userYAML string) string {
+	if userYAML == "" {
+		userYAML = defaultUserInfo
+	}
+	return writeTempFile(t, tmpDir, "userinfo.yaml", userYAML)
+}
+
+// parseK8sYAML unmarshals a Kubernetes resource YAML string into a K8sResource.
+func parseK8sYAML(t *testing.T, yamlStr string) K8sResource {
+	t.Helper()
+	var res K8sResource
+	if err := yaml.Unmarshal([]byte(yamlStr), &res); err != nil {
+		t.Fatalf("failed to parse resource YAML: %v", err)
+	}
+	return res
+}
+
+// isBuiltinResource reports whether the apiVersion belongs to a core Kubernetes group.
+// Custom resources (e.g. tenancy.entigo.com/v1alpha1) return false and require a fake cluster.
 func isBuiltinResource(apiVersion string) bool {
 	prefixes := []string{"v1", "apps/", "batch/", "networking.k8s.io/", "rbac.authorization.k8s.io/"}
 	for _, p := range prefixes {
@@ -144,37 +146,8 @@ func isBuiltinResource(apiVersion string) bool {
 	return false
 }
 
-// parseResourceMeta combined search and parsing of resource metadata
-func parseResourceMeta(yaml string) (apiVersion, kind, name string) {
-	inMetadata := false
-	for _, line := range strings.Split(yaml, "\n") {
-		trimmed := strings.TrimSpace(line)
-		parts := strings.SplitN(trimmed, ":", 2)
-
-		if len(parts) == 2 {
-			key, val := parts[0], strings.TrimSpace(parts[1])
-			switch key {
-			case "apiVersion":
-				apiVersion = val
-			case "kind":
-				kind = val
-			case "metadata":
-				inMetadata = true
-			case "name":
-				if inMetadata {
-					name = val
-				}
-			}
-		} else if trimmed != "" && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
-			inMetadata = false
-		}
-	}
-	return apiVersion, kind, name
-}
-
-// extractKyvernoPolicies returns policies from fullYAML that target the given resource kind.
-// Filtering prevents errors from policies targeting unrelated resource types (e.g. Zone policies
-// erroring when applied to a Namespace test resource).
+// extractKyvernoPolicies returns the subset of YAML documents from fullYAML that are
+// Kyverno policies targeting the given resource kind, preventing unrelated policy errors.
 func extractKyvernoPolicies(fullYAML, kind string) string {
 	resource := `"` + strings.ToLower(kind) + `s"`
 	var policies []string
@@ -186,38 +159,38 @@ func extractKyvernoPolicies(fullYAML, kind string) string {
 	return strings.Join(policies, "\n---\n")
 }
 
-// injectOfflineMocks replaces resource.List() CEL calls with static inline data so tests run without cluster access.
-// includeNamespaceMock should be true in file mode (builtin resources like Namespace) where there is no fake cluster
-// to serve /api/v1/namespaces. In cluster mode, the fake server handles the namespace list and has() works correctly
-// on the real JSON objects it returns.
+// injectOfflineMocks replaces resource.List() CEL calls with static data so tests run without cluster access.
 //
-// When NOT in file mode (i.e. cluster mode for Zone tests) the delete-only matchCondition is also stripped
-// because kyverno CLI always simulates CREATE and cannot simulate DELETE operations.
+// File mode (built-in resources, includeNamespaceMock=true):
+//   - Namespace list is replaced with an inline CEL literal. CEL type uniformity requires both
+//     "name" and "labels" values to be wrapped in dyn(). Note: has() does not work on dyn()-typed
+//     values, but zone-targeting policies are skipped for Namespace resources so has() is never evaluated.
+//
+// Cluster mode (custom resources, includeNamespaceMock=false):
+//   - Namespace list is served by the fake cluster HTTP server at /api/v1/namespaces,
+//     where has() works correctly on real unstructured JSON objects.
+//   - The delete-only matchCondition is stripped because kyverno CLI always simulates CREATE
+//     and cannot simulate DELETE. oldObject references are rewritten to object so the zone
+//     deletion check policy can evaluate the submitted resource's metadata.
 func injectOfflineMocks(policies string, includeNamespaceMock bool) string {
 	policies = strings.ReplaceAll(policies,
 		`resource.List("tenancy.entigo.com/v1alpha1", "zones", "")`,
 		`{"items": [{"metadata": {"name": "my-zone"}}, {"metadata": {"name": "default-zone-name"}}]}`)
+
 	if includeNamespaceMock {
-		// CEL map literals require uniform value types. Both name and labels are wrapped in dyn() so the
-		// metadata map has type map(string,dyn). Note: has() does not work reliably on dyn()-typed values;
-		// these zone-targeting policies are skipped for Namespace resources so has() is never evaluated.
 		policies = strings.ReplaceAll(policies,
 			`resource.List("v1", "namespaces", "")`,
 			`{"items": [{"metadata": {"name": dyn("attached-ns"), "labels": dyn({"tenancy.entigo.com/zone": "my-zone"})}}, {"metadata": {"name": dyn("stolen-ns"), "labels": dyn({})}}]}`)
 	} else {
-		// kyverno CLI always simulates CREATE; strip the delete-only matchCondition so the zone deletion
-		// check policy executes and tests the underlying namespace-filtering logic.
 		policies = strings.ReplaceAll(policies,
 			"  matchConditions:\n  - name: delete-only\n    expression: request.operation == \"DELETE\"\n",
 			"")
-		// For DELETE operations kyverno uses oldObject, but the CLI only provides object (CREATE).
-		// Replace oldObject references so the test uses the submitted resource's metadata/spec.
 		policies = strings.ReplaceAll(policies, "oldObject.", "object.")
 	}
 	return policies
 }
 
-// renderHelm renders helm charts
+// renderHelm runs helm template with the given values and returns the rendered YAML.
 func renderHelm(t *testing.T, chartPath string, values map[string]string) string {
 	t.Helper()
 	args := []string{"template", "test-release", chartPath}
@@ -231,7 +204,192 @@ func renderHelm(t *testing.T, chartPath string, values map[string]string) string
 	return string(out)
 }
 
-// writeTempFile writes content to temporary file
+// startFakeCluster launches an in-process HTTP server that mimics the Kubernetes API for the
+// given CRD resource, returning a path to a kubeconfig that points at it.
+// The server is stopped when the test ends via t.Cleanup.
+func startFakeCluster(t *testing.T, tmpDir string, res K8sResource) string {
+	t.Helper()
+
+	mux := http.NewServeMux()
+	registerDiscoveryRoutes(mux, res)
+	registerResourceRoutes(mux, res)
+	registerStaticNamespaceRoutes(mux)
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	return writeKubeconfig(t, tmpDir, server.URL)
+}
+
+// registerDiscoveryRoutes adds /version, /apis, and /apis/<group>/<version> handlers
+// so kyverno can discover and resolve the CRD GVR for the given resource.
+func registerDiscoveryRoutes(mux *http.ServeMux, res K8sResource) {
+	parts := strings.SplitN(res.APIVersion, "/", 2)
+	group, version := res.APIVersion, "v1"
+	if len(parts) == 2 {
+		group, version = parts[0], parts[1]
+	}
+	plural := strings.ToLower(res.Kind) + "s"
+
+	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		sendJSON(w, map[string]interface{}{"major": "1", "minor": "28", "gitVersion": "v1.28.0"})
+	})
+
+	mux.HandleFunc("/apis", func(w http.ResponseWriter, r *http.Request) {
+		sendJSON(w, map[string]interface{}{
+			"kind": "APIGroupList", "apiVersion": "v1",
+			"groups": []interface{}{
+				map[string]interface{}{
+					"name":             group,
+					"versions":         []interface{}{map[string]interface{}{"groupVersion": res.APIVersion, "version": version}},
+					"preferredVersion": map[string]interface{}{"groupVersion": res.APIVersion, "version": version},
+				},
+			},
+		})
+	})
+
+	mux.HandleFunc("/apis/"+res.APIVersion, func(w http.ResponseWriter, r *http.Request) {
+		sendJSON(w, map[string]interface{}{
+			"kind": "APIResourceList", "apiVersion": "v1", "groupVersion": res.APIVersion,
+			"resources": []interface{}{
+				map[string]interface{}{
+					"name": plural, "singularName": strings.ToLower(res.Kind),
+					"namespaced": false, "kind": res.Kind,
+					"verbs": []string{"create", "delete", "get", "list", "patch", "update", "watch"},
+				},
+			},
+		})
+	})
+}
+
+// registerResourceRoutes adds list and get endpoints for the tested resource under /apis/<group>/<version>/<plural>.
+func registerResourceRoutes(mux *http.ServeMux, res K8sResource) {
+	plural := strings.ToLower(res.Kind) + "s"
+
+	if res.Spec == nil {
+		res.Spec = map[string]interface{}{}
+	}
+
+	resourceObj := map[string]interface{}{
+		"apiVersion": res.APIVersion,
+		"kind":       res.Kind,
+		"metadata":   map[string]interface{}{"name": res.Metadata.Name},
+		"spec":       res.Spec,
+	}
+	resourceList := map[string]interface{}{
+		"apiVersion": res.APIVersion,
+		"kind":       res.Kind + "List",
+		"metadata":   map[string]interface{}{},
+		"items":      []interface{}{resourceObj},
+	}
+
+	mux.HandleFunc("/apis/"+res.APIVersion+"/"+plural, func(w http.ResponseWriter, r *http.Request) { sendJSON(w, resourceList) })
+	mux.HandleFunc("/apis/"+res.APIVersion+"/"+plural+"/"+res.Metadata.Name, func(w http.ResponseWriter, r *http.Request) { sendJSON(w, resourceObj) })
+}
+
+// registerStaticNamespaceRoutes adds /api/v1 discovery and /api/v1/namespaces endpoints.
+// The namespace list contains the fixtures used by zone ownership and deletion policies:
+//   - "attached-ns" is labeled tenancy.entigo.com/zone=my-zone
+//   - "stolen-ns" has no zone label
+//
+// Serving real JSON objects (rather than inline CEL) ensures has(ns.metadata.labels) works correctly.
+func registerStaticNamespaceRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1", func(w http.ResponseWriter, r *http.Request) {
+		sendJSON(w, map[string]interface{}{
+			"kind": "APIResourceList", "apiVersion": "v1", "groupVersion": "v1",
+			"resources": []interface{}{
+				map[string]interface{}{
+					"name": "namespaces", "singularName": "namespace",
+					"namespaced": false, "kind": "Namespace",
+					"verbs": []string{"create", "delete", "get", "list", "patch", "update", "watch"},
+				},
+			},
+		})
+	})
+
+	namespaceList := map[string]interface{}{
+		"apiVersion": "v1", "kind": "NamespaceList", "metadata": map[string]interface{}{},
+		"items": []interface{}{
+			map[string]interface{}{
+				"apiVersion": "v1", "kind": "Namespace",
+				"metadata": map[string]interface{}{
+					"name":   "attached-ns",
+					"labels": map[string]interface{}{"tenancy.entigo.com/zone": "my-zone"},
+				},
+			},
+			map[string]interface{}{
+				"apiVersion": "v1", "kind": "Namespace",
+				"metadata": map[string]interface{}{
+					"name":   "stolen-ns",
+					"labels": map[string]interface{}{},
+				},
+			},
+		},
+	}
+	mux.HandleFunc("/api/v1/namespaces", func(w http.ResponseWriter, r *http.Request) { sendJSON(w, namespaceList) })
+}
+
+// writeKubeconfig writes a minimal kubeconfig pointing at serverURL and returns its path.
+func writeKubeconfig(t *testing.T, tmpDir, serverURL string) string {
+	kubeconfig := fmt.Sprintf(`
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: %s
+  name: fake
+contexts:
+- context:
+    cluster: fake
+    user: fake
+  name: fake
+current-context: fake
+users:
+- name: fake
+  user:
+    token: fake`, serverURL)
+
+	return writeTempFile(t, tmpDir, "kubeconfig.yaml", kubeconfig)
+}
+
+// sendJSON encodes v as JSON and writes it to w with the application/json content type.
+func sendJSON(w http.ResponseWriter, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(v)
+}
+
+// assertAction fails the test if the actual pass/fail outcome does not match expected.
+func assertAction(t *testing.T, expected string, passed bool, output string) {
+	t.Helper()
+	if expected == "pass" && !passed {
+		t.Errorf("expected policy PASS\n%s", output)
+	} else if expected == "fail" && passed {
+		t.Errorf("expected policy FAIL\n%s", output)
+	}
+}
+
+// assertOutputContains fails the test if expected is non-empty and not found in output.
+func assertOutputContains(t *testing.T, expected string, output string) {
+	t.Helper()
+	if expected != "" && !strings.Contains(output, expected) {
+		t.Errorf("expected %q in output\n%s", expected, output)
+	}
+}
+
+// runCommand executes the named command with args and returns its combined stdout+stderr.
+func runCommand(t *testing.T, env []string, name string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command(name, args...)
+	cmd.Env = env
+	out, _ := cmd.CombinedOutput()
+	return string(out)
+}
+
+// writeTempFile writes content to dir/filename, normalising tabs to spaces, and returns the full path.
 func writeTempFile(t *testing.T, dir, filename, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, filename)
@@ -242,7 +400,7 @@ func writeTempFile(t *testing.T, dir, filename, content string) string {
 	return path
 }
 
-// GenerateZone generates Zone for tests
+// GenerateZone returns a Zone resource YAML with the given name.
 func GenerateZone(name string) string {
 	return fmt.Sprintf(`
 apiVersion: tenancy.entigo.com/v1alpha1
@@ -252,7 +410,23 @@ metadata:
 `, name)
 }
 
-// GenerateNamespace generates Namespace for tests
+// GenerateZoneWithNamespaces returns a Zone resource YAML with spec.namespaces populated.
+func GenerateZoneWithNamespaces(name string, namespaces []string) string {
+	var nsLines string
+	for _, ns := range namespaces {
+		nsLines += "\n    - name: " + ns
+	}
+	return fmt.Sprintf(`
+apiVersion: tenancy.entigo.com/v1alpha1
+kind: Zone
+metadata:
+  name: %s
+spec:
+  namespaces:%s
+`, name, nsLines)
+}
+
+// GenerateNamespace returns a Namespace resource YAML with zone and pod-security labels.
 func GenerateNamespace(name, zone, enforce, warn string) string {
 	return fmt.Sprintf(`
 apiVersion: v1
@@ -266,7 +440,7 @@ metadata:
 `, name, zone, enforce, warn)
 }
 
-// GenerateUserInfo generates userInfo for tests
+// GenerateUserInfo returns a kyverno UserInfo YAML placing the given group names in request.userInfo.groups.
 func GenerateUserInfo(groups ...string) string {
 	list := ""
 	for _, g := range groups {
@@ -285,23 +459,7 @@ clusterRoles: []
 `, list)
 }
 
-// GenerateZoneWithNamespaces generates a Zone resource YAML with spec.namespaces.
-func GenerateZoneWithNamespaces(name string, namespaces []string) string {
-	var nsLines string
-	for _, ns := range namespaces {
-		nsLines += "\n    - name: " + ns
-	}
-	return fmt.Sprintf(`
-apiVersion: tenancy.entigo.com/v1alpha1
-kind: Zone
-metadata:
-  name: %s
-spec:
-  namespaces:%s
-`, name, nsLines)
-}
-
-// GenerateArgoApp generates an ArgoCD Application resource YAML for tests.
+// GenerateArgoApp returns an ArgoCD Application resource YAML for the given name, project, and destination namespace.
 func GenerateArgoApp(name, project, destNamespace string) string {
 	return fmt.Sprintf(`
 apiVersion: argoproj.io/v1alpha1
@@ -315,7 +473,7 @@ spec:
 `, name, project, destNamespace)
 }
 
-// GenerateOperationValues returns a kyverno Values YAML file overriding request.operation.
+// GenerateOperationValues returns a kyverno Values YAML that sets request.operation to the given value.
 func GenerateOperationValues(operation string) string {
 	return fmt.Sprintf(`
 apiVersion: cli.kyverno.io/v1alpha1
@@ -325,238 +483,4 @@ metadata:
 globalValues:
   request.operation: %s
 `, operation)
-}
-
-// parseSpecNamespaces extracts the spec: section from a YAML resource string and returns it
-// as a nested map[string]interface{} for use in the fake cluster JSON responses.
-func parseSpecNamespaces(resourceYAML string) interface{} {
-	lines := strings.Split(strings.TrimSpace(resourceYAML), "\n")
-	specStart := -1
-	for i, line := range lines {
-		if strings.TrimSpace(line) == "spec:" {
-			specStart = i + 1
-			break
-		}
-	}
-	if specStart < 0 || specStart >= len(lines) {
-		return nil
-	}
-	var specLines []string
-	for _, line := range lines[specStart:] {
-		cleaned := strings.TrimRight(line, " \t\r")
-		if strings.TrimSpace(cleaned) == "" {
-			continue
-		}
-		if len(cleaned) > 0 && cleaned[0] != ' ' && cleaned[0] != '\t' {
-			break
-		}
-		specLines = append(specLines, cleaned)
-	}
-	if len(specLines) == 0 {
-		return nil
-	}
-	m := yamlLinesToMap(specLines, yamlIndent(specLines[0]))
-	if len(m) == 0 {
-		return nil
-	}
-	return m
-}
-
-// yamlLinesToMap parses indented YAML lines into a map at the given indent depth.
-// It handles scalar values, nested maps, and lists of single-key-value maps.
-func yamlLinesToMap(lines []string, depth int) map[string]interface{} {
-	result := map[string]interface{}{}
-	i := 0
-	for i < len(lines) {
-		line := lines[i]
-		ind := yamlIndent(line)
-		if ind != depth {
-			i++
-			continue
-		}
-		trimmed := strings.TrimSpace(line)
-		colon := strings.Index(trimmed, ":")
-		if colon < 0 {
-			i++
-			continue
-		}
-		key := strings.TrimSpace(trimmed[:colon])
-		val := strings.TrimSpace(trimmed[colon+1:])
-		i++
-		if val != "" {
-			result[key] = val
-			continue
-		}
-		var children []string
-		for i < len(lines) {
-			if yamlIndent(lines[i]) > depth {
-				children = append(children, lines[i])
-				i++
-			} else {
-				break
-			}
-		}
-		if len(children) == 0 {
-			continue
-		}
-		childDepth := yamlIndent(children[0])
-		if strings.HasPrefix(strings.TrimSpace(children[0]), "- ") {
-			var items []interface{}
-			for _, child := range children {
-				ct := strings.TrimSpace(child)
-				if !strings.HasPrefix(ct, "- ") {
-					continue
-				}
-				ct = strings.TrimPrefix(ct, "- ")
-				c := strings.Index(ct, ":")
-				if c < 0 {
-					items = append(items, ct)
-				} else {
-					items = append(items, map[string]interface{}{
-						strings.TrimSpace(ct[:c]): strings.TrimSpace(ct[c+1:]),
-					})
-				}
-			}
-			result[key] = items
-		} else {
-			result[key] = yamlLinesToMap(children, childDepth)
-		}
-	}
-	return result
-}
-
-// yamlIndent returns the number of leading spaces in s.
-func yamlIndent(s string) int {
-	for i, c := range s {
-		if c != ' ' && c != '\t' {
-			return i
-		}
-	}
-	return 0
-}
-
-// startFakeCluster launches an in-process fake Kubernetes API server that registers the CRD for
-// the given resource so that kyverno can resolve its GVR. It returns the path to a kubeconfig
-// that points at that server; the server is stopped when the test ends.
-func startFakeCluster(t *testing.T, tmpDir, resourceYAML string) (kubeconfigPath string) {
-	t.Helper()
-
-	apiVersion, kind, name := parseResourceMeta(resourceYAML)
-	plural := strings.ToLower(kind) + "s"
-	parts := strings.SplitN(apiVersion, "/", 2)
-	group, version := parts[0], parts[1]
-
-	spec := parseSpecNamespaces(resourceYAML)
-	if spec == nil {
-		spec = map[string]interface{}{}
-	}
-	resourceObj := map[string]interface{}{
-		"apiVersion": apiVersion,
-		"kind":       kind,
-		"metadata":   map[string]interface{}{"name": name},
-		"spec":       spec,
-	}
-	resourceList := map[string]interface{}{
-		"apiVersion": apiVersion,
-		"kind":       kind + "List",
-		"metadata":   map[string]interface{}{},
-		"items":      []interface{}{resourceObj},
-	}
-
-	respond := func(w http.ResponseWriter, v interface{}) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(v)
-	}
-
-	// Static namespace list served to policies that call resource.List("v1","namespaces","").
-	// Using real JSON objects (not inline CEL) ensures that has(ns.metadata.labels) works correctly.
-	namespaceList := map[string]interface{}{
-		"apiVersion": "v1",
-		"kind":       "NamespaceList",
-		"metadata":   map[string]interface{}{},
-		"items": []interface{}{
-			map[string]interface{}{
-				"apiVersion": "v1", "kind": "Namespace",
-				"metadata": map[string]interface{}{
-					"name":   "attached-ns",
-					"labels": map[string]interface{}{"tenancy.entigo.com/zone": "my-zone"},
-				},
-			},
-			map[string]interface{}{
-				"apiVersion": "v1", "kind": "Namespace",
-				"metadata": map[string]interface{}{
-					"name":   "stolen-ns",
-					"labels": map[string]interface{}{},
-				},
-			},
-		},
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-		respond(w, map[string]interface{}{"major": "1", "minor": "28", "gitVersion": "v1.28.0"})
-	})
-	mux.HandleFunc("/api/v1", func(w http.ResponseWriter, r *http.Request) {
-		respond(w, map[string]interface{}{
-			"kind": "APIResourceList", "apiVersion": "v1", "groupVersion": "v1",
-			"resources": []interface{}{
-				map[string]interface{}{
-					"name": "namespaces", "singularName": "namespace",
-					"namespaced": false, "kind": "Namespace",
-					"verbs": []string{"create", "delete", "get", "list", "patch", "update", "watch"},
-				},
-			},
-		})
-	})
-	mux.HandleFunc("/api/v1/namespaces", func(w http.ResponseWriter, r *http.Request) { respond(w, namespaceList) })
-	mux.HandleFunc("/apis", func(w http.ResponseWriter, r *http.Request) {
-		respond(w, map[string]interface{}{
-			"kind": "APIGroupList", "apiVersion": "v1",
-			"groups": []interface{}{
-				map[string]interface{}{
-					"name":             group,
-					"versions":         []interface{}{map[string]interface{}{"groupVersion": apiVersion, "version": version}},
-					"preferredVersion": map[string]interface{}{"groupVersion": apiVersion, "version": version},
-				},
-			},
-		})
-	})
-	mux.HandleFunc("/apis/"+apiVersion, func(w http.ResponseWriter, r *http.Request) {
-		respond(w, map[string]interface{}{
-			"kind": "APIResourceList", "apiVersion": "v1", "groupVersion": apiVersion,
-			"resources": []interface{}{
-				map[string]interface{}{
-					"name": plural, "singularName": strings.ToLower(kind),
-					"namespaced": false, "kind": kind,
-					"verbs": []string{"create", "delete", "get", "list", "patch", "update", "watch"},
-				},
-			},
-		})
-	})
-	mux.HandleFunc("/apis/"+apiVersion+"/"+plural, func(w http.ResponseWriter, r *http.Request) { respond(w, resourceList) })
-	mux.HandleFunc("/apis/"+apiVersion+"/"+plural+"/"+name, func(w http.ResponseWriter, r *http.Request) { respond(w, resourceObj) })
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNotFound) })
-
-	server := httptest.NewServer(mux)
-	t.Cleanup(server.Close)
-
-	kubeconfig := fmt.Sprintf(`
-apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    server: %s
-  name: fake
-contexts:
-- context:
-    cluster: fake
-    user: fake
-  name: fake
-current-context: fake
-users:
-- name: fake
-  user:
-    token: fake`, server.URL)
-
-	return writeTempFile(t, tmpDir, "kubeconfig.yaml", kubeconfig)
 }

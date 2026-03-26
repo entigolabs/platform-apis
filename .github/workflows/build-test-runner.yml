@@ -11,6 +11,8 @@ on:
       - 'functions/**/go.sum'
       - 'test/common/crossplane/go.mod'
       - 'test/common/crossplane/go.sum'
+      - 'test/common/kyverno/go.mod'
+      - 'test/common/kyverno/go.sum'
       - 'compositions/**/go.mod'
       - 'compositions/**/go.sum'
 
