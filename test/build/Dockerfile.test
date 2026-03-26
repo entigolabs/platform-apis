@@ -1,13 +1,10 @@
 # syntax=docker/dockerfile:1
 
+# Module pre-download stage: runs natively on the build host to avoid QEMU.
+# Only downloads modules — no compilation, so the cache stays small enough to fit on the runner.
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
 
-ARG TARGETARCH
-ARG TARGETOS=linux
-
 ENV GOPATH=/go
-ENV GOCACHE=/go/cache
-# CGO must be off for cross-compilation without a matching C toolchain.
 ENV CGO_ENABLED=0
 
 WORKDIR /workspace
@@ -23,20 +20,6 @@ RUN find functions test/common/crossplane test/common/kyverno compositions \
       -name "go.mod" -exec dirname {} \; | sort | \
     while read dir; do \
       echo "Downloading modules: $dir" && (cd "$dir" && go mod download); \
-    done
-
-# Pre-compile function main packages for the target arch (cross-compiled, no QEMU).
-RUN find functions -mindepth 1 -maxdepth 1 -type d -not -name "common" | \
-    while read dir; do \
-      echo "Pre-building function: $dir" && \
-      (cd "$dir" && GOARCH=$TARGETARCH GOOS=$TARGETOS go build -o /dev/null . 2>/dev/null || true); \
-    done
-
-# Pre-compile all packages (dependencies + composition tests) for the target arch.
-RUN find functions compositions -name "go.mod" -exec dirname {} \; | sort | \
-    while read dir; do \
-      echo "Pre-compiling: $dir" && \
-      (cd "$dir" && GOARCH=$TARGETARCH GOOS=$TARGETOS go test -run=^$ -exec true ./... 2>/dev/null || true); \
     done
 
 # Final image for the target arch.
@@ -55,6 +38,7 @@ RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
     mv kubeconform /usr/bin/kubeconform && \
     chmod +x /usr/bin/kubeconform
 
+# v1.17.1 embeds the version and uses x86_64 (not amd64) for Intel; only aarch64 needs translating.
 RUN ARCH=$(uname -m | sed 's/aarch64/arm64/') && \
     curl -L "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_v1.17.1_linux_${ARCH}.tar.gz" | tar xz && \
     mv kyverno /usr/bin/kyverno && \
@@ -66,7 +50,6 @@ ENV CGO_ENABLED=0
 
 WORKDIR /workspace
 
-# Bring in pre-downloaded modules and pre-compiled build cache from the builder.
+# Copy pre-downloaded module cache (small) and source so tests can compile at runtime.
 COPY --from=builder /go/pkg /go/pkg
-COPY --from=builder /go/cache /go/cache
 COPY --from=builder /workspace /workspace
