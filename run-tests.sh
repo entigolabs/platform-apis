@@ -16,7 +16,7 @@ run_docker_test() {
   local test_type="$1"
   local workdir="$2"
 
-  docker run --rm --pull always \
+  docker run --rm --pull missing \
     -v "$GIT_ROOT:/workspace" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     --network host \
