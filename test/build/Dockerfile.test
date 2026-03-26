@@ -1,6 +1,35 @@
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS cacher
+
+ARG TARGETARCH
+
+ENV GOPATH=/go
+ENV GOCACHE=/go/cache
+ENV CGO_ENABLED=0
+
+ENV GOOS=linux
+ENV GOARCH=$TARGETARCH
+
+WORKDIR /workspace
+
+COPY functions/ functions/
+COPY test/common/crossplane/ test/common/crossplane/
+COPY test/common/kyverno/ test/common/kyverno/
+COPY compositions/ compositions/
+
+RUN apk add --no-cache findutils
+
+RUN find functions test/common/crossplane test/common/kyverno compositions \
+      -name "go.mod" -exec dirname {} \; | \
+    xargs -P $(nproc) -I {} sh -c ' \
+      echo "==> Pre-compiling {} for architecture: $GOARCH" && \
+      cd "{}" && \
+      go mod download && \
+      go test -run=^$ ./... || true \
+    '
+
 FROM golang:1.25-alpine
 
-RUN apk add --no-cache bash curl git jq build-base binutils-gold docker-cli findutils
+RUN apk add --no-cache bash curl git jq build-base binutils-gold docker-cli
 
 RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
     curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${ARCH}" -o /usr/bin/yq && \
@@ -19,7 +48,6 @@ RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
     mv kubeconform /usr/bin/kubeconform && \
     chmod +x /usr/bin/kubeconform
 
-# v1.17.1 embeds the version in the filename; x86_64 stays as-is, only aarch64 needs translating.
 RUN ARCH=$(uname -m | sed 's/aarch64/arm64/') && \
     curl -L "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_v1.17.1_linux_${ARCH}.tar.gz" | tar xz && \
     mv kyverno /usr/bin/kyverno && \
@@ -27,7 +55,7 @@ RUN ARCH=$(uname -m | sed 's/aarch64/arm64/') && \
 
 ENV GOPATH=/go
 ENV GOCACHE=/go/cache
-ENV CGO_ENABLED=1
+ENV CGO_ENABLED=0
 
 WORKDIR /workspace
 
@@ -36,11 +64,5 @@ COPY test/common/crossplane/ test/common/crossplane/
 COPY test/common/kyverno/ test/common/kyverno/
 COPY compositions/ compositions/
 
-RUN find functions test/common/crossplane test/common/kyverno compositions \
-      -name "go.mod" -exec dirname {} \; | \
-    xargs -P $(nproc) -I {} sh -c ' \
-      echo "==> Working with {}" && \
-      cd "{}" && \
-      go mod download && \
-      go test -run=^$ ./... || true \
-    '
+COPY --from=cacher /go/pkg/mod /go/pkg/mod
+COPY --from=cacher /go/cache /go/cache
