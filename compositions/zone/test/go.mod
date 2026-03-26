@@ -4,6 +4,8 @@ go 1.25.7
 
 require github.com/entigolabs/crossplane-common v0.0.0
 
+require github.com/entigolabs/kyverno-common v0.0.0
+
 require (
 	cel.dev/expr v0.25.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
@@ -131,3 +133,5 @@ require (
 )
 
 replace github.com/entigolabs/crossplane-common => ./../../../test/common/crossplane
+
+replace github.com/entigolabs/kyverno-common => ./../../../test/common/kyverno
