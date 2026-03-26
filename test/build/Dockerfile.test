@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1
 
+# Extract the kyverno CLI binary from the official image (handles multi-arch automatically).
+FROM ghcr.io/kyverno/kyverno-cli:latest AS kyverno-cli
+
 # Build stage: runs natively on the build host (linux/amd64 in CI) and
 # cross-compiles Go packages for the target arch via GOARCH. This eliminates
 # QEMU emulation for the expensive compilation steps.
@@ -60,10 +63,7 @@ RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
     mv kubeconform /usr/bin/kubeconform && \
     chmod +x /usr/bin/kubeconform
 
-RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
-    curl -L "https://github.com/kyverno/kyverno/releases/latest/download/kyverno-cli_linux_${ARCH}.tar.gz" | tar xz && \
-    mv kyverno /usr/bin/kyverno && \
-    chmod +x /usr/bin/kyverno
+COPY --from=kyverno-cli /ko-app/kyverno /usr/bin/kyverno
 
 ENV GOPATH=/go
 ENV GOCACHE=/go/cache
