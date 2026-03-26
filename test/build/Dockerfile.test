@@ -1,44 +1,21 @@
-# syntax=docker/dockerfile:1
-
-# Module pre-download stage: runs natively on the build host to avoid QEMU.
-# Only downloads modules — no compilation, so the cache stays small enough to fit on the runner.
-FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
-
-ENV GOPATH=/go
-ENV CGO_ENABLED=0
-
-WORKDIR /workspace
-
-# All local replace directives must be present before module download.
-COPY functions/ functions/
-COPY test/common/crossplane/ test/common/crossplane/
-COPY test/common/kyverno/ test/common/kyverno/
-COPY compositions/ compositions/
-
-# Pre-download modules for every Go module in the workspace.
-RUN find functions test/common/crossplane test/common/kyverno compositions \
-      -name "go.mod" -exec dirname {} \; | sort | \
-    while read dir; do \
-      echo "Downloading modules: $dir" && (cd "$dir" && go mod download); \
-    done
-
-# Final image for the target arch.
 FROM golang:1.25-alpine
 
-RUN apk add --no-cache bash curl git jq docker-cli
+RUN apk add --no-cache bash curl git jq build-base binutils-gold docker-cli
+
+RUN curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh && \
+    mv crossplane /usr/bin/crossplane
 
 RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
     chmod 700 get_helm.sh && \
     VERIFY_CHECKSUM=false ./get_helm.sh && \
     rm get_helm.sh
 
-# uname -m returns x86_64 on amd64 and aarch64 on arm64; translate to the names used in release filenames.
 RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
     curl -L "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${ARCH}.tar.gz" | tar xz && \
     mv kubeconform /usr/bin/kubeconform && \
     chmod +x /usr/bin/kubeconform
 
-# v1.17.1 embeds the version and uses x86_64 (not amd64) for Intel; only aarch64 needs translating.
+# v1.17.1 embeds the version in the filename; x86_64 stays as-is, only aarch64 needs translating.
 RUN ARCH=$(uname -m | sed 's/aarch64/arm64/') && \
     curl -L "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_v1.17.1_linux_${ARCH}.tar.gz" | tar xz && \
     mv kyverno /usr/bin/kyverno && \
@@ -46,10 +23,17 @@ RUN ARCH=$(uname -m | sed 's/aarch64/arm64/') && \
 
 ENV GOPATH=/go
 ENV GOCACHE=/go/cache
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 
 WORKDIR /workspace
 
-# Copy pre-downloaded module cache (small) and source so tests can compile at runtime.
-COPY --from=builder /go/pkg /go/pkg
-COPY --from=builder /workspace /workspace
+COPY functions/ functions/
+COPY test/common/crossplane/ test/common/crossplane/
+COPY test/common/kyverno/ test/common/kyverno/
+COPY compositions/ compositions/
+
+RUN find functions test/common/crossplane test/common/kyverno compositions \
+      -name "go.mod" -exec dirname {} \; | sort | \
+    while read dir; do \
+      echo "Downloading modules: $dir" && (cd "$dir" && go mod download); \
+    done

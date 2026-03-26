@@ -28,7 +28,6 @@ log_info "Test type: ${TEST_TYPE:-not specified}"
 # ============ GO TESTS (compositions and functions) ============
 run_go_tests() {
   log_info "Running Go tests..."
-  export CGO_ENABLED=1
 
   if go test -v ./...; then
     log_pass "Go tests"
