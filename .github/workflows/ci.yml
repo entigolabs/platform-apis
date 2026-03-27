@@ -80,7 +80,7 @@ jobs:
   build-testhelm:
     name: Build Test Helm
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.has_testhelm_changes == 'true'
+    if: needs.detect-changes.outputs.any_changes == 'true'
     uses: ./.github/workflows/build-testhelm.yml
     with:
       testhelm: ${{ needs.detect-changes.outputs.testhelm }}
@@ -93,7 +93,7 @@ jobs:
   build-helm:
     name: Lint and Build Helm
     needs: [detect-changes, test-helm, build-functions, build-compositions]
-    if: always() && !failure() && !cancelled()
+    if: always() && !failure() && !cancelled() && needs.detect-changes.outputs.any_changes == 'true'
     uses: ./.github/workflows/build-helm.yml
     with:
       release_type: ${{ github.event_name == 'pull_request' && 'rc' || 'stable' }}

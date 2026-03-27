@@ -26,6 +26,9 @@ on:
       helm_changed:
         description: 'Whether helm folder changed'
         value: ${{ jobs.detect.outputs.helm_changed }}
+      any_changes:
+        description: 'Whether any relevant files changed'
+        value: ${{ jobs.detect.outputs.any_changes }}
 
 jobs:
   detect:
@@ -38,6 +41,7 @@ jobs:
       testhelm: ${{ steps.force-all.outputs.testhelm || steps.changes.outputs.testhelm }}
       has_testhelm_changes: ${{ steps.force-all.outputs.has_testhelm_changes || steps.changes.outputs.has_testhelm_changes }}
       helm_changed: ${{ steps.force-all.outputs.helm_changed || steps.changes.outputs.helm_changed }}
+      any_changes: ${{ steps.force-all.outputs.any_changes || steps.changes.outputs.any_changes }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,6 +66,7 @@ jobs:
           echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
+          echo "any_changes=true" >> $GITHUB_OUTPUT
 
       - name: Get changed files
         if: github.event_name != 'workflow_dispatch'
@@ -118,3 +123,11 @@ jobs:
 
           # Helm
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
+
+          # Any changes at all
+          TESTHELM_ANY_CHANGED="${{ steps.changed-files.outputs.testhelm_any_changed || 'false' }}"
+          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$TESTHELM_ANY_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
+            echo "any_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "any_changes=false" >> $GITHUB_OUTPUT
+          fi
