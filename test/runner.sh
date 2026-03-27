@@ -28,7 +28,6 @@ log_info "Test type: ${TEST_TYPE:-not specified}"
 # ============ GO TESTS (compositions and functions) ============
 run_go_tests() {
   log_info "Running Go tests..."
-  export CGO_ENABLED=1
 
   if go test -v ./...; then
     log_pass "Go tests"
@@ -41,18 +40,17 @@ run_go_tests() {
 
 # ============ HELM TESTS ============
 run_helm_tests() {
-  local helm_path="${1:-.}"
   local CRD_CATALOG="https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
 
   log_info "Running Helm lint..."
-  if ! helm lint "$helm_path"; then
+  if ! helm lint .; then
     log_fail "Helm lint"
     return 1
   fi
   log_pass "Helm lint"
 
   log_info "Running Kubeconform validation..."
-  if helm template test-release "$helm_path" | kubeconform -verbose -summary \
+  if helm template test-release . | kubeconform -verbose -summary \
       -ignore-missing-schemas \
       -schema-location default \
       -schema-location "$CRD_CATALOG"; then

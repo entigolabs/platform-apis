@@ -9,12 +9,10 @@ on:
       - 'test/build/**'
       - 'functions/**/go.mod'
       - 'functions/**/go.sum'
-      - 'test/common/crossplane/go.mod'
-      - 'test/common/crossplane/go.sum'
-      - 'test/common/kyverno/go.mod'
-      - 'test/common/kyverno/go.sum'
-      - 'compositions/**/go.mod'
-      - 'compositions/**/go.sum'
+      - 'test/common/go.mod'
+      - 'test/common/go.sum'
+      - 'compositions/go.mod'
+      - 'compositions/go.sum'
 
 jobs:
   build:

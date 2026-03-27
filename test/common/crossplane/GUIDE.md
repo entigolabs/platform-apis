@@ -13,7 +13,7 @@ package test
 
 import (
     "testing"
-    "github.com/entigolabs/crossplane-common"
+    "github.com/entigolabs/static-common/crossplane"
 )
 
 func TestMyCrossplaneRender(t *testing.T) {
@@ -179,7 +179,7 @@ import (
     "path/filepath"
     "testing"
 
-    "github.com/entigolabs/crossplane-common"
+    "github.com/entigolabs/static-common/crossplane"
 )
 
 const (

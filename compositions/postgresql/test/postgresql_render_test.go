@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/entigolabs/crossplane-common"
+	"github.com/entigolabs/static-common/crossplane"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
