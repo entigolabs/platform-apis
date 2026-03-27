@@ -1,0 +1,11 @@
+.git
+.idea
+.vscode
+.DS_Store
+bin/
+vendor/
+*.exe
+*.test
+*.out
+*.prof
+*.log
