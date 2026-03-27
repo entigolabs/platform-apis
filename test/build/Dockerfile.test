@@ -15,20 +15,21 @@ WORKDIR /workspace
 RUN apk add --no-cache findutils curl tar bash
 
 RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
+    KYVERNO_ARCH=$(uname -m | sed 's/aarch64/arm64/') && \
     # yq
-    curl -sL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${ARCH}" -o /usr/bin/yq && \
+    curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${ARCH}" -o /usr/bin/yq && \
     chmod +x /usr/bin/yq && \
     # crossplane
-    curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh && \
+    curl -fsSL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh && \
     mv crossplane /usr/bin/crossplane && \
     # helm
     curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
     chmod 700 get_helm.sh && VERIFY_CHECKSUM=false ./get_helm.sh && \
     # kubeconform
-    curl -sL "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${ARCH}.tar.gz" | tar xz -C /usr/bin/ kubeconform && \
+    curl -fsSL "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${ARCH}.tar.gz" | tar xz -C /usr/bin/ kubeconform && \
     chmod +x /usr/bin/kubeconform && \
     # kyverno
-    curl -sL "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_v1.17.1_linux_${ARCH}.tar.gz" | tar xz -C /usr/bin/ kyverno && \
+    curl -fsSL "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_v1.17.1_linux_${KYVERNO_ARCH}.tar.gz" | tar xz -C /usr/bin/ kyverno && \
     chmod +x /usr/bin/kyverno
 
 COPY functions/ functions/
