@@ -1,3 +1,5 @@
+# Stage 1: Cacher & Downloader
+
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS cacher
 
 ARG TARGETARCH
@@ -5,62 +7,51 @@ ARG TARGETARCH
 ENV GOPATH=/go
 ENV GOCACHE=/go/cache
 ENV CGO_ENABLED=0
-
 ENV GOOS=linux
 ENV GOARCH=$TARGETARCH
 
 WORKDIR /workspace
 
+RUN apk add --no-cache findutils curl tar bash
+
+RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
+    KYVERNO_ARCH=$(uname -m | sed 's/aarch64/arm64/') && \
+    # yq
+    curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${ARCH}" -o /usr/bin/yq && \
+    chmod +x /usr/bin/yq && \
+    # crossplane
+    curl -fsSL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh && \
+    mv crossplane /usr/bin/crossplane && \
+    # helm
+    curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
+    chmod 700 get_helm.sh && VERIFY_CHECKSUM=false ./get_helm.sh && \
+    # kubeconform
+    curl -fsSL "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${ARCH}.tar.gz" | tar xz -C /usr/bin/ kubeconform && \
+    chmod +x /usr/bin/kubeconform && \
+    # kyverno
+    curl -fsSL "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_v1.17.1_linux_${KYVERNO_ARCH}.tar.gz" | tar xz -C /usr/bin/ kyverno && \
+    chmod +x /usr/bin/kyverno
+
 COPY functions/ functions/
 COPY test/common/ test/common/
 COPY compositions/ compositions/
 
-RUN apk add --no-cache findutils
-
-RUN find functions \
-      -name "go.mod" -exec dirname {} \; | \
+# Cache go modules
+RUN find functions -name "go.mod" -exec dirname {} \; | \
     xargs -P $(nproc) -I {} sh -c ' \
       echo "==> Pre-compiling {} for architecture: $GOARCH" && \
-      cd "{}" && \
-      go mod download && \
-      go test -run=^$ ./... || true \
+      cd "{}" && go mod download && go test -run=^$ ./... || true \
     '
 
 RUN echo "==> Pre-compiling test/common for architecture: $GOARCH" && \
-    cd test/common && \
-    go mod download && \
-    go test -run=^$ ./... || true
+    cd test/common && go mod download && go test -run=^$ ./... || true
 
 RUN echo "==> Pre-compiling compositions for architecture: $GOARCH" && \
-    cd compositions && \
-    go mod download && \
-    go test -run=^$ ./... || true
+    cd compositions && go mod download && go test -run=^$ ./... || true
+
+# Stage 2: Runner
 
 FROM golang:1.25-alpine
-
-RUN apk add --no-cache bash curl git jq build-base binutils-gold docker-cli
-
-RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
-    curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${ARCH}" -o /usr/bin/yq && \
-    chmod +x /usr/bin/yq
-
-RUN curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh && \
-    mv crossplane /usr/bin/crossplane
-
-RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
-    chmod 700 get_helm.sh && \
-    VERIFY_CHECKSUM=false ./get_helm.sh && \
-    rm get_helm.sh
-
-RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
-    curl -L "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${ARCH}.tar.gz" | tar xz && \
-    mv kubeconform /usr/bin/kubeconform && \
-    chmod +x /usr/bin/kubeconform
-
-RUN ARCH=$(uname -m | sed 's/aarch64/arm64/') && \
-    curl -L "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_v1.17.1_linux_${ARCH}.tar.gz" | tar xz && \
-    mv kyverno /usr/bin/kyverno && \
-    chmod +x /usr/bin/kyverno
 
 ENV GOPATH=/go
 ENV GOCACHE=/go/cache
@@ -68,9 +59,19 @@ ENV CGO_ENABLED=0
 
 WORKDIR /workspace
 
+RUN apk add --no-cache bash git jq docker-cli make
+
+# copy ready binaries from cacher
+COPY --from=cacher /usr/bin/yq /usr/bin/yq
+COPY --from=cacher /usr/bin/crossplane /usr/bin/crossplane
+COPY --from=cacher /usr/local/bin/helm /usr/local/bin/helm
+COPY --from=cacher /usr/bin/kubeconform /usr/bin/kubeconform
+COPY --from=cacher /usr/bin/kyverno /usr/bin/kyverno
+
 COPY functions/ functions/
 COPY test/common/ test/common/
 COPY compositions/ compositions/
 
+# copy go cache
 COPY --from=cacher /go/pkg/mod /go/pkg/mod
 COPY --from=cacher /go/cache /go/cache
