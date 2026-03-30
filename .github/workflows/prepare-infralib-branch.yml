@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: '["zone","a-apps","b-apps","postgresql"]'
+      built_testhelm:
+        description: 'JSON array of testhelm chart names actually built this run (used to pin versions only for built charts)'
+        required: false
+        type: string
+        default: '["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-postgresql"]'
     outputs:
       branch_name:
         description: "The name of the created branch"
@@ -116,22 +121,22 @@ jobs:
         if: inputs.testhelm_version != ''
         env:
           VERSION: ${{ inputs.testhelm_version }}
-          AFFECTED_SUITES: ${{ inputs.affected_suites }}
+          BUILT_TESTHELM: ${{ inputs.built_testhelm }}
         run: |
           TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test/templates"
 
           # Zone template is always pinned since zones testhelm is always rebuilt.
           sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/zone_test_application.yaml"
 
-          # Pin the version only in templates whose testhelm chart was actually built.
-          # Charts not built in this run keep the wildcard targetRevision.
-          declare -A SUITE_TEMPLATE=(
-            [a-apps]="a_test_application.yaml"
-            [b-apps]="b_test_application.yaml"
-            [postgresql]="postgresql_test_application.yaml"
+          # Pin the version only in templates whose testhelm chart was actually built this run.
+          # Charts not built keep the wildcard targetRevision so ArgoCD resolves the latest release.
+          declare -A CHART_TEMPLATE=(
+            [platform-apis-test-a-apps]="a_test_application.yaml"
+            [platform-apis-test-b-apps]="b_test_application.yaml"
+            [platform-apis-test-postgresql]="postgresql_test_application.yaml"
           )
-          for suite in $(echo "$AFFECTED_SUITES" | jq -r '.[]'); do
-            template="${SUITE_TEMPLATE[$suite]}"
+          for chart in $(echo "$BUILT_TESTHELM" | jq -r '.[]'); do
+            template="${CHART_TEMPLATE[$chart]}"
             [ -n "$template" ] && [ -f "$TARGET/$template" ] || continue
             sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/$template"
           done

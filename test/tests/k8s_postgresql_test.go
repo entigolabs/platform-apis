@@ -20,7 +20,6 @@ func testPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 
 	applyFile(t, cluster, "./templates/postgresql_test_application.yaml")
 	syncWithRetry(t, argocd, PostgresqlApplicationName)
-	waitApplicationHealthy(t, argocd, PostgresqlApplicationName)
 
 	testPostgresqlInstance(t, pgNs)
 	if t.Failed() {

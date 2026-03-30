@@ -111,6 +111,7 @@ jobs:
       helm_version: ${{ needs.build-helm.outputs.version }}
       testhelm_version: ${{ needs.build-testhelm.outputs.version }}
       affected_suites: ${{ needs.detect-changes.outputs.affected_suites }}
+      built_testhelm: ${{ needs.detect-changes.outputs.testhelm }}
     secrets: inherit
 
   run-infralib-tests:
