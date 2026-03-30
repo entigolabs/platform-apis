@@ -48,7 +48,7 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 		if cfg.Has("zone") {
 			t.Run("zone", func(t *testing.T) {
 				t.Parallel()
-				testZone(t, cfg, cluster)
+				testZone(t, cluster)
 			})
 		}
 

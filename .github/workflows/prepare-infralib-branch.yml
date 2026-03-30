@@ -105,8 +105,8 @@ jobs:
 
           for suite in $(echo "$AFFECTED_SUITES" | jq -r '.[]'); do
             case "$suite" in
-              a-apps)     cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/" ;;
-              b-apps)     cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
+              zone)       cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/"
+                          cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
               postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
             esac
           done

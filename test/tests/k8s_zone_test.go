@@ -25,18 +25,18 @@ const (
 	BAppsApplicationName = "b-apps"
 )
 
-func testZone(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
-	testZoneApps(t, cfg, cluster)
+func testZone(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	testZoneApps(t, cluster)
 }
 
-func testZoneApps(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
+func testZoneApps(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	aApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, AAppsNamespace)
 	bApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, BAppsNamespace)
 
 	deployAndVerifyApp(t, cluster, aApps, "./templates/a_test_application.yaml", AAppsApplicationName)
 	deployAndVerifyApp(t, cluster, bApps, "./templates/b_test_application.yaml", BAppsApplicationName)
 
-	verifyAppsRunning(t, cfg, cluster)
+	verifyAppsRunning(t, cluster)
 }
 
 func testPodsRunning(t *testing.T, cluster *terrak8s.KubectlOptions, namespace, podName string) {
@@ -63,19 +63,15 @@ func deployAndVerifyApp(t *testing.T, cluster, appOpts *terrak8s.KubectlOptions,
 	waitApplicationHealthy(t, appOpts, appName)
 }
 
-func verifyAppsRunning(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
+func verifyAppsRunning(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Run("apps-running", func(t *testing.T) {
-		if cfg.Has("a-apps") {
-			t.Run("a1", func(t *testing.T) {
-				t.Parallel()
-				testPodsRunning(t, cluster, "a1", "a1-curl")
-			})
-		}
-		if cfg.Has("b-apps") {
-			t.Run("b1", func(t *testing.T) {
-				t.Parallel()
-				testPodsRunning(t, cluster, "b1", "b1-curl")
-			})
-		}
+		t.Run("a1", func(t *testing.T) {
+			t.Parallel()
+			testPodsRunning(t, cluster, "a1", "a1-curl")
+		})
+		t.Run("b1", func(t *testing.T) {
+			t.Parallel()
+			testPodsRunning(t, cluster, "b1", "b1-curl")
+		})
 	})
 }

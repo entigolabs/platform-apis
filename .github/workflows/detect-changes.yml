@@ -71,7 +71,7 @@ jobs:
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
           echo "any_changes=true" >> $GITHUB_OUTPUT
-          echo 'affected_suites=["zone","a-apps","b-apps","postgresql"]' >> $GITHUB_OUTPUT
+          echo 'affected_suites=["zone","postgresql"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
         if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -151,13 +151,13 @@ jobs:
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ]; then
             AFFECTED='["zone","a-apps","b-apps","postgresql"]'
           elif [ "$ZONE_CHANGED" == "true" ] && [ "$PG_CHANGED" == "true" ]; then
-            AFFECTED='["zone","a-apps","b-apps","postgresql"]'
-          elif [ "$ZONE_CHANGED" == "true" ]; then
-            AFFECTED='["zone","a-apps","b-apps"]'
-          elif [ "$PG_CHANGED" == "true" ]; then
             AFFECTED='["zone","postgresql"]'
-          else
+          elif [ "$ZONE_CHANGED" == "true" ]; then
             AFFECTED='["zone"]'
+          elif [ "$PG_CHANGED" == "true" ]; then
+            AFFECTED='["postgresql"]'
+          else
+            AFFECTED='[]'
           fi
           echo "affected_suites=$AFFECTED" >> $GITHUB_OUTPUT
 
