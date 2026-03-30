@@ -120,10 +120,12 @@ jobs:
         run: |
           TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test/templates"
 
+          # Zone template is always pinned since zones testhelm is always rebuilt.
+          sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/zone_test_application.yaml"
+
           # Pin the version only in templates whose testhelm chart was actually built.
           # Charts not built in this run keep the wildcard targetRevision.
           declare -A SUITE_TEMPLATE=(
-            [zone]="zone_test_application.yaml"
             [a-apps]="a_test_application.yaml"
             [b-apps]="b_test_application.yaml"
             [postgresql]="postgresql_test_application.yaml"

@@ -161,10 +161,10 @@ jobs:
             echo "any_changes=false" >> $GITHUB_OUTPUT
           fi
 
-          # Compute affected_suites.
+          # Compute affected_suites (read by Go tests via suite-config.yaml).
           # common_lib or helm changes touch all suites; other_tests (shared helpers, templates) touch all suites.
           # Zone-related functions/compositions → zone, a-apps, b-apps.
-          # PostgreSQL functions/compositions → postgresql.
+          # PostgreSQL functions/compositions → postgresql only.
           # Per-chart testhelm changes → respective suites only.
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$OTHER_TESTS_CHANGED" == "true" ]; then
             AFFECTED='["zone","a-apps","b-apps","postgresql"]'
@@ -186,19 +186,24 @@ jobs:
           fi
           echo "affected_suites=$AFFECTED" >> $GITHUB_OUTPUT
 
-          # Derive testhelm charts to build from affected_suites.
-          # platform-apis-test-app is shared by a-apps and b-apps.
-          TESTHELM=$(echo "$AFFECTED" | jq -c '[
-            if index("zone")       != null then "platform-apis-test-zones"      else null end,
-            if (index("a-apps") != null or index("b-apps") != null)
-                                           then "platform-apis-test-app"         else null end,
-            if index("a-apps")     != null then "platform-apis-test-a-apps"     else null end,
-            if index("b-apps")     != null then "platform-apis-test-b-apps"     else null end,
-            if index("postgresql") != null then "platform-apis-test-postgresql" else null end
-          ] | map(select(. != null)) | unique')
+          # Derive testhelm charts to build.
+          # platform-apis-test-zones is always rebuilt — zones are deployed first in every test run.
+          # platform-apis-test-app is shared by a-apps and b-apps and rebuilt on zone changes.
+          # platform-apis-test-a-apps and platform-apis-test-b-apps rebuilt on zone changes.
+          # platform-apis-test-postgresql rebuilt only on postgresql changes.
+          TESTHELM=$(jq -n -c \
+            --arg za  "$ZONE_APPS_CHANGED" \
+            --arg pg  "$PG_CHANGED" \
+            --arg tha "$TH_APP_CHANGED" \
+            --arg thaa "$TH_A_APPS_CHANGED" \
+            --arg thbb "$TH_B_APPS_CHANGED" \
+            --arg thpg "$TH_PG_CHANGED" \
+            '[
+              "platform-apis-test-zones",
+              if ($za == "true" or $tha == "true") then "platform-apis-test-app" else null end,
+              if ($za == "true" or $thaa == "true") then "platform-apis-test-a-apps" else null end,
+              if ($za == "true" or $thbb == "true") then "platform-apis-test-b-apps" else null end,
+              if ($pg == "true" or $thpg == "true") then "platform-apis-test-postgresql" else null end
+            ] | map(select(. != null)) | unique')
           echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
-          if [ "$TESTHELM" == "[]" ]; then
-            echo "has_testhelm_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
-          fi
+          echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
