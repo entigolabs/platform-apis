@@ -89,6 +89,8 @@ jobs:
           SOURCE="platform-apis/test/tests"
 
           rm -f "$TARGET"/*_test.go
+          # Clean templates to prevent stale files from previous runs persisting.
+          rm -rf "$TARGET/templates/"
           mkdir -p "$TARGET/templates/"
 
           cp "$SOURCE"/*_test.go "$TARGET/"
@@ -106,11 +108,15 @@ jobs:
             esac
           done
 
-          # Write suite-config.yaml so Go tests know which suites to run.
+          # Write suites.yaml into a dedicated testconfig/ subdirectory.
+          # Keeping it out of the test root prevents the infralib agent framework from
+          # treating it as a cloud agent config (as it does with aws_biz.yaml etc.).
+          # Keeping it out of templates/ makes clear it is not an ArgoCD application template.
+          mkdir -p "$TARGET/testconfig"
           {
             echo "suites:"
             echo "$AFFECTED_SUITES" | jq -r '.[] | "  - " + .'
-          } > "$TARGET/suite-config.yaml"
+          } > "$TARGET/testconfig/suites.yaml"
 
       - name: Pin testhelm version in templates
         if: inputs.testhelm_version != ''

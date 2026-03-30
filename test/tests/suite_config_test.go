@@ -7,7 +7,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const suiteConfigFile = "./suite-config.yaml"
+const suiteConfigFile = "./testconfig/suites.yaml"
 
 // SuiteConfig controls which test suites run in this pipeline execution.
 // CI writes this file before tests run.
