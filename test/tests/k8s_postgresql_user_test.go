@@ -10,7 +10,7 @@ import (
 
 const (
 	PostgresqlAdminUserName     = "test-owner"
-	PostgresqlAdminUserKind     = "postgresqlusers.database.entigo.com"
+	PostgresqlUserKind          = "postgresqlusers.database.entigo.com"
 	PostgresqlAdminUserSpecName = "test_owner"
 	PostgresqlRegularUserName   = "test-user"
 	SqlRoleKind                 = "role.postgresql.sql.m.crossplane.io"
@@ -26,7 +26,7 @@ const (
 func testPostgresqlAdminUser(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	// Create
 	t.Run("admin-create", func(t *testing.T) {
-		waitSyncedAndReady(t, pgNs, PostgresqlAdminUserKind, PostgresqlAdminUserName, 60, 10*time.Second)
+		waitSyncedAndReady(t, pgNs, PostgresqlUserKind, PostgresqlAdminUserName, 60, 10*time.Second)
 		waitSyncedAndReadyByLabel(t, pgNs, SqlRoleKind, PostgresqlAdminUserName, 60, 10*time.Second)
 	})
 	if t.Failed() {
@@ -43,7 +43,7 @@ func testPostgresqlAdminUser(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 func testPostgresqlRegularUser(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	// Create
 	t.Run("regular-user-create", func(t *testing.T) {
-		waitSyncedAndReady(t, pgNs, PostgresqlAdminUserKind, PostgresqlRegularUserName, 60, 10*time.Second)
+		waitSyncedAndReady(t, pgNs, PostgresqlUserKind, PostgresqlRegularUserName, 60, 10*time.Second)
 	})
 	if t.Failed() {
 		return

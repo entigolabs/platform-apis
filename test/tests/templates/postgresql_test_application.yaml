@@ -31,10 +31,5 @@ spec:
       jsonPointers:
         - /spec/deletionProtection
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      enabled: true
     syncOptions:
       - RespectIgnoreDifferences=true
-      - Retry=true

@@ -2,7 +2,6 @@ package test
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -10,14 +9,6 @@ import (
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/gruntwork-io/terratest/modules/retry"
 )
-
-var managedProviderKinds = []string{
-	RdsInstanceKind,
-	SecurityGroupRuleKind,
-	SecurityGroupKind,
-	ExternalSecretKind,
-	SqlProviderConfigKind,
-}
 
 func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {
@@ -29,23 +20,14 @@ func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
 	}()
 
+	// Delete composites in dependency order; Crossplane cascade-deletes all sub-resources.
 	cleanupDisableDeletionProtectionOnDatabases(t, pgNs)
 	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
-	cleanupDeleteParallel(t, pgNs, PostgresqlAdminUserKind, PostgresqlRegularUserName, PostgresqlAdminUserName)
 
-	cleanupDeleteAllOfKind(t, pgNs, UsageKind)
-	cleanupDeleteAllOfKind(t, pgNs, SqlGrantKind)
-	cleanupDeleteAllOfKind(t, pgNs, SqlRoleKind)
+	cleanupDeleteParallel(t, pgNs, PostgresqlUserKind, PostgresqlRegularUserName, PostgresqlAdminUserName)
 
 	cleanupDisableDeletionProtectionOnInstance(t, pgNs)
 	cleanupDeleteAndWait(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
-
-	cleanupWaitProviderResourcesGone(t, pgNs)
-
-	if !cleanupCheckAllGone(t, pgNs) {
-		t.Log("WARNING: some managed resources still exist; skipping namespace deletion to avoid finalizer deadlock")
-		return
-	}
 
 	cleanupNamespace(t, pgNs, cluster)
 }
@@ -71,16 +53,6 @@ func cleanupDeleteParallel(t *testing.T, opts *terrak8s.KubectlOptions, kind str
 		}()
 	}
 	wg.Wait()
-}
-
-func cleanupDeleteAllOfKind(t *testing.T, opts *terrak8s.KubectlOptions, kind string) {
-	out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "--ignore-not-found", "-o", "jsonpath={.items[*].metadata.name}")
-	if err != nil || out == "" {
-		return
-	}
-	names := strings.Fields(out)
-
-	cleanupDeleteParallel(t, opts, kind, names...)
 }
 
 func cleanupDeleteAndWait(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, maxRetries int) {
@@ -139,40 +111,6 @@ func cleanupDisableDeletionProtectionOnInstance(t *testing.T, pgNs *terrak8s.Kub
 			}
 			return "propagated", nil
 		})
-}
-
-func cleanupWaitProviderResourcesGone(t *testing.T, pgNs *terrak8s.KubectlOptions) {
-	var wg sync.WaitGroup
-	for _, kind := range managedProviderKinds {
-		kind := kind
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_, _ = retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s deletion", kind), 60, 10*time.Second,
-				func() (string, error) {
-					out, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind,
-						"-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName),
-						"--ignore-not-found", "-o", "jsonpath={.items[*].metadata.name}")
-					if out != "" {
-						return "", fmt.Errorf("%s still exist: %s", kind, out)
-					}
-					return "gone", nil
-				})
-		}()
-	}
-	wg.Wait()
-}
-
-func cleanupCheckAllGone(t *testing.T, pgNs *terrak8s.KubectlOptions) bool {
-	for _, kind := range managedProviderKinds {
-		out, err := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind,
-			"-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName),
-			"--ignore-not-found", "-o", "jsonpath={.items[*].metadata.name}")
-		if err != nil || out != "" {
-			return false
-		}
-	}
-	return true
 }
 
 func cleanupNamespace(t *testing.T, pgNs, cluster *terrak8s.KubectlOptions) {

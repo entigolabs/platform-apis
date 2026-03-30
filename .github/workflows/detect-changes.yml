@@ -91,32 +91,22 @@ jobs:
             compositions:
               - 'compositions/**'
               - '!compositions/examples/**'
-            testhelm:
-              - 'test/tests/helm/**'
             helm:
               - 'helm/**'
-            zone_and_apps:
+            zone:
+              - 'compositions/zone/**'
               - 'functions/tenancy/**'
               - 'functions/artifact/**'
               - 'functions/networking/**'
               - 'functions/workload/**'
-              - 'compositions/zone/**'
-            postgresql_components:
-              - 'functions/database/**'
-              - 'compositions/postgresql/**'
-            testhelm_zones:
               - 'test/tests/helm/platform-apis-test-zones/**'
-            testhelm_app:
               - 'test/tests/helm/platform-apis-test-app/**'
-            testhelm_a_apps:
               - 'test/tests/helm/platform-apis-test-a-apps/**'
-            testhelm_b_apps:
               - 'test/tests/helm/platform-apis-test-b-apps/**'
-            testhelm_postgresql:
+            postgresql:
+              - 'compositions/postgresql/**'
+              - 'functions/database/**'
               - 'test/tests/helm/platform-apis-test-postgresql/**'
-            other_tests:
-              - 'test/tests/**'
-              - '!test/tests/helm/**'
 
       - name: Detect changes
         if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -124,20 +114,14 @@ jobs:
         env:
           FUNCS_FILES: ${{ steps.changed-files.outputs.functions_all_changed_files }}
           COMPS_FILES: ${{ steps.changed-files.outputs.compositions_all_changed_files }}
-          COMMON_LIB_CHANGED: ${{ steps.changed-files.outputs.common_lib_any_changed }}
+          COMMON_LIB_CHANGED: ${{ steps.changed-files.outputs.common_lib_any_changed || 'false' }}
           FUNCS_ANY_CHANGED: ${{ steps.changed-files.outputs.functions_any_changed || 'false' }}
           COMPS_ANY_CHANGED: ${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}
           HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
-          TESTHELM_ANY_CHANGED: ${{ steps.changed-files.outputs.testhelm_any_changed || 'false' }}
-          ZONE_APPS_CHANGED: ${{ steps.changed-files.outputs.zone_and_apps_any_changed || 'false' }}
-          PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_components_any_changed || 'false' }}
-          TH_ZONES_CHANGED: ${{ steps.changed-files.outputs.testhelm_zones_any_changed || 'false' }}
-          TH_APP_CHANGED: ${{ steps.changed-files.outputs.testhelm_app_any_changed || 'false' }}
-          TH_A_APPS_CHANGED: ${{ steps.changed-files.outputs.testhelm_a_apps_any_changed || 'false' }}
-          TH_B_APPS_CHANGED: ${{ steps.changed-files.outputs.testhelm_b_apps_any_changed || 'false' }}
-          TH_PG_CHANGED: ${{ steps.changed-files.outputs.testhelm_postgresql_any_changed || 'false' }}
-          OTHER_TESTS_CHANGED: ${{ steps.changed-files.outputs.other_tests_any_changed || 'false' }}
+          ZONE_CHANGED: ${{ steps.changed-files.outputs.zone_any_changed || 'false' }}
+          PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_any_changed || 'false' }}
         run: |
+          # Functions and compositions lists (used by build/test jobs)
           if [ "$COMMON_LIB_CHANGED" == "true" ]; then
             FUNCTIONS=$(ls -d functions/*/ 2>/dev/null | xargs -I{} basename {} | grep -v '^common$' | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
             echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
@@ -154,58 +138,44 @@ jobs:
 
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          # Any changes at all
-          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$TESTHELM_ANY_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
+          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
             echo "any_changes=true" >> $GITHUB_OUTPUT
           else
             echo "any_changes=false" >> $GITHUB_OUTPUT
           fi
 
-          # Compute affected_suites (read by Go tests via testconfig/suites.yaml).
-          # common_lib or helm changes touch all suites.
-          # Zone-related functions/compositions → zone, a-apps, b-apps.
-          # PostgreSQL functions/compositions → postgresql only.
-          # Per-chart testhelm changes → respective suites only.
-          # NOTE: other_tests changes (shared test helpers) do NOT force all suites in PR CI —
-          # full testing runs on main. This avoids triggering postgresql when only zone code changed.
+          # affected_suites: which Go test suites run in infralib.
+          # zone is always included — zones are base infrastructure deployed in every run.
+          # a-apps/b-apps added when zone code changed; postgresql added when postgresql code changed.
+          # common_lib or helm changes affect all compositions, so all suites run.
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ]; then
             AFFECTED='["zone","a-apps","b-apps","postgresql"]'
+          elif [ "$ZONE_CHANGED" == "true" ] && [ "$PG_CHANGED" == "true" ]; then
+            AFFECTED='["zone","a-apps","b-apps","postgresql"]'
+          elif [ "$ZONE_CHANGED" == "true" ]; then
+            AFFECTED='["zone","a-apps","b-apps"]'
+          elif [ "$PG_CHANGED" == "true" ]; then
+            AFFECTED='["zone","postgresql"]'
           else
-            AFFECTED=$(jq -n -c \
-              --arg za  "$ZONE_APPS_CHANGED" \
-              --arg pg  "$PG_CHANGED" \
-              --arg thz "$TH_ZONES_CHANGED" \
-              --arg tha "$TH_APP_CHANGED" \
-              --arg thaa "$TH_A_APPS_CHANGED" \
-              --arg thbb "$TH_B_APPS_CHANGED" \
-              --arg thpg "$TH_PG_CHANGED" \
-              '[
-                if ($za == "true" or $thz == "true") then "zone" else empty end,
-                if ($za == "true" or $thaa == "true" or $tha == "true") then "a-apps" else empty end,
-                if ($za == "true" or $thbb == "true" or $tha == "true") then "b-apps" else empty end,
-                if ($pg == "true" or $thpg == "true") then "postgresql" else empty end
-              ]')
+            AFFECTED='["zone"]'
           fi
           echo "affected_suites=$AFFECTED" >> $GITHUB_OUTPUT
 
-          # Derive testhelm charts to build.
-          # platform-apis-test-zones is always rebuilt — zones are deployed first in every test run.
-          # platform-apis-test-app is shared by a-apps and b-apps and rebuilt on zone changes.
-          # platform-apis-test-a-apps and platform-apis-test-b-apps rebuilt on zone changes.
-          # platform-apis-test-postgresql rebuilt only on postgresql changes.
-          TESTHELM=$(jq -n -c \
-            --arg za  "$ZONE_APPS_CHANGED" \
-            --arg pg  "$PG_CHANGED" \
-            --arg tha "$TH_APP_CHANGED" \
-            --arg thaa "$TH_A_APPS_CHANGED" \
-            --arg thbb "$TH_B_APPS_CHANGED" \
-            --arg thpg "$TH_PG_CHANGED" \
-            '[
-              "platform-apis-test-zones",
-              if ($za == "true" or $tha == "true") then "platform-apis-test-app" else null end,
-              if ($za == "true" or $thaa == "true") then "platform-apis-test-a-apps" else null end,
-              if ($za == "true" or $thbb == "true") then "platform-apis-test-b-apps" else null end,
-              if ($pg == "true" or $thpg == "true") then "platform-apis-test-postgresql" else null end
-            ] | map(select(. != null)) | unique')
+          # testhelm: which test Helm charts to build and push.
+          # platform-apis-test-zones always rebuilt — required by every test run.
+          # zone-related charts rebuilt when zone code or their chart source changed (ZONE_CHANGED).
+          # postgresql chart rebuilt when postgresql code or its chart source changed (PG_CHANGED).
+          # common_lib or helm forces a full rebuild of all charts.
+          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ]; then
+            TESTHELM='["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-postgresql"]'
+          elif [ "$ZONE_CHANGED" == "true" ] && [ "$PG_CHANGED" == "true" ]; then
+            TESTHELM='["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-postgresql"]'
+          elif [ "$ZONE_CHANGED" == "true" ]; then
+            TESTHELM='["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps"]'
+          elif [ "$PG_CHANGED" == "true" ]; then
+            TESTHELM='["platform-apis-test-zones","platform-apis-test-postgresql"]'
+          else
+            TESTHELM='["platform-apis-test-zones"]'
+          fi
           echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
           echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT

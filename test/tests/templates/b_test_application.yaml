@@ -16,8 +16,4 @@ spec:
       releaseName: platform-apis-test-b-apps
       values: |
         targetRevision: '*.*.*-0'
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      enabled: true
+  syncPolicy: {}
