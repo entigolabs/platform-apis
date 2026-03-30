@@ -11,196 +11,175 @@ import (
 	"github.com/gruntwork-io/terratest/modules/retry"
 )
 
-func cleanupPostgresqlResources(t *testing.T, clusterOptions *terrak8s.KubectlOptions) {
-	pgNsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
+var managedProviderKinds = []string{
+	RdsInstanceKind,
+	SecurityGroupRuleKind,
+	SecurityGroupKind,
+	ExternalSecretKind,
+	SqlProviderConfigKind,
+}
 
-	cleanupDisableDatabasesDeletionProtection(t, pgNsOptions)
+func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+	if t.Failed() {
+		return // leave resources in place for debugging
+	}
+	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 
-	cleanupDeleteForeground(t, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName)
-	cleanupDeleteForeground(t, pgNsOptions, PostgresqlDatabaseKind, DatabaseTwoName)
-	cleanupDeleteForeground(t, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName)
-	var wgDbs sync.WaitGroup
-	wgDbs.Add(3)
-	go func() {
-		defer wgDbs.Done()
-		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlDatabaseKind, PostgresqlDatabaseName, 30)
+	defer func() {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
 	}()
-	go func() {
-		defer wgDbs.Done()
-		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlDatabaseKind, DatabaseTwoName, 30)
-	}()
-	go func() {
-		defer wgDbs.Done()
-		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlDatabaseKind, MinimalDatabaseName, 30)
-	}()
-	wgDbs.Wait()
 
-	cleanupDeleteForeground(t, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName)
-	cleanupDeleteForeground(t, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName)
-	var wgUsers sync.WaitGroup
-	wgUsers.Add(2)
-	go func() {
-		defer wgUsers.Done()
-		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlAdminUserKind, PostgresqlRegularUserName, 30)
-	}()
-	go func() {
-		defer wgUsers.Done()
-		cleanupWaitForDeletion(t, pgNsOptions, PostgresqlAdminUserKind, PostgresqlAdminUserName, 30)
-	}()
-	wgUsers.Wait()
+	cleanupDisableDeletionProtectionOnDatabases(t, pgNs)
+	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
+	cleanupDeleteParallel(t, pgNs, PostgresqlAdminUserKind, PostgresqlRegularUserName, PostgresqlAdminUserName)
 
-	cleanupDeleteAllOfKind(t, pgNsOptions, UsageKind)
-	cleanupDeleteAllOfKind(t, pgNsOptions, SqlGrantKind)
-	cleanupDeleteAllOfKind(t, pgNsOptions, SqlRoleKind)
+	cleanupDeleteAllOfKind(t, pgNs, UsageKind)
+	cleanupDeleteAllOfKind(t, pgNs, SqlGrantKind)
+	cleanupDeleteAllOfKind(t, pgNs, SqlRoleKind)
 
-	cleanupDisableDeletionProtection(t, pgNsOptions)
+	cleanupDisableDeletionProtectionOnInstance(t, pgNs)
+	cleanupDeleteAndWait(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
 
-	cleanupDeleteForeground(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName)
-	cleanupWaitForDeletion(t, pgNsOptions, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
+	cleanupWaitProviderResourcesGone(t, pgNs)
 
-	cleanupWaitForGeneratedResources(t, pgNsOptions)
-
-	if !cleanupInstancesFullyGone(t, pgNsOptions) {
-		fmt.Printf("WARNING: some Crossplane managed resources still exist; skipping namespace deletion to avoid finalizer deadlock\n")
+	if !cleanupCheckAllGone(t, pgNs) {
+		t.Log("WARNING: some managed resources still exist; skipping namespace deletion to avoid finalizer deadlock")
 		return
 	}
 
-	cleanupNamespace(t, pgNsOptions, clusterOptions)
-
-	aAppsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, AAppsNamespace)
-	fmt.Printf("Cleanup: deleting PostgreSQL Application '%s' from '%s'\n", PostgresqlApplicationName, AAppsNamespace)
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, aAppsOptions, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
+	cleanupNamespace(t, pgNs, cluster)
 }
 
-func cleanupDeleteForeground(t *testing.T, opts *terrak8s.KubectlOptions, kind string, name string) {
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name, "-n", PostgresqlNamespaceName, "--cascade=foreground", "--wait=false", "--ignore-not-found")
-}
-
-func cleanupWaitForDeletion(t *testing.T, opts *terrak8s.KubectlOptions, kind string, name string, maxRetries int) {
-	_, _ = retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s/%s deletion", kind, name), maxRetries, 10*time.Second, func() (string, error) {
-		output, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-n", PostgresqlNamespaceName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if output != "" {
-			return "", fmt.Errorf("%s/%s still exists", kind, name)
-		}
-		return "deleted", nil
-	})
-}
-
-func cleanupDeleteAllOfKind(t *testing.T, opts *terrak8s.KubectlOptions, kind string) {
-	output, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "-n", PostgresqlNamespaceName, "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
-	if err != nil || output == "" {
+// cleanupDeleteParallel deletes resources of a kind in parallel and waits for all to be gone.
+func cleanupDeleteParallel(t *testing.T, opts *terrak8s.KubectlOptions, kind string, names ...string) {
+	if len(names) == 0 {
 		return
 	}
-	names := strings.Fields(output)
+
 	for _, name := range names {
-		cleanupDeleteForeground(t, opts, kind, name)
-	}
-	for _, name := range names {
-		cleanupWaitForDeletion(t, opts, kind, name, 30)
-	}
-}
-
-func cleanupDisableDatabasesDeletionProtection(t *testing.T, opts *terrak8s.KubectlOptions) {
-	for _, dbName := range []string{PostgresqlDatabaseName, DatabaseTwoName, MinimalDatabaseName} {
-		exists, _ := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", PostgresqlDatabaseKind, dbName, "-n", PostgresqlNamespaceName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
-		if exists == "" {
-			continue
-		}
-		dp, _ := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", PostgresqlDatabaseKind, dbName, "-n", PostgresqlNamespaceName, "-o", "jsonpath={.spec.deletionProtection}")
-		if dp != "true" {
-			continue
-		}
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", PostgresqlDatabaseKind, dbName, "-n", PostgresqlNamespaceName, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
-	}
-}
-
-func cleanupDisableDeletionProtection(t *testing.T, opts *terrak8s.KubectlOptions) {
-	instanceExists, _ := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", PostgresqlInstanceKind, PostgresqlInstanceName, "-n", PostgresqlNamespaceName, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
-	if instanceExists == "" {
-		return
-	}
-
-	dp, _ := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", PostgresqlInstanceKind, PostgresqlInstanceName, "-n", PostgresqlNamespaceName, "-o", "jsonpath={.spec.deletionProtection}")
-	if dp != "true" {
-		return
-	}
-
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", PostgresqlInstanceKind, PostgresqlInstanceName, "-n", PostgresqlNamespaceName, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
-
-	_, _ = retry.DoWithRetryE(t, "waiting for RDS deletionProtection=false", 30, 10*time.Second, func() (string, error) {
-		rdsName, err := getFirstByLabel(t, opts, RdsInstanceKind, PostgresqlInstanceName)
-		if err != nil || rdsName == "" {
-			return "no-rds", nil
-		}
-		rdsDp, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", RdsInstanceKind, rdsName, "-o", "jsonpath={.spec.forProvider.deletionProtection}")
-		if err != nil {
-			return "", err
-		}
-		if rdsDp != "false" {
-			return "", fmt.Errorf("RDS deletionProtection is '%s', waiting for 'false'", rdsDp)
-		}
-		return "propagated", nil
-	})
-}
-
-func cleanupWaitForGeneratedResources(t *testing.T, opts *terrak8s.KubectlOptions) {
-	generatedKinds := []struct {
-		kind  string
-		label string
-	}{
-		{RdsInstanceKind, "RDS Instances"},
-		{SecurityGroupRuleKind, "SecurityGroupRules"},
-		{SecurityGroupKind, "SecurityGroups"},
-		{ExternalSecretKind, "ExternalSecrets"},
-		{SqlProviderConfigKind, "ProviderConfigs"},
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name,
+			"--cascade=foreground", "--wait=false", "--ignore-not-found")
 	}
 
 	var wg sync.WaitGroup
-	for _, gk := range generatedKinds {
-		gk := gk
+	for _, name := range names {
+		name := name
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, _ = retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s deletion", gk.label), 60, 10*time.Second, func() (string, error) {
-				output, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", gk.kind, "-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName), "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
-				if err != nil {
-					return "", err
-				}
-				if output != "" {
-					return "", fmt.Errorf("%s still exist: %s", gk.label, output)
-				}
-				return "deleted", nil
-			})
+			cleanupWaitGone(t, opts, kind, name, 30)
 		}()
 	}
 	wg.Wait()
 }
 
-// cleanupInstancesFullyGone checks that no Crossplane managed resources with
-// instance composite labels remain. Returns true when safe to delete the namespace.
-func cleanupInstancesFullyGone(t *testing.T, opts *terrak8s.KubectlOptions) bool {
-	kinds := []string{RdsInstanceKind, SecurityGroupRuleKind, SecurityGroupKind, ExternalSecretKind, SqlProviderConfigKind}
-	composites := []string{PostgresqlInstanceName}
-	for _, kind := range kinds {
-		for _, composite := range composites {
-			out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "-l",
-				fmt.Sprintf("crossplane.io/composite=%s", composite), "-o", "jsonpath={.items[*].metadata.name}", "--ignore-not-found")
-			if err != nil || out != "" {
-				return false
+func cleanupDeleteAllOfKind(t *testing.T, opts *terrak8s.KubectlOptions, kind string) {
+	out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, "--ignore-not-found", "-o", "jsonpath={.items[*].metadata.name}")
+	if err != nil || out == "" {
+		return
+	}
+	names := strings.Fields(out)
+
+	cleanupDeleteParallel(t, opts, kind, names...)
+}
+
+func cleanupDeleteAndWait(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, maxRetries int) {
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name,
+		"--cascade=foreground", "--wait=false", "--ignore-not-found")
+	cleanupWaitGone(t, opts, kind, name, maxRetries)
+}
+
+func cleanupWaitGone(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, maxRetries int) {
+	_, _ = retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s/%s deletion", kind, name), maxRetries, 10*time.Second,
+		func() (string, error) {
+			out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+			if err != nil {
+				return "", err
 			}
+			if out != "" {
+				return "", fmt.Errorf("%s/%s still exists", kind, name)
+			}
+			return "deleted", nil
+		})
+}
+
+func patchDeletionProtectionIfEnabled(t *testing.T, pgNs *terrak8s.KubectlOptions, kind, name string) {
+	t.Helper()
+	exists, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind, name, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+	if exists == "" {
+		return
+	}
+
+	if dp, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind, name, "-o", "jsonpath={.spec.deletionProtection}"); dp == "true" {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNs, "patch", kind, name, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
+	}
+}
+
+func cleanupDisableDeletionProtectionOnDatabases(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	for _, dbName := range []string{DatabaseOneName, DatabaseTwoName, MinimalDatabaseName} {
+		patchDeletionProtectionIfEnabled(t, pgNs, PostgresqlDatabaseKind, dbName)
+	}
+}
+
+func cleanupDisableDeletionProtectionOnInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	patchDeletionProtectionIfEnabled(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName)
+
+	_, _ = retry.DoWithRetryE(t, "waiting for RDS deletionProtection=false", 30, 10*time.Second,
+		func() (string, error) {
+			rdsName, err := getFirstByLabel(t, pgNs, RdsInstanceKind, PostgresqlInstanceName)
+			if err != nil || rdsName == "" {
+				return "no-rds", nil
+			}
+			dp, err := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", RdsInstanceKind, rdsName, "-o", "jsonpath={.spec.forProvider.deletionProtection}")
+			if err != nil {
+				return "", err
+			}
+			if dp != "false" {
+				return "", fmt.Errorf("deletionProtection=%q", dp)
+			}
+			return "propagated", nil
+		})
+}
+
+func cleanupWaitProviderResourcesGone(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	var wg sync.WaitGroup
+	for _, kind := range managedProviderKinds {
+		kind := kind
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s deletion", kind), 60, 10*time.Second,
+				func() (string, error) {
+					out, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind,
+						"-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName),
+						"--ignore-not-found", "-o", "jsonpath={.items[*].metadata.name}")
+					if out != "" {
+						return "", fmt.Errorf("%s still exist: %s", kind, out)
+					}
+					return "gone", nil
+				})
+		}()
+	}
+	wg.Wait()
+}
+
+func cleanupCheckAllGone(t *testing.T, pgNs *terrak8s.KubectlOptions) bool {
+	for _, kind := range managedProviderKinds {
+		out, err := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind,
+			"-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName),
+			"--ignore-not-found", "-o", "jsonpath={.items[*].metadata.name}")
+		if err != nil || out != "" {
+			return false
 		}
 	}
 	return true
 }
 
-func cleanupNamespace(t *testing.T, pgNsOptions *terrak8s.KubectlOptions, clusterOptions *terrak8s.KubectlOptions) {
-	leftovers, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNsOptions, "get", "all", "-n", PostgresqlNamespaceName, "--ignore-not-found", "-o", "name")
+func cleanupNamespace(t *testing.T, pgNs, cluster *terrak8s.KubectlOptions) {
+	leftovers, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", "all", "--ignore-not-found", "-o", "name")
 	if leftovers != "" {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNsOptions, "delete", "all", "--all", "-n", PostgresqlNamespaceName, "--cascade=foreground", "--wait=false", "--ignore-not-found")
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNs, "delete", "all", "--all", "--cascade=foreground", "--wait=false", "--ignore-not-found")
 		time.Sleep(10 * time.Second)
 	}
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, clusterOptions, "delete", "namespace", PostgresqlNamespaceName, "--ignore-not-found", "--wait=true")
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", PostgresqlNamespaceName, "--ignore-not-found", "--wait=true")
 }

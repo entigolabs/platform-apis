@@ -104,12 +104,13 @@ jobs:
 
   prepare-infralib-branch:
     name: Prepare Infralib Branch
-    needs: [build-helm, build-testhelm]
+    needs: [detect-changes, build-helm, build-testhelm]
     if: always() && needs.build-helm.result == 'success' && needs.build-testhelm.result != 'failure' && needs.build-testhelm.result != 'cancelled'
     uses: ./.github/workflows/prepare-infralib-branch.yml
     with:
       helm_version: ${{ needs.build-helm.outputs.version }}
       testhelm_version: ${{ needs.build-testhelm.outputs.version }}
+      affected_suites: ${{ needs.detect-changes.outputs.affected_suites }}
     secrets: inherit
 
   run-infralib-tests:

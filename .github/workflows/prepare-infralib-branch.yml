@@ -12,6 +12,11 @@ on:
         required: false
         type: string
         default: ''
+      affected_suites:
+        description: 'JSON array of test suites to run (e.g. ["zone","postgresql"])'
+        required: false
+        type: string
+        default: '["zone","a-apps","b-apps","postgresql"]'
     outputs:
       branch_name:
         description: "The name of the created branch"
@@ -77,24 +82,56 @@ jobs:
           helm dependency update ${{ env.INFRALIB_MODULE_PATH }}
 
       - name: Sync Test Files
+        env:
+          AFFECTED_SUITES: ${{ inputs.affected_suites }}
         run: |
           TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test"
           SOURCE="platform-apis/test/tests"
 
-          rm -f $TARGET/*_test.go
-          mkdir -p $TARGET/templates/
-          cp $SOURCE/*_test.go $TARGET/
-          cp $SOURCE/config/*.yaml $TARGET/
-          cp $SOURCE/templates/* $TARGET/templates/
+          rm -f "$TARGET"/*_test.go
+          mkdir -p "$TARGET/templates/"
+
+          cp "$SOURCE"/*_test.go "$TARGET/"
+          cp "$SOURCE"/config/*.yaml "$TARGET/"
+
+          # Zone template is always deployed — it is base infrastructure for all suites.
+          cp "$SOURCE/templates/zone_test_application.yaml" "$TARGET/templates/"
+
+          # Copy only the templates for suites that are actually being tested.
+          for suite in $(echo "$AFFECTED_SUITES" | jq -r '.[]'); do
+            case "$suite" in
+              a-apps)     cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/" ;;
+              b-apps)     cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
+              postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
+            esac
+          done
+
+          # Write suite-config.yaml so Go tests know which suites to run.
+          {
+            echo "suites:"
+            echo "$AFFECTED_SUITES" | jq -r '.[] | "  - " + .'
+          } > "$TARGET/suite-config.yaml"
 
       - name: Pin testhelm version in templates
         if: inputs.testhelm_version != ''
         env:
           VERSION: ${{ inputs.testhelm_version }}
+          AFFECTED_SUITES: ${{ inputs.affected_suites }}
         run: |
           TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test/templates"
-          for f in "$TARGET"/*.yaml; do
-            sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$f"
+
+          # Pin the version only in templates whose testhelm chart was actually built.
+          # Charts not built in this run keep the wildcard targetRevision.
+          declare -A SUITE_TEMPLATE=(
+            [zone]="zone_test_application.yaml"
+            [a-apps]="a_test_application.yaml"
+            [b-apps]="b_test_application.yaml"
+            [postgresql]="postgresql_test_application.yaml"
+          )
+          for suite in $(echo "$AFFECTED_SUITES" | jq -r '.[]'); do
+            template="${SUITE_TEMPLATE[$suite]}"
+            [ -n "$template" ] && [ -f "$TARGET/$template" ] || continue
+            sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/$template"
           done
 
       - name: Commit and Push

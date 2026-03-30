@@ -1,42 +1,40 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: a-apps
+  name: test-postgresql
   labels:
     tenancy.entigo.com/zone: a
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: baseline
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: a1
-  labels:
-    tenancy.entigo.com/zone: a
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/warn: restricted
-    istio-injection: enabled
----
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: a-apps
-  namespace: a-apps
+  name: test-postgresql
+  namespace: argocd-biz
 spec:
   destination:
     server: https://kubernetes.default.svc
-    namespace: a-apps
+    namespace: test-postgresql
   project: a
   source:
-    chart: platform-apis-test-a-apps
+    chart: platform-apis-test-postgresql
     repoURL: ghcr.io/entigolabs
     targetRevision: '*.*.*-0'
     helm:
-      releaseName: platform-apis-test-a-apps
+      releaseName: postgresql
       values: |
         targetRevision: '*.*.*-0'
+  ignoreDifferences:
+    - group: "database.entigo.com"
+      kind: PostgreSQLInstance
+      jsonPointers:
+        - /spec/deletionProtection
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
       enabled: true
+    syncOptions:
+      - RespectIgnoreDifferences=true
+      - Retry=true

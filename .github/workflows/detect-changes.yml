@@ -18,7 +18,7 @@ on:
         description: 'Whether any compositions changed'
         value: ${{ jobs.detect.outputs.has_composition_changes }}
       testhelm:
-        description: 'JSON array of changed testhelm'
+        description: 'JSON array of testhelm charts to build (derived from affected suites)'
         value: ${{ jobs.detect.outputs.testhelm }}
       has_testhelm_changes:
         description: 'Whether any testhelm changed'
@@ -29,6 +29,9 @@ on:
       any_changes:
         description: 'Whether any relevant files changed'
         value: ${{ jobs.detect.outputs.any_changes }}
+      affected_suites:
+        description: 'JSON array of test suites to run (e.g. ["zone","postgresql"])'
+        value: ${{ jobs.detect.outputs.affected_suites }}
 
 jobs:
   detect:
@@ -42,6 +45,7 @@ jobs:
       has_testhelm_changes: ${{ steps.force-all.outputs.has_testhelm_changes || steps.changes.outputs.has_testhelm_changes }}
       helm_changed: ${{ steps.force-all.outputs.helm_changed || steps.changes.outputs.helm_changed }}
       any_changes: ${{ steps.force-all.outputs.any_changes || steps.changes.outputs.any_changes }}
+      affected_suites: ${{ steps.force-all.outputs.affected_suites || steps.changes.outputs.affected_suites }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,13 +53,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Force test and build all
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         id: force-all
         run: |
           get_dirs() {
             ls -d $1*/ 2>/dev/null | xargs -I{} basename {} | grep -vE '^(common|examples)$' | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]"
           }
-          
+
           echo "functions=$(get_dirs 'functions/')" >> $GITHUB_OUTPUT
           echo "has_function_changes=true" >> $GITHUB_OUTPUT
 
@@ -67,9 +71,10 @@ jobs:
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
           echo "any_changes=true" >> $GITHUB_OUTPUT
+          echo 'affected_suites=["zone","a-apps","b-apps","postgresql"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
         id: changed-files
         uses: tj-actions/changed-files@v47
         with:
@@ -90,9 +95,31 @@ jobs:
               - 'test/tests/helm/**'
             helm:
               - 'helm/**'
+            zone_and_apps:
+              - 'functions/tenancy/**'
+              - 'functions/artifact/**'
+              - 'functions/networking/**'
+              - 'functions/workload/**'
+              - 'compositions/zone/**'
+            postgresql_components:
+              - 'functions/database/**'
+              - 'compositions/postgresql/**'
+            testhelm_zones:
+              - 'test/tests/helm/platform-apis-test-zones/**'
+            testhelm_app:
+              - 'test/tests/helm/platform-apis-test-app/**'
+            testhelm_a_apps:
+              - 'test/tests/helm/platform-apis-test-a-apps/**'
+            testhelm_b_apps:
+              - 'test/tests/helm/platform-apis-test-b-apps/**'
+            testhelm_postgresql:
+              - 'test/tests/helm/platform-apis-test-postgresql/**'
+            other_tests:
+              - 'test/tests/**'
+              - '!test/tests/helm/**'
 
       - name: Detect changes
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
         id: changes
         env:
           FUNCS_FILES: ${{ steps.changed-files.outputs.functions_all_changed_files }}
@@ -101,6 +128,15 @@ jobs:
           FUNCS_ANY_CHANGED: ${{ steps.changed-files.outputs.functions_any_changed || 'false' }}
           COMPS_ANY_CHANGED: ${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}
           HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
+          TESTHELM_ANY_CHANGED: ${{ steps.changed-files.outputs.testhelm_any_changed || 'false' }}
+          ZONE_APPS_CHANGED: ${{ steps.changed-files.outputs.zone_and_apps_any_changed || 'false' }}
+          PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_components_any_changed || 'false' }}
+          TH_ZONES_CHANGED: ${{ steps.changed-files.outputs.testhelm_zones_any_changed || 'false' }}
+          TH_APP_CHANGED: ${{ steps.changed-files.outputs.testhelm_app_any_changed || 'false' }}
+          TH_A_APPS_CHANGED: ${{ steps.changed-files.outputs.testhelm_a_apps_any_changed || 'false' }}
+          TH_B_APPS_CHANGED: ${{ steps.changed-files.outputs.testhelm_b_apps_any_changed || 'false' }}
+          TH_PG_CHANGED: ${{ steps.changed-files.outputs.testhelm_postgresql_any_changed || 'false' }}
+          OTHER_TESTS_CHANGED: ${{ steps.changed-files.outputs.other_tests_any_changed || 'false' }}
         run: |
           if [ "$COMMON_LIB_CHANGED" == "true" ]; then
             FUNCTIONS=$(ls -d functions/*/ 2>/dev/null | xargs -I{} basename {} | grep -v '^common$' | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
@@ -116,18 +152,53 @@ jobs:
           echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
           echo "has_composition_changes=$COMPS_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          #We always want to build all test helm packages.
-          TESTHELM=$(ls -d test/tests/helm/*/ 2>/dev/null | xargs -I{} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
-          echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
-          echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
-
-          # Helm
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
 
           # Any changes at all
-          TESTHELM_ANY_CHANGED="${{ steps.changed-files.outputs.testhelm_any_changed || 'false' }}"
           if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$TESTHELM_ANY_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
             echo "any_changes=true" >> $GITHUB_OUTPUT
           else
             echo "any_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Compute affected_suites.
+          # common_lib or helm changes touch all suites; other_tests (shared helpers, templates) touch all suites.
+          # Zone-related functions/compositions → zone, a-apps, b-apps.
+          # PostgreSQL functions/compositions → postgresql.
+          # Per-chart testhelm changes → respective suites only.
+          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$OTHER_TESTS_CHANGED" == "true" ]; then
+            AFFECTED='["zone","a-apps","b-apps","postgresql"]'
+          else
+            AFFECTED=$(jq -n -c \
+              --arg za  "$ZONE_APPS_CHANGED" \
+              --arg pg  "$PG_CHANGED" \
+              --arg thz "$TH_ZONES_CHANGED" \
+              --arg tha "$TH_APP_CHANGED" \
+              --arg thaa "$TH_A_APPS_CHANGED" \
+              --arg thbb "$TH_B_APPS_CHANGED" \
+              --arg thpg "$TH_PG_CHANGED" \
+              '[
+                if ($za == "true" or $thz == "true") then "zone" else empty end,
+                if ($za == "true" or $thaa == "true" or $tha == "true") then "a-apps" else empty end,
+                if ($za == "true" or $thbb == "true" or $tha == "true") then "b-apps" else empty end,
+                if ($pg == "true" or $thpg == "true") then "postgresql" else empty end
+              ]')
+          fi
+          echo "affected_suites=$AFFECTED" >> $GITHUB_OUTPUT
+
+          # Derive testhelm charts to build from affected_suites.
+          # platform-apis-test-app is shared by a-apps and b-apps.
+          TESTHELM=$(echo "$AFFECTED" | jq -c '[
+            if index("zone")       != null then "platform-apis-test-zones"      else null end,
+            if (index("a-apps") != null or index("b-apps") != null)
+                                           then "platform-apis-test-app"         else null end,
+            if index("a-apps")     != null then "platform-apis-test-a-apps"     else null end,
+            if index("b-apps")     != null then "platform-apis-test-b-apps"     else null end,
+            if index("postgresql") != null then "platform-apis-test-postgresql" else null end
+          ] | map(select(. != null)) | unique')
+          echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
+          if [ "$TESTHELM" == "[]" ]; then
+            echo "has_testhelm_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
           fi

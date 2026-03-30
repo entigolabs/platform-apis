@@ -1,14 +1,9 @@
 package test
 
 import (
-	"fmt"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
-	"github.com/gruntwork-io/terratest/modules/retry"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -18,49 +13,45 @@ const (
 	PostgresqlApplicationName   = "test-postgresql"
 )
 
-func testPlatformApisPostgresql(t *testing.T, clusterOptions *terrak8s.KubectlOptions, zonesReady <-chan struct{}, zonesReadySuccess *atomic.Bool) {
-	defer func() {
-		if t.Failed() {
-			return
-		}
-		cleanupStart := time.Now()
-		cleanupPostgresqlResources(t, clusterOptions)
-		fmt.Printf("TIMING: Cleanup took %s\n", time.Since(cleanupStart))
-	}()
+func testPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 
-	waitForZonesReady(t, zonesReady, zonesReadySuccess)
+	defer cleanupPostgresql(t, cluster, argocd)
 
-	aAppsOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, AAppsNamespace)
-	namespaceOptions := terrak8s.NewKubectlOptions(clusterOptions.ContextName, clusterOptions.ConfigPath, PostgresqlNamespaceName)
+	applyFile(t, cluster, "./templates/postgresql_test_application.yaml")
+	syncWithRetry(t, argocd, PostgresqlApplicationName)
+	waitApplicationHealthy(t, argocd, PostgresqlApplicationName)
 
-	testWaitAndSyncPostgresqlApplication(t, aAppsOptions)
-
-	instanceStart := time.Now()
-	runPostgresqlInstanceTests(t, namespaceOptions)
-	fmt.Printf("TIMING: PostgreSQL instance tests took %s\n", time.Since(instanceStart))
-
+	testPostgresqlInstance(t, pgNs)
 	if t.Failed() {
 		return
 	}
 
-	userDbStart := time.Now()
-	runPostgresqlUserAndDatabaseTests(t, namespaceOptions)
-	fmt.Printf("TIMING: User and database tests took %s\n", time.Since(userDbStart))
-}
+	// Admin user must be ready before databases can be verified (it is their owner)
+	testPostgresqlAdminUser(t, pgNs)
+	if t.Failed() {
+		return
+	}
 
-func testWaitAndSyncPostgresqlApplication(t *testing.T, aAppsOptions *terrak8s.KubectlOptions) {
-	t.Helper()
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("waiting for Application '%s' to exist", PostgresqlApplicationName), 30, 10*time.Second, func() (string, error) {
-		name, err := terrak8s.RunKubectlAndGetOutputE(t, aAppsOptions, "get", "application", PostgresqlApplicationName, "-o", "jsonpath={.metadata.name}")
-		if err != nil {
-			return "", err
-		}
-		if name == "" {
-			return "", fmt.Errorf("application '%s' not found yet", PostgresqlApplicationName)
-		}
-		return name, nil
+	// Regular user and databases are independent of each other — run in parallel
+	t.Run("users-and-databases", func(t *testing.T) {
+		t.Run("regular-user", func(t *testing.T) {
+			t.Parallel()
+			testPostgresqlRegularUser(t, pgNs)
+		})
+		t.Run("database-one", func(t *testing.T) {
+			t.Parallel()
+			testDatabaseOne(t, pgNs)
+		})
+		t.Run("database-two", func(t *testing.T) {
+			t.Parallel()
+			testDatabaseTwo(t, pgNs)
+		})
 	})
-	require.NoError(t, err, fmt.Sprintf("Application '%s' not found in namespace '%s'", PostgresqlApplicationName, AAppsNamespace))
+	if t.Failed() {
+		return
+	}
 
-	syncAndWaitApplication(t, aAppsOptions, PostgresqlApplicationName, 60, 10*time.Second)
+	// Minimal database uses regular user as owner — must come after regular user is ready
+	testMinimalDatabase(t, pgNs)
 }
