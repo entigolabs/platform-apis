@@ -161,12 +161,14 @@ jobs:
             echo "any_changes=false" >> $GITHUB_OUTPUT
           fi
 
-          # Compute affected_suites (read by Go tests via suite-config.yaml).
+          # Compute affected_suites (read by Go tests via testconfig/suites.yaml).
           # common_lib or helm changes touch all suites; other_tests (shared helpers, templates) touch all suites.
           # Zone-related functions/compositions → zone, a-apps, b-apps.
           # PostgreSQL functions/compositions → postgresql only.
           # Per-chart testhelm changes → respective suites only.
+          ALL_CHANGED=false
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$OTHER_TESTS_CHANGED" == "true" ]; then
+            ALL_CHANGED=true
             AFFECTED='["zone","a-apps","b-apps","postgresql"]'
           else
             AFFECTED=$(jq -n -c \
@@ -191,7 +193,9 @@ jobs:
           # platform-apis-test-app is shared by a-apps and b-apps and rebuilt on zone changes.
           # platform-apis-test-a-apps and platform-apis-test-b-apps rebuilt on zone changes.
           # platform-apis-test-postgresql rebuilt only on postgresql changes.
+          # When all suites are active (ALL_CHANGED), all charts must be rebuilt to match.
           TESTHELM=$(jq -n -c \
+            --arg all "$ALL_CHANGED" \
             --arg za  "$ZONE_APPS_CHANGED" \
             --arg pg  "$PG_CHANGED" \
             --arg tha "$TH_APP_CHANGED" \
@@ -200,10 +204,10 @@ jobs:
             --arg thpg "$TH_PG_CHANGED" \
             '[
               "platform-apis-test-zones",
-              if ($za == "true" or $tha == "true") then "platform-apis-test-app" else null end,
-              if ($za == "true" or $thaa == "true") then "platform-apis-test-a-apps" else null end,
-              if ($za == "true" or $thbb == "true") then "platform-apis-test-b-apps" else null end,
-              if ($pg == "true" or $thpg == "true") then "platform-apis-test-postgresql" else null end
+              if ($all == "true" or $za == "true" or $tha == "true") then "platform-apis-test-app" else null end,
+              if ($all == "true" or $za == "true" or $thaa == "true") then "platform-apis-test-a-apps" else null end,
+              if ($all == "true" or $za == "true" or $thbb == "true") then "platform-apis-test-b-apps" else null end,
+              if ($all == "true" or $pg == "true" or $thpg == "true") then "platform-apis-test-postgresql" else null end
             ] | map(select(. != null)) | unique')
           echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
           echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT

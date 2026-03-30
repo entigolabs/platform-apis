@@ -89,17 +89,15 @@ jobs:
           SOURCE="platform-apis/test/tests"
 
           rm -f "$TARGET"/*_test.go
-          # Clean templates to prevent stale files from previous runs persisting.
+          rm -rf "$TARGET/testconfig/"
           rm -rf "$TARGET/templates/"
           mkdir -p "$TARGET/templates/"
 
           cp "$SOURCE"/*_test.go "$TARGET/"
           cp "$SOURCE"/config/*.yaml "$TARGET/"
 
-          # Zone template is always deployed — it is base infrastructure for all suites.
           cp "$SOURCE/templates/zone_test_application.yaml" "$TARGET/templates/"
 
-          # Copy only the templates for suites that are actually being tested.
           for suite in $(echo "$AFFECTED_SUITES" | jq -r '.[]'); do
             case "$suite" in
               a-apps)     cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/" ;;
@@ -108,10 +106,6 @@ jobs:
             esac
           done
 
-          # Write suites.yaml into a dedicated testconfig/ subdirectory.
-          # Keeping it out of the test root prevents the infralib agent framework from
-          # treating it as a cloud agent config (as it does with aws_biz.yaml etc.).
-          # Keeping it out of templates/ makes clear it is not an ArgoCD application template.
           mkdir -p "$TARGET/testconfig"
           {
             echo "suites:"
