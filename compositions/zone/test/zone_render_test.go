@@ -17,7 +17,7 @@ const (
 )
 
 func TestZoneCrossplaneRender(t *testing.T) {
-	t.Logf("Starting tenancy function. Function path: %s", function)
+	t.Logf("Starting tenancy function. Function path %s", function)
 	crossplane.StartCustomFunction(t, function, "9443")
 
 	tmpDir := t.TempDir()
