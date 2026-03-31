@@ -108,6 +108,7 @@ jobs:
               zone)       cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/"
                           cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
               postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
+              cronjob)    cp "$SOURCE/templates/cronjob_test_application.yaml"    "$TARGET/templates/" ;;
             esac
           done
 
@@ -134,6 +135,7 @@ jobs:
             [platform-apis-test-a-apps]="a_test_application.yaml"
             [platform-apis-test-b-apps]="b_test_application.yaml"
             [platform-apis-test-postgresql]="postgresql_test_application.yaml"
+            [platform-apis-test-cronjob]="cronjob_test_application.yaml"
           )
           for chart in $(echo "$BUILT_TESTHELM" | jq -r '.[]'); do
             template="${CHART_TEMPLATE[$chart]}"
