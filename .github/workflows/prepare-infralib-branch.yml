@@ -16,12 +16,12 @@ on:
         description: 'JSON array of test suites to run (e.g. ["zone","postgresql"])'
         required: false
         type: string
-        default: '["zone","a-apps","b-apps","postgresql"]'
+        default: '["zone","a-apps","b-apps","postgresql","cronjob"]'
       built_testhelm:
         description: 'JSON array of testhelm chart names actually built this run (used to pin versions only for built charts)'
         required: false
         type: string
-        default: '["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-postgresql"]'
+        default: '["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-postgresql","platform-apis-test-cronjob"]'
     outputs:
       branch_name:
         description: "The name of the created branch"
