@@ -58,6 +58,8 @@ jobs:
     name: Build ${{ matrix.testhelm }}
     needs: calculate
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -94,3 +96,13 @@ jobs:
         run: |
           helm package ${{ matrix.testhelm }}
           helm push ${{ matrix.testhelm }}-${VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}
+
+      - name: Set package visibility to public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "/orgs/${{ github.repository_owner }}/packages/container/${{ matrix.testhelm }}" \
+            -f visibility=public || true
