@@ -4,6 +4,7 @@ metadata:
   name: test-cronjob
   namespace: test-cronjob
 spec:
+  kind: CronJob
   schedule: "0 * * * *"
   concurrencyPolicy: Allow
   restartPolicy: OnFailure
