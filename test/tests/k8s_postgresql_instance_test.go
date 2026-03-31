@@ -22,9 +22,28 @@ const (
 )
 
 func testPostgresqlInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
-	// Create: wait for instance composite and all provider-managed sub-resources
-	t.Run("instance-create", func(t *testing.T) {
-		verifyInstanceCreation(t, pgNs)
+	//check instance sub-resources creation
+	t.Run("postgresqlinstance-subresources-check", func(t *testing.T) {
+		t.Run("rds-instance", func(t *testing.T) {
+			t.Parallel()
+			waitSyncedAndReadyByLabel(t, pgNs, RdsInstanceKind, PostgresqlInstanceName, 60, 10*time.Second)
+		})
+		t.Run("security-group", func(t *testing.T) {
+			t.Parallel()
+			waitSyncedAndReadyByLabel(t, pgNs, SecurityGroupKind, PostgresqlInstanceName, 60, 10*time.Second)
+		})
+		t.Run("security-group-rules", func(t *testing.T) {
+			t.Parallel()
+			waitSecurityGroupRulesReady(t, pgNs)
+		})
+		t.Run("external-secret", func(t *testing.T) {
+			t.Parallel()
+			waitExternalSecretReady(t, pgNs)
+		})
+		t.Run("provider-config", func(t *testing.T) {
+			t.Parallel()
+			waitResourceExists(t, pgNs, SqlProviderConfigKind, PostgresqlInstanceName+"-providerconfig", 90, 10*time.Second)
+		})
 	})
 	if t.Failed() {
 		return
@@ -42,30 +61,6 @@ func testPostgresqlInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	// Update: patch deletionProtection on the composite and verify it propagates to RDS
 	t.Run("instance-update-deletion-protection", func(t *testing.T) {
 		testDeletionProtectionToggle(t, pgNs)
-	})
-}
-
-func verifyInstanceCreation(t *testing.T, pgNs *terrak8s.KubectlOptions) {
-	t.Helper()
-	t.Run("rds-instance", func(t *testing.T) {
-		t.Parallel()
-		waitSyncedAndReadyByLabel(t, pgNs, RdsInstanceKind, PostgresqlInstanceName, 60, 10*time.Second)
-	})
-	t.Run("security-group", func(t *testing.T) {
-		t.Parallel()
-		waitSyncedAndReadyByLabel(t, pgNs, SecurityGroupKind, PostgresqlInstanceName, 60, 10*time.Second)
-	})
-	t.Run("security-group-rules", func(t *testing.T) {
-		t.Parallel()
-		waitSecurityGroupRulesReady(t, pgNs)
-	})
-	t.Run("external-secret", func(t *testing.T) {
-		t.Parallel()
-		waitExternalSecretReady(t, pgNs)
-	})
-	t.Run("provider-config", func(t *testing.T) {
-		t.Parallel()
-		waitResourceExists(t, pgNs, SqlProviderConfigKind, PostgresqlInstanceName+"-providerconfig", 90, 10*time.Second)
 	})
 }
 

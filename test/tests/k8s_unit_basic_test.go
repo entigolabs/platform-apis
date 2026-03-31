@@ -61,6 +61,33 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 	})
 }
 
+// waitPackagesReady waits for the Crossplane packages (Functions + Configurations) for active suites.
+func waitPackagesReady(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
+	t.Helper()
+	t.Run("packages", func(t *testing.T) {
+		if cfg.Has("zone") {
+			t.Run("zone-configuration", func(t *testing.T) {
+				t.Parallel()
+				waitCrossplanePackageReady(t, cluster, ConfigurationKind, ZoneConfigurationName)
+			})
+			t.Run("tenancy-function", func(t *testing.T) {
+				t.Parallel()
+				waitCrossplanePackageReady(t, cluster, FunctionKind, TenancyFunctionName)
+			})
+		}
+		if cfg.Has("postgresql") {
+			t.Run("postgresql-configuration", func(t *testing.T) {
+				t.Parallel()
+				waitCrossplanePackageReady(t, cluster, ConfigurationKind, PostgresqlConfigurationName)
+			})
+			t.Run("database-function", func(t *testing.T) {
+				t.Parallel()
+				waitCrossplanePackageReady(t, cluster, FunctionKind, DatabaseFunctionName)
+			})
+		}
+	})
+}
+
 func setupKubectlClients(opts *terrak8s.KubectlOptions, envName string) (*terrak8s.KubectlOptions, *terrak8s.KubectlOptions) {
 	argocdNamespace := fmt.Sprintf("argocd-%s", envName)
 	cluster := terrak8s.NewKubectlOptions(opts.ContextName, opts.ConfigPath, "")

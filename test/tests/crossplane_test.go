@@ -12,32 +12,6 @@ import (
 )
 
 // ── Wait helpers ─────────────────────────────────────────────────────────────
-// waitPackagesReady waits for the Crossplane packages (Functions + Configurations) for active suites.
-func waitPackagesReady(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
-	t.Helper()
-	t.Run("packages", func(t *testing.T) {
-		if cfg.Has("zone") {
-			t.Run("zone-configuration", func(t *testing.T) {
-				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, ConfigurationKind, ZoneConfigurationName)
-			})
-			t.Run("tenancy-function", func(t *testing.T) {
-				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, FunctionKind, TenancyFunctionName)
-			})
-		}
-		if cfg.Has("postgresql") {
-			t.Run("postgresql-configuration", func(t *testing.T) {
-				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, ConfigurationKind, PostgresqlConfigurationName)
-			})
-			t.Run("database-function", func(t *testing.T) {
-				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, FunctionKind, DatabaseFunctionName)
-			})
-		}
-	})
-}
 
 // waitSyncedAndReady polls until a Crossplane resource has Synced=True and Ready=True.
 func waitSyncedAndReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, retries int, interval time.Duration) {
