@@ -25,7 +25,7 @@ const (
 )
 
 func TestPostgreSQLCrossplaneRender(t *testing.T) {
-	t.Logf("Starting database function. Function path: %s", function)
+	t.Logf("Starting database function. Function path %s", function)
 	crossplane.StartCustomFunction(t, function, "9443")
 
 	t.Run("Instance", testInstanceCrossplaneRender)

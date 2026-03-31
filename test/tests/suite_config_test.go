@@ -15,7 +15,7 @@ type SuiteConfig struct {
 	Suites []string `yaml:"suites"`
 }
 
-var allSuites = []string{"zone", "postgresql"}
+var allSuites = []string{"zone", "postgresql", "cronjob"}
 
 func loadSuiteConfig() SuiteConfig {
 	data, err := os.ReadFile(suiteConfigFile)

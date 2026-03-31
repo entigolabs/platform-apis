@@ -11,13 +11,11 @@ import (
 )
 
 const (
-	ZoneConfigurationName = "platform-apis-zone"
-	TenancyFunctionName   = "platform-apis-tenancy-fn"
-	ZoneApplicationName   = "app-of-zones"
-	ZoneKind              = "zone.tenancy.entigo.com"
-	NodeGroupKind         = "nodegroup.eks.aws.upbound.io"
-	ZoneAName             = "a"
-	ZoneBName             = "b"
+	ZoneApplicationName = "app-of-zones"
+	ZoneKind            = "zone.tenancy.entigo.com"
+	NodeGroupKind       = "nodegroup.eks.aws.upbound.io"
+	ZoneAName           = "a"
+	ZoneBName           = "b"
 
 	AAppsNamespace       = "a-apps"
 	BAppsNamespace       = "b-apps"

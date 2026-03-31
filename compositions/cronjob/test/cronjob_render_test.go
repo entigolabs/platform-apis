@@ -21,7 +21,7 @@ func TestCronJobCrossplaneRender(t *testing.T) {
 	observed := filepath.Join(tmpDir, "observed.yaml")
 
 	crossplane.AppendYamlToResources(t, env, extra)
-	t.Logf("Starting workload function. Function path %s", function)
+	t.Logf("Starting workload function. Function path: %s", function)
 	crossplane.StartCustomFunction(t, function, "9443")
 
 	t.Log("Rendering...")

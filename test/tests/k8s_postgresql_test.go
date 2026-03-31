@@ -13,10 +13,9 @@ import (
 
 const (
 	// Application / namespace
-	PostgresqlConfigurationName = "platform-apis-postgresql"
-	DatabaseFunctionName        = "platform-apis-database-fn"
-	PostgresqlNamespaceName     = "test-postgresql"
-	PostgresqlApplicationName   = "test-postgresql"
+
+	PostgresqlNamespaceName   = "test-postgresql"
+	PostgresqlApplicationName = "test-postgresql"
 
 	// Users
 	PostgresqlAdminUserName     = "test-owner"

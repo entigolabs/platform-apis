@@ -14,6 +14,23 @@ import (
 const (
 	FunctionKind      = "function.pkg.crossplane.io"
 	ConfigurationKind = "configuration.pkg.crossplane.io"
+
+	CronjobConfigurationName    = "platform-apis-cronjob"
+	KafkaConfigurationName      = "platform-apis-kafka"
+	PostgresqlConfigurationName = "platform-apis-postgresql"
+	RepositoryConfigurationName = "platform-apis-repository"
+	S3BucketConfigurationName   = "platform-apis-s3bucket"
+	ValkeyConfigurationName     = "platform-apis-valkey"
+	WebaccessConfigurationName  = "platform-apis-webaccess"
+	WebappConfigurationName     = "platform-apis-webapp"
+	ZoneConfigurationName       = "platform-apis-zone"
+
+	ArtifactFunctionName   = "platform-apis-artifact-fn"
+	DatabaseFunctionName   = "platform-apis-database-fn"
+	NetwokringFunctionName = "platform-apis-networking-fn"
+	StorageFunctionName    = "platform-apis-storage-fn"
+	TenancyFunctionName    = "platform-apis-tenancy-fn"
+	WorkloadFunctionName   = "platform-apis-workload-fn"
 )
 
 func TestK8sPlatformApisAWSBiz(t *testing.T) {
@@ -45,17 +62,22 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 	}
 
 	t.Run("parallel-tests", func(t *testing.T) {
-		if cfg.Has("zone") {
-			t.Run("zone", func(t *testing.T) {
+		if cfg.Has("cronjob") {
+			t.Run("cronjob", func(t *testing.T) {
 				t.Parallel()
-				testZone(t, cluster)
+				testCronjob(t, cluster, argocd)
 			})
 		}
-
 		if cfg.Has("postgresql") {
 			t.Run("postgresql", func(t *testing.T) {
 				t.Parallel()
 				testPostgresql(t, cluster, argocd)
+			})
+		}
+		if cfg.Has("zone") {
+			t.Run("zone", func(t *testing.T) {
+				t.Parallel()
+				testZone(t, cluster)
 			})
 		}
 	})
@@ -65,26 +87,48 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 func waitPackagesReady(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
 	t.Helper()
 	t.Run("packages", func(t *testing.T) {
-		if cfg.Has("zone") {
-			t.Run("zone-configuration", func(t *testing.T) {
+		if cfg.Has("cronjob") {
+			checkPlatformApisHaveRequiredPackages(t, cluster, CronjobConfigurationName, WorkloadFunctionName)
+		}
+		//  TODO: Update when kafka in go ready
+		if cfg.Has("kafka") {
+			t.Run("kafka-configuration", func(t *testing.T) {
 				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, ConfigurationKind, ZoneConfigurationName)
-			})
-			t.Run("tenancy-function", func(t *testing.T) {
-				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, FunctionKind, TenancyFunctionName)
+				waitCrossplanePackageReady(t, cluster, ConfigurationKind, KafkaConfigurationName)
 			})
 		}
 		if cfg.Has("postgresql") {
-			t.Run("postgresql-configuration", func(t *testing.T) {
-				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, ConfigurationKind, PostgresqlConfigurationName)
-			})
-			t.Run("database-function", func(t *testing.T) {
-				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, FunctionKind, DatabaseFunctionName)
-			})
+			checkPlatformApisHaveRequiredPackages(t, cluster, PostgresqlConfigurationName, DatabaseFunctionName)
 		}
+		if cfg.Has("repository") {
+			checkPlatformApisHaveRequiredPackages(t, cluster, RepositoryConfigurationName, ArtifactFunctionName)
+		}
+		if cfg.Has("s3bucket") {
+			checkPlatformApisHaveRequiredPackages(t, cluster, S3BucketConfigurationName, StorageFunctionName)
+		}
+		if cfg.Has("valkey") {
+			checkPlatformApisHaveRequiredPackages(t, cluster, ValkeyConfigurationName, DatabaseFunctionName)
+		}
+		if cfg.Has("webaccess") {
+			checkPlatformApisHaveRequiredPackages(t, cluster, WebaccessConfigurationName, NetwokringFunctionName)
+		}
+		if cfg.Has("webapp") {
+			checkPlatformApisHaveRequiredPackages(t, cluster, WebappConfigurationName, WorkloadFunctionName)
+		}
+		if cfg.Has("zone") {
+			checkPlatformApisHaveRequiredPackages(t, cluster, ZoneConfigurationName, TenancyFunctionName)
+		}
+	})
+}
+
+func checkPlatformApisHaveRequiredPackages(t *testing.T, cluster *terrak8s.KubectlOptions, configurationName, functionName string) {
+	t.Run("configuration", func(t *testing.T) {
+		t.Parallel()
+		waitCrossplanePackageReady(t, cluster, ConfigurationKind, configurationName)
+	})
+	t.Run("function", func(t *testing.T) {
+		t.Parallel()
+		waitCrossplanePackageReady(t, cluster, FunctionKind, functionName)
 	})
 }
 

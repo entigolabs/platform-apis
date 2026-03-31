@@ -71,7 +71,7 @@ jobs:
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
           echo "any_changes=true" >> $GITHUB_OUTPUT
-          echo 'affected_suites=["zone","postgresql"]' >> $GITHUB_OUTPUT
+          echo 'affected_suites=["zone","postgresql","cronjob"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
         if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -93,6 +93,14 @@ jobs:
               - '!compositions/examples/**'
             helm:
               - 'helm/**'
+            cronjob:
+              - 'compositions/cronjob/**'
+              - 'functions/workload/**'
+              - 'test/tests/helm/platform-apis-test-cronjob/**'
+            postgresql:
+              - 'compositions/postgresql/**'
+              - 'functions/database/**'
+              - 'test/tests/helm/platform-apis-test-postgresql/**'
             zone:
               - 'compositions/zone/**'
               - 'functions/tenancy/**'
@@ -103,10 +111,6 @@ jobs:
               - 'test/tests/helm/platform-apis-test-app/**'
               - 'test/tests/helm/platform-apis-test-a-apps/**'
               - 'test/tests/helm/platform-apis-test-b-apps/**'
-            postgresql:
-              - 'compositions/postgresql/**'
-              - 'functions/database/**'
-              - 'test/tests/helm/platform-apis-test-postgresql/**'
 
       - name: Detect changes
         if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -118,8 +122,9 @@ jobs:
           FUNCS_ANY_CHANGED: ${{ steps.changed-files.outputs.functions_any_changed || 'false' }}
           COMPS_ANY_CHANGED: ${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}
           HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
-          ZONE_CHANGED: ${{ steps.changed-files.outputs.zone_any_changed || 'false' }}
+          CRONJOB_CHANGED: ${{ steps.changed-files.outputs.cronjob_any_changed || 'false' }}
           PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_any_changed || 'false' }}
+          ZONE_CHANGED: ${{ steps.changed-files.outputs.zone_any_changed || 'false' }}
         run: |
           # Functions and compositions lists (used by build/test jobs)
           if [ "$COMMON_LIB_CHANGED" == "true" ]; then
@@ -138,7 +143,7 @@ jobs:
 
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
+          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
             echo "any_changes=true" >> $GITHUB_OUTPUT
           else
             echo "any_changes=false" >> $GITHUB_OUTPUT
@@ -146,36 +151,31 @@ jobs:
 
           # affected_suites: which Go test suites run in infralib.
           # zone is always included — zones are base infrastructure deployed in every run.
-          # a-apps/b-apps added when zone code changed; postgresql added when postgresql code changed.
-          # common_lib or helm changes affect all compositions, so all suites run.
+          # a-apps/b-apps added when common_lib or helm changed (full rebuild).
+          # other suites added when their respective code changed.
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ]; then
-            AFFECTED='["zone","a-apps","b-apps","postgresql"]'
-          elif [ "$ZONE_CHANGED" == "true" ] && [ "$PG_CHANGED" == "true" ]; then
-            AFFECTED='["zone","postgresql"]'
-          elif [ "$ZONE_CHANGED" == "true" ]; then
-            AFFECTED='["zone"]'
-          elif [ "$PG_CHANGED" == "true" ]; then
-            AFFECTED='["postgresql"]'
+            echo 'affected_suites=["cronjob","postgresql","zone","a-apps","b-apps"]' >> $GITHUB_OUTPUT
           else
-            AFFECTED='[]'
+            AFFECTED_LIST=""
+            [ "$CRONJOB_CHANGED" == "true" ] && AFFECTED_LIST="${AFFECTED_LIST}\"cronjob\","
+            [ "$PG_CHANGED" == "true" ]      && AFFECTED_LIST="${AFFECTED_LIST}\"postgresql\","
+            [ "$ZONE_CHANGED" == "true" ]    && AFFECTED_LIST="${AFFECTED_LIST}\"zone\","
+            AFFECTED_LIST="${AFFECTED_LIST%,}"
+            echo "affected_suites=[${AFFECTED_LIST}]" >> $GITHUB_OUTPUT
           fi
-          echo "affected_suites=$AFFECTED" >> $GITHUB_OUTPUT
 
           # testhelm: which test Helm charts to build and push.
           # platform-apis-test-zones always rebuilt — required by every test run.
-          # zone-related charts rebuilt when zone code or their chart source changed (ZONE_CHANGED).
-          # postgresql chart rebuilt when postgresql code or its chart source changed (PG_CHANGED).
+          # zone-related charts rebuilt when zone code changed (ZONE_CHANGED).
+          # postgresql/cronjob charts rebuilt when their code changed.
           # common_lib or helm forces a full rebuild of all charts.
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ]; then
-            TESTHELM='["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-postgresql"]'
-          elif [ "$ZONE_CHANGED" == "true" ] && [ "$PG_CHANGED" == "true" ]; then
-            TESTHELM='["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-postgresql"]'
-          elif [ "$ZONE_CHANGED" == "true" ]; then
-            TESTHELM='["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps"]'
-          elif [ "$PG_CHANGED" == "true" ]; then
-            TESTHELM='["platform-apis-test-zones","platform-apis-test-postgresql"]'
+            echo 'testhelm=["platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps"]' >> $GITHUB_OUTPUT
           else
-            TESTHELM='["platform-apis-test-zones"]'
+            TESTHELM_LIST='"platform-apis-test-zones"'
+            [ "$CRONJOB_CHANGED" == "true" ] && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-cronjob\""
+            [ "$PG_CHANGED" == "true" ]      && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-postgresql\""
+            [ "$ZONE_CHANGED" == "true" ]    && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-app\",\"platform-apis-test-a-apps\",\"platform-apis-test-b-apps\""
+            echo "testhelm=[${TESTHELM_LIST}]" >> $GITHUB_OUTPUT
           fi
-          echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
           echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
