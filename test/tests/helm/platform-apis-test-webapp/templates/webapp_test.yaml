@@ -11,7 +11,7 @@ spec:
       registry: docker.io
       repository: nginx
       tag: alpine
-      env:
+      environment:
         - name: MY_SECRET_VALUE
           value: "test-secret"
           secret: true
