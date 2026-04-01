@@ -53,8 +53,10 @@ func testWebAccessResource(t *testing.T, waNs *terrak8s.KubectlOptions) {
 	}
 
 	// Read: verify VirtualService fields
-	require.Equal(t, "test-webaccess.example.com",
+	require.Equal(t, "test-webapp-service",
 		getField(t, waNs, WebAccessVirtualSvcKind, WebAccessName, ".spec.hosts[0]"))
+	require.Equal(t, "test-webaccess.example.com",
+		getField(t, waNs, WebAccessVirtualSvcKind, WebAccessName, ".spec.hosts[1]"))
 	require.Equal(t, "/",
 		getField(t, waNs, WebAccessVirtualSvcKind, WebAccessName, ".spec.http[0].match[0].uri.prefix"))
 	require.Equal(t, "test-webapp-service",

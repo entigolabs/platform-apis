@@ -11,6 +11,10 @@ spec:
       registry: docker.io
       repository: nginx
       tag: alpine
+      env:
+        - name: MY_SECRET_VALUE
+          value: "test-secret"
+          secret: true
       services:
         - name: http-tcp-80
           port: 80
