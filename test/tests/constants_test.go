@@ -161,4 +161,40 @@ const (
 	S3IAMRoleKind              = "role.iam.aws.m.upbound.io"
 	S3IAMPolicyKind            = "policy.iam.aws.m.upbound.io"
 	S3SecretsManagerSecretKind = "secret.secretsmanager.aws.m.upbound.io"
+
+	// ── Valkey ────────────────────────────────────────────────────────────────
+
+	ValkeyNamespaceName   = "test-valkey"
+	ValkeyApplicationName = "test-valkey"
+
+	ValkeyMinimalName = "test-valkey-minimal"
+	ValkeyCustomName  = "test-valkey-custom"
+
+	ValkeyInstanceKind         = "valkeyinstances.database.entigo.com"
+	ValkeyReplicationGroupKind = "replicationgroup.elasticache.aws.m.upbound.io"
+	ValkeySecretKind           = "secret.secretsmanager.aws.m.upbound.io"
+
+	// ── WebApp ────────────────────────────────────────────────────────────────
+
+	WebAppNamespaceName   = "test-webapp"
+	WebAppApplicationName = "test-webapp"
+
+	WebAppName           = "test-webapp"
+	WebAppDeploymentName = "test-webapp"
+	WebAppServiceName    = "test-webapp-service"
+	WebAppSecretName     = "test-webapp-nginx-secret"
+
+	WebAppKind = "webapps.workload.entigo.com"
+
+	// ── WebAccess ─────────────────────────────────────────────────────────────
+
+	WebAccessNamespaceName   = "test-webaccess"
+	WebAccessApplicationName = "test-webaccess"
+
+	WebAccessName = "test-webaccess"
+
+	WebAccessKind             = "webaccesses.networking.entigo.com"
+	WebAccessVirtualSvcKind   = "virtualservices.networking.istio.io"
+	WebAccessServiceEntryKind = "serviceentries.networking.istio.io"
+	WebAccessDestRuleKind     = "destinationrules.networking.istio.io"
 )

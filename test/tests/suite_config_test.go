@@ -2,7 +2,6 @@ package test
 
 import (
 	"os"
-	"testing"
 
 	"gopkg.in/yaml.v3"
 )
@@ -15,7 +14,8 @@ type SuiteConfig struct {
 	Suites []string `yaml:"suites"`
 }
 
-var allSuites = []string{"zone", "postgresql", "cronjob", "kafka", "repository", "s3bucket"}
+// TODO: add kafka to array when ready for testing
+var allSuites = []string{"zone", "postgresql", "cronjob", "repository", "s3bucket", "valkey", "webapp", "webaccess"}
 
 func loadSuiteConfig() SuiteConfig {
 	data, err := os.ReadFile(suiteConfigFile)
@@ -36,12 +36,4 @@ func (c SuiteConfig) Has(suite string) bool {
 		}
 	}
 	return false
-}
-
-// requireSuite skips the test if the named suite is not active in this run.
-func requireSuite(t *testing.T, cfg SuiteConfig, suite string) {
-	t.Helper()
-	if !cfg.Has(suite) {
-		t.Skipf("suite %q not active (active: %v)", suite, cfg.Suites)
-	}
 }

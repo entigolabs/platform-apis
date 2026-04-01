@@ -71,6 +71,24 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 				testS3Bucket(t, cluster, argocd)
 			})
 		}
+		if cfg.Has("valkey") {
+			t.Run("valkey", func(t *testing.T) {
+				t.Parallel()
+				testValkey(t, cluster, argocd)
+			})
+		}
+		if cfg.Has("webapp") {
+			t.Run("webapp", func(t *testing.T) {
+				t.Parallel()
+				testWebApp(t, cluster, argocd)
+			})
+		}
+		if cfg.Has("webaccess") {
+			t.Run("webaccess", func(t *testing.T) {
+				t.Parallel()
+				testWebAccess(t, cluster, argocd)
+			})
+		}
 		if cfg.Has("zone") {
 			t.Run("zone", func(t *testing.T) {
 				t.Parallel()

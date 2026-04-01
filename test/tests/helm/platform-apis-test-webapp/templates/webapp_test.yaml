@@ -1,0 +1,17 @@
+---
+apiVersion: workload.entigo.com/v1alpha1
+kind: WebApp
+metadata:
+  name: test-webapp
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  containers:
+    - name: nginx
+      registry: docker.io
+      repository: nginx
+      tag: alpine
+      services:
+        - name: http-tcp-80
+          port: 80
+          protocol: TCP

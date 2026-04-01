@@ -16,12 +16,12 @@ on:
         description: 'JSON array of test suites to run (e.g. ["zone","postgresql"])'
         required: false
         type: string
-        default: '["zone","a-apps","b-apps","postgresql","cronjob"]'
+        default: '["zone","a-apps","b-apps","cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp"]'
       built_testhelm:
         description: 'JSON array of testhelm chart names actually built this run (used to pin versions only for built charts)'
         required: false
         type: string
-        default: '["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-postgresql","platform-apis-test-cronjob"]'
+        default: '["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"]'
     outputs:
       branch_name:
         description: "The name of the created branch"
@@ -110,6 +110,9 @@ jobs:
               postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
               repository) cp "$SOURCE/templates/repository_test_application.yaml" "$TARGET/templates/" ;;
               s3bucket)   cp "$SOURCE/templates/s3bucket_test_application.yaml"   "$TARGET/templates/" ;;
+              valkey)     cp "$SOURCE/templates/valkey_test_application.yaml"     "$TARGET/templates/" ;;
+              webaccess)  cp "$SOURCE/templates/webaccess_test_application.yaml"  "$TARGET/templates/" ;;
+              webapp)     cp "$SOURCE/templates/webapp_test_application.yaml"     "$TARGET/templates/" ;;
               zone)       cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/"
                           cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
             esac
@@ -142,6 +145,9 @@ jobs:
             [platform-apis-test-postgresql]="postgresql_test_application.yaml"
             [platform-apis-test-repository]="repository_test_application.yaml"
             [platform-apis-test-s3bucket]="s3bucket_test_application.yaml"
+            [platform-apis-test-valkey]="valkey_test_application.yaml"
+            [platform-apis-test-webaccess]="webaccess_test_application.yaml"
+            [platform-apis-test-webapp]="webapp_test_application.yaml"
           )
           for chart in $(echo "$BUILT_TESTHELM" | jq -r '.[]'); do
             template="${CHART_TEMPLATE[$chart]}"

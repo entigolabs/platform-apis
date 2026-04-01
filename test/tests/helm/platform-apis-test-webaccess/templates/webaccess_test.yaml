@@ -1,0 +1,14 @@
+---
+apiVersion: networking.entigo.com/v1alpha1
+kind: WebAccess
+metadata:
+  name: test-webaccess
+  namespace: {{ .Release.Namespace }}
+spec:
+  domain: "test-webaccess.example.com"
+  paths:
+    - path: "/"
+      host: "test-webapp-service"
+      namespace: {{ .Release.Namespace }}
+      port: 80
+      pathType: "Prefix"
