@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,12 +9,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testCronjob(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+func testCronjob(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	cjNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, CronjobNamespaceName)
 	defer cleanupCronjob(t, cluster, argocd)
 
+	if ctx.Err() != nil {
+		return
+	}
 	applyFile(t, cluster, "./templates/cronjob_test_application.yaml")
 	syncWithRetry(t, argocd, CronjobApplicationName)
+	if ctx.Err() != nil {
+		return
+	}
 
 	t.Run("CronJob", func(t *testing.T) { testCronJobResource(t, cjNs) })
 }

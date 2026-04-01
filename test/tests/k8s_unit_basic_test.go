@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -39,61 +40,49 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 		t.Fatal("Zones deployment failed. Can not run tests.")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	t.Run("parallel-tests", func(t *testing.T) {
-		if cfg.Has("cronjob") {
-			t.Run("cronjob", func(t *testing.T) {
+		runSuite := func(name string, fn func(*testing.T, context.Context)) {
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				testCronjob(t, cluster, argocd)
+				defer func() {
+					if t.Failed() {
+						cancel()
+					}
+				}()
+				fn(t, ctx)
 			})
+		}
+
+		if cfg.Has("cronjob") {
+			runSuite("cronjob", func(t *testing.T, ctx context.Context) { testCronjob(t, ctx, cluster, argocd) })
 		}
 		//TODO: Kafka tests placeholder. Currently disabled as kafka function work in progress
 		/*if cfg.Has("kafka") {
-			t.Run("kafka", func(t *testing.T) {
-				t.Parallel()
-				testKafka(t, cluster, argocd)
-			})
+			runSuite("kafka", func(t *testing.T, ctx context.Context) { testKafka(t, ctx, cluster, argocd) })
 		}*/
 		if cfg.Has("postgresql") {
-			t.Run("postgresql", func(t *testing.T) {
-				t.Parallel()
-				testPostgresql(t, cluster, argocd)
-			})
+			runSuite("postgresql", func(t *testing.T, ctx context.Context) { testPostgresql(t, ctx, cluster, argocd) })
 		}
 		if cfg.Has("repository") {
-			t.Run("repository", func(t *testing.T) {
-				t.Parallel()
-				testRepository(t, cluster, argocd)
-			})
+			runSuite("repository", func(t *testing.T, ctx context.Context) { testRepository(t, ctx, cluster, argocd) })
 		}
 		if cfg.Has("s3bucket") {
-			t.Run("s3bucket", func(t *testing.T) {
-				t.Parallel()
-				testS3Bucket(t, cluster, argocd)
-			})
+			runSuite("s3bucket", func(t *testing.T, ctx context.Context) { testS3Bucket(t, ctx, cluster, argocd) })
 		}
 		if cfg.Has("valkey") {
-			t.Run("valkey", func(t *testing.T) {
-				t.Parallel()
-				testValkey(t, cluster, argocd)
-			})
+			runSuite("valkey", func(t *testing.T, ctx context.Context) { testValkey(t, ctx, cluster, argocd) })
 		}
 		if cfg.Has("webapp") {
-			t.Run("webapp", func(t *testing.T) {
-				t.Parallel()
-				testWebApp(t, cluster, argocd)
-			})
+			runSuite("webapp", func(t *testing.T, ctx context.Context) { testWebApp(t, ctx, cluster, argocd) })
 		}
 		if cfg.Has("webaccess") {
-			t.Run("webaccess", func(t *testing.T) {
-				t.Parallel()
-				testWebAccess(t, cluster, argocd)
-			})
+			runSuite("webaccess", func(t *testing.T, ctx context.Context) { testWebAccess(t, ctx, cluster, argocd) })
 		}
 		if cfg.Has("zone") {
-			t.Run("zone", func(t *testing.T) {
-				t.Parallel()
-				testZone(t, cluster)
-			})
+			runSuite("zone", func(t *testing.T, ctx context.Context) { testZone(t, ctx, cluster) })
 		}
 	})
 }

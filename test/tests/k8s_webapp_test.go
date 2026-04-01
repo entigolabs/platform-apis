@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,12 +11,18 @@ import (
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 
-func testWebApp(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+func testWebApp(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	waNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, WebAppNamespaceName)
 	defer cleanupWebApp(t, cluster, argocd)
 
+	if ctx.Err() != nil {
+		return
+	}
 	applyFile(t, cluster, "./templates/webapp_test_application.yaml")
 	syncWithRetry(t, argocd, WebAppApplicationName)
+	if ctx.Err() != nil {
+		return
+	}
 
 	t.Run("WebApp", func(t *testing.T) { testWebAppResource(t, waNs) })
 }

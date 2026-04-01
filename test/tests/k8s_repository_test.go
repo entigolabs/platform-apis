@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,12 +11,18 @@ import (
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 
-func testRepository(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+func testRepository(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	repoNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, RepositoryNamespaceName)
 	defer cleanupRepository(t, cluster, argocd)
 
+	if ctx.Err() != nil {
+		return
+	}
 	applyFile(t, cluster, "./templates/repository_test_application.yaml")
 	syncWithRetry(t, argocd, RepositoryApplicationName)
+	if ctx.Err() != nil {
+		return
+	}
 
 	t.Run("repositories", func(t *testing.T) {
 		t.Run("MinimalRepository", func(t *testing.T) { t.Parallel(); testMinimalRepository(t, repoNs) })

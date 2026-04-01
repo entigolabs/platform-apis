@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -16,12 +17,18 @@ func kafkaSCRAMName() string     { return KafkaClusterName + "-" + KafkaUserName
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 
-func testKafka(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+func testKafka(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	kfNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KafkaNamespaceName)
 	defer cleanupKafka(t, cluster, argocd)
 
+	if ctx.Err() != nil {
+		return
+	}
 	applyFile(t, cluster, "./templates/kafka_test_application.yaml")
 	syncWithRetry(t, argocd, KafkaApplicationName)
+	if ctx.Err() != nil {
+		return
+	}
 
 	t.Run("MSKObserver", func(t *testing.T) { testMSKObserver(t, cluster) })
 	if t.Failed() {

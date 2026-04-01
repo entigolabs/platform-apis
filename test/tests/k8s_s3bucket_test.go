@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,12 +11,18 @@ import (
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 
-func testS3Bucket(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+func testS3Bucket(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	s3Ns := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, S3BucketNamespaceName)
 	defer cleanupS3Bucket(t, cluster, argocd)
 
+	if ctx.Err() != nil {
+		return
+	}
 	applyFile(t, cluster, "./templates/s3bucket_test_application.yaml")
 	syncWithRetry(t, argocd, S3BucketApplicationName)
+	if ctx.Err() != nil {
+		return
+	}
 
 	t.Run("buckets", func(t *testing.T) {
 		t.Run("MinimalS3Bucket", func(t *testing.T) { t.Parallel(); testMinimalS3Bucket(t, s3Ns) })

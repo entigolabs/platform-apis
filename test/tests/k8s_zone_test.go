@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -10,7 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testZone(t *testing.T, cluster *terrak8s.KubectlOptions) {
+func testZone(t *testing.T, ctx context.Context, cluster *terrak8s.KubectlOptions) {
+	if ctx.Err() != nil {
+		return
+	}
 	testZoneApps(t, cluster)
 }
 

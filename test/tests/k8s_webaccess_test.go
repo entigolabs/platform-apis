@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -12,12 +13,18 @@ import (
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 
-func testWebAccess(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+func testWebAccess(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	waNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, WebAccessNamespaceName)
 	defer cleanupWebAccess(t, cluster, argocd)
 
+	if ctx.Err() != nil {
+		return
+	}
 	applyFile(t, cluster, "./templates/webaccess_test_application.yaml")
 	syncWithRetry(t, argocd, WebAccessApplicationName)
+	if ctx.Err() != nil {
+		return
+	}
 
 	t.Run("WebAccess", func(t *testing.T) { testWebAccessResource(t, waNs) })
 }

@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -13,12 +14,18 @@ import (
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 
-func testPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+func testPostgresql(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 	defer cleanupPostgresql(t, cluster, argocd)
 
+	if ctx.Err() != nil {
+		return
+	}
 	applyFile(t, cluster, "./templates/postgresql_test_application.yaml")
 	syncWithRetry(t, argocd, PostgresqlApplicationName)
+	if ctx.Err() != nil {
+		return
+	}
 
 	t.Run("Instance", func(t *testing.T) { testInstance(t, pgNs) })
 	if t.Failed() {

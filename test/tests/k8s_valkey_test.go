@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,12 +11,18 @@ import (
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 
-func testValkey(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+func testValkey(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	vkNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, ValkeyNamespaceName)
 	defer cleanupValkey(t, cluster, argocd)
 
+	if ctx.Err() != nil {
+		return
+	}
 	applyFile(t, cluster, "./templates/valkey_test_application.yaml")
 	syncWithRetry(t, argocd, ValkeyApplicationName)
+	if ctx.Err() != nil {
+		return
+	}
 
 	t.Run("instances", func(t *testing.T) {
 		t.Run("MinimalValkeyInstance", func(t *testing.T) { t.Parallel(); testMinimalValkeyInstance(t, vkNs) })
