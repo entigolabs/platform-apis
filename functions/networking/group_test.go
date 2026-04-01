@@ -32,7 +32,6 @@ func TestWebAccessFunction(t *testing.T) {
 	environmentData := map[string]interface{}{
 		"istioGateway": "generic-gw-int",
 	}
-	ns := "test"
 
 	cases := map[string]test.Case{
 		"CreateWebAccessObjects": {
@@ -43,10 +42,6 @@ func TestWebAccessFunction(t *testing.T) {
 						Composite: &fnv1.Resource{
 							Resource: webAccessResource,
 						},
-					},
-					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 					},
 				},
 			},
@@ -72,17 +67,13 @@ func TestWebAccessFunction(t *testing.T) {
 							`)},
 						},
 					},
-					Requirements: &fnv1.Requirements{
-						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
-						},
-					},
 				},
 			},
 		},
 	}
 
+	test.AddEnvironmentConfig(cases, environmentName, environmentData)
+	test.AddZoneResources(cases, "test", "zone-a")
 	newService := func() base.GroupService {
 		return &GroupImpl{}
 	}

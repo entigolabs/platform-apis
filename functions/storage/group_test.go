@@ -96,13 +96,11 @@ const (
 	credentialsResJson             = `{"apiVersion":"v1","kind":"Secret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s-credentials","namespace":"default"},"stringData":{"AWS_ACCESS_KEY_ID":"AKIAIOSFODNN7EXAMPLE","AWS_SECRET_ACCESS_KEY":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY","BUCKET_ARN":"arn:aws:s3:::%s","BUCKET_NAME":"%s","BUCKET_REGION":"eu-north-1","credentials.json":"{\"AWS_ACCESS_KEY_ID\": \"AKIAIOSFODNN7EXAMPLE\", \"AWS_SECRET_ACCESS_KEY\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\", \"BUCKET_REGION\": \"eu-north-1\", \"BUCKET_ARN\": \"arn:aws:s3:::%s\", \"BUCKET_NAME\": \"%s\"}"},"type":"Opaque"}`
 )
 
-func allRequiredResources(awsProvider string, environmentData map[string]interface{}) map[string]*fnv1.Resources {
+func allRequiredResources(awsProvider string) map[string]*fnv1.Resources {
 	return map[string]*fnv1.Resources{
-		base.EnvironmentKey:  test.EnvironmentConfigResourceWithData(environmentName, environmentData),
 		service.EKSKey:       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredEKSJson)}}},
 		service.KMSDataKey:   test.KMSKeyResource("data", awsProvider, "mrk-data123"),
 		service.KMSConfigKey: test.KMSKeyResource("config", awsProvider, "mrk-config456"),
-		base.NamespaceKey:    test.Namespace("default", "zone-a"),
 	}
 }
 
@@ -155,7 +153,6 @@ func allObservedComposedResources() map[string]*fnv1.Resource {
 func expectedRequirements(awsProvider string, environmentData map[string]interface{}) *fnv1.Requirements {
 	return &fnv1.Requirements{
 		Resources: map[string]*fnv1.ResourceSelector{
-			base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
 			service.EKSKey: {
 				Kind:       "Cluster",
 				ApiVersion: "eks.aws.m.upbound.io/v1beta1",
@@ -164,11 +161,6 @@ func expectedRequirements(awsProvider string, environmentData map[string]interfa
 			},
 			service.KMSDataKey:   base.RequiredKMSKey(environmentData["dataKMSKey"].(string), awsProvider),
 			service.KMSConfigKey: base.RequiredKMSKey(environmentData["configKMSKey"].(string), awsProvider),
-			base.NamespaceKey: {
-				Kind:       "Namespace",
-				ApiVersion: "v1",
-				Match:      &fnv1.ResourceSelector_MatchName{MatchName: "default"},
-			},
 		},
 	}
 }
@@ -235,9 +227,6 @@ func TestS3BucketPhaseTwo(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: xr},
 					},
-					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-					},
 				},
 			},
 			Want: test.Want{
@@ -248,6 +237,9 @@ func TestS3BucketPhaseTwo(t *testing.T) {
 			},
 		},
 	}
+
+	test.AddEnvironmentConfig(cases, environmentName, environmentData)
+	test.AddZoneResources(cases, "default", "zone-a")
 	test.RunFunctionCases(t, func() base.GroupService { return &GroupImpl{} }, cases)
 }
 
@@ -277,7 +269,7 @@ func TestS3BucketGeneration(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketJson)},
 						Resources: allObservedComposedResources(),
 					},
-					RequiredResources: allRequiredResources(awsProvider, environmentData),
+					RequiredResources: allRequiredResources(awsProvider),
 				},
 			},
 			Want: test.Want{
@@ -298,7 +290,7 @@ func TestS3BucketGeneration(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketNoSAJson)},
 						Resources: allObservedComposedResources(),
 					},
-					RequiredResources: allRequiredResources(awsProvider, environmentData),
+					RequiredResources: allRequiredResources(awsProvider),
 				},
 			},
 			Want: test.Want{
@@ -318,7 +310,7 @@ func TestS3BucketGeneration(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketJson)},
 					},
-					RequiredResources: allRequiredResources(awsProvider, environmentData),
+					RequiredResources: allRequiredResources(awsProvider),
 				},
 			},
 			Want: test.Want{
@@ -339,7 +331,7 @@ func TestS3BucketGeneration(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(s3bucketCustomSAJson)},
 						Resources: allObservedComposedResources(),
 					},
-					RequiredResources: allRequiredResources(awsProvider, environmentData),
+					RequiredResources: allRequiredResources(awsProvider),
 				},
 			},
 			Want: test.Want{
@@ -353,5 +345,8 @@ func TestS3BucketGeneration(t *testing.T) {
 			},
 		},
 	}
+
+	test.AddEnvironmentConfig(cases, environmentName, environmentData)
+	test.AddZoneResources(cases, "default", "zone-a")
 	test.RunFunctionCases(t, func() base.GroupService { return &GroupImpl{} }, cases)
 }

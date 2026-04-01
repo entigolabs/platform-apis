@@ -10,17 +10,23 @@ import (
 )
 
 const (
-	AppLabel              = "app"
-	ResourceLabel         = "entigo.com/resource"
-	ResourceKindLabel     = "entigo.com/resource-kind"
-	EnvironmentKey        = "Environment"
-	EnvironmentKind       = "EnvironmentConfig"
-	EnvironmentApiVersion = "apiextensions.crossplane.io/v1beta1"
-	KMSKeyKind            = "Key"
-	KMSKeyApiVersion      = "kms.aws.m.upbound.io/v1beta1"
-	NamespaceKey          = "Namespace"
-	TenancyZoneLabel      = "tenancy.entigo.com/zone"
-	TenancyZoneAWSTag     = "entigo:zone"
+	AppLabel               = "app"
+	ResourceLabel          = "entigo.com/resource"
+	ResourceKindLabel      = "entigo.com/resource-kind"
+	EnvironmentKey         = "Environment"
+	EnvironmentKind        = "EnvironmentConfig"
+	EnvironmentApiVersion  = "apiextensions.crossplane.io/v1beta1"
+	KMSKeyKind             = "Key"
+	KMSKeyApiVersion       = "kms.aws.m.upbound.io/v1beta1"
+	NamespaceKey           = "Namespace"
+	TenancyApiVersion      = "tenancy.entigo.com/v1alpha1"
+	ZoneKey                = "Zone"
+	ZoneEnvKey             = "ZoneEnvironment"
+	ZoneEnvName            = "platform-apis-zone"
+	TenancyZoneLabel       = "tenancy.entigo.com/zone"
+	TenancyZoneAWSTag      = "entigo:zone"
+	TenancyWorkspaceLabel  = "tenancy.entigo.com/workspace"
+	TenancyWorkspaceAWSTag = "entigo:workspace"
 )
 
 type ResourceHandler struct {

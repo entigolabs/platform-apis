@@ -114,8 +114,7 @@ func TestWorkloadFunction(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
+						base.ZoneKey: test.ZoneWithMetadata("zone-a", map[string]interface{}{base.TagsPrefix + "foo": "bar"}, nil),
 					},
 				},
 			},
@@ -124,16 +123,18 @@ func TestWorkloadFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"web-app-service":             {Resource: resource.MustStructJSON(webAppServiceJson)},
-							"web-app-nginx-secret":        {Resource: resource.MustStructJSON(webAppContainerSecretJson)},
-							"web-app-init-busybox-secret": {Resource: resource.MustStructJSON(webAppInitContainerSecretJson)},
-							"web-app":                     {Resource: resource.MustStructJSON(deploymentJson)},
-						},
-					},
-					Requirements: &fnv1.Requirements{
-						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
+							"web-app-service": {Resource: resource.MustStructJSON(`
+{"apiVersion":"v1","kind":"Service","metadata":{"labels":{"tags.entigo.com/foo":"bar","tenancy.entigo.com/zone":"zone-a"},"name":"web-app-service","namespace":"test"},"spec":{"ports":[{"name":"http-tcp-80","port":80,"protocol":"TCP","targetPort":80},{"name":"http-tcp-443","port":443,"protocol":"TCP","targetPort":443}],"selector":{"app":"web-app"}},"status":{"loadBalancer":{}}}
+							`)},
+							"web-app-nginx-secret": {Resource: resource.MustStructJSON(`
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"labels":{"tags.entigo.com/foo":"bar","tenancy.entigo.com/zone":"zone-a"},"name":"web-app-nginx-secret","namespace":"test"},"type":"Opaque"}
+							`)},
+							"web-app-init-busybox-secret": {Resource: resource.MustStructJSON(`
+{"apiVersion":"v1","data":{"NEW_SECRET":"U0VDUkVUX1ZBTFVF"},"kind":"Secret","metadata":{"labels":{"tags.entigo.com/foo":"bar","tenancy.entigo.com/zone":"zone-a"},"name":"web-app-init-busybox-secret","namespace":"test"},"type":"Opaque"}
+							`)},
+							"web-app": {Resource: resource.MustStructJSON(`
+{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp","tags.entigo.com/foo":"bar","tenancy.entigo.com/zone":"zone-a"},"name":"web-app","namespace":"test"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"web-app"}},"strategy":{},"template":{"metadata":{"labels":{"app":"web-app","entigo.com/resource":"web-app","entigo.com/resource-kind":"WebApp","tags.entigo.com/foo":"bar","tenancy.entigo.com/zone":"zone-a"}},"spec":{"containers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-nginx-secret"}}],"image":"docker.io/nginx:latest","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/","port":"http-tcp-80"},"periodSeconds":10,"successThreshold":1,"terminationGracePeriodSeconds":30,"timeoutSeconds":1},"name":"nginx","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}],"initContainers":[{"env":[{"name":"NEW_ENV","value":"ENV_VALUE"}],"envFrom":[{"secretRef":{"name":"web-app-init-busybox-secret"}}],"image":"docker.io/busybox:latest","name":"init-busybox","resources":{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"125m","memory":"102Mi"}}}]}}},"status":{}}
+							`)},
 						},
 					},
 				},
@@ -148,10 +149,6 @@ func TestWorkloadFunction(t *testing.T) {
 							Resource: webAppResourceNoService,
 						},
 					},
-					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
-					},
 				},
 			},
 			Want: test.Want{
@@ -162,12 +159,6 @@ func TestWorkloadFunction(t *testing.T) {
 							"web-app-nginx-secret":        {Resource: resource.MustStructJSON(webAppContainerSecretJson)},
 							"web-app-init-busybox-secret": {Resource: resource.MustStructJSON(webAppInitContainerSecretJson)},
 							"web-app":                     {Resource: resource.MustStructJSON(deploymentJson)},
-						},
-					},
-					Requirements: &fnv1.Requirements{
-						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
 						},
 					},
 				},
@@ -184,7 +175,6 @@ func TestWorkloadFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, optEnvironmentData),
-						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 					},
 				},
 			},
@@ -201,12 +191,6 @@ func TestWorkloadFunction(t *testing.T) {
 							`)},
 						},
 					},
-					Requirements: &fnv1.Requirements{
-						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
-						},
-					},
 				},
 			},
 		},
@@ -218,10 +202,6 @@ func TestWorkloadFunction(t *testing.T) {
 						Composite: &fnv1.Resource{
 							Resource: cronJobResource,
 						},
-					},
-					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 					},
 				},
 			},
@@ -238,12 +218,6 @@ func TestWorkloadFunction(t *testing.T) {
 							`)},
 						},
 					},
-					Requirements: &fnv1.Requirements{
-						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
-						},
-					},
 				},
 			},
 		},
@@ -258,7 +232,6 @@ func TestWorkloadFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, optEnvironmentData),
-						base.NamespaceKey:   test.Namespace(ns, "zone-a"),
 					},
 				},
 			},
@@ -275,17 +248,13 @@ func TestWorkloadFunction(t *testing.T) {
 							`)},
 						},
 					},
-					Requirements: &fnv1.Requirements{
-						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
-						},
-					},
 				},
 			},
 		},
 	}
 
+	test.AddEnvironmentConfig(cases, environmentName, environmentData)
+	test.AddZoneResources(cases, ns, "zone-a")
 	newService := func() base.GroupService {
 		return &GroupImpl{}
 	}

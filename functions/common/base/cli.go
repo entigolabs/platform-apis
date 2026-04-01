@@ -9,6 +9,7 @@ type CLI struct {
 	Address     string `help:"Address at which to listen for gRPC connections." default:":9443"`
 	TLSCertsDir string `help:"Directory containing server certs (tls.key, tls.crt) and the CA used to verify client certificates (ca.crt)" env:"TLS_SERVER_CERTS_DIR"`
 	Insecure    bool   `help:"Run without mTLS credentials. If you supply this flag --tls-server-certs-dir will be ignored."`
+	Workspace   string `help:"Entigo Platform Workspace" env:"WORKSPACE"`
 }
 
 func (c *CLI) Run(service GroupService) error {
@@ -17,7 +18,7 @@ func (c *CLI) Run(service GroupService) error {
 		return err
 	}
 	service.SetLogger(log)
-	return function.Serve(&Function{log: log, groupService: service},
+	return function.Serve(NewFunction(log, service, c.Workspace),
 		function.Listen(c.Network, c.Address),
 		function.MTLSCertificates(c.TLSCertsDir),
 		function.Insecure(c.Insecure))

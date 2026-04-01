@@ -2,22 +2,14 @@ apiVersion: workload.entigo.com/v1alpha1
 kind: WebApp
 metadata:
   name: new-web-app
-  namespace: default
 spec:
   replicas: 1
   restartPolicy: "Always"
   containers:
-    - environment:
-        - name: NEW_ENV
-          secret: false
-          value: ENV_VALUE
-        - name: NEW_SECRET
-          secret: true
-          value: SECRET_VALUE
-      name: nginx
+    - name: nginx
       registry: 1234567890.dkr.ecr.eu-north-1.amazonaws.com
       repository: nginx
-      tag: mainline-alpine
+      tag: mainline-alpine-slim
       resources:
         limits:
           cpu: 0.25

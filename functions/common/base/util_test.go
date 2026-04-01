@@ -1,4 +1,4 @@
-package base
+package base_test
 
 import (
 	"errors"
@@ -7,6 +7,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
+	"github.com/entigolabs/function-base/base"
+	basetest "github.com/entigolabs/function-base/test"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -131,7 +133,7 @@ func TestGetCrossplaneReadyStatus(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			if got := GetCrossplaneReadyStatus(tc.observed); !cmp.Equal(got, tc.want, cmpopts.EquateEmpty()) {
+			if got := base.GetCrossplaneReadyStatus(tc.observed); !cmp.Equal(got, tc.want, cmpopts.EquateEmpty()) {
 				t.Errorf("%s: GetCrossplaneReadyStatus() = %v, want %v", name, got, tc.want)
 			}
 		})
@@ -193,7 +195,7 @@ func TestGenerateEligibleKubernetesName(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := GenerateEligibleKubernetesName(tc.input, tc.limit)
+			got := base.GenerateEligibleKubernetesName(tc.input, tc.limit)
 			if got != tc.want {
 				t.Errorf("GenerateEligibleKubernetesName(%q, %d) = %q, want %q", tc.input, tc.limit, got, tc.want)
 			}
@@ -201,7 +203,7 @@ func TestGenerateEligibleKubernetesName(t *testing.T) {
 	}
 }
 
-// testEnvConfig is a minimal Validatable used by GetEnvironment tests.
+// testEnvConfig is a minimal base.Validatable used by GetEnvironment tests.
 type testEnvConfig struct {
 	Name   string   `json:"name"`
 	Region string   `json:"region"`
@@ -213,16 +215,6 @@ func (c *testEnvConfig) Validate() error {
 		return errors.New("name is required")
 	}
 	return nil
-}
-
-func requiredResource(data map[string]interface{}) resource.Required {
-	return resource.Required{
-		Resource: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"data": data,
-			},
-		},
-	}
 }
 
 func TestGetEnvironment(t *testing.T) {
@@ -237,27 +229,27 @@ func TestGetEnvironment(t *testing.T) {
 		},
 		"SingleResourcePopulatesFields": {
 			resources: []resource.Required{
-				requiredResource(map[string]interface{}{"name": "foo", "region": "us-east-1"}),
+				basetest.RequiredResource(map[string]interface{}{"name": "foo", "region": "us-east-1"}),
 			},
 			want: testEnvConfig{Name: "foo", Region: "us-east-1"},
 		},
 		"MultipleResourcesMergeNonOverlappingKeys": {
 			resources: []resource.Required{
-				requiredResource(map[string]interface{}{"name": "foo"}),
-				requiredResource(map[string]interface{}{"region": "eu-west-1"}),
+				basetest.RequiredResource(map[string]interface{}{"name": "foo"}),
+				basetest.RequiredResource(map[string]interface{}{"region": "eu-west-1"}),
 			},
 			want: testEnvConfig{Name: "foo", Region: "eu-west-1"},
 		},
 		"MultipleResourcesAppendSlices": {
 			resources: []resource.Required{
-				requiredResource(map[string]interface{}{"name": "foo", "items": []interface{}{"a"}}),
-				requiredResource(map[string]interface{}{"items": []interface{}{"b"}}),
+				basetest.RequiredResource(map[string]interface{}{"name": "foo", "items": []interface{}{"a"}}),
+				basetest.RequiredResource(map[string]interface{}{"items": []interface{}{"b"}}),
 			},
 			want: testEnvConfig{Name: "foo", Items: []string{"a", "b"}},
 		},
 		"ValidationFailureReturnsError": {
 			resources: []resource.Required{
-				requiredResource(map[string]interface{}{"region": "us-east-1"}),
+				basetest.RequiredResource(map[string]interface{}{"region": "us-east-1"}),
 			},
 			wantErr: true,
 		},
@@ -267,7 +259,7 @@ func TestGetEnvironment(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			required := map[string][]resource.Required{"env": tc.resources}
 			got := &testEnvConfig{}
-			err := GetEnvironment("env", required, got)
+			err := base.GetEnvironment("env", required, got)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("GetEnvironment() error = %v, wantErr %v", err, tc.wantErr)
 				return
@@ -284,21 +276,6 @@ func TestGetEnvironment(t *testing.T) {
 func TestGetTenancyZone(t *testing.T) {
 	log := logging.NewNopLogger()
 
-	namespaceResource := func(labels map[string]interface{}) resource.Required {
-		return resource.Required{
-			Resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "v1",
-					"kind":       "Namespace",
-					"metadata": map[string]interface{}{
-						"name":   "test-ns",
-						"labels": labels,
-					},
-				},
-			},
-		}
-	}
-
 	cases := map[string]struct {
 		required map[string][]resource.Required
 		want     string
@@ -309,19 +286,19 @@ func TestGetTenancyZone(t *testing.T) {
 		},
 		"NamespaceWithNoLabelsReturnsEmpty": {
 			required: map[string][]resource.Required{
-				NamespaceKey: {namespaceResource(map[string]interface{}{})},
+				base.NamespaceKey: {basetest.RequiredNamespace(nil)},
 			},
 			want: "",
 		},
 		"NamespaceWithoutZoneLabelReturnsEmpty": {
 			required: map[string][]resource.Required{
-				NamespaceKey: {namespaceResource(map[string]interface{}{"other-label": "value"})},
+				base.NamespaceKey: {basetest.RequiredNamespace(map[string]string{"other-label": "value"})},
 			},
 			want: "",
 		},
 		"NamespaceWithZoneLabelReturnsZone": {
 			required: map[string][]resource.Required{
-				NamespaceKey: {namespaceResource(map[string]interface{}{TenancyZoneLabel: "my-zone"})},
+				base.NamespaceKey: {basetest.RequiredNamespace(map[string]string{base.TenancyZoneLabel: "my-zone"})},
 			},
 			want: "my-zone",
 		},
@@ -329,9 +306,183 @@ func TestGetTenancyZone(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := GetTenancyZone(tc.required, log)
+			got := base.GetTenancyZone(tc.required, log)
 			if got != tc.want {
 				t.Errorf("GetTenancyZone() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGetResourceTags(t *testing.T) {
+	log := logging.NewNopLogger()
+	const zone = "my-zone"
+
+	cases := map[string]struct {
+		composite  *resource.Composite
+		required   map[string][]resource.Required
+		wantTags   map[string]string
+		wantLabels map[string]string
+		wantZone   string
+	}{
+		// No zone: only CR labels and annotations are used.
+		"NoZone_CRLabelsAndAnnotations": {
+			composite: basetest.CompositeResource("cr", "ns",
+				map[string]string{base.TagsPrefix + "CRTag": "cr-val"},
+				map[string]string{base.TagsPrefix + "CRAnnotation": "cr-ann-val"},
+			),
+			required: map[string][]resource.Required{
+				base.NamespaceKey: {basetest.RequiredNamespace(nil)},
+			},
+			wantZone:   "",
+			wantTags:   map[string]string{"CRTag": "cr-val", "CRAnnotation": "cr-ann-val"},
+			wantLabels: map[string]string{base.TagsPrefix + "CRTag": "cr-val"},
+		},
+		// Zone env config is the lowest-priority source.
+		"WithZone_ZoneEnvConfigBase": {
+			composite: basetest.CompositeResource("cr", "ns", nil, nil),
+			required: map[string][]resource.Required{
+				base.NamespaceKey: {basetest.RequiredNamespace(map[string]string{base.TenancyZoneLabel: zone})},
+				base.ZoneEnvKey:   {basetest.RequiredEnvTags(map[string]string{"EnvTag": "from-env-config"})},
+				base.ZoneKey:      {basetest.RequiredZoneObject(nil, nil)},
+			},
+			wantZone:   zone,
+			wantTags:   map[string]string{"EnvTag": "from-env-config"},
+			wantLabels: map[string]string{},
+		},
+		// Zone label overrides zone env config for the same key.
+		"WithZone_ZoneLabelOverridesEnvConfig": {
+			composite: basetest.CompositeResource("cr", "ns", nil, nil),
+			required: map[string][]resource.Required{
+				base.NamespaceKey: {basetest.RequiredNamespace(map[string]string{base.TenancyZoneLabel: zone})},
+				base.ZoneEnvKey:   {basetest.RequiredEnvTags(map[string]string{"Env": "from-env-config"})},
+				base.ZoneKey:      {basetest.RequiredZoneObject(map[string]string{base.TagsPrefix + "Env": "from-zone-label"}, nil)},
+			},
+			wantZone:   zone,
+			wantTags:   map[string]string{"Env": "from-zone-label"},
+			wantLabels: map[string]string{base.TagsPrefix + "Env": "from-zone-label"},
+		},
+		// CR label overrides zone label for the same key.
+		"WithZone_CRLabelOverridesZoneLabel": {
+			composite: basetest.CompositeResource("cr", "ns",
+				map[string]string{base.TagsPrefix + "Env": "from-cr-label"},
+				nil,
+			),
+			required: map[string][]resource.Required{
+				base.NamespaceKey: {basetest.RequiredNamespace(map[string]string{base.TenancyZoneLabel: zone})},
+				base.ZoneKey:      {basetest.RequiredZoneObject(map[string]string{base.TagsPrefix + "Env": "from-zone-label"}, nil)},
+			},
+			wantZone:   zone,
+			wantTags:   map[string]string{"Env": "from-cr-label"},
+			wantLabels: map[string]string{base.TagsPrefix + "Env": "from-cr-label"},
+		},
+		// CR annotation overrides CR label in tags; the original label value is preserved in labels.
+		"WithZone_CRAnnotationOverridesCRLabelInTags": {
+			composite: basetest.CompositeResource("cr", "ns",
+				map[string]string{base.TagsPrefix + "Env": "from-cr-label"},
+				map[string]string{base.TagsPrefix + "Env": "from-cr-annotation"},
+			),
+			required: map[string][]resource.Required{
+				base.NamespaceKey: {basetest.RequiredNamespace(map[string]string{base.TenancyZoneLabel: zone})},
+				base.ZoneKey:      {basetest.RequiredZoneObject(nil, nil)},
+			},
+			wantZone:   zone,
+			wantTags:   map[string]string{"Env": "from-cr-annotation"},
+			wantLabels: map[string]string{base.TagsPrefix + "Env": "from-cr-label"},
+		},
+		// Full hierarchy: each level contributes a distinct key.
+		"WithZone_FullHierarchy": {
+			composite: basetest.CompositeResource("cr", "ns",
+				map[string]string{base.TagsPrefix + "CRTag": "from-cr"},
+				nil,
+			),
+			required: map[string][]resource.Required{
+				base.NamespaceKey: {basetest.RequiredNamespace(map[string]string{base.TenancyZoneLabel: zone})},
+				base.ZoneEnvKey:   {basetest.RequiredEnvTags(map[string]string{"EnvTag": "from-env-config"})},
+				base.ZoneKey:      {basetest.RequiredZoneObject(map[string]string{base.TagsPrefix + "ZoneTag": "from-zone"}, nil)},
+			},
+			wantZone: zone,
+			wantTags: map[string]string{
+				"EnvTag":  "from-env-config",
+				"ZoneTag": "from-zone",
+				"CRTag":   "from-cr",
+			},
+			wantLabels: map[string]string{
+				base.TagsPrefix + "ZoneTag": "from-zone",
+				base.TagsPrefix + "CRTag":   "from-cr",
+			},
+		},
+		// Zone found in namespace but Zone object absent from required: env config tags used, no zone labels.
+		"WithZone_ZoneObjectMissing": {
+			composite: basetest.CompositeResource("cr", "ns", nil, nil),
+			required: map[string][]resource.Required{
+				base.NamespaceKey: {basetest.RequiredNamespace(map[string]string{base.TenancyZoneLabel: zone})},
+				base.ZoneEnvKey:   {basetest.RequiredEnvTags(map[string]string{"EnvTag": "from-env-config"})},
+			},
+			wantZone:   zone,
+			wantTags:   map[string]string{"EnvTag": "from-env-config"},
+			wantLabels: map[string]string{},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := base.GetResourceTags(log, tc.composite, tc.required)
+			if got.Zone != tc.wantZone {
+				t.Errorf("GetResourceTags() Zone = %q, want %q", got.Zone, tc.wantZone)
+			}
+			if diff := cmp.Diff(tc.wantTags, got.Tags, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("GetResourceTags() Tags mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantLabels, got.Labels, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("GetResourceTags() Labels mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetZoneTags(t *testing.T) {
+	const zoneName = "my-zone"
+
+	cases := map[string]struct {
+		compositeName        string
+		compositeLabels      map[string]string
+		compositeAnnotations map[string]string
+		wantZone             string
+		wantTags             map[string]string
+		wantLabels           map[string]string
+	}{
+		// Zone label overrides env config for the same key.
+		"ZoneLabelsOnly": {
+			compositeName:   zoneName,
+			compositeLabels: map[string]string{base.TagsPrefix + "Env": "from-label"},
+			wantZone:        zoneName,
+			wantTags:        map[string]string{"Env": "from-label"},
+			wantLabels:      map[string]string{base.TagsPrefix + "Env": "from-label"},
+		},
+		// Zone annotation overrides zone label in tags; the original label value is preserved in labels.
+		"ZoneAnnotationOverridesLabelInTags": {
+			compositeName:        zoneName,
+			compositeLabels:      map[string]string{base.TagsPrefix + "Env": "from-label"},
+			compositeAnnotations: map[string]string{base.TagsPrefix + "Env": "from-annotation"},
+			wantZone:             zoneName,
+			wantTags:             map[string]string{"Env": "from-annotation"},
+			wantLabels:           map[string]string{base.TagsPrefix + "Env": "from-label"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			cr := basetest.CompositeResource(tc.compositeName, "", tc.compositeLabels, tc.compositeAnnotations)
+			got := base.GetZoneTags(cr)
+			if got.Zone != tc.wantZone {
+				t.Errorf("GetZoneTags() Zone = %q, want %q", got.Zone, tc.wantZone)
+			}
+			if diff := cmp.Diff(tc.wantTags, got.Tags, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("GetZoneTags() Tags mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantLabels, got.Labels, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("GetZoneTags() Labels mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

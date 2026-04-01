@@ -59,8 +59,7 @@ func TestArtifactFunction(t *testing.T) {
 	}
 	maps.Copy(optEnvironmentData, environmentData)
 	kmsKeyResource := test.KMSKeyResource(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string), "mrk-6c709a49a34940a48025f3bbc412827e")
-	ns := "default"
-	namespaceResource := test.Namespace(ns, "zone-a")
+	zone := "zone-a"
 
 	cases := map[string]test.Case{
 		"CreateRepositoryObjects": {
@@ -73,9 +72,9 @@ func TestArtifactFunction(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-						apis.KMSDataKey:     kmsKeyResource,
-						base.NamespaceKey:   namespaceResource,
+						apis.KMSDataKey: kmsKeyResource,
+						base.ZoneKey:    test.ZoneWithMetadata(zone, map[string]interface{}{base.TagsPrefix + "foo": "bar"}, map[string]interface{}{base.TagsPrefix + "bar": "foo"}),
+						base.ZoneEnvKey: test.EnvironmentConfigResourceWithData(base.ZoneEnvName, map[string]interface{}{"tags": map[string]interface{}{"custom-tag": "custom-value"}}),
 					},
 				},
 			},
@@ -85,15 +84,13 @@ func TestArtifactFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"repository": {Resource: resource.MustStructJSON(`
-{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","tenancy.entigo.com/zone":"zone-a"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKey":"arn:aws:kms:eu-north-1:111111111111:key/mrk-6c709a49a34940a48025f3bbc412827e"}],"region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
+{"apiVersion":"ecr.aws.m.upbound.io/v1beta1","kind":"Repository","metadata":{"labels":{"entigo.com/resource":"repository","entigo.com/resource-kind":"Repository","tags.entigo.com/foo":"bar","tenancy.entigo.com/zone":"zone-a"},"name":"repository","namespace":"default"},"spec":{"forProvider":{"encryptionConfiguration":[{"encryptionType":"KMS","kmsKey":"arn:aws:kms:eu-north-1:111111111111:key/mrk-6c709a49a34940a48025f3bbc412827e"}],"region":"eu-north-1","tags":{"bar":"foo","custom-tag":"custom-value","entigo:zone":"zone-a","foo":"bar"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
 							`)},
 						},
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
-							apis.KMSDataKey:     base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -109,9 +106,7 @@ func TestArtifactFunction(t *testing.T) {
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
-						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-						apis.KMSDataKey:     kmsKeyResource,
-						base.NamespaceKey:   namespaceResource,
+						apis.KMSDataKey: kmsKeyResource,
 					},
 				},
 			},
@@ -127,9 +122,7 @@ func TestArtifactFunction(t *testing.T) {
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							apis.KMSDataKey:     base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
+							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -147,7 +140,6 @@ func TestArtifactFunction(t *testing.T) {
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, optEnvironmentData),
 						apis.KMSDataKey:     kmsKeyResource,
-						base.NamespaceKey:   namespaceResource,
 					},
 				},
 			},
@@ -163,9 +155,7 @@ func TestArtifactFunction(t *testing.T) {
 					},
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
-							base.EnvironmentKey: base.RequiredEnvironmentConfig(environmentName),
-							apis.KMSDataKey:     base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
-							base.NamespaceKey:   base.RequiredNamespace(ns),
+							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -173,6 +163,8 @@ func TestArtifactFunction(t *testing.T) {
 		},
 	}
 
+	test.AddEnvironmentConfig(cases, environmentName, environmentData)
+	test.AddZoneResources(cases, "default", zone)
 	newService := func() base.GroupService {
 		return &GroupImpl{}
 	}
