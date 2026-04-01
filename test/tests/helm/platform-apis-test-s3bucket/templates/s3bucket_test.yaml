@@ -1,0 +1,15 @@
+---
+apiVersion: storage.entigo.com/v1alpha1
+kind: S3Bucket
+metadata:
+  name: test-s3-minimal
+  namespace: {{ .Release.Namespace }}
+spec: {}
+---
+apiVersion: storage.entigo.com/v1alpha1
+kind: S3Bucket
+metadata:
+  name: test-s3-versioned
+  namespace: {{ .Release.Namespace }}
+spec:
+  enableVersioning: true

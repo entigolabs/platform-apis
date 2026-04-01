@@ -146,4 +146,19 @@ const (
 
 	RepositoryKind    = "repositories.artifact.entigo.com"
 	ECRRepositoryKind = "repository.ecr.aws.m.upbound.io"
+
+	// ── S3 Bucket ─────────────────────────────────────────────────────────────
+
+	S3BucketNamespaceName   = "test-s3bucket"
+	S3BucketApplicationName = "test-s3bucket"
+
+	S3MinimalName   = "test-s3-minimal"
+	S3VersionedName = "test-s3-versioned"
+
+	S3BucketKind               = "s3buckets.storage.entigo.com"
+	S3BucketAwsKind            = "bucket.s3.aws.m.upbound.io"
+	S3IAMUserKind              = "user.iam.aws.m.upbound.io"
+	S3IAMRoleKind              = "role.iam.aws.m.upbound.io"
+	S3IAMPolicyKind            = "policy.iam.aws.m.upbound.io"
+	S3SecretsManagerSecretKind = "secret.secretsmanager.aws.m.upbound.io"
 )

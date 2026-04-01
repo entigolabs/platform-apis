@@ -109,6 +109,7 @@ jobs:
               kafka)      cp "$SOURCE/templates/kafka_test_application.yaml"      "$TARGET/templates/" ;;
               postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
               repository) cp "$SOURCE/templates/repository_test_application.yaml" "$TARGET/templates/" ;;
+              s3bucket)   cp "$SOURCE/templates/s3bucket_test_application.yaml"   "$TARGET/templates/" ;;
               zone)       cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/"
                           cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
             esac
@@ -140,6 +141,7 @@ jobs:
             [platform-apis-test-kafka]="kafka_test_application.yaml"
             [platform-apis-test-postgresql]="postgresql_test_application.yaml"
             [platform-apis-test-repository]="repository_test_application.yaml"
+            [platform-apis-test-s3bucket]="s3bucket_test_application.yaml"
           )
           for chart in $(echo "$BUILT_TESTHELM" | jq -r '.[]'); do
             template="${CHART_TEMPLATE[$chart]}"

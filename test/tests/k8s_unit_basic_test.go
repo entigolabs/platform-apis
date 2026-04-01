@@ -65,6 +65,12 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 				testRepository(t, cluster, argocd)
 			})
 		}
+		if cfg.Has("s3bucket") {
+			t.Run("s3bucket", func(t *testing.T) {
+				t.Parallel()
+				testS3Bucket(t, cluster, argocd)
+			})
+		}
 		if cfg.Has("zone") {
 			t.Run("zone", func(t *testing.T) {
 				t.Parallel()
