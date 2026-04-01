@@ -105,10 +105,11 @@ jobs:
 
           for suite in $(echo "$AFFECTED_SUITES" | jq -r '.[]'); do
             case "$suite" in
+              cronjob)    cp "$SOURCE/templates/cronjob_test_application.yaml"    "$TARGET/templates/" ;;
+              kafka)      cp "$SOURCE/templates/kafka_test_application.yaml"      "$TARGET/templates/" ;;
+              postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
               zone)       cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/"
                           cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
-              postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
-              cronjob)    cp "$SOURCE/templates/cronjob_test_application.yaml"    "$TARGET/templates/" ;;
             esac
           done
 
@@ -134,8 +135,9 @@ jobs:
           declare -A CHART_TEMPLATE=(
             [platform-apis-test-a-apps]="a_test_application.yaml"
             [platform-apis-test-b-apps]="b_test_application.yaml"
-            [platform-apis-test-postgresql]="postgresql_test_application.yaml"
             [platform-apis-test-cronjob]="cronjob_test_application.yaml"
+            [platform-apis-test-kafka]="kafka_test_application.yaml"
+            [platform-apis-test-postgresql]="postgresql_test_application.yaml"
           )
           for chart in $(echo "$BUILT_TESTHELM" | jq -r '.[]'); do
             template="${CHART_TEMPLATE[$chart]}"

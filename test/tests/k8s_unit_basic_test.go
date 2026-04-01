@@ -68,6 +68,13 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 				testCronjob(t, cluster, argocd)
 			})
 		}
+		//TODO: Kafka tests placeholder. Currently disabled as kafka function work in progress
+		/*if cfg.Has("kafka") {
+			t.Run("kafka", func(t *testing.T) {
+				t.Parallel()
+				testKafka(t, cluster, argocd)
+			})
+		}*/
 		if cfg.Has("postgresql") {
 			t.Run("postgresql", func(t *testing.T) {
 				t.Parallel()

@@ -10,7 +10,7 @@ import (
 const (
 	env             = "../examples/environment-config.yaml"
 	functionsConfig = "../../../test/common/functions-dev.yaml"
-	// TODO: Remove when Kafka transitioned to golang custom function.
+	// TODO: Remove when Kafka transitioned to golang custom function
 	helmValues = "../../../helm/values.yaml"
 	required   = "../examples/required-resources.yaml"
 

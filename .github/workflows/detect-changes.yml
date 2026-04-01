@@ -71,7 +71,7 @@ jobs:
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
           echo "any_changes=true" >> $GITHUB_OUTPUT
-          echo 'affected_suites=["zone","postgresql","cronjob"]' >> $GITHUB_OUTPUT
+          echo 'affected_suites=["zone","postgresql","cronjob","kafka"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
         if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -98,7 +98,6 @@ jobs:
               - 'helm/values.yaml'
               - 'helm/templates/functions.yaml'
               - 'helm/templates/providers.yaml'
-              - 'helm/templates/kafka.yaml'
               - 'helm/templates/repository.yaml'
               - 'helm/templates/s3bucket.yaml'
               - 'helm/templates/storage.yaml'
@@ -113,6 +112,10 @@ jobs:
               - 'helm/templates/cronjob.yaml'
               - 'helm/templates/workload.yaml'
               - 'test/tests/helm/platform-apis-test-cronjob/**'
+            kafka:
+              - 'compositions/kafka/**'
+              - 'helm/templates/kafka.yaml'
+              - 'test/tests/helm/platform-apis-test-kafka/**'
             postgresql:
               - 'compositions/postgresql/**'
               - 'functions/database/**'
@@ -141,6 +144,7 @@ jobs:
           HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
           HELM_GLOBAL_CHANGED: ${{ steps.changed-files.outputs.helm_global_any_changed || 'false' }}
           CRONJOB_CHANGED: ${{ steps.changed-files.outputs.cronjob_any_changed || 'false' }}
+          KAFKA_CHANGED: ${{ steps.changed-files.outputs.kafka_any_changed || 'false' }}
           PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_any_changed || 'false' }}
           ZONE_CHANGED: ${{ steps.changed-files.outputs.zone_any_changed || 'false' }}
         run: |
@@ -161,7 +165,7 @@ jobs:
 
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
+          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$KAFKA_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
             echo "any_changes=true" >> $GITHUB_OUTPUT
           else
             echo "any_changes=false" >> $GITHUB_OUTPUT
@@ -172,10 +176,11 @@ jobs:
           # a-apps/b-apps added when common_lib or helm changed (full rebuild).
           # other suites added when their respective code changed.
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
-            echo 'affected_suites=["cronjob","postgresql","zone","a-apps","b-apps"]' >> $GITHUB_OUTPUT
+            echo 'affected_suites=["cronjob","kafka","postgresql","zone","a-apps","b-apps"]' >> $GITHUB_OUTPUT
           else
             AFFECTED_LIST=""
             [ "$CRONJOB_CHANGED" == "true" ] && AFFECTED_LIST="${AFFECTED_LIST}\"cronjob\","
+            [ "$KAFKA_CHANGED" == "true" ] && AFFECTED_LIST="${AFFECTED_LIST}\"kafka\","
             [ "$PG_CHANGED" == "true" ]      && AFFECTED_LIST="${AFFECTED_LIST}\"postgresql\","
             [ "$ZONE_CHANGED" == "true" ]    && AFFECTED_LIST="${AFFECTED_LIST}\"zone\","
             AFFECTED_LIST="${AFFECTED_LIST%,}"
@@ -188,10 +193,11 @@ jobs:
           # postgresql/cronjob charts rebuilt when their code changed.
           # common_lib or helm forces a full rebuild of all charts.
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
-            echo 'testhelm=["platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps"]' >> $GITHUB_OUTPUT
+            echo 'testhelm=["platform-apis-test-cronjob","platform-apis-test-kafka","platform-apis-test-postgresql","platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps"]' >> $GITHUB_OUTPUT
           else
             TESTHELM_LIST='"platform-apis-test-zones"'
             [ "$CRONJOB_CHANGED" == "true" ] && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-cronjob\""
+            [ "$KAFKA_CHANGED" == "true" ] && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-kafka\""
             [ "$PG_CHANGED" == "true" ]      && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-postgresql\""
             [ "$ZONE_CHANGED" == "true" ]    && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-app\",\"platform-apis-test-a-apps\",\"platform-apis-test-b-apps\""
             echo "testhelm=[${TESTHELM_LIST}]" >> $GITHUB_OUTPUT

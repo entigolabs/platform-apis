@@ -1,0 +1,2 @@
+clusterName: test-crossplane-cluster
+clusterARN: ""  # Required: ARN of the existing MSK cluster
