@@ -93,20 +93,37 @@ jobs:
               - '!compositions/examples/**'
             helm:
               - 'helm/**'
+            helm_global:
+              - 'helm/Chart.yaml'
+              - 'helm/values.yaml'
+              - 'helm/templates/functions.yaml'
+              - 'helm/templates/providers.yaml'
+              - 'helm/templates/kafka.yaml'
+              - 'helm/templates/repository.yaml'
+              - 'helm/templates/s3bucket.yaml'
+              - 'helm/templates/storage.yaml'
+              - 'helm/templates/valkey.yaml'
+              - 'helm/templates/webaccess.yaml'
+              - 'helm/templates/webapp.yaml'
+              - 'helm/templates/artifact.yaml'
+              - 'helm/templates/networking.yaml'
             cronjob:
               - 'compositions/cronjob/**'
               - 'functions/workload/**'
+              - 'helm/templates/cronjob.yaml'
+              - 'helm/templates/workload.yaml'
               - 'test/tests/helm/platform-apis-test-cronjob/**'
             postgresql:
               - 'compositions/postgresql/**'
               - 'functions/database/**'
+              - 'helm/templates/postgresql.yaml'
+              - 'helm/templates/database.yaml'
               - 'test/tests/helm/platform-apis-test-postgresql/**'
             zone:
               - 'compositions/zone/**'
               - 'functions/tenancy/**'
-              - 'functions/artifact/**'
-              - 'functions/networking/**'
-              - 'functions/workload/**'
+              - 'helm/templates/zone.yaml'
+              - 'helm/templates/tenancy.yaml'
               - 'test/tests/helm/platform-apis-test-zones/**'
               - 'test/tests/helm/platform-apis-test-app/**'
               - 'test/tests/helm/platform-apis-test-a-apps/**'
@@ -122,6 +139,7 @@ jobs:
           FUNCS_ANY_CHANGED: ${{ steps.changed-files.outputs.functions_any_changed || 'false' }}
           COMPS_ANY_CHANGED: ${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}
           HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
+          HELM_GLOBAL_CHANGED: ${{ steps.changed-files.outputs.helm_global_any_changed || 'false' }}
           CRONJOB_CHANGED: ${{ steps.changed-files.outputs.cronjob_any_changed || 'false' }}
           PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_any_changed || 'false' }}
           ZONE_CHANGED: ${{ steps.changed-files.outputs.zone_any_changed || 'false' }}
@@ -153,7 +171,7 @@ jobs:
           # zone is always included — zones are base infrastructure deployed in every run.
           # a-apps/b-apps added when common_lib or helm changed (full rebuild).
           # other suites added when their respective code changed.
-          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ]; then
+          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
             echo 'affected_suites=["cronjob","postgresql","zone","a-apps","b-apps"]' >> $GITHUB_OUTPUT
           else
             AFFECTED_LIST=""
@@ -169,7 +187,7 @@ jobs:
           # zone-related charts rebuilt when zone code changed (ZONE_CHANGED).
           # postgresql/cronjob charts rebuilt when their code changed.
           # common_lib or helm forces a full rebuild of all charts.
-          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ]; then
+          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
             echo 'testhelm=["platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps"]' >> $GITHUB_OUTPUT
           else
             TESTHELM_LIST='"platform-apis-test-zones"'

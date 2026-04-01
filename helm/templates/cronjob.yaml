@@ -15,6 +15,6 @@ metadata:
   name: platform-apis-cronjob
 rules:
   - apiGroups: ["batch"]
-    resources: ["cronjob", "cronjob/status"]
+    resources: ["cronjobs", "cronjobs/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 {{- end }}
