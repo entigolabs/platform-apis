@@ -10,15 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	syncMaxAttempts  = 5
-	syncRetryDelay   = 30 * time.Second
-	syncPollRetries  = 60
-	syncPollInterval = 10 * time.Second
-	healthRetries    = 30
-	healthInterval   = 10 * time.Second
-)
-
 // applyFile applies a kubectl manifest file.
 // The manifest itself specifies namespaces, so opts namespace is not required to match.
 func applyFile(t *testing.T, opts *terrak8s.KubectlOptions, file string) {

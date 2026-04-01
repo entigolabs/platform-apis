@@ -18,7 +18,7 @@ const (
 )
 
 func TestRepositoryCrossplaneRender(t *testing.T) {
-	t.Logf("Starting artifact function. Function path %s", function)
+	t.Logf("Starting artifact function. Function path: %s", function)
 	crossplane.StartCustomFunction(t, function, "9443")
 
 	tmpDir := t.TempDir()

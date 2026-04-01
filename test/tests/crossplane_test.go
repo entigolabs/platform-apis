@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -153,6 +154,50 @@ func testUsage(t *testing.T, opts *terrak8s.KubectlOptions, usageName, ofKind, o
 	require.Equal(t, byKind, getField(t, opts, UsageKind, usageName, ".spec.by.kind"))
 	require.Equal(t, byName, getField(t, opts, UsageKind, usageName, ".spec.by.resourceRef.name"))
 	require.Equal(t, "true", getField(t, opts, UsageKind, usageName, ".spec.replayDeletion"))
+}
+
+// ── Cleanup helpers ───────────────────────────────────────────────────────────
+
+// cleanupDeleteParallel deletes multiple resources of the same kind concurrently and waits for all to disappear.
+func cleanupDeleteParallel(t *testing.T, opts *terrak8s.KubectlOptions, kind string, names ...string) {
+	if len(names) == 0 {
+		return
+	}
+	for _, name := range names {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name,
+			"--cascade=foreground", "--wait=false", "--ignore-not-found")
+	}
+	var wg sync.WaitGroup
+	for _, name := range names {
+		name := name
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cleanupWaitGone(t, opts, kind, name, 30)
+		}()
+	}
+	wg.Wait()
+}
+
+// cleanupDeleteAndWait deletes a single resource and waits for it to disappear.
+func cleanupDeleteAndWait(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, maxRetries int) {
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name,
+		"--cascade=foreground", "--wait=false", "--ignore-not-found")
+	cleanupWaitGone(t, opts, kind, name, maxRetries)
+}
+
+func cleanupWaitGone(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, maxRetries int) {
+	_, _ = retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s/%s deletion", kind, name), maxRetries, 10*time.Second,
+		func() (string, error) {
+			out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+			if err != nil {
+				return "", err
+			}
+			if out != "" {
+				return "", fmt.Errorf("%s/%s still exists", kind, name)
+			}
+			return "deleted", nil
+		})
 }
 
 // ── Internal ──────────────────────────────────────────────────────────────────

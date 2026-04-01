@@ -10,19 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	ZoneApplicationName = "app-of-zones"
-	ZoneKind            = "zone.tenancy.entigo.com"
-	NodeGroupKind       = "nodegroup.eks.aws.upbound.io"
-	ZoneAName           = "a"
-	ZoneBName           = "b"
-
-	AAppsNamespace       = "a-apps"
-	BAppsNamespace       = "b-apps"
-	AAppsApplicationName = "a-apps"
-	BAppsApplicationName = "b-apps"
-)
-
 func testZone(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	testZoneApps(t, cluster)
 }

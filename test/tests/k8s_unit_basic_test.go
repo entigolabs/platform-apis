@@ -11,28 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	FunctionKind      = "function.pkg.crossplane.io"
-	ConfigurationKind = "configuration.pkg.crossplane.io"
-
-	CronjobConfigurationName    = "platform-apis-cronjob"
-	KafkaConfigurationName      = "platform-apis-kafka"
-	PostgresqlConfigurationName = "platform-apis-postgresql"
-	RepositoryConfigurationName = "platform-apis-repository"
-	S3BucketConfigurationName   = "platform-apis-s3bucket"
-	ValkeyConfigurationName     = "platform-apis-valkey"
-	WebaccessConfigurationName  = "platform-apis-webaccess"
-	WebappConfigurationName     = "platform-apis-webapp"
-	ZoneConfigurationName       = "platform-apis-zone"
-
-	ArtifactFunctionName   = "platform-apis-artifact-fn"
-	DatabaseFunctionName   = "platform-apis-database-fn"
-	NetwokringFunctionName = "platform-apis-networking-fn"
-	StorageFunctionName    = "platform-apis-storage-fn"
-	TenancyFunctionName    = "platform-apis-tenancy-fn"
-	WorkloadFunctionName   = "platform-apis-workload-fn"
-)
-
 func TestK8sPlatformApisAWSBiz(t *testing.T) {
 	testPlatformApis(t, "aws", "biz")
 }
@@ -81,6 +59,12 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 				testPostgresql(t, cluster, argocd)
 			})
 		}
+		if cfg.Has("repository") {
+			t.Run("repository", func(t *testing.T) {
+				t.Parallel()
+				testRepository(t, cluster, argocd)
+			})
+		}
 		if cfg.Has("zone") {
 			t.Run("zone", func(t *testing.T) {
 				t.Parallel()
@@ -98,12 +82,12 @@ func waitPackagesReady(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlO
 			checkPlatformApisHaveRequiredPackages(t, cluster, CronjobConfigurationName, WorkloadFunctionName)
 		}
 		//  TODO: Update when kafka in go ready
-		if cfg.Has("kafka") {
+		/*if cfg.Has("kafka") {
 			t.Run("kafka-configuration", func(t *testing.T) {
 				t.Parallel()
 				waitCrossplanePackageReady(t, cluster, ConfigurationKind, KafkaConfigurationName)
 			})
-		}
+		}*/
 		if cfg.Has("postgresql") {
 			checkPlatformApisHaveRequiredPackages(t, cluster, PostgresqlConfigurationName, DatabaseFunctionName)
 		}

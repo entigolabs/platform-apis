@@ -8,20 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	// Application / namespace
-
-	CronjobNamespaceName   = "test-cronjob"
-	CronjobApplicationName = "test-cronjob"
-
-	CronjobName      = "test-cronjob"
-	CronjobKind      = "cronjobs.workload.entigo.com"
-	BatchCronjobKind = "cronjob"
-
-	CronjobInitialSchedule = "0 * * * *"
-	CronjobUpdatedSchedule = "30 * * * *"
-)
-
 func testCronjob(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	cjNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, CronjobNamespaceName)
 	defer cleanupCronjob(t, cluster, argocd)

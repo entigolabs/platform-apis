@@ -8,35 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	// Application / namespace
-	KafkaNamespaceName   = "test-kafka"
-	KafkaApplicationName = "test-kafka"
-
-	// MSK cluster
-	KafkaClusterName        = "test-crossplane-cluster"
-	KafkaMSKObserverName    = KafkaClusterName + "-observed"
-	KafkaMSKKind            = "msks.kafka.entigo.com"
-	KafkaClusterProvCfgKind = "clusterproviderconfig.kafka.m.crossplane.io"
-
-	// Topic
-	KafkaTopicName              = "test-topic-a"
-	KafkaTopicKind              = "topics.kafka.entigo.com"
-	KafkaProvTopicKind          = "topic.topic.kafka.m.crossplane.io"
-	KafkaTopicPartitions        = "6"
-	KafkaTopicUpdatedPartitions = "9"
-	KafkaTopicReplicationFactor = "3"
-
-	// User
-	KafkaUserName      = "test-user-a"
-	KafkaUserKind      = "kafkausers.kafka.entigo.com"
-	KafkaACLKind       = "accesscontrollist.acl.kafka.m.crossplane.io"
-	KafkaAWSSecKind    = "secret.secretsmanager.aws.m.upbound.io"
-	KafkaAWSSecVerKind = "secretversion.secretsmanager.aws.m.upbound.io"
-	KafkaAWSSecPolKind = "secretpolicy.secretsmanager.aws.m.upbound.io"
-	KafkaSCRAMKind     = "singlescramsecretassociation.kafka.aws.m.upbound.io"
-)
-
 func kafkaK8sSecretName() string { return KafkaClusterName + "-" + KafkaUserName + "-k8s" }
 func kafkaAWSSecretName() string { return KafkaClusterName + "-" + KafkaUserName }
 func kafkaAWSSecVerName() string { return KafkaClusterName + "-" + KafkaUserName + "-version" }

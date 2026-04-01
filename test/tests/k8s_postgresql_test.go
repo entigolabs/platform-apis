@@ -2,57 +2,13 @@ package test
 
 import (
 	"fmt"
-	"sync"
+	"strings"
 	"testing"
 	"time"
 
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	// Application / namespace
-
-	PostgresqlNamespaceName   = "test-postgresql"
-	PostgresqlApplicationName = "test-postgresql"
-
-	// Users
-	PostgresqlAdminUserName     = "test-owner"
-	PostgresqlUserKind          = "postgresqlusers.database.entigo.com"
-	PostgresqlAdminUserSpecName = "test_owner"
-	PostgresqlRegularUserName   = "test-user"
-	SqlRoleKind                 = "role.postgresql.sql.m.crossplane.io"
-
-	RegularUserExpectedGrantName  = "grant-" + PostgresqlRegularUserName + "-test-owner-" + PostgresqlInstanceName
-	RegularUserExpectedUsageName  = "usage-" + RegularUserExpectedGrantName
-	RegularUserExpectedSecretName = PostgresqlInstanceName + "-" + PostgresqlRegularUserName
-
-	AdminUserInstanceProtectionName   = PostgresqlAdminUserName + "-instance-protection"
-	RegularUserInstanceProtectionName = PostgresqlRegularUserName + "-instance-protection"
-
-	// Databases
-	PostgresqlDatabaseKind = "postgresqldatabases.database.entigo.com"
-	SqlDatabaseKind        = "database.postgresql.sql.m.crossplane.io"
-	SqlExtensionKind       = "extension.postgresql.sql.m.crossplane.io"
-	SqlGrantKind           = "grant.postgresql.sql.m.crossplane.io"
-	UsageKind              = "usage.protection.crossplane.io"
-
-	DatabaseOneName     = "database-one-test"
-	DatabaseOneSpecName = "database_one_test"
-	DatabaseTwoName     = "database-two-test"
-	MinimalDatabaseName = "database-minimal-test"
-
-	DatabaseGrantExpectedName    = DatabaseOneName + "-grant-owner-to-dbadmin"
-	DatabaseTwoGrantExpectedName = DatabaseTwoName + "-grant-owner-to-dbadmin"
-
-	DatabaseOneOwnerProtectionName     = DatabaseOneName + "-owner-protection"
-	DatabaseTwoOwnerProtectionName     = DatabaseTwoName + "-owner-protection"
-	MinimalDatabaseOwnerProtectionName = MinimalDatabaseName + "-owner-protection"
-
-	DatabaseOneInstanceProtectionName     = DatabaseOneName + "-instance-protection"
-	DatabaseTwoInstanceProtectionName     = DatabaseTwoName + "-instance-protection"
-	MinimalDatabaseInstanceProtectionName = MinimalDatabaseName + "-instance-protection"
 )
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
@@ -148,6 +104,77 @@ func testInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.deletionProtection", "true", 30, 10*time.Second)
 	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, `{"spec":{"deletionProtection":false}}`)
 	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.deletionProtection", "false", 30, 10*time.Second)
+}
+
+func waitSecurityGroupRulesReady(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("SecurityGroupRules for %s", PostgresqlInstanceName), 60, 10*time.Second,
+		func() (string, error) {
+			rules, err := getSecurityGroupRules(t, pgNs)
+			if err != nil {
+				return "", err
+			}
+			if err := validateIngressEgressExists(rules); err != nil {
+				return "", err
+			}
+			return checkAllRulesReady(t, pgNs, rules)
+		})
+	require.NoError(t, err, "SecurityGroupRules for %s never became ready", PostgresqlInstanceName)
+}
+
+func getSecurityGroupRules(t *testing.T, pgNs *terrak8s.KubectlOptions) ([]string, error) {
+	names, err := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", SecurityGroupRuleKind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", PostgresqlInstanceName),
+		"-o", "jsonpath={.items[*].metadata.name}")
+	if err != nil {
+		return nil, err
+	}
+	rules := strings.Fields(names)
+	if len(rules) < 2 {
+		return nil, fmt.Errorf("expected ≥2 rules, got %d", len(rules))
+	}
+	return rules, nil
+}
+
+func validateIngressEgressExists(rules []string) error {
+	var hasIngress, hasEgress bool
+	for _, name := range rules {
+		if strings.Contains(name, "-sg-ingress-") {
+			hasIngress = true
+		}
+		if strings.Contains(name, "-sg-egress-") {
+			hasEgress = true
+		}
+	}
+	if !hasIngress || !hasEgress {
+		return fmt.Errorf("missing ingress=%v or egress=%v rule", hasIngress, hasEgress)
+	}
+	return nil
+}
+
+func checkAllRulesReady(t *testing.T, pgNs *terrak8s.KubectlOptions, rules []string) (string, error) {
+	for _, name := range rules {
+		if _, err := checkConditions(t, pgNs, SecurityGroupRuleKind, name, "Synced", "Ready"); err != nil {
+			return "", err
+		}
+	}
+	return "ready", nil
+}
+
+func waitExternalSecretReady(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("ExternalSecret for %s", PostgresqlInstanceName), 90, 10*time.Second,
+		func() (string, error) {
+			name, err := getFirstByLabel(t, pgNs, ExternalSecretKind, PostgresqlInstanceName)
+			if err != nil || name == "" {
+				return "", fmt.Errorf("ExternalSecret not found yet")
+			}
+			if !strings.HasPrefix(name, PostgresqlInstanceName+"-es-") {
+				return "", fmt.Errorf("unexpected ExternalSecret name: %s", name)
+			}
+			return checkConditions(t, pgNs, ExternalSecretKind, name, "Ready")
+		})
+	require.NoError(t, err)
 }
 
 // ── PostgreSQLUser ────────────────────────────────────────────────────────────
@@ -350,57 +377,6 @@ func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	cleanupNamespace(t, pgNs, cluster)
 }
 
-func cleanupDeleteParallel(t *testing.T, opts *terrak8s.KubectlOptions, kind string, names ...string) {
-	if len(names) == 0 {
-		return
-	}
-	for _, name := range names {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name,
-			"--cascade=foreground", "--wait=false", "--ignore-not-found")
-	}
-	var wg sync.WaitGroup
-	for _, name := range names {
-		name := name
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			cleanupWaitGone(t, opts, kind, name, 30)
-		}()
-	}
-	wg.Wait()
-}
-
-func cleanupDeleteAndWait(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, maxRetries int) {
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name,
-		"--cascade=foreground", "--wait=false", "--ignore-not-found")
-	cleanupWaitGone(t, opts, kind, name, maxRetries)
-}
-
-func cleanupWaitGone(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, maxRetries int) {
-	_, _ = retry.DoWithRetryE(t, fmt.Sprintf("waiting for %s/%s deletion", kind, name), maxRetries, 10*time.Second,
-		func() (string, error) {
-			out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
-			if err != nil {
-				return "", err
-			}
-			if out != "" {
-				return "", fmt.Errorf("%s/%s still exists", kind, name)
-			}
-			return "deleted", nil
-		})
-}
-
-func patchDeletionProtectionIfEnabled(t *testing.T, pgNs *terrak8s.KubectlOptions, kind, name string) {
-	t.Helper()
-	exists, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind, name, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
-	if exists == "" {
-		return
-	}
-	if dp, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind, name, "-o", "jsonpath={.spec.deletionProtection}"); dp == "true" {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNs, "patch", kind, name, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
-	}
-}
-
 func cleanupDisableDeletionProtectionOnDatabases(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	for _, dbName := range []string{DatabaseOneName, DatabaseTwoName, MinimalDatabaseName} {
 		patchDeletionProtectionIfEnabled(t, pgNs, PostgresqlDatabaseKind, dbName)
@@ -425,6 +401,17 @@ func cleanupDisableDeletionProtectionOnInstance(t *testing.T, pgNs *terrak8s.Kub
 			}
 			return "propagated", nil
 		})
+}
+
+func patchDeletionProtectionIfEnabled(t *testing.T, pgNs *terrak8s.KubectlOptions, kind, name string) {
+	t.Helper()
+	exists, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind, name, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+	if exists == "" {
+		return
+	}
+	if dp, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind, name, "-o", "jsonpath={.spec.deletionProtection}"); dp == "true" {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNs, "patch", kind, name, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
+	}
 }
 
 func cleanupNamespace(t *testing.T, pgNs, cluster *terrak8s.KubectlOptions) {

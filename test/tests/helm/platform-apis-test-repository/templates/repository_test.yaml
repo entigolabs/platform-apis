@@ -1,0 +1,16 @@
+---
+apiVersion: artifact.entigo.com/v1alpha1
+kind: Repository
+metadata:
+  name: test-repo
+  namespace: {{ .Release.Namespace }}
+spec: {}
+---
+apiVersion: artifact.entigo.com/v1alpha1
+kind: Repository
+metadata:
+  name: test-repo-named
+  namespace: {{ .Release.Namespace }}
+spec:
+  name: test-ecr-name
+  path: test/path
