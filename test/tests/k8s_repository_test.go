@@ -17,8 +17,10 @@ func testRepository(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	applyFile(t, cluster, "./templates/repository_test_application.yaml")
 	syncWithRetry(t, argocd, RepositoryApplicationName)
 
-	t.Run("MinimalRepository", func(t *testing.T) { t.Parallel(); testMinimalRepository(t, repoNs) })
-	t.Run("NamedRepository", func(t *testing.T) { t.Parallel(); testNamedRepository(t, repoNs) })
+	t.Run("repositories", func(t *testing.T) {
+		t.Run("MinimalRepository", func(t *testing.T) { t.Parallel(); testMinimalRepository(t, repoNs) })
+		t.Run("NamedRepository", func(t *testing.T) { t.Parallel(); testNamedRepository(t, repoNs) })
+	})
 }
 
 // ── Minimal Repository ────────────────────────────────────────────────────────
