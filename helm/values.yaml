@@ -10,7 +10,8 @@ database:
     subnetGroup: database
     elasticacheSubnetGroup: elasticache
     esClusterSecretStore: external-secrets
-    backupBeforeDeletion: true
+    postgresBackupBeforeDeletion: true
+    valkeyBackupBeforeDeletion: true
     backupRetentionPeriod: 14
     tags: {}
 
