@@ -110,11 +110,8 @@ func cleanupWebAccess(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	waNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, WebAccessNamespaceName)
 
-	defer func() {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", WebAccessApplicationName, "--ignore-not-found")
-	}()
-
 	cleanupDeleteAndWait(t, waNs, WebAccessKind, WebAccessName, 30)
 
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", WebAccessApplicationName, "--ignore-not-found")
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", WebAccessNamespaceName, "--ignore-not-found", "--wait=true")
 }

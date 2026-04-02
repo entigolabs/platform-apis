@@ -64,11 +64,8 @@ func cleanupCronjob(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	cjNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, CronjobNamespaceName)
 
-	defer func() {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", CronjobApplicationName, "--ignore-not-found")
-	}()
-
 	cleanupDeleteAndWait(t, cjNs, CronjobKind, CronjobName, 30)
 
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", CronjobApplicationName, "--ignore-not-found")
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", CronjobNamespaceName, "--ignore-not-found", "--wait=true")
 }

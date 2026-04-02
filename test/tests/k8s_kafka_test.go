@@ -186,12 +186,9 @@ func cleanupKafka(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	kfNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KafkaNamespaceName)
 
-	defer func() {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", KafkaApplicationName, "--ignore-not-found")
-	}()
-
 	cleanupDeleteAndWait(t, kfNs, KafkaUserKind, KafkaUserName, 30)
 	cleanupDeleteAndWait(t, kfNs, KafkaTopicKind, KafkaTopicName, 30)
 
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", KafkaApplicationName, "--ignore-not-found")
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", KafkaNamespaceName, "--ignore-not-found", "--wait=true")
 }

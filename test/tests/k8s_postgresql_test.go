@@ -368,10 +368,6 @@ func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 
-	defer func() {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
-	}()
-
 	// Delete composites in dependency order; Crossplane cascade-deletes all sub-resources.
 	cleanupDisableDeletionProtectionOnDatabases(t, pgNs)
 	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
@@ -381,7 +377,8 @@ func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	cleanupDisableDeletionProtectionOnInstance(t, pgNs)
 	cleanupDeleteAndWait(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
 
-	cleanupNamespace(t, pgNs, cluster)
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", PostgresqlNamespaceName, "--ignore-not-found", "--wait=true")
 }
 
 func cleanupDisableDeletionProtectionOnDatabases(t *testing.T, pgNs *terrak8s.KubectlOptions) {
@@ -419,13 +416,4 @@ func patchDeletionProtectionIfEnabled(t *testing.T, pgNs *terrak8s.KubectlOption
 	if dp, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", kind, name, "-o", "jsonpath={.spec.deletionProtection}"); dp == "true" {
 		_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNs, "patch", kind, name, "--type", "merge", "-p", `{"spec":{"deletionProtection":false}}`)
 	}
-}
-
-func cleanupNamespace(t *testing.T, pgNs, cluster *terrak8s.KubectlOptions) {
-	leftovers, _ := terrak8s.RunKubectlAndGetOutputE(t, pgNs, "get", "all", "--ignore-not-found", "-o", "name")
-	if leftovers != "" {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, pgNs, "delete", "all", "--all", "--cascade=foreground", "--wait=false", "--ignore-not-found")
-		time.Sleep(10 * time.Second)
-	}
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", PostgresqlNamespaceName, "--ignore-not-found", "--wait=true")
 }

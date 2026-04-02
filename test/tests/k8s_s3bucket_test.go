@@ -110,11 +110,8 @@ func cleanupS3Bucket(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	s3Ns := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, S3BucketNamespaceName)
 
-	defer func() {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", S3BucketApplicationName, "--ignore-not-found")
-	}()
-
 	cleanupDeleteParallel(t, s3Ns, S3BucketKind, S3MinimalName, S3VersionedName)
 
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", S3BucketApplicationName, "--ignore-not-found")
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", S3BucketNamespaceName, "--ignore-not-found", "--wait=true")
 }
