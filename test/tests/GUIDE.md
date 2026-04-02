@@ -272,15 +272,12 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
     }
     ns := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, MyResourceNamespaceName)
 
-    defer func() {
-        _, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MyResourceApplicationName, "--ignore-not-found")
-    }()
-
     // Disable deletion protection before deleting
     patchDeletionProtectionIfEnabled(t, ns, MyResourceKind, MyResourceMinimalName)
 
     cleanupDeleteParallel(t, ns, MyResourceKind, MyResourceMinimalName, MyResourceCustomName)
 
+    _, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MyResourceApplicationName, "--ignore-not-found")
     _, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", MyResourceNamespaceName, "--ignore-not-found", "--wait=true")
 }
 ```
@@ -476,19 +473,10 @@ echo 'affected_suites=["zone","postgresql","cronjob","repository","s3bucket","va
 
 ### `prepare-infralib-branch.yml`
 
-1. Add `"myresource"` to the `affected_suites` default.
-2. Add `"platform-apis-test-myresource"` to the `built_testhelm` default.
-3. Add a `case` entry in the **Sync Test Files** step:
-```bash
-myresource)
-    cp "$SRC/test/tests/k8s_myresource_test.go" "$DEST/"
-    cp "$SRC/test/tests/templates/myresource_test_application.yaml" "$DEST/templates/"
-    ;;
-```
-4. Add to the `CHART_TEMPLATE` map:
-```bash
-[platform-apis-test-myresource]="myresource_test_application.yaml"
-```
+1. Add `"myresource"` to the `affected_suites` default input.
+2. Add `"platform-apis-test-myresource"` to the `built_testhelm` default input.
+
+The workflow automatically copies `<suite>_test_application.yaml` from `test/tests/templates/` for each active suite — no additional changes needed as long as the template file follows the naming convention.
 
 ---
 
@@ -497,10 +485,10 @@ myresource)
 The cleanup function is called via `defer` from the orchestrator. Follow these rules:
 
 - **Return immediately if `t.Failed()`** — leave resources in place for debugging.
-- Always wrap the ArgoCD Application deletion in `defer` so it runs even if composite deletion fails.
 - Disable `deletionProtection` before deleting composites that have it. Use `patchDeletionProtectionIfEnabled`.
 - For resources with dependencies (e.g. PostgreSQL databases → users → instance), delete in reverse dependency order.
-- Use `cleanupDeleteParallel` for independent resources of the same kind.
+- Use `cleanupDeleteParallel` for independent resources of the same kind. It waits for each resource to fully disappear before returning.
+- Delete the ArgoCD Application **after composites are confirmed gone** and **before the namespace**. If the application is still active while the namespace exists, ArgoCD may try to reconcile resources back.
 - Delete the namespace last with `--wait=true`.
 
 ```go
@@ -510,13 +498,10 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
     }
     ns := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, MyResourceNamespaceName)
 
-    defer func() {
-        _, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MyResourceApplicationName, "--ignore-not-found")
-    }()
-
     patchDeletionProtectionIfEnabled(t, ns, MyResourceKind, MyResourceMinimalName)
     cleanupDeleteParallel(t, ns, MyResourceKind, MyResourceMinimalName, MyResourceCustomName)
 
+    _, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MyResourceApplicationName, "--ignore-not-found")
     _, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", MyResourceNamespaceName, "--ignore-not-found", "--wait=true")
 }
 ```

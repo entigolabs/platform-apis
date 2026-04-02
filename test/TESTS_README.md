@@ -217,7 +217,7 @@ testOrchestrator        — applies ArgoCD app, syncs, defers cleanup, runs sub-
   testRead              — assert status fields and spec propagation
   testUpdate            — patch the composite, verify change propagates to sub-resources
   testDeleteProtection  — (where applicable) verify webhook rejects deletion when protected
-cleanupSuite            — disable deletion protection if needed, delete composites, delete namespace
+cleanupSuite            — disable deletion protection if needed, delete composites, delete ArgoCD app, delete namespace
 ```
 
 ### Adding a New Suite
@@ -228,8 +228,8 @@ cleanupSuite            — disable deletion protection if needed, delete compos
 4. Add constants to `test/tests/constants_test.go`.
 5. Add `"<suite>"` to `allSuites` in `suite_config_test.go`.
 6. Add `if cfg.Has("<suite>")` block in `k8s_unit_basic_test.go` (both `parallel-tests` and `waitPackagesReady`).
-7. Update `.github/workflows/detect-changes.yml`: add path filter, `CHANGED` env var, include in `any_changes`, `affected_suites`, and `testhelm` lists.
-8. Update `.github/workflows/prepare-infralib-branch.yml`: add to `affected_suites` and `built_testhelm` defaults, add `case` entry in Sync Test Files, add entry in `CHART_TEMPLATE` map.
+7. Update `.github/workflows/detect-changes.yml`: add path filter in `files_yaml`, `CHANGED` env var, include in `any_changes`, `affected_suites`, and `testhelm` lists.
+8. Update `.github/workflows/prepare-infralib-branch.yml`: add to `affected_suites` and `built_testhelm` defaults. The template is copied automatically if it follows the `<suite>_test_application.yaml` naming convention.
 
 ---
 

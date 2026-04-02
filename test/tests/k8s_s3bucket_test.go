@@ -86,7 +86,7 @@ func testMinimalS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	bucketName, err := getFirstByLabel(t, s3Ns, S3BucketAwsKind, S3MinimalName)
 	require.NoError(t, err)
 	require.NotEmpty(t, bucketName)
-	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning[0].enabled", "true", 60, 10*time.Second)
+	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 60, 10*time.Second)
 }
 
 // ── Versioned S3 Bucket ───────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ func testVersionedS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	bucketName, err := getFirstByLabel(t, s3Ns, S3BucketAwsKind, S3VersionedName)
 	require.NoError(t, err)
 	require.NotEmpty(t, bucketName)
-	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning[0].enabled", "true", 90, 10*time.Second)
+	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 90, 10*time.Second)
 }
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────
