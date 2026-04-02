@@ -81,9 +81,12 @@ func testMinimalS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	// ServiceAccount must exist (createServiceAccount defaults to true)
 	waitResourceExists(t, s3Ns, "serviceaccount", S3MinimalName, 30, 10*time.Second)
 
-	// Update: enable versioning and verify it propagates to status
+	// Update: enable versioning and verify it propagates to the AWS bucket
 	patchResource(t, s3Ns, S3BucketKind, S3MinimalName, `{"spec":{"enableVersioning":true}}`)
-	waitFieldEquals(t, s3Ns, S3BucketKind, S3MinimalName, ".status.versioningEnabled", "true", 60, 10*time.Second)
+	bucketName, err := getFirstByLabel(t, s3Ns, S3BucketAwsKind, S3MinimalName)
+	require.NoError(t, err)
+	require.NotEmpty(t, bucketName)
+	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning[0].enabled", "true", 60, 10*time.Second)
 }
 
 // ── Versioned S3 Bucket ───────────────────────────────────────────────────────
@@ -98,8 +101,10 @@ func testVersionedS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	}
 
 	// Read: versioning must be enabled from the start.
-	// AWS atProvider status lags behind Synced+Ready — wait for propagation.
-	waitFieldEquals(t, s3Ns, S3BucketKind, S3VersionedName, ".status.versioningEnabled", "true", 90, 10*time.Second)
+	bucketName, err := getFirstByLabel(t, s3Ns, S3BucketAwsKind, S3VersionedName)
+	require.NoError(t, err)
+	require.NotEmpty(t, bucketName)
+	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning[0].enabled", "true", 90, 10*time.Second)
 }
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────
