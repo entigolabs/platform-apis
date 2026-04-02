@@ -12,6 +12,16 @@ on:
         required: false
         type: string
         default: ''
+      affected_suites:
+        description: 'JSON array of test suites to run (e.g. ["zone","postgresql"])'
+        required: false
+        type: string
+        default: '["zone","a-apps","b-apps","cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp"]'
+      built_testhelm:
+        description: 'JSON array of testhelm chart names actually built this run (used to pin versions only for built charts)'
+        required: false
+        type: string
+        default: '["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"]'
     outputs:
       branch_name:
         description: "The name of the created branch"
@@ -77,24 +87,72 @@ jobs:
           helm dependency update ${{ env.INFRALIB_MODULE_PATH }}
 
       - name: Sync Test Files
+        env:
+          AFFECTED_SUITES: ${{ inputs.affected_suites }}
         run: |
           TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test"
           SOURCE="platform-apis/test/tests"
 
-          rm -f $TARGET/*_test.go
-          mkdir -p $TARGET/templates/
-          cp $SOURCE/*_test.go $TARGET/
-          cp $SOURCE/config/*.yaml $TARGET/
-          cp $SOURCE/templates/* $TARGET/templates/
+          rm -f "$TARGET"/*_test.go
+          rm -rf "$TARGET/testconfig/"
+          rm -rf "$TARGET/templates/"
+          mkdir -p "$TARGET/templates/"
+
+          cp "$SOURCE"/*_test.go "$TARGET/"
+          cp "$SOURCE"/config/*.yaml "$TARGET/"
+
+          cp "$SOURCE/templates/zone_test_application.yaml" "$TARGET/templates/"
+
+          for suite in $(echo "$AFFECTED_SUITES" | jq -r '.[]'); do
+            case "$suite" in
+              cronjob)    cp "$SOURCE/templates/cronjob_test_application.yaml"    "$TARGET/templates/" ;;
+              kafka)      cp "$SOURCE/templates/kafka_test_application.yaml"      "$TARGET/templates/" ;;
+              postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
+              repository) cp "$SOURCE/templates/repository_test_application.yaml" "$TARGET/templates/" ;;
+              s3bucket)   cp "$SOURCE/templates/s3bucket_test_application.yaml"   "$TARGET/templates/" ;;
+              valkey)     cp "$SOURCE/templates/valkey_test_application.yaml"     "$TARGET/templates/" ;;
+              webaccess)  cp "$SOURCE/templates/webaccess_test_application.yaml"  "$TARGET/templates/" ;;
+              webapp)     cp "$SOURCE/templates/webapp_test_application.yaml"     "$TARGET/templates/" ;;
+              zone)       cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/"
+                          cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
+            esac
+          done
+
+          mkdir -p "$TARGET/testconfig"
+          {
+            echo "suites:"
+            echo "$AFFECTED_SUITES" | jq -r '.[] | "  - " + .'
+          } > "$TARGET/testconfig/suites.yaml"
 
       - name: Pin testhelm version in templates
         if: inputs.testhelm_version != ''
         env:
           VERSION: ${{ inputs.testhelm_version }}
+          BUILT_TESTHELM: ${{ inputs.built_testhelm }}
         run: |
           TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test/templates"
-          for f in "$TARGET"/*.yaml; do
-            sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$f"
+
+          # Zone template is always pinned since zones testhelm is always rebuilt.
+          sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/zone_test_application.yaml"
+
+          # Pin the version only in templates whose testhelm chart was actually built this run.
+          # Charts not built keep the wildcard targetRevision so ArgoCD resolves the latest release.
+          declare -A CHART_TEMPLATE=(
+            [platform-apis-test-a-apps]="a_test_application.yaml"
+            [platform-apis-test-b-apps]="b_test_application.yaml"
+            [platform-apis-test-cronjob]="cronjob_test_application.yaml"
+            [platform-apis-test-kafka]="kafka_test_application.yaml"
+            [platform-apis-test-postgresql]="postgresql_test_application.yaml"
+            [platform-apis-test-repository]="repository_test_application.yaml"
+            [platform-apis-test-s3bucket]="s3bucket_test_application.yaml"
+            [platform-apis-test-valkey]="valkey_test_application.yaml"
+            [platform-apis-test-webaccess]="webaccess_test_application.yaml"
+            [platform-apis-test-webapp]="webapp_test_application.yaml"
+          )
+          for chart in $(echo "$BUILT_TESTHELM" | jq -r '.[]'); do
+            template="${CHART_TEMPLATE[$chart]}"
+            [ -n "$template" ] && [ -f "$TARGET/$template" ] || continue
+            sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/$template"
           done
 
       - name: Commit and Push

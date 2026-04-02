@@ -4,6 +4,7 @@ metadata:
   name: new-cron-job
   namespace: default
 spec:
+  kind: CronJob
   crossplane:
     compositionRef:
       name: cronjobs.workload.entigo.com

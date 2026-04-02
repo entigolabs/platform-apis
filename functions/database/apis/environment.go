@@ -5,16 +5,17 @@ import (
 )
 
 type Environment struct {
-	AWSProvider            string             `json:"awsProvider"`
-	DataKMSKey             string             `json:"dataKMSKey"`
-	ConfigKMSKey           string             `json:"configKMSKey"`
-	VPC                    string             `json:"vpc"`
-	SubnetGroup            string             `json:"subnetGroup"`
-	ElasticacheSubnetGroup string             `json:"elasticacheSubnetGroup"`
-	EsClusterSecretStore   string             `json:"esClusterSecretStore"`
-	BackupBeforeDeletion   *bool              `json:"backupBeforeDeletion"`
-	BackupRetentionPeriod  *float64           `json:"backupRetentionPeriod"`
-	Tags                   map[string]*string `json:"tags,omitempty"`
+	AWSProvider                  string             `json:"awsProvider"`
+	DataKMSKey                   string             `json:"dataKMSKey"`
+	ConfigKMSKey                 string             `json:"configKMSKey"`
+	VPC                          string             `json:"vpc"`
+	SubnetGroup                  string             `json:"subnetGroup"`
+	ElasticacheSubnetGroup       string             `json:"elasticacheSubnetGroup"`
+	EsClusterSecretStore         string             `json:"esClusterSecretStore"`
+	PostgresBackupBeforeDeletion *bool              `json:"postgresBackupBeforeDeletion"`
+	ValkeyBackupBeforeDeletion   *bool              `json:"valkeyBackupBeforeDeletion"`
+	BackupRetentionPeriod        *float64           `json:"backupRetentionPeriod"`
+	Tags                         map[string]*string `json:"tags,omitempty"`
 }
 
 func (e *Environment) Validate() error {
@@ -39,9 +40,13 @@ func (e *Environment) Validate() error {
 	if e.EsClusterSecretStore == "" {
 		return errors.New("esClusterSecretStore is required")
 	}
-	if e.BackupBeforeDeletion == nil {
+	if e.PostgresBackupBeforeDeletion == nil {
 		defaultTrue := true
-		e.BackupBeforeDeletion = &defaultTrue
+		e.PostgresBackupBeforeDeletion = &defaultTrue
+	}
+	if e.ValkeyBackupBeforeDeletion == nil {
+		defaultTrue := true
+		e.ValkeyBackupBeforeDeletion = &defaultTrue
 	}
 	if e.BackupRetentionPeriod == nil {
 		return errors.New("backupRetentionPeriod is required")

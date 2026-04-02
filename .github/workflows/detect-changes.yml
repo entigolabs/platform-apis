@@ -18,7 +18,7 @@ on:
         description: 'Whether any compositions changed'
         value: ${{ jobs.detect.outputs.has_composition_changes }}
       testhelm:
-        description: 'JSON array of changed testhelm'
+        description: 'JSON array of testhelm charts to build (derived from affected suites)'
         value: ${{ jobs.detect.outputs.testhelm }}
       has_testhelm_changes:
         description: 'Whether any testhelm changed'
@@ -29,6 +29,9 @@ on:
       any_changes:
         description: 'Whether any relevant files changed'
         value: ${{ jobs.detect.outputs.any_changes }}
+      affected_suites:
+        description: 'JSON array of test suites to run (e.g. ["zone","postgresql"])'
+        value: ${{ jobs.detect.outputs.affected_suites }}
 
 jobs:
   detect:
@@ -42,6 +45,7 @@ jobs:
       has_testhelm_changes: ${{ steps.force-all.outputs.has_testhelm_changes || steps.changes.outputs.has_testhelm_changes }}
       helm_changed: ${{ steps.force-all.outputs.helm_changed || steps.changes.outputs.helm_changed }}
       any_changes: ${{ steps.force-all.outputs.any_changes || steps.changes.outputs.any_changes }}
+      affected_suites: ${{ steps.force-all.outputs.affected_suites || steps.changes.outputs.affected_suites }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,13 +53,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Force test and build all
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         id: force-all
         run: |
           get_dirs() {
             ls -d $1*/ 2>/dev/null | xargs -I{} basename {} | grep -vE '^(common|examples)$' | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]"
           }
-          
+
           echo "functions=$(get_dirs 'functions/')" >> $GITHUB_OUTPUT
           echo "has_function_changes=true" >> $GITHUB_OUTPUT
 
@@ -67,9 +71,11 @@ jobs:
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
           echo "any_changes=true" >> $GITHUB_OUTPUT
+          # TODO: add kafka to array, when ready for testing
+          echo 'affected_suites=["zone","postgresql","cronjob","repository","s3bucket","valkey","webaccess","webapp"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
         id: changed-files
         uses: tj-actions/changed-files@v47
         with:
@@ -86,22 +92,89 @@ jobs:
             compositions:
               - 'compositions/**'
               - '!compositions/examples/**'
-            testhelm:
-              - 'test/tests/helm/**'
             helm:
               - 'helm/**'
+            helm_global:
+              - 'helm/Chart.yaml'
+              - 'helm/templates/functions.yaml'
+              - 'helm/templates/providers.yaml'
+              - 'helm/templates/networking.yaml'
+            cronjob:
+              - 'compositions/cronjob/**'
+              - 'functions/workload/**'
+              - 'helm/templates/cronjob.yaml'
+              - 'helm/templates/workload.yaml'
+              - 'test/tests/helm/platform-apis-test-cronjob/**'
+            kafka:
+              - 'compositions/kafka/**'
+              - 'helm/templates/kafka.yaml'
+              - 'test/tests/helm/platform-apis-test-kafka/**'
+            postgresql:
+              - 'compositions/postgresql/**'
+              - 'functions/database/**'
+              - 'helm/templates/postgresql.yaml'
+              - 'helm/templates/database.yaml'
+              - 'test/tests/helm/platform-apis-test-postgresql/**'
+            repository:
+              - 'compositions/repository/**'
+              - 'functions/artifact/**'
+              - 'helm/templates/repository.yaml'
+              - 'helm/templates/artifact.yaml'
+              - 'test/tests/helm/platform-apis-test-repository/**'
+            s3bucket:
+              - 'compositions/s3bucket/**'
+              - 'functions/storage/**'
+              - 'helm/templates/s3bucket.yaml'
+              - 'helm/templates/storage.yaml'
+              - 'test/tests/helm/platform-apis-test-s3bucket/**'
+            valkey:
+              - 'compositions/valkey/**'
+              - 'functions/database/**'
+              - 'helm/templates/valkey.yaml'
+              - 'test/tests/helm/platform-apis-test-valkey/**'
+            webaccess:
+              - 'compositions/webaccess/**'
+              - 'functions/networking/**'
+              - 'helm/templates/webaccess.yaml'
+              - 'test/tests/helm/platform-apis-test-webaccess/**'
+            webapp:
+              - 'compositions/webapp/**'
+              - 'functions/workload/**'
+              - 'helm/templates/webapp.yaml'
+              - 'test/tests/helm/platform-apis-test-webapp/**'
+            zone:
+              - 'compositions/zone/**'
+              - 'functions/tenancy/**'
+              - 'helm/templates/zone.yaml'
+              - 'helm/templates/tenancy.yaml'
+              - 'test/tests/helm/platform-apis-test-zones/**'
+              - 'test/tests/helm/platform-apis-test-app/**'
+              - 'test/tests/helm/platform-apis-test-a-apps/**'
+              - 'test/tests/helm/platform-apis-test-b-apps/**'
 
       - name: Detect changes
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
         id: changes
         env:
           FUNCS_FILES: ${{ steps.changed-files.outputs.functions_all_changed_files }}
           COMPS_FILES: ${{ steps.changed-files.outputs.compositions_all_changed_files }}
-          COMMON_LIB_CHANGED: ${{ steps.changed-files.outputs.common_lib_any_changed }}
+          COMMON_LIB_CHANGED: ${{ steps.changed-files.outputs.common_lib_any_changed || 'false' }}
           FUNCS_ANY_CHANGED: ${{ steps.changed-files.outputs.functions_any_changed || 'false' }}
           COMPS_ANY_CHANGED: ${{ steps.changed-files.outputs.compositions_any_changed || 'false' }}
           HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
+          HELM_GLOBAL_CHANGED: ${{ steps.changed-files.outputs.helm_global_any_changed || 'false' }}
+          CRONJOB_CHANGED: ${{ steps.changed-files.outputs.cronjob_any_changed || 'false' }}
+          # TODO: replace current value with commented out when kafka ready for tests
+          KAFKA_CHANGED: ${{ 'false' }} # ${{ steps.changed-files.outputs.kafka_any_changed || 'false' }}
+          PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_any_changed || 'false' }}
+          REPO_CHANGED: ${{ steps.changed-files.outputs.repository_any_changed || 'false' }}
+          S3BUCKET_CHANGED: ${{ steps.changed-files.outputs.s3bucket_any_changed || 'false' }}
+          VALKEY_CHANGED: ${{ steps.changed-files.outputs.valkey_any_changed || 'false' }}
+          WEBACCESS_CHANGED: ${{ steps.changed-files.outputs.webaccess_any_changed || 'false' }}
+          WEBAPP_CHANGED: ${{ steps.changed-files.outputs.webapp_any_changed || 'false' }}
+          ZONE_CHANGED: ${{ steps.changed-files.outputs.zone_any_changed || 'false' }}
         run: |
+          # Functions and compositions lists (used by build/test jobs)
           if [ "$COMMON_LIB_CHANGED" == "true" ]; then
             FUNCTIONS=$(ls -d functions/*/ 2>/dev/null | xargs -I{} basename {} | grep -v '^common$' | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
             echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
@@ -116,18 +189,57 @@ jobs:
           echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
           echo "has_composition_changes=$COMPS_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          #We always want to build all test helm packages.
-          TESTHELM=$(ls -d test/tests/helm/*/ 2>/dev/null | xargs -I{} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))' || echo "[]")
-          echo "testhelm=$TESTHELM" >> $GITHUB_OUTPUT
-          echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT
-
-          # Helm
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          # Any changes at all
-          TESTHELM_ANY_CHANGED="${{ steps.changed-files.outputs.testhelm_any_changed || 'false' }}"
-          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$TESTHELM_ANY_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
+          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$KAFKA_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$REPO_CHANGED" == "true" ] || [ "$S3BUCKET_CHANGED" == "true" ] || [ "$VALKEY_CHANGED" == "true" ] || [ "$WEBACCESS_CHANGED" == "true" ] || [ "$WEBAPP_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
             echo "any_changes=true" >> $GITHUB_OUTPUT
           else
             echo "any_changes=false" >> $GITHUB_OUTPUT
           fi
+
+          # affected_suites: which Go test suites run in infralib.
+          # zone is always included — zones are base infrastructure deployed in every run.
+          # a-apps/b-apps added when common_lib or helm changed (full rebuild).
+          # other suites added when their respective code changed.
+          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
+           # TODO: add kafka to array, when ready for testing
+            echo 'affected_suites=["cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp","zone"]' >> $GITHUB_OUTPUT
+          else
+            AFFECTED_LIST=""
+            [ "$CRONJOB_CHANGED" == "true" ]    && AFFECTED_LIST="${AFFECTED_LIST}\"cronjob\","
+            [ "$KAFKA_CHANGED" == "true" ]      && AFFECTED_LIST="${AFFECTED_LIST}\"kafka\","
+            [ "$PG_CHANGED" == "true" ]         && AFFECTED_LIST="${AFFECTED_LIST}\"postgresql\","
+            [ "$REPO_CHANGED" == "true" ]       && AFFECTED_LIST="${AFFECTED_LIST}\"repository\","
+            [ "$S3BUCKET_CHANGED" == "true" ]   && AFFECTED_LIST="${AFFECTED_LIST}\"s3bucket\","
+            [ "$VALKEY_CHANGED" == "true" ]     && AFFECTED_LIST="${AFFECTED_LIST}\"valkey\","
+            [ "$WEBACCESS_CHANGED" == "true" ]  && AFFECTED_LIST="${AFFECTED_LIST}\"webaccess\","
+            [ "$WEBAPP_CHANGED" == "true" ]     && AFFECTED_LIST="${AFFECTED_LIST}\"webapp\","
+            [ "$ZONE_CHANGED" == "true" ]       && AFFECTED_LIST="${AFFECTED_LIST}\"zone\","
+            AFFECTED_LIST="${AFFECTED_LIST%,}"
+            echo "affected_suites=[${AFFECTED_LIST}]" >> $GITHUB_OUTPUT
+          fi
+
+          # testhelm: which test Helm charts to build and push.
+          # platform-apis-test-zones always rebuilt — required by every test run.
+          # zone-related charts rebuilt when zone code changed (ZONE_CHANGED).
+          # cronjob/kafka/postgresql/repository charts rebuilt when their code changed.
+          # common_lib or helm forces a full rebuild of all charts.
+          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
+            # TODO: add kafka to array, when ready for testing
+            TESTHELM_LIST='"platform-apis-test-zones","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"'
+            [ "$ZONE_CHANGED" == "true" ] && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-app\",\"platform-apis-test-a-apps\",\"platform-apis-test-b-apps\""
+            echo "testhelm=[${TESTHELM_LIST}]" >> $GITHUB_OUTPUT
+          else
+            TESTHELM_LIST='"platform-apis-test-zones"'
+            [ "$CRONJOB_CHANGED" == "true" ]    && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-cronjob\""
+            [ "$KAFKA_CHANGED" == "true" ]      && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-kafka\""
+            [ "$PG_CHANGED" == "true" ]         && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-postgresql\""
+            [ "$REPO_CHANGED" == "true" ]       && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-repository\""
+            [ "$S3BUCKET_CHANGED" == "true" ]   && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-s3bucket\""
+            [ "$VALKEY_CHANGED" == "true" ]     && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-valkey\""
+            [ "$WEBACCESS_CHANGED" == "true" ]  && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-webaccess\""
+            [ "$WEBAPP_CHANGED" == "true" ]     && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-webapp\""
+            [ "$ZONE_CHANGED" == "true" ]       && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-app\",\"platform-apis-test-a-apps\",\"platform-apis-test-b-apps\""
+            echo "testhelm=[${TESTHELM_LIST}]" >> $GITHUB_OUTPUT
+          fi
+          echo "has_testhelm_changes=true" >> $GITHUB_OUTPUT

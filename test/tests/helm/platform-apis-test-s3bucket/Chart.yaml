@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-apis-test-s3bucket
+description: platform-apis-test-s3bucket
+version: 0.1.0
+appVersion: "0.1.0"
