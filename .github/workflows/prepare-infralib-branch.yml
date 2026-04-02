@@ -103,19 +103,17 @@ jobs:
 
           cp "$SOURCE/templates/zone_test_application.yaml" "$TARGET/templates/"
 
+          if echo "$AFFECTED_SUITES" | jq -e '. | index("zone")' > /dev/null; then
+             cp "$SOURCE/templates/a_test_application.yaml" "$TARGET/templates/" 2>/dev/null || true
+             cp "$SOURCE/templates/b_test_application.yaml" "$TARGET/templates/" 2>/dev/null || true
+          fi
+
           for suite in $(echo "$AFFECTED_SUITES" | jq -r '.[]'); do
-            case "$suite" in
-              cronjob)    cp "$SOURCE/templates/cronjob_test_application.yaml"    "$TARGET/templates/" ;;
-              kafka)      cp "$SOURCE/templates/kafka_test_application.yaml"      "$TARGET/templates/" ;;
-              postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
-              repository) cp "$SOURCE/templates/repository_test_application.yaml" "$TARGET/templates/" ;;
-              s3bucket)   cp "$SOURCE/templates/s3bucket_test_application.yaml"   "$TARGET/templates/" ;;
-              valkey)     cp "$SOURCE/templates/valkey_test_application.yaml"     "$TARGET/templates/" ;;
-              webaccess)  cp "$SOURCE/templates/webaccess_test_application.yaml"  "$TARGET/templates/" ;;
-              webapp)     cp "$SOURCE/templates/webapp_test_application.yaml"     "$TARGET/templates/" ;;
-              zone)       cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/"
-                          cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/" ;;
-            esac
+             if [ "$suite" != "zone" ]; then
+                if [ -f "$SOURCE/templates/${suite}_test_application.yaml" ]; then
+                  cp "$SOURCE/templates/${suite}_test_application.yaml" "$TARGET/templates/"
+                fi
+             fi
           done
 
           mkdir -p "$TARGET/testconfig"
@@ -133,26 +131,28 @@ jobs:
           TARGET="infralib/${{ env.INFRALIB_MODULE_PATH }}/test/templates"
 
           # Zone template is always pinned since zones testhelm is always rebuilt.
-          sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/zone_test_application.yaml"
+          if [ -f "$TARGET/zone_test_application.yaml" ]; then
+            sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/zone_test_application.yaml" || true
+          fi
 
           # Pin the version only in templates whose testhelm chart was actually built this run.
           # Charts not built keep the wildcard targetRevision so ArgoCD resolves the latest release.
-          declare -A CHART_TEMPLATE=(
-            [platform-apis-test-a-apps]="a_test_application.yaml"
-            [platform-apis-test-b-apps]="b_test_application.yaml"
-            [platform-apis-test-cronjob]="cronjob_test_application.yaml"
-            [platform-apis-test-kafka]="kafka_test_application.yaml"
-            [platform-apis-test-postgresql]="postgresql_test_application.yaml"
-            [platform-apis-test-repository]="repository_test_application.yaml"
-            [platform-apis-test-s3bucket]="s3bucket_test_application.yaml"
-            [platform-apis-test-valkey]="valkey_test_application.yaml"
-            [platform-apis-test-webaccess]="webaccess_test_application.yaml"
-            [platform-apis-test-webapp]="webapp_test_application.yaml"
-          )
           for chart in $(echo "$BUILT_TESTHELM" | jq -r '.[]'); do
-            template="${CHART_TEMPLATE[$chart]}"
-            [ -n "$template" ] && [ -f "$TARGET/$template" ] || continue
-            sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/$template"
+            template=""
+            if [ "$chart" == "platform-apis-test-a-apps" ]; then
+               template="a_test_application.yaml"
+            elif [ "$chart" == "platform-apis-test-b-apps" ]; then
+               template="b_test_application.yaml"
+            elif [ "$chart" == "platform-apis-test-app" ]; then
+               template=""
+            elif [ "$chart" != "platform-apis-test-zones" ]; then
+               suite="${chart#platform-apis-test-}"
+               template="${suite}_test_application.yaml"
+            fi
+          
+            if [ -n "$template" ] && [ -f "$TARGET/$template" ]; then
+              sed -i "s|targetRevision: '\*\.\*\.\*-0'|targetRevision: '${VERSION}'|g" "$TARGET/$template"
+            fi
           done
 
       - name: Commit and Push

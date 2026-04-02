@@ -2,13 +2,6 @@
 apiVersion: database.entigo.com/v1alpha1
 kind: ValkeyInstance
 metadata:
-  name: test-valkey-minimal
-  namespace: {{ .Release.Namespace }}
-spec: {}
----
-apiVersion: database.entigo.com/v1alpha1
-kind: ValkeyInstance
-metadata:
   name: test-valkey-custom
   namespace: {{ .Release.Namespace }}
 spec:
