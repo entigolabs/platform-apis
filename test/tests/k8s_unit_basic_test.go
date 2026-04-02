@@ -65,6 +65,9 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 		if cfg.Has("valkey") {
 			runSuite("valkey", func(t *testing.T, ctx context.Context) { testValkey(t, ctx, cluster, argocd) })
 		}
+		if cfg.Has("s3bucket") {
+			runSuite("s3bucket", func(t *testing.T, ctx context.Context) { testS3Bucket(t, ctx, cluster, argocd) })
+		}
 		if cfg.Has("cronjob") {
 			runSuite("cronjob", func(t *testing.T, ctx context.Context) { testCronjob(t, ctx, cluster, argocd) })
 		}
@@ -74,9 +77,6 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 		}*/
 		if cfg.Has("repository") {
 			runSuite("repository", func(t *testing.T, ctx context.Context) { testRepository(t, ctx, cluster, argocd) })
-		}
-		if cfg.Has("s3bucket") {
-			runSuite("s3bucket", func(t *testing.T, ctx context.Context) { testS3Bucket(t, ctx, cluster, argocd) })
 		}
 		if cfg.Has("webapp") {
 			runSuite("webapp", func(t *testing.T, ctx context.Context) { testWebApp(t, ctx, cluster, argocd) })

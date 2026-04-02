@@ -26,7 +26,6 @@ func testS3Bucket(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.K
 
 	t.Run("buckets", func(t *testing.T) {
 		t.Run("MinimalS3Bucket", func(t *testing.T) { t.Parallel(); testMinimalS3Bucket(t, s3Ns) })
-		t.Run("VersionedS3Bucket", func(t *testing.T) { t.Parallel(); testVersionedS3Bucket(t, s3Ns) })
 	})
 }
 
@@ -89,24 +88,6 @@ func testMinimalS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 60, 10*time.Second)
 }
 
-// ── Versioned S3 Bucket ───────────────────────────────────────────────────────
-
-func testVersionedS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
-	t.Helper()
-
-	// Create
-	waitSyncedAndReady(t, s3Ns, S3BucketKind, S3VersionedName, 90, 10*time.Second)
-	if t.Failed() {
-		return
-	}
-
-	// Read: versioning must be enabled from the start.
-	bucketName, err := getFirstByLabel(t, s3Ns, S3BucketAwsKind, S3VersionedName)
-	require.NoError(t, err)
-	require.NotEmpty(t, bucketName)
-	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 90, 10*time.Second)
-}
-
 // ── Cleanup ───────────────────────────────────────────────────────────────────
 
 func cleanupS3Bucket(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
@@ -115,7 +96,7 @@ func cleanupS3Bucket(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	s3Ns := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, S3BucketNamespaceName)
 
-	cleanupDeleteParallel(t, s3Ns, S3BucketKind, S3MinimalName, S3VersionedName)
+	cleanupDeleteParallel(t, s3Ns, S3BucketKind, S3MinimalName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", S3BucketApplicationName, "--ignore-not-found")
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", S3BucketNamespaceName, "--ignore-not-found", "--wait=true")

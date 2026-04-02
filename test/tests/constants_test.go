@@ -152,8 +152,7 @@ const (
 	S3BucketNamespaceName   = "test-s3bucket"
 	S3BucketApplicationName = "test-s3bucket"
 
-	S3MinimalName   = "test-s3-minimal"
-	S3VersionedName = "test-s3-versioned"
+	S3MinimalName = "test-s3-minimal"
 
 	S3BucketKind               = "s3buckets.storage.entigo.com"
 	S3BucketAwsKind            = "bucket.s3.aws.m.upbound.io"
