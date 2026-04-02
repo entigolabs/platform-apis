@@ -213,7 +213,7 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 		rg.Spec.ForProvider.ParameterGroupName = &g.instance.Spec.ParameterGroupName
 	}
 
-	if *g.env.ValkeyBackupBeforeDeletion == true {
+	if *g.env.ValkeyBackupBeforeDeletion {
 		rg.Spec.ForProvider.FinalSnapshotIdentifier = &finalSnapshotIdentifier
 	}
 
