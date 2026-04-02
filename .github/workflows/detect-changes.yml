@@ -96,12 +96,8 @@ jobs:
               - 'helm/**'
             helm_global:
               - 'helm/Chart.yaml'
-              - 'helm/values.yaml'
               - 'helm/templates/functions.yaml'
               - 'helm/templates/providers.yaml'
-              - 'helm/templates/valkey.yaml'
-              - 'helm/templates/webaccess.yaml'
-              - 'helm/templates/webapp.yaml'
               - 'helm/templates/networking.yaml'
             cronjob:
               - 'compositions/cronjob/**'
@@ -207,7 +203,7 @@ jobs:
           # other suites added when their respective code changed.
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
            # TODO: add kafka to array, when ready for testing
-            echo 'affected_suites=["cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp","zone","a-apps","b-apps"]' >> $GITHUB_OUTPUT
+            echo 'affected_suites=["cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp","zone"]' >> $GITHUB_OUTPUT
           else
             AFFECTED_LIST=""
             [ "$CRONJOB_CHANGED" == "true" ]    && AFFECTED_LIST="${AFFECTED_LIST}\"cronjob\","
@@ -229,7 +225,10 @@ jobs:
           # cronjob/kafka/postgresql/repository charts rebuilt when their code changed.
           # common_lib or helm forces a full rebuild of all charts.
           if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
-            echo 'testhelm=["platform-apis-test-cronjob","platform-apis-test-kafka","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp","platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps"]' >> $GITHUB_OUTPUT
+            # TODO: add kafka to array, when ready for testing
+            TESTHELM_LIST='"platform-apis-test-zones","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"'
+            [ "$ZONE_CHANGED" == "true" ] && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-app\",\"platform-apis-test-a-apps\",\"platform-apis-test-b-apps\""
+            echo "testhelm=[${TESTHELM_LIST}]" >> $GITHUB_OUTPUT
           else
             TESTHELM_LIST='"platform-apis-test-zones"'
             [ "$CRONJOB_CHANGED" == "true" ]    && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-cronjob\""
