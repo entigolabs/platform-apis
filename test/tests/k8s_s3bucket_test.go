@@ -97,9 +97,9 @@ func testVersionedS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 		return
 	}
 
-	// Read: versioning must be enabled from the start
-	require.Equal(t, "true",
-		getField(t, s3Ns, S3BucketKind, S3VersionedName, ".status.versioningEnabled"))
+	// Read: versioning must be enabled from the start.
+	// AWS atProvider status lags behind Synced+Ready — wait for propagation.
+	waitFieldEquals(t, s3Ns, S3BucketKind, S3VersionedName, ".status.versioningEnabled", "true", 90, 10*time.Second)
 }
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────
