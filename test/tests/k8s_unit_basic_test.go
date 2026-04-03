@@ -88,39 +88,64 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 }
 
 // waitPackagesReady waits for the Crossplane packages (Functions + Configurations) for active suites.
+// All suite package checks run in parallel; within each suite, configuration + function are also parallel.
 func waitPackagesReady(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
 	t.Helper()
 	t.Run("packages", func(t *testing.T) {
 		if cfg.Has("cronjob") {
-			checkPlatformApisHaveRequiredPackages(t, cluster, CronjobConfigurationName, WorkloadFunctionName)
+			t.Run("cronjob", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, CronjobConfigurationName, WorkloadFunctionName)
+			})
 		}
 		//  TODO: Update when kafka in go ready
 		/*if cfg.Has("kafka") {
-			t.Run("kafka-configuration", func(t *testing.T) {
+			t.Run("kafka", func(t *testing.T) {
 				t.Parallel()
-				waitCrossplanePackageReady(t, cluster, ConfigurationKind, KafkaConfigurationName)
+				checkPlatformApisHaveRequiredPackages(t, cluster, KafkaConfigurationName, ...)
 			})
 		}*/
 		if cfg.Has("postgresql") {
-			checkPlatformApisHaveRequiredPackages(t, cluster, PostgresqlConfigurationName, DatabaseFunctionName)
+			t.Run("postgresql", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, PostgresqlConfigurationName, DatabaseFunctionName)
+			})
 		}
 		if cfg.Has("repository") {
-			checkPlatformApisHaveRequiredPackages(t, cluster, RepositoryConfigurationName, ArtifactFunctionName)
+			t.Run("repository", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, RepositoryConfigurationName, ArtifactFunctionName)
+			})
 		}
 		if cfg.Has("s3bucket") {
-			checkPlatformApisHaveRequiredPackages(t, cluster, S3BucketConfigurationName, StorageFunctionName)
+			t.Run("s3bucket", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, S3BucketConfigurationName, StorageFunctionName)
+			})
 		}
 		if cfg.Has("valkey") {
-			checkPlatformApisHaveRequiredPackages(t, cluster, ValkeyConfigurationName, DatabaseFunctionName)
+			t.Run("valkey", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, ValkeyConfigurationName, DatabaseFunctionName)
+			})
 		}
 		if cfg.Has("webaccess") {
-			checkPlatformApisHaveRequiredPackages(t, cluster, WebaccessConfigurationName, NetwokringFunctionName)
+			t.Run("webaccess", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, WebaccessConfigurationName, NetwokringFunctionName)
+			})
 		}
 		if cfg.Has("webapp") {
-			checkPlatformApisHaveRequiredPackages(t, cluster, WebappConfigurationName, WorkloadFunctionName)
+			t.Run("webapp", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, WebappConfigurationName, WorkloadFunctionName)
+			})
 		}
 		if cfg.Has("zone") {
-			checkPlatformApisHaveRequiredPackages(t, cluster, ZoneConfigurationName, TenancyFunctionName)
+			t.Run("zone", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, ZoneConfigurationName, TenancyFunctionName)
+			})
 		}
 	})
 }
