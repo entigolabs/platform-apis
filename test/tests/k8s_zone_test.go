@@ -16,6 +16,7 @@ func testZone(t *testing.T, ctx context.Context, cluster *terrak8s.KubectlOption
 		return
 	}
 	testZoneApps(t, cluster)
+	testZoneKyverno(t, cluster)
 }
 
 func testZoneApps(t *testing.T, cluster *terrak8s.KubectlOptions) {
