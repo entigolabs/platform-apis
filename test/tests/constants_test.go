@@ -5,12 +5,13 @@ import "time"
 const (
 	// ── ArgoCD sync / health timing ──────────────────────────────────────────
 
-	syncMaxAttempts  = 5
-	syncRetryDelay   = 30 * time.Second
-	syncPollRetries  = 60
-	syncPollInterval = 10 * time.Second
-	healthRetries    = 30
-	healthInterval   = 10 * time.Second
+	syncMaxAttempts       = 5
+	syncRetryInitialDelay = 10 * time.Second
+	syncRetryDelay        = 30 * time.Second
+	syncPollRetries       = 60
+	syncPollInterval      = 10 * time.Second
+	healthRetries         = 30
+	healthInterval        = 10 * time.Second
 
 	// ── Crossplane package kinds ──────────────────────────────────────────────
 

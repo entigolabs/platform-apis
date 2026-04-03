@@ -19,12 +19,15 @@ func applyFile(t *testing.T, opts *terrak8s.KubectlOptions, file string) {
 }
 
 // syncWithRetry forces an ArgoCD sync and retries up to syncMaxAttempts times on errors.
+// Retry delay uses exponential backoff starting at syncRetryInitialDelay, doubling each attempt
+// up to syncRetryDelay.
 //
 // Why not check sync.status == "Synced":
 // An app can be OutOfSync (resources drifted externally) but still healthy and working.
 // Instead we check operationState.phase == "Succeeded" — did the last sync operation succeed.
 func syncWithRetry(t *testing.T, opts *terrak8s.KubectlOptions, appName string) {
 	t.Helper()
+	delay := syncRetryInitialDelay
 	for attempt := 1; attempt <= syncMaxAttempts; attempt++ {
 		err := trySyncAndWait(t, opts, appName)
 		if err == nil {
@@ -33,8 +36,12 @@ func syncWithRetry(t *testing.T, opts *terrak8s.KubectlOptions, appName string) 
 		if attempt == syncMaxAttempts {
 			t.Fatalf("Application %q failed to sync after %d attempts: %v", appName, syncMaxAttempts, err)
 		}
-		t.Logf("[sync] attempt %d/%d for %q failed: %v — retrying in %s", attempt, syncMaxAttempts, appName, err, syncRetryDelay)
-		time.Sleep(syncRetryDelay)
+		t.Logf("[sync] attempt %d/%d for %q failed: %v — retrying in %s", attempt, syncMaxAttempts, appName, err, delay)
+		time.Sleep(delay)
+		delay *= 2
+		if delay > syncRetryDelay {
+			delay = syncRetryDelay
+		}
 	}
 }
 
