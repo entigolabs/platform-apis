@@ -1,7 +1,6 @@
 package test
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -24,6 +23,10 @@ type kyvernoZoneData struct {
 
 type kyvernoArgoAppData struct {
 	Name, Namespace, DestNamespace, Project string
+}
+
+type kyvernoKubeconfigData struct {
+	CA, Server, ClusterName, Region, KeyID, Secret string
 }
 
 // ── Setup helpers ─────────────────────────────────────────────────────────────
@@ -61,39 +64,9 @@ func roleKubectlOptions(t *testing.T, base *terrak8s.KubectlOptions, keyID, secr
 		"config", "view", "--minify", "-o", "jsonpath={.clusters[0].cluster.server}")
 	require.NoError(t, err, "read cluster server from kubeconfig")
 
-	kubeconfig := fmt.Sprintf(`apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    certificate-authority-data: %s
-    server: %s
-  name: role-cluster
-contexts:
-- context:
-    cluster: role-cluster
-    user: role-user
-  name: role-context
-current-context: role-context
-users:
-- name: role-user
-  user:
-    exec:
-      apiVersion: client.authentication.k8s.io/v1beta1
-      command: aws
-      args:
-      - eks
-      - get-token
-      - --cluster-name
-      - %s
-      - --region
-      - %s
-      env:
-      - name: AWS_ACCESS_KEY_ID
-        value: %s
-      - name: AWS_SECRET_ACCESS_KEY
-        value: %s
-      interactiveMode: Never
-`, ca, server, clusterName, region, keyID, secret)
+	kubeconfig := renderTemplate(t, "./templates/kyverno_kubeconfig.yaml", kyvernoKubeconfigData{
+		CA: ca, Server: server, ClusterName: clusterName, Region: region, KeyID: keyID, Secret: secret,
+	})
 
 	f, ferr := os.CreateTemp("", "kubeconfig-role-*.yaml")
 	require.NoError(t, ferr)
@@ -105,13 +78,14 @@ users:
 	return terrak8s.NewKubectlOptions("role-context", f.Name(), "")
 }
 
-// ── Kyverno dry-run helpers ───────────────────────────────────────────────────
+// ── Kyverno apply helpers ─────────────────────────────────────────────────────
 
-// kyvernoDryRunApply applies yamlStr with --dry-run=server so admission webhooks fire
-// but no resource is persisted. Returns the combined stdout output and any error.
-func kyvernoDryRunApply(t *testing.T, opts *terrak8s.KubectlOptions, yamlStr string) (string, error) {
+// kyvernoApply applies yamlStr so admission webhooks fire against real resources.
+// For expected-deny tests the resource is never persisted; for expected-allow tests
+// the caller is responsible for adding a t.Cleanup to delete the created resource.
+func kyvernoApply(t *testing.T, opts *terrak8s.KubectlOptions, yamlStr string) (string, error) {
 	t.Helper()
-	return terrak8s.RunKubectlAndGetOutputE(t, opts, "apply", "-f", writeTempYAML(t, yamlStr), "--dry-run=server")
+	return terrak8s.RunKubectlAndGetOutputE(t, opts, "apply", "-f", writeTempYAML(t, yamlStr))
 }
 
 // writeTempYAML writes content to a temp file, schedules removal with t.Cleanup, and returns the path.
