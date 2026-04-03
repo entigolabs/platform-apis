@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 	}
 
 	t.Run("setup-zone", func(t *testing.T) {
-		setupZoneSync(t, cluster, argocd)
+		setupZoneSync(t, cfg, cluster, argocd)
 	})
 	if t.Failed() {
 		t.Fatal("Zones deployment failed. Can not run tests.")
@@ -168,19 +169,73 @@ func setupKubectlClients(opts *terrak8s.KubectlOptions, envName string) (*terrak
 	return cluster, argocd
 }
 
-// setupZoneSync deploys zone
-func setupZoneSync(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+// setupZoneSync deploys zone and pre-creates test namespaces for active suites.
+// Zone A and B readiness checks run in parallel. Namespace pre-creation starts
+// as soon as zone A is ready (namespaces are labeled zone: a), overlapping with
+// the zone B wait so zone-managed resources are ready sooner.
+func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.KubectlOptions) {
 	t.Helper()
 
 	applyFile(t, cluster, "./templates/zone_test_application.yaml")
 	syncWithRetry(t, argocd, ZoneApplicationName)
 
-	for _, zone := range []string{ZoneAName, ZoneBName} {
-		waitSyncedAndReady(t, cluster, ZoneKind, zone, 30, 10*time.Second)
-		waitZoneNodegroupReady(t, cluster, zone)
+	t.Run("zone-readiness", func(t *testing.T) {
+		t.Run("zone-a", func(t *testing.T) {
+			t.Parallel()
+			waitSyncedAndReady(t, cluster, ZoneKind, ZoneAName, 30, 10*time.Second)
+			waitZoneNodegroupReady(t, cluster, ZoneAName)
+			preCreateTestNamespaces(t, cfg, cluster)
+		})
+		t.Run("zone-b", func(t *testing.T) {
+			t.Parallel()
+			waitSyncedAndReady(t, cluster, ZoneKind, ZoneBName, 30, 10*time.Second)
+			waitZoneNodegroupReady(t, cluster, ZoneBName)
+		})
+	})
+	if t.Failed() {
+		return
 	}
 
 	waitApplicationHealthy(t, argocd, ZoneApplicationName)
+}
+
+// preCreateTestNamespaces applies a Namespace for each active suite in parallel so the
+// zone function reconciles per-namespace resources (netpols, RBAC, Kyverno policies)
+// before suites start. Namespace names follow the test-<suite> convention.
+// apply is idempotent — safe to call even if namespaces already exist from a prior run.
+func preCreateTestNamespaces(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	// kafka excluded — tests not yet enabled
+	suites := []string{"cronjob", "postgresql", "repository", "s3bucket", "valkey", "webapp", "webaccess"}
+
+	t.Run("pre-create-namespaces", func(t *testing.T) {
+		for _, suite := range suites {
+			if !cfg.Has(suite) {
+				continue
+			}
+			suite := suite
+			t.Run(suite, func(t *testing.T) {
+				t.Parallel()
+				yaml := fmt.Sprintf(`apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-%s
+  labels:
+    tenancy.entigo.com/zone: a
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: baseline
+`, suite)
+				f, err := os.CreateTemp("", "ns-"+suite+"-*.yaml")
+				require.NoError(t, err)
+				defer os.Remove(f.Name())
+				_, err = f.WriteString(yaml)
+				require.NoError(t, err)
+				require.NoError(t, f.Close())
+				applyFile(t, cluster, f.Name())
+			})
+		}
+	})
 }
 
 func waitZoneNodegroupReady(t *testing.T, cluster *terrak8s.KubectlOptions, zone string) {
