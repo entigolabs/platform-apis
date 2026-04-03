@@ -11,7 +11,8 @@ data:
   subnetGroup: {{ .Values.database.environmentConfig.subnetGroup }}
   elasticacheSubnetGroup: {{ .Values.database.environmentConfig.elasticacheSubnetGroup }}
   esClusterSecretStore: {{ .Values.database.environmentConfig.esClusterSecretStore }}
-  backupBeforeDeletion: {{ .Values.database.environmentConfig.backupBeforeDeletion }}
+  postgresBackupBeforeDeletion: {{ .Values.database.environmentConfig.postgresBackupBeforeDeletion }}
+  valkeyBackupBeforeDeletion: {{ .Values.database.environmentConfig.valkeyBackupBeforeDeletion }}
   backupRetentionPeriod: {{ .Values.database.environmentConfig.backupRetentionPeriod }}
   {{- if .Values.database.environmentConfig.tags }}
   tags: {{- toYaml .Values.database.environmentConfig.tags | nindent 4 }}

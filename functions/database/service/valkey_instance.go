@@ -197,7 +197,6 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 				AutoGenerateAuthToken:   base.BoolPtr(true),
 				AuthTokenUpdateStrategy: &authTokenUpdateStrategy,
 				KMSKeyID:                &g.kmsDataKeyArn,
-				FinalSnapshotIdentifier: &finalSnapshotIdentifier,
 				MaintenanceWindow:       &g.instance.Spec.MaintenanceWindow,
 				SnapshotWindow:          &g.instance.Spec.SnapshotWindow,
 				SnapshotRetentionLimit:  &g.instance.Spec.SnapshotRetentionLimit,
@@ -212,6 +211,10 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 
 	if g.instance.Spec.ParameterGroupName != "" {
 		rg.Spec.ForProvider.ParameterGroupName = &g.instance.Spec.ParameterGroupName
+	}
+
+	if *g.env.ValkeyBackupBeforeDeletion {
+		rg.Spec.ForProvider.FinalSnapshotIdentifier = &finalSnapshotIdentifier
 	}
 
 	objects["replication-group"] = rg

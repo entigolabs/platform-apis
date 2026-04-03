@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-apis-test-valkey
+description: platform-apis-test-valkey
+version: 0.1.0
+appVersion: "0.1.0"

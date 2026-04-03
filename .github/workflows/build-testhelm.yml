@@ -93,4 +93,8 @@ jobs:
           VERSION: ${{ needs.calculate.outputs.version }}
         run: |
           helm package ${{ matrix.testhelm }}
-          helm push ${{ matrix.testhelm }}-${VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}
+          for i in 1 2 3; do
+            helm push ${{ matrix.testhelm }}-${VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }} && break
+            echo "Push attempt $i failed, retrying in 10s..."
+            sleep 10
+          done

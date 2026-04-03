@@ -333,7 +333,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 
 	dbName, engine, storageType, masterUsername := "postgres", "postgres", "gp3", "dbadmin"
 	manageMasterUserPassword, performanceInsightsEnabled, publiclyAccessible, skipFinalSnapshot, storageEncrypted := true, false, false, false, true
-	if !*g.env.BackupBeforeDeletion {
+	if !*g.env.PostgresBackupBeforeDeletion {
 		skipFinalSnapshot = true
 	}
 

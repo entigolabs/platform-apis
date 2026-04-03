@@ -1,0 +1,15 @@
+apiVersion: workload.entigo.com/v1alpha1
+kind: CronJob
+metadata:
+  name: test-cronjob
+  namespace: test-cronjob
+spec:
+  kind: CronJob
+  schedule: "0 * * * *"
+  concurrencyPolicy: Allow
+  restartPolicy: OnFailure
+  containers:
+    - name: busybox
+      registry: docker.io
+      repository: busybox
+      tag: latest

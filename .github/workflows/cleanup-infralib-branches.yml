@@ -19,13 +19,12 @@ jobs:
         run: |
           echo "Cleaning up branches for PR #${PR_NUMBER}"
 
-          # Build pattern to match branches for this PR
-          PATTERN="platform-apis-.*-rc\\.${PR_NUMBER}\\."
-
-          # List branches matching the pattern
-          BRANCHES=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ env.INFRALIB_REPO }}/branches?per_page=100" \
-            | jq -r --arg pattern "$PATTERN" '.[].name | select(test($pattern))')
+          # List all branches across all pages, then filter for this PR
+          # gh api --paginate follows Link headers automatically
+          BRANCHES=$(gh api --paginate \
+            "repos/${{ env.INFRALIB_REPO }}/branches?per_page=100" \
+            -q '.[].name' \
+            | grep -E "platform-apis-.*-rc\.${PR_NUMBER}\." || true)
 
           if [ -z "$BRANCHES" ]; then
             echo "No branches found for PR #${PR_NUMBER}"
@@ -35,11 +34,18 @@ jobs:
           echo "Found branches to delete:"
           echo "$BRANCHES"
 
+          FAILED=0
           for BRANCH in $BRANCHES; do
             echo "Deleting branch: $BRANCH"
-            curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
-              "https://api.github.com/repos/${{ env.INFRALIB_REPO }}/git/refs/heads/${BRANCH}"
-            echo "Deleted: $BRANCH"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${{ env.INFRALIB_REPO }}/git/refs/heads/${BRANCH}")
+            if [ "$HTTP_CODE" == "204" ]; then
+              echo "Deleted: $BRANCH"
+            else
+              echo "ERROR: failed to delete $BRANCH (HTTP $HTTP_CODE)"
+              FAILED=1
+            fi
           done
 
-          echo "Cleanup complete"
+          [ "$FAILED" -eq 0 ] && echo "Cleanup complete" || exit 1

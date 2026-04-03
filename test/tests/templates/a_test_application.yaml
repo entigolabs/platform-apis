@@ -10,15 +10,6 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: test-postgresql
-  labels:
-    tenancy.entigo.com/zone: a
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/warn: baseline
----
-apiVersion: v1
-kind: Namespace
-metadata:
   name: a1
   labels:
     tenancy.entigo.com/zone: a
@@ -44,8 +35,4 @@ spec:
       releaseName: platform-apis-test-a-apps
       values: |
         targetRevision: '*.*.*-0'
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      enabled: true
+  syncPolicy: {}
