@@ -76,26 +76,35 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 //   - platform-apis-zone-namespace-pod-security (ValidatingPolicy)
 //   - platform-apis-namespace-add-missing-zone-label (MutatingPolicy)
 func testKyvernoNamespacePodSecurity(t *testing.T, cluster *terrak8s.KubectlOptions) {
-	t.Run("pass: baseline enforce+warn accepted", func(t *testing.T) {
+	t.Run("pass: restricted enforce+warn when setting is restricted", func(t *testing.T) {
 		t.Parallel()
-		const name = "kyverno-psa-pass"
+		const name = "kyverno-psa-restricted"
+		t.Cleanup(func() {
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", name, "--ignore-not-found", "--wait=false")
+		})
+		_, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: name, Zone: ZoneAName, Enforce: "restricted", Warn: "restricted"}))
+		assertKyvernoAllowed(t, err)
+	})
+	t.Run("fail: privileged enforce is denied when setting is restricted", func(t *testing.T) {
+		t.Parallel()
+		out, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: "kyverno-psa-priv-enf", Zone: ZoneAName, Enforce: "privileged", Warn: "restricted"}))
+		assertKyvernoDenied(t, out, err)
+	})
+	t.Run("fail: privileged warn is denied when setting is restricted", func(t *testing.T) {
+		t.Parallel()
+		out, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: "kyverno-psa-priv-warn", Zone: ZoneAName, Enforce: "restricted", Warn: "privileged"}))
+		assertKyvernoDenied(t, out, err)
+	})
+	t.Run("pass: baseline enforce+warn are allowed when setting is baseline", func(t *testing.T) {
+		t.Parallel()
+		const name = "kyverno-psa-baseline"
 		t.Cleanup(func() {
 			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", name, "--ignore-not-found", "--wait=false")
 		})
 		_, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: name, Zone: ZoneAName, Enforce: "baseline", Warn: "baseline"}))
 		assertKyvernoAllowed(t, err)
 	})
-	t.Run("fail: privileged enforce rejected", func(t *testing.T) {
-		t.Parallel()
-		out, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: "kyverno-psa-fail-enf", Zone: ZoneAName, Enforce: "privileged", Warn: "restricted"}))
-		assertKyvernoDenied(t, out, err)
-	})
-	t.Run("fail: privileged warn rejected", func(t *testing.T) {
-		t.Parallel()
-		out, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: "kyverno-psa-fail-warn", Zone: ZoneAName, Enforce: "restricted", Warn: "privileged"}))
-		assertKyvernoDenied(t, out, err)
-	})
-	t.Run("pass: namespace without zone label auto-assigned", func(t *testing.T) {
+	t.Run("pass: namespace without zone label gets auto-assigned", func(t *testing.T) {
 		t.Parallel()
 		// Zone field is empty — template omits the zone label; MutatingPolicy should add it.
 		const name = "kyverno-no-zone-test"
@@ -105,10 +114,19 @@ func testKyvernoNamespacePodSecurity(t *testing.T, cluster *terrak8s.KubectlOpti
 		_, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: name, Enforce: "restricted", Warn: "restricted"}))
 		assertKyvernoAllowed(t, err)
 	})
-	t.Run("fail: non-existent zone label rejected", func(t *testing.T) {
+	t.Run("fail: zone label referencing non-existent zone is denied", func(t *testing.T) {
 		t.Parallel()
 		out, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: "kyverno-bad-zone", Zone: "non-existent-zone-xyz", Enforce: "restricted", Warn: "restricted"}))
 		assertKyvernoDenied(t, out, err)
+	})
+	t.Run("pass: system namespace kube-system is excluded", func(t *testing.T) {
+		t.Parallel()
+		// kube-system is excluded by the policy; applying privileged PSA labels should be allowed.
+		// Uses --dry-run=server to avoid actually mutating kube-system labels in the cluster.
+		_, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "apply", "-f",
+			writeTempYAML(t, nsYAML(t, kyvernoNsData{Name: "kube-system", Enforce: "privileged", Warn: "privileged"})),
+			"--dry-run=server")
+		assertKyvernoAllowed(t, err)
 	})
 }
 
@@ -116,18 +134,18 @@ func testKyvernoNamespacePodSecurity(t *testing.T, cluster *terrak8s.KubectlOpti
 // Contributors are denied all namespace operations regardless of operation type.
 // Uses real AWS credentials to authenticate as a contributor IAM identity.
 func testKyvernoContributorDeny(t *testing.T, contributor *terrak8s.KubectlOptions) {
-	t.Run("fail: contributor cannot create namespace", func(t *testing.T) {
+	t.Run("fail: contributor cannot create a namespace", func(t *testing.T) {
 		t.Parallel()
 		out, err := kyvernoApply(t, contributor, nsYAML(t, kyvernoNsData{Name: "kyverno-contrib-create", Zone: ZoneAName, Enforce: "restricted", Warn: "restricted"}))
 		assertForbidden(t, out, err)
 	})
-	t.Run("fail: contributor cannot update namespace", func(t *testing.T) {
+	t.Run("fail: contributor cannot update a namespace", func(t *testing.T) {
 		t.Parallel()
 		out, err := terrak8s.RunKubectlAndGetOutputE(t, contributor, "patch", "namespace", KyvernoTestNSName,
 			"--type", "merge", "-p", `{"metadata":{"annotations":{"kyverno.io/test":"true"}}}`)
 		assertForbidden(t, out, err)
 	})
-	t.Run("fail: contributor cannot delete namespace", func(t *testing.T) {
+	t.Run("fail: contributor cannot delete a namespace", func(t *testing.T) {
 		t.Parallel()
 		out, err := terrak8s.RunKubectlAndGetOutputE(t, contributor, "delete", "namespace", KyvernoTestNSName)
 		assertForbidden(t, out, err)
@@ -142,7 +160,7 @@ func testKyvernoMaintainerNamespaceDeny(t *testing.T, cluster, maintainer *terra
 		out, err := kyvernoApply(t, maintainer, nsYAML(t, kyvernoNsData{Name: "kyverno-maint-infralib", Zone: "infralib", Enforce: "restricted", Warn: "restricted"}))
 		assertKyvernoDenied(t, out, err)
 	})
-	t.Run("fail: maintainer cannot update namespace to infralib zone", func(t *testing.T) {
+	t.Run("fail: maintainer cannot update namespace with infralib zone", func(t *testing.T) {
 		t.Parallel()
 		out, err := terrak8s.RunKubectlAndGetOutputE(t, maintainer, "patch", "namespace", KyvernoTestNSName,
 			"--type", "merge", "-p", `{"metadata":{"labels":{"tenancy.entigo.com/zone":"infralib"}}}`)
@@ -162,12 +180,12 @@ func testKyvernoMaintainerNamespaceDeny(t *testing.T, cluster, maintainer *terra
 // testKyvernoMaintainerInfralibZoneDeny covers platform-apis-zone-maintainer-infralib-zone-deny (ValidatingPolicy).
 // Maintainers cannot create or update the Zone named "infralib".
 func testKyvernoMaintainerInfralibZoneDeny(t *testing.T, cluster, maintainer *terrak8s.KubectlOptions) {
-	t.Run("fail: maintainer cannot create zone named infralib", func(t *testing.T) {
+	t.Run("fail: maintainer cannot create the infralib zone", func(t *testing.T) {
 		t.Parallel()
 		out, err := kyvernoApply(t, maintainer, zoneYAML(t, kyvernoZoneData{Name: "infralib"}))
 		assertKyvernoDenied(t, out, err)
 	})
-	t.Run("fail: maintainer cannot update infralib zone", func(t *testing.T) {
+	t.Run("fail: maintainer cannot update the infralib zone", func(t *testing.T) {
 		t.Parallel()
 		existing, _ := terrak8s.RunKubectlAndGetOutputE(t, cluster, "get", ZoneKind, "infralib",
 			"--ignore-not-found", "-o", "jsonpath={.metadata.name}")
@@ -178,7 +196,7 @@ func testKyvernoMaintainerInfralibZoneDeny(t *testing.T, cluster, maintainer *te
 			"--type", "merge", "-p", `{"metadata":{"annotations":{"kyverno.io/test":"true"}}}`)
 		assertKyvernoDenied(t, out, err)
 	})
-	t.Run("pass: maintainer can create non-infralib zone", func(t *testing.T) {
+	t.Run("pass: maintainer can create a non-infralib zone", func(t *testing.T) {
 		t.Parallel()
 		const name = "kyverno-maint-zone"
 		t.Cleanup(func() {
@@ -190,19 +208,30 @@ func testKyvernoMaintainerInfralibZoneDeny(t *testing.T, cluster, maintainer *te
 }
 
 // testKyvernoZoneDeletionCheck covers platform-apis-zone-deletion-check-namespaces (ValidatingPolicy).
-// Zone deletion is blocked when any namespace is labeled with that zone.
 func testKyvernoZoneDeletionCheck(t *testing.T, cluster *terrak8s.KubectlOptions) {
-	t.Run("fail: deletion blocked when namespaces attached", func(t *testing.T) {
+	t.Run("fail: zone deletion blocked when namespaces still attached", func(t *testing.T) {
+		t.Parallel()
 		// Zone "a" has kyverno-test-e2e (and others) labeled tenancy.entigo.com/zone=a.
 		// Attempting to delete it should be denied by Kyverno — zone "a" is never actually removed.
 		out, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", ZoneKind, ZoneAName)
 		assertKyvernoDenied(t, out, err)
 	})
+	t.Run("pass: zone deletion allowed when no namespaces attached", func(t *testing.T) {
+		t.Parallel()
+		const name = "kyverno-del-test"
+		applyFile(t, cluster, writeTempYAML(t, zoneYAML(t, kyvernoZoneData{Name: name})))
+		t.Cleanup(func() {
+			// Belt-and-suspenders if the delete below fails.
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", ZoneKind, name, "--ignore-not-found", "--wait=false")
+		})
+		_, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", ZoneKind, name)
+		assertKyvernoAllowed(t, err)
+	})
 }
 
 // testKyvernoZoneNamespaceOwnership covers platform-apis-zone-namespace-ownership (ValidatingPolicy).
 func testKyvernoZoneNamespaceOwnership(t *testing.T, cluster *terrak8s.KubectlOptions) {
-	t.Run("fail: cannot create zone named default", func(t *testing.T) {
+	t.Run("fail: cannot create default zone", func(t *testing.T) {
 		t.Parallel()
 		out, err := kyvernoApply(t, cluster, zoneYAML(t, kyvernoZoneData{Name: "default"}))
 		assertKyvernoDenied(t, out, err)
@@ -245,7 +274,7 @@ func testKyvernoZoneNamespaceOwnership(t *testing.T, cluster *terrak8s.KubectlOp
 func testKyvernoGenerateNamespaceFromArgoApp(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	kyvernoNSOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestNSName)
 
-	t.Run("ArgoApp generates namespace", func(t *testing.T) {
+	t.Run("pass: ArgoApp generates namespace", func(t *testing.T) {
 		const (
 			appName     = "kyverno-generate-test"
 			generatedNS = "kyverno-generated-ns"
@@ -260,7 +289,7 @@ func testKyvernoGenerateNamespaceFromArgoApp(t *testing.T, cluster *terrak8s.Kub
 		waitResourceExists(t, cluster, "namespace", generatedNS, 12, 5*time.Second)
 	})
 
-	t.Run("ArgoApp with infralib project does not generate namespace", func(t *testing.T) {
+	t.Run("pass: ArgoApp with infralib project does not generate namespace", func(t *testing.T) {
 		const (
 			appName    = "kyverno-infralib-test"
 			infralibNS = "kyverno-infralib-gen"
