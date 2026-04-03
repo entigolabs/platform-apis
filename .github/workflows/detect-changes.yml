@@ -53,7 +53,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Force test and build all
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch'
         id: force-all
         run: |
           get_dirs() {
@@ -75,12 +75,12 @@ jobs:
           echo 'affected_suites=["zone","postgresql","cronjob","repository","s3bucket","valkey","webaccess","webapp"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
-        if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name != 'workflow_dispatch'
         id: changed-files
         uses: tj-actions/changed-files@v47
         with:
-          base_sha: ${{ github.event.pull_request.base.sha }}
-          sha: ${{ github.event.pull_request.head.sha }}
+          base_sha: ${{ github.event.pull_request.base.sha || github.event.before }}
+          sha: ${{ github.event.pull_request.head.sha || github.sha }}
           json: true
           escape_json: false
           files_yaml: |
@@ -153,9 +153,10 @@ jobs:
               - 'test/tests/helm/platform-apis-test-b-apps/**'
 
       - name: Detect changes
-        if: github.event_name != 'workflow_dispatch' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name != 'workflow_dispatch'
         id: changes
         env:
+          IS_MAIN_PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           FUNCS_FILES: ${{ steps.changed-files.outputs.functions_all_changed_files }}
           COMPS_FILES: ${{ steps.changed-files.outputs.compositions_all_changed_files }}
           COMMON_LIB_CHANGED: ${{ steps.changed-files.outputs.common_lib_any_changed || 'false' }}
@@ -192,18 +193,19 @@ jobs:
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
 
           if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$KAFKA_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$REPO_CHANGED" == "true" ] || [ "$S3BUCKET_CHANGED" == "true" ] || [ "$VALKEY_CHANGED" == "true" ] || [ "$WEBACCESS_CHANGED" == "true" ] || [ "$WEBAPP_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
-            echo "any_changes=true" >> $GITHUB_OUTPUT
+            ANY_CHANGES=true
           else
-            echo "any_changes=false" >> $GITHUB_OUTPUT
+            ANY_CHANGES=false
           fi
+          echo "any_changes=$ANY_CHANGES" >> $GITHUB_OUTPUT
 
           # affected_suites: which Go test suites run in infralib.
-          # zone is always included — zones are base infrastructure deployed in every run.
-          # a-apps/b-apps added when common_lib or helm changed (full rebuild).
-          # other suites added when their respective code changed.
-          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
-           # TODO: add kafka to array, when ready for testing
-            echo 'affected_suites=["cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp","zone"]' >> $GITHUB_OUTPUT
+          # On main push: always run all suites (merges must be fully validated).
+          # On PR: zone is always included; other suites added when their code changed.
+          # TODO: add kafka to array, when ready for testing
+          ALL_SUITES='["cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp","zone"]'
+          if [ "$ANY_CHANGES" == "true" ] && ([ "$IS_MAIN_PUSH" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]); then
+            echo "affected_suites=${ALL_SUITES}" >> $GITHUB_OUTPUT
           else
             AFFECTED_LIST=""
             [ "$CRONJOB_CHANGED" == "true" ]    && AFFECTED_LIST="${AFFECTED_LIST}\"cronjob\","
@@ -220,15 +222,13 @@ jobs:
           fi
 
           # testhelm: which test Helm charts to build and push.
-          # platform-apis-test-zones always rebuilt — required by every test run.
-          # zone-related charts rebuilt when zone code changed (ZONE_CHANGED).
-          # cronjob/kafka/postgresql/repository charts rebuilt when their code changed.
-          # common_lib or helm forces a full rebuild of all charts.
-          if [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]; then
-            # TODO: add kafka to array, when ready for testing
-            TESTHELM_LIST='"platform-apis-test-zones","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"'
-            [ "$ZONE_CHANGED" == "true" ] && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-app\",\"platform-apis-test-a-apps\",\"platform-apis-test-b-apps\""
-            echo "testhelm=[${TESTHELM_LIST}]" >> $GITHUB_OUTPUT
+          # On main push: always rebuild all charts (merges must be fully validated).
+          # On PR with common_lib/helm change: full rebuild.
+          # On PR: platform-apis-test-zones always rebuilt; others only when their code changed.
+          # TODO: add kafka to array, when ready for testing
+          ALL_TESTHELM='"platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"'
+          if [ "$ANY_CHANGES" == "true" ] && ([ "$IS_MAIN_PUSH" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]); then
+            echo "testhelm=[${ALL_TESTHELM}]" >> $GITHUB_OUTPUT
           else
             TESTHELM_LIST='"platform-apis-test-zones"'
             [ "$CRONJOB_CHANGED" == "true" ]    && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-cronjob\""

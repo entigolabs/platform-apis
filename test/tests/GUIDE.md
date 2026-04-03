@@ -277,8 +277,9 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 
     cleanupDeleteParallel(t, ns, MyResourceKind, MyResourceMinimalName, MyResourceCustomName)
 
+    // Delete the ArgoCD application but keep the namespace — zone-managed resources
+    // (netpols, RBAC, Kyverno policies) persist for faster subsequent test runs.
     _, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MyResourceApplicationName, "--ignore-not-found")
-    _, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", MyResourceNamespaceName, "--ignore-not-found", "--wait=true")
 }
 ```
 
@@ -333,7 +334,7 @@ All helpers live in `crossplane_test.go` and `argocd_test.go`.
 | Helper | When to use |
 | --- | --- |
 | `applyFile(t, cluster, file)` | `kubectl apply -f` a manifest file |
-| `syncWithRetry(t, argocd, appName)` | Force ArgoCD sync and wait for `operationState.phase == Succeeded` |
+| `syncWithRetry(t, argocd, appName)` | Force ArgoCD sync with exponential backoff retries; waits for `operationState.phase == Succeeded` |
 | `waitApplicationHealthy(t, argocd, appName)` | Wait for ArgoCD Application `health.status == Healthy` |
 
 ---
@@ -419,7 +420,10 @@ if cfg.Has("myresource") {
 In `waitPackagesReady`:
 ```go
 if cfg.Has("myresource") {
-    checkPlatformApisHaveRequiredPackages(t, cluster, MyResourceConfigurationName, MyFunctionName)
+    t.Run("myresource", func(t *testing.T) {
+        t.Parallel()
+        checkPlatformApisHaveRequiredPackages(t, cluster, MyResourceConfigurationName, MyFunctionName)
+    })
 }
 ```
 
@@ -459,17 +463,23 @@ MYRESOURCE_CHANGED: ${{ steps.changed-files.outputs.myresource_any_changed || 'f
 [ "$MYRESOURCE_CHANGED" == "true" ] && AFFECTED_LIST="${AFFECTED_LIST}\"myresource\","
 ```
 
-5. Add to `force-all` affected_suites (main / workflow_dispatch):
+5. Add to `force-all` affected_suites (`workflow_dispatch` only) and to the `ALL_SUITES` variable in `Detect changes`:
 ```bash
+# force-all step (workflow_dispatch):
 echo 'affected_suites=["zone","postgresql","cronjob","repository","s3bucket","valkey","webaccess","webapp","myresource"]' >> $GITHUB_OUTPUT
+
+# detect changes step — ALL_SUITES variable:
+ALL_SUITES='["cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp","zone","myresource"]'
 ```
 
-6. Add to incremental testhelm:
+6. Add to `ALL_TESTHELM` variable and to incremental testhelm:
 ```bash
+# ALL_TESTHELM variable (used for main push and common_lib/helm_global changes):
+ALL_TESTHELM='...,"platform-apis-test-myresource"'
+
+# incremental (per-suite change):
 [ "$MYRESOURCE_CHANGED" == "true" ] && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-myresource\""
 ```
-
-7. Add to full testhelm rebuild list (inside the `$COMMON_LIB_CHANGED` branch).
 
 ### `prepare-infralib-branch.yml`
 
@@ -488,8 +498,8 @@ The cleanup function is called via `defer` from the orchestrator. Follow these r
 - Disable `deletionProtection` before deleting composites that have it. Use `patchDeletionProtectionIfEnabled`.
 - For resources with dependencies (e.g. PostgreSQL databases → users → instance), delete in reverse dependency order.
 - Use `cleanupDeleteParallel` for independent resources of the same kind. It waits for each resource to fully disappear before returning.
-- Delete the ArgoCD Application **after composites are confirmed gone** and **before the namespace**. If the application is still active while the namespace exists, ArgoCD may try to reconcile resources back.
-- Delete the namespace last with `--wait=true`.
+- Delete the ArgoCD Application after composites are confirmed gone. If the application is still active while resources remain, ArgoCD may try to reconcile them back.
+- **Do not delete the namespace.** Namespaces are intentionally kept between runs so the zone function's per-namespace resources (network policies, RBAC, Kyverno policies) remain in place, avoiding a reconciliation delay on the next test run. `kubectl apply` on the namespace in each suite template is idempotent.
 
 ```go
 func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
@@ -502,7 +512,6 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
     cleanupDeleteParallel(t, ns, MyResourceKind, MyResourceMinimalName, MyResourceCustomName)
 
     _, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MyResourceApplicationName, "--ignore-not-found")
-    _, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", MyResourceNamespaceName, "--ignore-not-found", "--wait=true")
 }
 ```
 
@@ -520,4 +529,4 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 
 **Too few retries for slow AWS resources** — RDS and ElastiCache can take 10+ minutes. Set retries generously (90–120 × 10s). A test that flakes on timeout is worse than a test that waits longer.
 
-**Registering the suite in only one place** — You must update both `allSuites`, the `parallel-tests` block, and `waitPackagesReady`. Missing `waitPackagesReady` means the test runs before Crossplane has installed the CRDs, causing immediate failures.
+**Registering the suite in only one place** — You must update `allSuites`, the `parallel-tests` block, and `waitPackagesReady`. In `waitPackagesReady`, each suite check must be wrapped in `t.Run(..., func(t *testing.T) { t.Parallel(); ... })` so all package checks run concurrently. Missing `waitPackagesReady` entirely means the test runs before Crossplane has installed the CRDs, causing immediate failures.
