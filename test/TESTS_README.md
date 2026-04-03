@@ -178,7 +178,7 @@ test/tests/
 1. **CI builds** the platform-apis Helm chart and all `platform-apis-test-<suite>` Helm charts and pushes them to GHCR.
 2. **`prepare-infralib-branch`** workflow clones `entigolabs/entigo-infralib`, copies the `test/tests/` Go files and the relevant ArgoCD Application templates into the infralib module, and commits to a feature branch.
 3. **`run-infralib-tests`** triggers the infralib test pipeline, which runs `go test ./...` from the infralib module against the live cluster.
-4. Each `TestK8sPlatformApis*` function connects to the cluster, reads `testconfig/suites.yaml` to determine which suites are active, and dispatches to the suite-specific test functions in parallel.
+4. Each `TestK8sPlatformApis*` function connects to the cluster, reads `testconfig/suites.yaml` to determine which suites are active, waits for all required Crossplane packages in parallel, then dispatches to the suite-specific test functions in parallel.
 
 ### Suite Selection
 
@@ -192,6 +192,15 @@ suites:
 ```
 
 If this file is missing (e.g. during development), the fallback `allSuites` slice in `suite_config_test.go` is used, which includes all production-ready suites. **kafka is intentionally excluded** from both `allSuites` and all CI-generated suite lists until its function implementation is complete.
+
+CI generates this file based on what changed (`detect-changes.yml`):
+
+| Trigger | Functions/compositions built | Test Helm charts built | Suites run |
+|---|---|---|---|
+| `workflow_dispatch` | all | all | all |
+| Push to `main` (something changed) | changed only | all | all |
+| Push to `main` (nothing changed) | none | none | none |
+| Pull request | changed only | changed only | changed only |
 
 ### Active Suites
 
@@ -217,7 +226,8 @@ testOrchestrator        — applies ArgoCD app, syncs, defers cleanup, runs sub-
   testRead              — assert status fields and spec propagation
   testUpdate            — patch the composite, verify change propagates to sub-resources
   testDeleteProtection  — (where applicable) verify webhook rejects deletion when protected
-cleanupSuite            — disable deletion protection if needed, delete composites, delete ArgoCD app, delete namespace
+cleanupSuite            — disable deletion protection if needed, delete composites, delete ArgoCD app
+                          (namespace is kept so zone-managed resources persist for faster re-runs)
 ```
 
 ### Adding a New Suite

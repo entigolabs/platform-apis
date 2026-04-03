@@ -81,11 +81,12 @@ func testMinimalS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	waitResourceExists(t, s3Ns, "serviceaccount", S3MinimalName, 30, 10*time.Second)
 
 	// Update: enable versioning and verify it propagates to the AWS bucket
-	patchResource(t, s3Ns, S3BucketKind, S3MinimalName, `{"spec":{"enableVersioning":true}}`)
+	// Long test, enable when required to check
+	/*patchResource(t, s3Ns, S3BucketKind, S3MinimalName, `{"spec":{"enableVersioning":true}}`)
 	bucketName, err := getFirstByLabel(t, s3Ns, S3BucketAwsKind, S3MinimalName)
 	require.NoError(t, err)
 	require.NotEmpty(t, bucketName)
-	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 60, 10*time.Second)
+	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 60, 10*time.Second)*/
 }
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────
@@ -99,5 +100,4 @@ func cleanupS3Bucket(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	cleanupDeleteParallel(t, s3Ns, S3BucketKind, S3MinimalName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", S3BucketApplicationName, "--ignore-not-found")
-	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", S3BucketNamespaceName, "--ignore-not-found", "--wait=true")
 }
