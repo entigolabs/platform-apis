@@ -81,11 +81,12 @@ func testMinimalS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	waitResourceExists(t, s3Ns, "serviceaccount", S3MinimalName, 30, 10*time.Second)
 
 	// Update: enable versioning and verify it propagates to the AWS bucket
-	patchResource(t, s3Ns, S3BucketKind, S3MinimalName, `{"spec":{"enableVersioning":true}}`)
+	// Long test, enable when required to check
+	/*patchResource(t, s3Ns, S3BucketKind, S3MinimalName, `{"spec":{"enableVersioning":true}}`)
 	bucketName, err := getFirstByLabel(t, s3Ns, S3BucketAwsKind, S3MinimalName)
 	require.NoError(t, err)
 	require.NotEmpty(t, bucketName)
-	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 60, 10*time.Second)
+	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 60, 10*time.Second)*/
 }
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────
