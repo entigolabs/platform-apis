@@ -39,6 +39,15 @@ const (
 	TenancyFunctionName    = "platform-apis-tenancy-fn"
 	WorkloadFunctionName   = "platform-apis-workload-fn"
 
+	// ── Zone Kyverno e2e ─────────────────────────────────────────────────────
+
+	ContributorKeyIDEnv  = "CONTRIBUTOR_AWS_ACCESS_KEY_ID"
+	ContributorSecretEnv = "CONTRIBUTOR_AWS_SECRET_ACCESS_KEY"
+	MaintainerKeyIDEnv   = "MAINTAINER_AWS_ACCESS_KEY_ID"
+	MaintainerSecretEnv  = "MAINTAINER_AWS_SECRET_ACCESS_KEY"
+
+	KyvernoTestNSName = "kyverno-test-e2e"
+
 	// ── Zone ─────────────────────────────────────────────────────────────────
 
 	ZoneApplicationName  = "app-of-zones"
