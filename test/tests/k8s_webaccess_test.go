@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── Orchestrator ──────────────────────────────────────────────────────────────
-
 func testWebAccess(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	waNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, WebAccessNamespaceName)
 	defer cleanupWebAccess(t, cluster, argocd)
@@ -28,8 +26,6 @@ func testWebAccess(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.
 
 	t.Run("WebAccess", func(t *testing.T) { testWebAccessResource(t, waNs) })
 }
-
-// ── WebAccess ─────────────────────────────────────────────────────────────────
 
 func testWebAccessResource(t *testing.T, waNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -101,8 +97,6 @@ func waitWebAccessDestinationRuleExists(t *testing.T, waNs *terrak8s.KubectlOpti
 		})
 	require.NoError(t, err)
 }
-
-// ── Cleanup ───────────────────────────────────────────────────────────────────
 
 func cleanupWebAccess(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {

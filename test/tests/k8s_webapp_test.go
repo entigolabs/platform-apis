@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── Orchestrator ──────────────────────────────────────────────────────────────
-
 func testWebApp(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	waNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, WebAppNamespaceName)
 	defer cleanupWebApp(t, cluster, argocd)
@@ -26,8 +24,6 @@ func testWebApp(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Kub
 
 	t.Run("WebApp", func(t *testing.T) { testWebAppResource(t, waNs) })
 }
-
-// ── WebApp ────────────────────────────────────────────────────────────────────
 
 func testWebAppResource(t *testing.T, waNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -69,8 +65,6 @@ func testWebAppResource(t *testing.T, waNs *terrak8s.KubectlOptions) {
 	patchResource(t, waNs, WebAppKind, WebAppName, `{"spec":{"replicas":2}}`)
 	waitFieldEquals(t, waNs, "deployment", WebAppDeploymentName, ".spec.replicas", "2", 30, 10*time.Second)
 }
-
-// ── Cleanup ───────────────────────────────────────────────────────────────────
 
 func cleanupWebApp(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {

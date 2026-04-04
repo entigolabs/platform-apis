@@ -88,8 +88,6 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 	})
 }
 
-// waitPackagesReady waits for the Crossplane packages (Functions + Configurations) for active suites.
-// All suite package checks run in parallel; within each suite, configuration + function are also parallel.
 func waitPackagesReady(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
 	t.Helper()
 	t.Run("packages", func(t *testing.T) {
@@ -169,10 +167,6 @@ func setupKubectlClients(opts *terrak8s.KubectlOptions, envName string) (*terrak
 	return cluster, argocd
 }
 
-// setupZoneSync deploys zone and pre-creates test namespaces for active suites.
-// Zone A and B readiness checks run in parallel. Namespace pre-creation starts
-// as soon as zone A is ready (namespaces are labeled zone: a), overlapping with
-// the zone B wait so zone-managed resources are ready sooner.
 func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.KubectlOptions) {
 	t.Helper()
 
@@ -199,10 +193,6 @@ func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.Kube
 	waitApplicationHealthy(t, argocd, ZoneApplicationName)
 }
 
-// preCreateTestNamespaces applies a Namespace for each active suite in parallel so the
-// zone function reconciles per-namespace resources (netpols, RBAC, Kyverno policies)
-// before suites start. Namespace names follow the test-<suite> convention.
-// apply is idempotent — safe to call even if namespaces already exist from a prior run.
 func preCreateTestNamespaces(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
 	t.Helper()
 

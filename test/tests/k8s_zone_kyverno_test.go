@@ -70,8 +70,6 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	})
 }
 
-// ── Policy test functions ─────────────────────────────────────────────────────
-
 // testKyvernoNamespacePodSecurity covers:
 //   - platform-apis-zone-namespace-pod-security (ValidatingPolicy)
 //   - platform-apis-namespace-add-missing-zone-label (MutatingPolicy)
@@ -106,7 +104,6 @@ func testKyvernoNamespacePodSecurity(t *testing.T, cluster *terrak8s.KubectlOpti
 	})
 	t.Run("pass: namespace without zone label gets auto-assigned", func(t *testing.T) {
 		t.Parallel()
-		// Zone field is empty — template omits the zone label; MutatingPolicy should add it.
 		const name = "kyverno-no-zone-test"
 		t.Cleanup(func() {
 			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", name, "--ignore-not-found", "--wait=false")
@@ -121,8 +118,6 @@ func testKyvernoNamespacePodSecurity(t *testing.T, cluster *terrak8s.KubectlOpti
 	})
 	t.Run("pass: system namespace kube-system is excluded", func(t *testing.T) {
 		t.Parallel()
-		// kube-system is excluded by the policy; applying privileged PSA labels should be allowed.
-		// Uses --dry-run=server to avoid actually mutating kube-system labels in the cluster.
 		_, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "apply", "-f",
 			writeTempYAML(t, nsYAML(t, kyvernoNsData{Name: "kube-system", Enforce: "privileged", Warn: "privileged"})),
 			"--dry-run=server")
@@ -211,8 +206,6 @@ func testKyvernoMaintainerInfralibZoneDeny(t *testing.T, cluster, maintainer *te
 func testKyvernoZoneDeletionCheck(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Run("fail: zone deletion blocked when namespaces still attached", func(t *testing.T) {
 		t.Parallel()
-		// Zone "a" has kyverno-test-e2e (and others) labeled tenancy.entigo.com/zone=a.
-		// Attempting to delete it should be denied by Kyverno — zone "a" is never actually removed.
 		out, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", ZoneKind, ZoneAName)
 		assertKyvernoDenied(t, out, err)
 	})
@@ -221,7 +214,6 @@ func testKyvernoZoneDeletionCheck(t *testing.T, cluster *terrak8s.KubectlOptions
 		const name = "kyverno-del-test"
 		applyFile(t, cluster, writeTempYAML(t, zoneYAML(t, kyvernoZoneData{Name: name})))
 		t.Cleanup(func() {
-			// Belt-and-suspenders if the delete below fails.
 			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", ZoneKind, name, "--ignore-not-found", "--wait=false")
 		})
 		_, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", ZoneKind, name)
@@ -238,19 +230,16 @@ func testKyvernoZoneNamespaceOwnership(t *testing.T, cluster *terrak8s.KubectlOp
 	})
 	t.Run("fail: cannot claim namespace owned by another zone", func(t *testing.T) {
 		t.Parallel()
-		// kyverno-test-e2e is labeled tenancy.entigo.com/zone=a; a different zone cannot claim it.
 		out, err := kyvernoApply(t, cluster, zoneYAML(t, kyvernoZoneData{Name: "kyverno-owner-test", Namespaces: []string{KyvernoTestNSName}}))
 		assertKyvernoDenied(t, out, err)
 	})
 	t.Run("fail: cannot claim namespace without zone label", func(t *testing.T) {
 		t.Parallel()
-		// kube-system has no tenancy.entigo.com/zone label.
 		out, err := kyvernoApply(t, cluster, zoneYAML(t, kyvernoZoneData{Name: "kyverno-steal-test", Namespaces: []string{"kube-system"}}))
 		assertKyvernoDenied(t, out, err)
 	})
 	t.Run("pass: zone can manage its own namespace", func(t *testing.T) {
 		t.Parallel()
-		// Save zone "a" current namespaces and restore after test.
 		original, _ := terrak8s.RunKubectlAndGetOutputE(t, cluster, "get", ZoneKind, ZoneAName,
 			"-o", "jsonpath={.spec.namespaces}")
 		t.Cleanup(func() {
@@ -261,7 +250,6 @@ func testKyvernoZoneNamespaceOwnership(t *testing.T, cluster *terrak8s.KubectlOp
 			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "patch", ZoneKind, ZoneAName,
 				"--type", "merge", "-p", fmt.Sprintf(`{"spec":{"namespaces":%s}}`, restore))
 		})
-		// Zone "a" patching its namespace list to include a-apps (labeled zone: a) should be allowed.
 		_, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "patch", ZoneKind, ZoneAName,
 			"--type", "merge", "-p", fmt.Sprintf(`{"spec":{"namespaces":[{"name":%q}]}}`, AAppsNamespace))
 		assertKyvernoAllowed(t, err)
@@ -301,7 +289,6 @@ func testKyvernoGenerateNamespaceFromArgoApp(t *testing.T, cluster *terrak8s.Kub
 		applyFile(t, cluster, writeTempYAML(t, argoAppYAML(t, kyvernoArgoAppData{
 			Name: appName, Namespace: KyvernoTestNSName, DestNamespace: infralibNS, Project: "infralib",
 		})))
-		// Wait long enough for Kyverno to have acted, then assert nothing was generated.
 		time.Sleep(20 * time.Second)
 		existing, _ := terrak8s.RunKubectlAndGetOutputE(t, cluster, "get", "namespace", infralibNS,
 			"--ignore-not-found", "-o", "jsonpath={.metadata.name}")

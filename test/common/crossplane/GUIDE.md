@@ -125,7 +125,7 @@ mockedDeploy := crossplane.MockByKind(
     },
 )
 
-// A resource with no interesting status or spec overrides — just mark it ready
+// A resource with no status or spec overrides — just mark it ready
 mockedService := crossplane.MockByKind(t, resources, "Service", "v1", true, nil)
 
 // Append mocked resources to the observed file

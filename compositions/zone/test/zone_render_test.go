@@ -13,7 +13,7 @@ const (
 	function        = "../../../functions/tenancy"
 	functionsConfig = "../../../test/common/functions-dev.yaml"
 	required        = "../examples/required-resources.yaml"
-	zone            = "../examples/zone.yaml"
+	zoneResource    = "../examples/zone.yaml"
 )
 
 func TestZoneCrossplaneRender(t *testing.T) {
@@ -28,7 +28,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, required, extra)
 
 	t.Log("Rendering...")
-	resources := crossplane.CrossplaneRender(t, zone, composition, functionsConfig, crossplane.Ptr(extra), nil)
+	resources := crossplane.CrossplaneRender(t, zoneResource, composition, functionsConfig, crossplane.Ptr(extra), nil)
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "Zone", 1)
@@ -166,7 +166,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	}
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, zone, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, zoneResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "Zone", 1)
@@ -240,7 +240,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AppendToResources(t, observed, crossplane.MockByKind(t, resources, "Role", "iam.aws.upbound.io/v1beta1", true, nil))
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, zone, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, zoneResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "Zone", 1)
@@ -358,7 +358,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	}
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, zone, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, zoneResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "Zone", 1)
@@ -471,7 +471,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	}
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, zone, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, zoneResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting tenancy.entigo.com Zone Ready Status")
 	crossplane.AssertResourceReady(t, resources, "Zone", "tenancy.entigo.com/v1alpha1")

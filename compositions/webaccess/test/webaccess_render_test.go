@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	composition     = "../apis/webaccess-composition.yaml"
-	env             = "../examples/environment-config.yaml"
-	function        = "../../../functions/networking"
-	functionsConfig = "../../../test/common/functions-dev.yaml"
-	webaccess       = "../examples/webaccess.yaml"
+	composition       = "../apis/webaccess-composition.yaml"
+	env               = "../examples/environment-config.yaml"
+	function          = "../../../functions/networking"
+	functionsConfig   = "../../../test/common/functions-dev.yaml"
+	webaccessResource = "../examples/webaccess.yaml"
 )
 
 func TestWebAccessCrossplaneRender(t *testing.T) {
@@ -26,7 +26,7 @@ func TestWebAccessCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, env, extra)
 
 	t.Log("Rendering...")
-	resources := crossplane.CrossplaneRender(t, webaccess, composition, functionsConfig, crossplane.Ptr(extra), nil)
+	resources := crossplane.CrossplaneRender(t, webaccessResource, composition, functionsConfig, crossplane.Ptr(extra), nil)
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "WebAccess", 1)
@@ -135,7 +135,7 @@ func TestWebAccessCrossplaneRender(t *testing.T) {
 	}
 
 	t.Log("Rerendering...")
-	resources = crossplane.CrossplaneRender(t, webaccess, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, webaccessResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting networking.entigo.com WebAccess Ready Status")
 	crossplane.AssertResourceReady(t, resources, "WebAccess", "networking.entigo.com/v1alpha1")

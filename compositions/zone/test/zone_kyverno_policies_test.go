@@ -8,8 +8,6 @@ import (
 
 const chartDir = "../../../helm"
 
-// TestKyvernoPolicies runs all Kyverno policy tests for the zone composition.
-// Each subtest covers one policy; within each subtest the cases run in parallel.
 func TestKyvernoPolicies(t *testing.T) {
 	t.Run("NamespacePodSecurity", testNamespacePodSecurity)
 	t.Run("ContributorDeny", testContributorDeny)
@@ -61,7 +59,6 @@ func testNamespacePodSecurity(t *testing.T) {
 			},
 		},
 		{
-			// MutatingPolicy adds the zone label; ValidatingPolicy then accepts the mutated resource.
 			name: "pass: namespace without zone label gets auto-assigned",
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",
@@ -306,7 +303,7 @@ func testGenerateNamespaceFromArgoApp(t *testing.T) {
 	runCases(t, cases)
 }
 
-// runCases iterates a table of named scenarios and runs each as a parallel subtest.
+// runCases iterates scenarios and runs each as a parallel subtest.
 func runCases(t *testing.T, cases []struct {
 	name     string
 	scenario kyverno.TestScenario

@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── Orchestrator ──────────────────────────────────────────────────────────────
-
 func testS3Bucket(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	s3Ns := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, S3BucketNamespaceName)
 	defer cleanupS3Bucket(t, cluster, argocd)
@@ -28,8 +26,6 @@ func testS3Bucket(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.K
 		t.Run("MinimalS3Bucket", func(t *testing.T) { t.Parallel(); testMinimalS3Bucket(t, s3Ns) })
 	})
 }
-
-// ── Minimal S3 Bucket ─────────────────────────────────────────────────────────
 
 func testMinimalS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -80,16 +76,7 @@ func testMinimalS3Bucket(t *testing.T, s3Ns *terrak8s.KubectlOptions) {
 	// ServiceAccount must exist (createServiceAccount defaults to true)
 	waitResourceExists(t, s3Ns, "serviceaccount", S3MinimalName, 30, 10*time.Second)
 
-	// Update: enable versioning and verify it propagates to the AWS bucket
-	// Long test, enable when required to check
-	/*patchResource(t, s3Ns, S3BucketKind, S3MinimalName, `{"spec":{"enableVersioning":true}}`)
-	bucketName, err := getFirstByLabel(t, s3Ns, S3BucketAwsKind, S3MinimalName)
-	require.NoError(t, err)
-	require.NotEmpty(t, bucketName)
-	waitFieldEquals(t, s3Ns, S3BucketAwsKind, bucketName, ".status.atProvider.versioning.enabled", "true", 60, 10*time.Second)*/
 }
-
-// ── Cleanup ───────────────────────────────────────────────────────────────────
 
 func cleanupS3Bucket(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {

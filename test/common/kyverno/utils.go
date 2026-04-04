@@ -18,10 +18,10 @@ import (
 type TestScenario struct {
 	HelmValues       map[string]string
 	ResourceYAML     string
-	VariablesYAML    string // values file (kind: Values) — overrides request.operation and other globals
-	UserInfoYAML     string // user info file (kind: UserInfo) — sets request.userInfo.groups and username
-	ExpectedAction   string // "pass" or "fail"
-	ExpectedInOutput string // substring that must appear in kyverno output (e.g. generated resource name)
+	VariablesYAML    string
+	UserInfoYAML     string
+	ExpectedAction   string
+	ExpectedInOutput string
 }
 
 // K8sResource holds the fields parsed from a resource YAML needed for policy routing.
@@ -160,18 +160,6 @@ func extractKyvernoPolicies(fullYAML, kind string) string {
 }
 
 // injectOfflineMocks replaces resource.List() CEL calls with static data so tests run without cluster access.
-//
-// File mode (built-in resources, includeNamespaceMock=true):
-//   - Namespace list is replaced with an inline CEL literal. CEL type uniformity requires both
-//     "name" and "labels" values to be wrapped in dyn(). Note: has() does not work on dyn()-typed
-//     values, but zone-targeting policies are skipped for Namespace resources so has() is never evaluated.
-//
-// Cluster mode (custom resources, includeNamespaceMock=false):
-//   - Namespace list is served by the fake cluster HTTP server at /api/v1/namespaces,
-//     where has() works correctly on real unstructured JSON objects.
-//   - The delete-only matchCondition is stripped because kyverno CLI always simulates CREATE
-//     and cannot simulate DELETE. oldObject references are rewritten to object so the zone
-//     deletion check policy can evaluate the submitted resource's metadata.
 func injectOfflineMocks(policies string, includeNamespaceMock bool) string {
 	policies = strings.ReplaceAll(policies,
 		`resource.List("tenancy.entigo.com/v1alpha1", "zones", "")`,
@@ -292,11 +280,6 @@ func registerResourceRoutes(mux *http.ServeMux, res K8sResource) {
 }
 
 // registerStaticNamespaceRoutes adds /api/v1 discovery and /api/v1/namespaces endpoints.
-// The namespace list contains the fixtures used by zone ownership and deletion policies:
-//   - "attached-ns" is labeled tenancy.entigo.com/zone=my-zone
-//   - "stolen-ns" has no zone label
-//
-// Serving real JSON objects (rather than inline CEL) ensures has(ns.metadata.labels) works correctly.
 func registerStaticNamespaceRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1", func(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, map[string]interface{}{

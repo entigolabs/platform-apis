@@ -2,8 +2,9 @@
 
 This guide explains how to write, structure, and register a new end-to-end test suite in `test/tests/`.
 
-End-to-end tests run against a **live AWS Kubernetes cluster** with Crossplane, ArgoCD, and all platform-apis packages installed. They cannot be run locally — they are triggered by CI, which copies the Go test files into the `entigolabs/entigo-infralib` repository and runs them from there.
-
+End-to-end tests run against a **live AWS Kubernetes cluster** with Crossplane, ArgoCD, and all platform-apis packages installed.
+They cannot be run locally — they are triggered by CI, which copies the Go test files into the `entigolabs/entigo-infralib` repository and runs them from there.
+Kyverno Admission Webhook Tests creation described separately [here](#kyverno-admission-webhook-tests)
 ---
 
 ## Overview of the Flow
@@ -11,7 +12,7 @@ End-to-end tests run against a **live AWS Kubernetes cluster** with Crossplane, 
 ```
 CI builds Helm charts  →  prepare-infralib-branch copies test files
 →  infralib pipeline runs go test  →  tests connect to cluster
-→  ArgoCD deploys CRs  →  Crossplane reconciles  →  assertions pass/fail
+→  ArgoCD deploys CRs  →  Crossplane reconciles  →  tests run
 ```
 
 The entry point is `TestK8sPlatformApisAWSBiz` in `k8s_unit_basic_test.go`. It:
@@ -74,13 +75,6 @@ spec:
   someField: someValue
   deletionProtection: false
 ```
-
-**Conventions:**
-- Always include a minimal CR (empty `spec: {}`) to verify defaults.
-- Include a custom CR to test non-default field propagation.
-- Set `deletionProtection: false` on the custom CR so cleanup does not require patching.
-- The minimal CR should get `deletionProtection: true` by default (if the resource supports it), so you can test the deletion rejection webhook.
-
 ---
 
 ## Step 2 — Create the ArgoCD Application Template
@@ -137,7 +131,7 @@ spec:
 
 ## Step 3 — Add Constants
 
-Add all resource names and kind strings to `constants_test.go`:
+Add all resource names and kind strings to `constants_test.go`. It helps to maintain changes in namings or resources APIs or Kinds better:
 
 ```go
 // ── MyResource ────────────────────────────────────────────────────────────────
@@ -150,15 +144,6 @@ MyResourceCustomName  = "test-myresource-custom"
 
 MyResourceKind        = "myresources.mygroup.entigo.com"
 MyProviderResourceKind = "managedresource.provider.aws.m.upbound.io"
-```
-
-**Kind strings** follow the Crossplane convention:
-- XR composite: `<plural>.<group>` (e.g. `s3buckets.storage.entigo.com`)
-- Provider-managed resource: `<kind>.<group>` (e.g. `bucket.s3.aws.m.upbound.io`)
-
-Find the exact strings with:
-```bash
-kubectl get crds | grep myresource
 ```
 
 ---
@@ -174,11 +159,6 @@ Every suite file follows the same four-section layout:
 ```
 Orchestrator   — deploy ArgoCD app, defer cleanup, run sub-tests sequentially
   sub-tests    — one function per resource (or logical group)
-    Create     — waitSyncedAndReady
-    SubResources — wait for provider-managed resources
-    Read       — assert spec/status fields
-    Update     — patch XR, verify propagation
-    DeleteProtection — testDeletionRejected (if applicable)
 Cleanup        — disable protection, delete composites, delete namespace
 ```
 
@@ -287,7 +267,7 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 
 ## Helper Reference
 
-All helpers live in `crossplane_test.go` and `argocd_test.go`.
+All helpers live in `helpers_argocd_test.go`, `helpers_crossplane_test.go`.
 
 ### Wait helpers
 
@@ -514,6 +494,104 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
     _, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MyResourceApplicationName, "--ignore-not-found")
 }
 ```
+
+---
+
+## Kyverno Admission Webhook Tests
+
+Zone tenancy policies are exercised in `k8s_zone_kyverno_test.go` and its helpers in `kyverno_test.go`. These tests fire against the real admission webhooks running in the cluster — they do not use `--dry-run=server` (except for the `kube-system` exclusion test where modifying system namespace labels is undesirable).
+
+### Helpers
+
+```go
+// Apply a YAML string as a real resource (admission webhook fires).
+// For expected-deny tests the resource is never persisted.
+// For expected-allow tests add a t.Cleanup to delete the created resource.
+kyvernoApply(t, opts, yamlStr) (string, error)
+
+// Assert the request was denied by Kyverno ("denied" in combined output).
+assertKyvernoDenied(t, out, err)
+
+// Assert Kyverno did not deny the request (non-nil err must not contain "denied").
+assertKyvernoAllowed(t, err)
+
+// Assert the operation was blocked by either RBAC ("forbidden") or Kyverno ("denied").
+// Use this for role-based tests where the blocking layer may vary by cluster RBAC config.
+assertForbidden(t, out, err)
+
+// Build a kubeconfig that authenticates as a different IAM identity on the same EKS cluster.
+// contextName must be an EKS ARN: arn:aws:eks:<region>:<account>:cluster/<name>
+roleKubectlOptions(t, base, keyID, secret) *terrak8s.KubectlOptions
+```
+
+YAML for test resources is rendered from Go template files in `templates/`:
+
+| File | Data type | Use |
+|---|---|---|
+| `kyverno_namespace.yaml` | `kyvernoNsData` | Namespace with zone label and PSA labels; omits zone label when `Zone` is empty |
+| `kyverno_zone.yaml` | `kyvernoZoneData` | Zone with optional namespace list |
+| `kyverno_argoapp.yaml` | `kyvernoArgoAppData` | ArgoCD Application for GeneratingPolicy tests |
+| `kyverno_kubeconfig.yaml` | `kyvernoKubeconfigData` | EKS kubeconfig for role-based tests (rendered internally by `roleKubectlOptions`) |
+
+### Structure of a Kyverno test function
+
+```go
+func testKyvernoMyPolicy(t *testing.T, cluster *terrak8s.KubectlOptions) {
+    t.Run("fail: request is denied when condition is met", func(t *testing.T) {
+        t.Parallel()
+        out, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{
+            Name: "kyverno-bad-example", Zone: ZoneAName, Enforce: "privileged", Warn: "restricted",
+        }))
+        assertKyvernoDenied(t, out, err)
+    })
+    t.Run("pass: request is allowed when condition is not met", func(t *testing.T) {
+        t.Parallel()
+        const name = "kyverno-good-example"
+        t.Cleanup(func() {
+            // Pass tests create real resources — always add cleanup.
+            _, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", name,
+                "--ignore-not-found", "--wait=false")
+        })
+        _, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{
+            Name: name, Zone: ZoneAName, Enforce: "restricted", Warn: "restricted",
+        }))
+        assertKyvernoAllowed(t, err)
+    })
+}
+```
+
+**Rules:**
+- **Fail tests** (`assertKyvernoDenied`) do not need cleanup — Kyverno blocks the operation so no resource is created.
+- **Pass tests** (`assertKyvernoAllowed`) create real resources and **must** have `t.Cleanup` to delete them.
+- For pass tests that modify existing critical resources (e.g. patching zone "a" spec), save the original value before the test and restore it in `t.Cleanup`.
+- For tests that patch an existing resource where Kyverno should deny it, no cleanup is needed because the patch is rejected.
+
+### Role-based tests
+
+Role-based tests authenticate as a specific IAM identity (contributor or maintainer) using `roleKubectlOptions`. They are gated on environment variables and skipped with an uppercase log message when credentials are not set:
+
+```go
+if contributorKeyID != "" && contributorSecret != "" {
+    t.Run("ContributorDeny", func(t *testing.T) {
+        t.Parallel()
+        contributor := roleKubectlOptions(t, cluster, contributorKeyID, contributorSecret)
+        testKyvernoContributorDeny(t, contributor)
+    })
+} else {
+    t.Logf("SKIPPING ContributorDeny: %s OR %s ENV VARS NOT SET", ContributorKeyIDEnv, ContributorSecretEnv)
+}
+```
+
+The credentials are injected by `run-infralib-tests.yml` from GitHub secrets (`CONTRIBUTOR_AWS_ACCESS_KEY_ID`, `CONTRIBUTOR_AWS_SECRET_ACCESS_KEY`, `MAINTAINER_AWS_ACCESS_KEY_ID`, `MAINTAINER_AWS_SECRET_ACCESS_KEY`).
+
+Use `assertForbidden` (not `assertKyvernoDenied`) for role-based tests because low-privilege roles may be blocked by RBAC before even reaching the Kyverno webhook.
+
+### Adding a new policy test
+
+1. Add the test function to `k8s_zone_kyverno_test.go` following the naming convention `testKyverno<PolicyName>`.
+2. Register it in `testZoneKyverno` with `t.Parallel()`.
+3. If the test needs a new resource shape, add a template file in `test/tests/templates/kyverno_<resource>.yaml` and a renderer helper (`<resource>YAML`) in `kyverno_test.go`.
+4. If the template file is new, add a `cp` line for it in the `zone` case of `prepare-infralib-branch.yml`.
 
 ---
 

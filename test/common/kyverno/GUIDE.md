@@ -1,13 +1,13 @@
 ## Writing Kyverno Policy Tests
 
-Kyverno policy tests verify that the policies shipped with a Helm chart correctly allow or deny Kubernetes resource operations — without needing a real cluster. The test library lives in `test/common/kyverno/` and is imported as `github.com/entigolabs/static-common/kyverno`.
+Kyverno policy tests verify that the policies shipped with a Helm chart correctly allow or deny Kubernetes resource operations — without needing a real cluster.
 
 ### What these tests do
 
 Each test:
 1. Renders the Helm chart with `helm template` to get the policy YAML.
 2. Extracts only the policies relevant to the resource kind being tested.
-3. Replaces any `resource.List()` calls in CEL expressions with static fixture data so the test runs offline.
+3. Replaces any `resource.List()` calls in CEL (Common Expression Language) expressions with static fixture data so the test runs offline.
 4. Runs `kyverno apply` against the resource and asserts that the outcome is `pass` or `fail`.
 
 ### File and package conventions
@@ -152,7 +152,8 @@ The kyverno CLI always simulates a `CREATE` operation. To test `UPDATE` or `DELE
 },
 ```
 
-> **Note on DELETE policies:** policies that use a `matchCondition` of `request.operation == "DELETE"` would never evaluate under the kyverno CLI because it always simulates CREATE. The framework automatically strips that matchCondition and rewrites `oldObject.` references to `object.` when testing custom resources (like `Zone`), so deletion policies evaluate correctly against the submitted resource YAML.
+> **Note on DELETE policies:** policies that use a `matchCondition` of `request.operation == "DELETE"` would never evaluate under the kyverno CLI because it always simulates CREATE.
+> The framework automatically strips that matchCondition and rewrites `oldObject.` references to `object.` when testing custom resources (like `Zone`), so deletion policies evaluate correctly against the submitted resource YAML.
 
 ### Testing with non-default Helm values
 
@@ -202,7 +203,8 @@ ResourceYAML: kyverno.GenerateZoneWithNamespaces("new-zone", []string{"attached-
 ### How the framework picks file mode vs cluster mode
 
 - **Built-in resources** (`v1`, `apps/`, `batch/`, `networking.k8s.io/`, …): the resource YAML is written to a temp file and passed via `--resource`. `KUBECONFIG=/dev/null` prevents any real cluster access.
-- **Custom CRDs** (`tenancy.entigo.com/…`, `argoproj.io/…`, …): the framework starts an in-process fake Kubernetes API server and passes `--cluster`. The fake server handles API discovery, serves the tested resource, and provides the static namespace fixture list. You don't need to do anything differently — just provide the correct resource YAML and the framework routes automatically.
+- **Custom CRDs** (`tenancy.entigo.com/…`, `argoproj.io/…`, …): the framework starts an in-process fake Kubernetes API server and passes `--cluster`. The fake server handles API discovery, serves the tested resource, and provides the static namespace fixture list.
+- You don't need to do anything differently — just provide the correct resource YAML and the framework routes automatically.
 
 ### Verifying generated resources
 

@@ -12,7 +12,7 @@ const (
 	env             = "../examples/environment-config.yaml"
 	function        = "../../../functions/workload"
 	functionsConfig = "../../../test/common/functions-dev.yaml"
-	webapp          = "../examples/webapp.yaml"
+	webappResource  = "../examples/webapp.yaml"
 )
 
 func TestWebAppCrossplaneRender(t *testing.T) {
@@ -26,7 +26,7 @@ func TestWebAppCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, env, extra)
 
 	t.Log("Rendering...")
-	resources := crossplane.CrossplaneRender(t, webapp, composition, functionsConfig, crossplane.Ptr(extra), nil)
+	resources := crossplane.CrossplaneRender(t, webappResource, composition, functionsConfig, crossplane.Ptr(extra), nil)
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "WebApp", 1)
@@ -114,7 +114,7 @@ func TestWebAppCrossplaneRender(t *testing.T) {
 	crossplane.AppendToResources(t, observed, mockedDeploy, mockedService, mockedSecret)
 
 	t.Log("Rerendering...")
-	resources = crossplane.CrossplaneRender(t, webapp, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, webappResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting workload.entigo.com WebApp Ready Status")
 	crossplane.AssertResourceReady(t, resources, "WebApp", "workload.entigo.com/v1alpha1")

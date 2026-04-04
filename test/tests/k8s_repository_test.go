@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── Orchestrator ──────────────────────────────────────────────────────────────
-
 func testRepository(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	repoNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, RepositoryNamespaceName)
 	defer cleanupRepository(t, cluster, argocd)
@@ -29,8 +27,6 @@ func testRepository(t *testing.T, ctx context.Context, cluster, argocd *terrak8s
 		t.Run("NamedRepository", func(t *testing.T) { t.Parallel(); testNamedRepository(t, repoNs) })
 	})
 }
-
-// ── Minimal Repository ────────────────────────────────────────────────────────
 
 func testMinimalRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -52,8 +48,6 @@ func testMinimalRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	require.NotEmpty(t, getField(t, repoNs, RepositoryKind, RepositoryMinimalName, ".status.repositoryUri"),
 		"repositoryUri should be populated once ECR repo is ready")
 }
-
-// ── Named Repository ──────────────────────────────────────────────────────────
 
 func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -83,8 +77,6 @@ func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 		"--type", "merge", "-p", `{"spec":{"name":"changed-name"}}`)
 	require.Error(t, err, "patching immutable spec.name should be rejected")
 }
-
-// ── Cleanup ───────────────────────────────────────────────────────────────────
 
 func cleanupRepository(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {
