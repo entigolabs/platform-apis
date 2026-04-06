@@ -152,6 +152,7 @@ const (
 	RepositoryNamedName         = "test-repo-named"
 	RepositoryNamedECRName      = "test-ecr-name"
 	RepositoryNamedPath         = "test/path"
+	RepositoryTag               = "test"
 	RepositoryNamedExternalName = RepositoryNamedPath + "/" + RepositoryNamedECRName
 
 	RepositoryKind    = "repositories.artifact.entigo.com"

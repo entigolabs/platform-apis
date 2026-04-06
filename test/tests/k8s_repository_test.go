@@ -50,10 +50,10 @@ func testMinimalRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.annotations.crossplane\.io/external-name`))
 	require.NotEmpty(t, getField(t, repoNs, RepositoryKind, RepositoryMinimalName, ".status.repositoryUri"),
 		"repositoryUri should be populated once ECR repo is ready")
-	require.Equal(t, RepositoryMinimalName,
-		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.labels.entigo\.com/resource`))
-	require.Equal(t, "Repository",
-		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.labels.entigo\.com/resource-kind`))
+	require.Equal(t, RepositoryTag,
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.labels.tags\.entigo\.com/tag`))
+	require.Equal(t, RepositoryTag,
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.tag`))
 }
 
 // ── Named Repository ──────────────────────────────────────────────────────────
@@ -79,10 +79,10 @@ func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	require.Equal(t, RepositoryNamedPath,
 		getField(t, repoNs, RepositoryKind, RepositoryNamedName, ".spec.path"))
 	require.NotEmpty(t, getField(t, repoNs, RepositoryKind, RepositoryNamedName, ".status.repositoryUri"))
-	require.Equal(t, RepositoryNamedName,
-		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.labels.entigo\.com/resource`))
-	require.Equal(t, "Repository",
-		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.labels.entigo\.com/resource-kind`))
+	require.Equal(t, RepositoryTag,
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.labels.tags\.entigo\.com/tag`))
+	require.Equal(t, RepositoryTag,
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.tag`))
 
 	// Update: name and path are immutable — patch must be rejected
 	_, err = terrak8s.RunKubectlAndGetOutputE(t, repoNs, "patch", RepositoryKind, RepositoryNamedName,
