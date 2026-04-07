@@ -425,6 +425,7 @@ myresource:
   - 'compositions/myresource/**'
   - 'functions/mygroup/**'
   - 'helm/templates/myresource.yaml'
+  - 'test/tests/k8s_myresource*'
   - 'test/tests/helm/platform-apis-test-myresource/**'
 ```
 
@@ -499,7 +500,7 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 
 ## Kyverno Admission Webhook Tests
 
-Zone tenancy policies are exercised in `k8s_zone_kyverno_test.go` and its helpers in `kyverno_test.go`. These tests fire against the real admission webhooks running in the cluster — they do not use `--dry-run=server` (except for the `kube-system` exclusion test where modifying system namespace labels is undesirable).
+Zone tenancy policies are exercised in `k8s_zone_kyverno_test.go` and its helpers in `helpers_kyverno_test.go`. These tests fire against the real admission webhooks running in the cluster — they do not use `--dry-run=server` (except for the `kube-system` exclusion test where modifying system namespace labels is undesirable).
 
 ### Helpers
 
@@ -590,7 +591,7 @@ Use `assertForbidden` (not `assertKyvernoDenied`) for role-based tests because l
 
 1. Add the test function to `k8s_zone_kyverno_test.go` following the naming convention `testKyverno<PolicyName>`.
 2. Register it in `testZoneKyverno` with `t.Parallel()`.
-3. If the test needs a new resource shape, add a template file in `test/tests/templates/kyverno_<resource>.yaml` and a renderer helper (`<resource>YAML`) in `kyverno_test.go`.
+3. If the test needs a new resource shape, add a template file in `test/tests/templates/kyverno_<resource>.yaml` and a renderer helper (`<resource>YAML`) in `helpers_kyverno_test.go`.
 4. If the template file is new, add a `cp` line for it in the `zone` case of `prepare-infralib-branch.yml`.
 
 ---
