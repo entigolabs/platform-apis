@@ -159,7 +159,7 @@ func testKyvernoMaintainerNamespaceDeny(t *testing.T, cluster, maintainer *terra
 		t.Parallel()
 		out, err := terrak8s.RunKubectlAndGetOutputE(t, maintainer, "patch", "namespace", KyvernoTestNSName,
 			"--type", "merge", "-p", `{"metadata":{"labels":{"tenancy.entigo.com/zone":"infralib"}}}`)
-		assertKyvernoDenied(t, out, err)
+		assertForbidden(t, out, err)
 	})
 	t.Run("pass: maintainer can create namespace without infralib zone", func(t *testing.T) {
 		t.Parallel()
