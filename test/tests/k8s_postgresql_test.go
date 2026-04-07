@@ -12,8 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── Orchestrator ──────────────────────────────────────────────────────────────
-
 func testPostgresql(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 	defer cleanupPostgresql(t, cluster, argocd)
@@ -48,8 +46,6 @@ func testPostgresql(t *testing.T, ctx context.Context, cluster, argocd *terrak8s
 
 	t.Run("MinimalDatabase", func(t *testing.T) { testPostgresqlMinimalDatabase(t, pgNs) })
 }
-
-// ── PostgreSQLInstance ────────────────────────────────────────────────────────
 
 func testInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -184,8 +180,6 @@ func waitExternalSecretReady(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	require.NoError(t, err)
 }
 
-// ── PostgreSQLUser ────────────────────────────────────────────────────────────
-
 func testPostgresqlAdminUser(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	t.Helper()
 
@@ -248,8 +242,6 @@ func testPostgresqlRegularUser(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	// Role cannot be deleted while Grant exists
 	testUsageBlocksDeletion(t, pgNs, SqlRoleKind, roleName)
 }
-
-// ── PostgreSQLDatabase ────────────────────────────────────────────────────────
 
 func testPostgresqlDatabaseOne(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -338,7 +330,6 @@ func testPostgresqlMinimalDatabase(t *testing.T, pgNs *terrak8s.KubectlOptions) 
 }
 
 // testDatabaseExtensions verifies all expected SQL extensions exist with correct settings.
-// Kept as a helper because it iterates a fixed set of extensions — inline would be 30+ identical lines.
 func testDatabaseExtensions(t *testing.T, pgNs *terrak8s.KubectlOptions, composite, dbSpecName string) {
 	t.Helper()
 	type ext struct{ name, extName, schema string }
@@ -360,15 +351,12 @@ func testDatabaseExtensions(t *testing.T, pgNs *terrak8s.KubectlOptions, composi
 	}
 }
 
-// ── Cleanup ───────────────────────────────────────────────────────────────────
-
 func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {
 		return // leave resources in place for debugging
 	}
 	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 
-	// Delete composites in dependency order; Crossplane cascade-deletes all sub-resources.
 	cleanupDisableDeletionProtectionOnDatabases(t, pgNs)
 	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
 

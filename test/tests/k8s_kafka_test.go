@@ -15,8 +15,6 @@ func kafkaAWSSecVerName() string { return KafkaClusterName + "-" + KafkaUserName
 func kafkaAWSSecPolName() string { return KafkaClusterName + "-" + KafkaUserName + "-policy" }
 func kafkaSCRAMName() string     { return KafkaClusterName + "-" + KafkaUserName + "-scram" }
 
-// ── Orchestrator ──────────────────────────────────────────────────────────────
-
 func testKafka(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	kfNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KafkaNamespaceName)
 	defer cleanupKafka(t, cluster, argocd)
@@ -43,8 +41,6 @@ func testKafka(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Kube
 	t.Run("User", func(t *testing.T) { testKafkaUser(t, kfNs) })
 }
 
-// ── MSK Observer ──────────────────────────────────────────────────────────────
-
 func testMSKObserver(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Helper()
 
@@ -61,8 +57,6 @@ func testMSKObserver(t *testing.T, cluster *terrak8s.KubectlOptions) {
 
 	waitResourceExists(t, cluster, KafkaClusterProvCfgKind, KafkaMSKObserverName, 10, 10*time.Second)
 }
-
-// ── Topic ─────────────────────────────────────────────────────────────────────
 
 func testKafkaTopic(t *testing.T, kfNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -86,8 +80,6 @@ func testKafkaTopic(t *testing.T, kfNs *terrak8s.KubectlOptions) {
 	patchResource(t, kfNs, KafkaTopicKind, KafkaTopicName, `{"spec":{"partitions":`+KafkaTopicUpdatedPartitions+`}}`)
 	waitFieldEquals(t, kfNs, KafkaProvTopicKind, provTopicName, ".spec.forProvider.partitions", KafkaTopicUpdatedPartitions, 30, 10*time.Second)
 }
-
-// ── KafkaUser ─────────────────────────────────────────────────────────────────
 
 func testKafkaUser(t *testing.T, kfNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -177,8 +169,6 @@ func testKafkaUser(t *testing.T, kfNs *terrak8s.KubectlOptions) {
 	waitSyncedAndReady(t, kfNs, KafkaACLKind, newACL, 30, 10*time.Second)
 	require.Equal(t, "delta", getField(t, kfNs, KafkaACLKind, newACL, ".spec.forProvider.resourceName"))
 }
-
-// ── Cleanup ───────────────────────────────────────────────────────────────────
 
 func cleanupKafka(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {

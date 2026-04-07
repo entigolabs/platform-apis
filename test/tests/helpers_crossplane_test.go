@@ -12,8 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── Wait helpers ─────────────────────────────────────────────────────────────
-
 // waitSyncedAndReady polls until a Crossplane resource has Synced=True and Ready=True.
 func waitSyncedAndReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, retries int, interval time.Duration) {
 	t.Helper()
@@ -82,24 +80,12 @@ func waitFieldEquals(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fi
 	require.NoError(t, err, "%s/%s: field %s never reached %q", kind, name, fieldPath, expected)
 }
 
-// ── Patch helpers ─────────────────────────────────────────────────────────────
-
 // patchResource applies a JSON merge patch to a resource.
 func patchResource(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, patch string) {
 	t.Helper()
 	_, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "patch", kind, name, "--type", "merge", "-p", patch)
 	require.NoError(t, err, "patch %s/%s", kind, name)
 }
-
-// patchAndWaitField patches a resource and waits for a field on the SAME resource to reach a value.
-// For cross-resource propagation (e.g. patch CR, wait on provider-managed resource), use patchResource + waitFieldEquals.
-func patchAndWaitField(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, patch, fieldPath, expected string, retries int, interval time.Duration) {
-	t.Helper()
-	patchResource(t, opts, kind, name, patch)
-	waitFieldEquals(t, opts, kind, name, fieldPath, expected, retries, interval)
-}
-
-// ── Read helpers ──────────────────────────────────────────────────────────────
 
 // getField reads a single jsonpath field from a resource. Fails the test if the resource is not found.
 func getField(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fieldPath string) string {
@@ -118,9 +104,7 @@ func getFirstByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind, composit
 	return strings.TrimSpace(out), err
 }
 
-// ── Delete protection helpers ─────────────────────────────────────────────────
-
-// testDeletionRejected verifies that a delete is rejected at the API level (e.g. by a validating webhook).
+// testDeletionRejected verifies that a deletion is rejected at the API level (e.g. by a validating webhook).
 func testDeletionRejected(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string) {
 	t.Helper()
 	out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name, "--wait=false")
@@ -133,7 +117,6 @@ func testDeletionRejected(t *testing.T, opts *terrak8s.KubectlOptions, kind, nam
 }
 
 // testUsageBlocksDeletion verifies that a Crossplane Usage resource protects kind/name from deletion.
-// It attempts deletion and then confirms the resource still exists after a brief wait.
 func testUsageBlocksDeletion(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string) {
 	t.Helper()
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, opts, "delete", kind, name, "--wait=false")
@@ -143,9 +126,7 @@ func testUsageBlocksDeletion(t *testing.T, opts *terrak8s.KubectlOptions, kind, 
 	require.Equal(t, name, existing, "%s/%s was deleted despite Usage protection", kind, name)
 }
 
-// ── Usage verification ────────────────────────────────────────────────────────
-
-// testUsage waits for a Usage resource to exist and verifies its of/by fields and replayDeletion flag.
+// testUsage waits for a Usage resource to exist and verifies it by fields and replayDeletion flag.
 func testUsage(t *testing.T, opts *terrak8s.KubectlOptions, usageName, ofKind, ofName, byKind, byName string) {
 	t.Helper()
 	waitResourceExists(t, opts, UsageKind, usageName, 30, 10*time.Second)
@@ -155,8 +136,6 @@ func testUsage(t *testing.T, opts *terrak8s.KubectlOptions, usageName, ofKind, o
 	require.Equal(t, byName, getField(t, opts, UsageKind, usageName, ".spec.by.resourceRef.name"))
 	require.Equal(t, "true", getField(t, opts, UsageKind, usageName, ".spec.replayDeletion"))
 }
-
-// ── Cleanup helpers ───────────────────────────────────────────────────────────
 
 // cleanupDeleteParallel deletes multiple resources of the same kind concurrently and waits for all to disappear.
 func cleanupDeleteParallel(t *testing.T, opts *terrak8s.KubectlOptions, kind string, names ...string) {
@@ -199,8 +178,6 @@ func cleanupWaitGone(t *testing.T, opts *terrak8s.KubectlOptions, kind, name str
 			return "deleted", nil
 		})
 }
-
-// ── Internal ──────────────────────────────────────────────────────────────────
 
 func checkConditions(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, conditions ...string) (string, error) {
 	t.Helper()

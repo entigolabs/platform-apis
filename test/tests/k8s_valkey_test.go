@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── Orchestrator ──────────────────────────────────────────────────────────────
-
 func testValkey(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	vkNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, ValkeyNamespaceName)
 	defer cleanupValkey(t, cluster, argocd)
@@ -28,8 +26,6 @@ func testValkey(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Kub
 		t.Run("CustomValkeyInstance", func(t *testing.T) { t.Parallel(); testCustomValkeyInstance(t, vkNs) })
 	})
 }
-
-// ── Custom ValkeyInstance ─────────────────────────────────────────────────────
 
 func testCustomValkeyInstance(t *testing.T, vkNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -50,8 +46,6 @@ func testCustomValkeyInstance(t *testing.T, vkNs *terrak8s.KubectlOptions) {
 	require.Equal(t, "2", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.numCacheClusters"))
 	require.Equal(t, "3", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.snapshotRetentionLimit"))
 }
-
-// ── Cleanup ───────────────────────────────────────────────────────────────────
 
 func cleanupValkey(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {

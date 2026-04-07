@@ -14,12 +14,15 @@ const (
 	functionsConfig = "../../../test/common/functions-dev.yaml"
 	required        = "../examples/required-resources.yaml"
 
+	// Instance test files
 	instanceComposition = "../apis/instance-composition.yaml"
 	instanceResource    = "../examples/instance.yaml"
 
+	// Database test files
 	databaseComposition = "../apis/database-composition.yaml"
 	databaseResource    = "../examples/database.yaml"
 
+	// User test files
 	userComposition       = "../apis/user-composition.yaml"
 	userWithGrantResource = "../examples/user-with-role-grant.yaml"
 )

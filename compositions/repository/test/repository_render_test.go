@@ -14,7 +14,7 @@ const (
 	functionsConfig = "../../../test/common/functions-dev.yaml"
 	required        = "../examples/required-resources.yaml"
 
-	repositoryWithNamePathResource = "../examples/repository-with-name-path.yaml"
+	repositoryResource = "../examples/repository-with-name-path.yaml"
 )
 
 func TestRepositoryCrossplaneRender(t *testing.T) {
@@ -29,7 +29,7 @@ func TestRepositoryCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, required, extra)
 
 	t.Log("Rendering...")
-	resources := crossplane.CrossplaneRender(t, repositoryWithNamePathResource, composition, functionsConfig, crossplane.Ptr(extra), nil)
+	resources := crossplane.CrossplaneRender(t, repositoryResource, composition, functionsConfig, crossplane.Ptr(extra), nil)
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "Repository", 2)
@@ -58,7 +58,7 @@ func TestRepositoryCrossplaneRender(t *testing.T) {
 	crossplane.AppendToResources(t, observed, mockedRepo)
 
 	t.Log("Rerendering...")
-	resources = crossplane.CrossplaneRender(t, repositoryWithNamePathResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, repositoryResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting artifact.entigo.com Repository Ready Status")
 	crossplane.AssertResourceReady(t, resources, "Repository", "artifact.entigo.com/v1alpha1")

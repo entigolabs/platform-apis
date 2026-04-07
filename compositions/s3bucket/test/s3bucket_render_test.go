@@ -8,12 +8,12 @@ import (
 )
 
 const (
-	composition     = "../apis/s3bucket-composition.yaml"
-	env             = "../examples/environment-config.yaml"
-	function        = "../../../functions/storage"
-	functionsConfig = "../../../test/common/functions-dev.yaml"
-	required        = "../examples/required-resources.yaml"
-	s3Bucket        = "../examples/s3bucket.yaml"
+	composition      = "../apis/s3bucket-composition.yaml"
+	env              = "../examples/environment-config.yaml"
+	function         = "../../../functions/storage"
+	functionsConfig  = "../../../test/common/functions-dev.yaml"
+	required         = "../examples/required-resources.yaml"
+	s3BucketResource = "../examples/s3bucket.yaml"
 )
 
 func TestS3BucketCrossplaneRender(t *testing.T) {
@@ -28,7 +28,7 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 	crossplane.AppendYamlToResources(t, required, extra)
 
 	t.Log("Rendering...")
-	resources := crossplane.CrossplaneRender(t, s3Bucket, composition, functionsConfig, crossplane.Ptr(extra), nil)
+	resources := crossplane.CrossplaneRender(t, s3BucketResource, composition, functionsConfig, crossplane.Ptr(extra), nil)
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "S3Bucket", 1)
@@ -79,7 +79,7 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 	)
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, s3Bucket, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, s3BucketResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "S3Bucket", 1)
@@ -116,7 +116,7 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 	)
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, s3Bucket, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, s3BucketResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "S3Bucket", 1)
@@ -145,7 +145,7 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 	)
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, s3Bucket, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, s3BucketResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "S3Bucket", 1)
@@ -199,7 +199,7 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 	)
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, s3Bucket, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, s3BucketResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "S3Bucket", 1)
@@ -242,7 +242,7 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 	)
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, s3Bucket, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, s3BucketResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "S3Bucket", 1)
@@ -293,7 +293,7 @@ func TestS3BucketCrossplaneRender(t *testing.T) {
 	)
 
 	t.Log("Rendering...")
-	resources = crossplane.CrossplaneRender(t, s3Bucket, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+	resources = crossplane.CrossplaneRender(t, s3BucketResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting storage.entigo.com S3Bucket Ready Status")
 	crossplane.AssertResourceReady(t, resources, "S3Bucket", "storage.entigo.com/v1alpha1")

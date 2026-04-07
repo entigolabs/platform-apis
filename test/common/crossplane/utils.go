@@ -24,13 +24,24 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// StartCustomFunction starts written in golang function
+type mismatch struct {
+	path, expected, actual string
+}
+
+type candidate struct {
+	name       string
+	mismatches []mismatch
+}
+
+const fileWriteError = "Can not write to file %s"
+
+// StartCustomFunction starts written in golang function.
+// Function killed automatically when test finished or test interrupted (by error)
 func StartCustomFunction(t *testing.T, funcPath string, port string) {
 	t.Helper()
 
 	cmd := exec.Command("go", "run", ".", "--insecure", "--debug")
 	cmd.Dir = funcPath
-	// Put the process in its own group so the whole tree (go run + compiled binary) is killed on cleanup.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	cmd.Stdout = os.Stdout
@@ -42,7 +53,6 @@ func StartCustomFunction(t *testing.T, funcPath string, port string) {
 	t.Cleanup(func() {
 		if cmd.Process != nil {
 			t.Log("Killing custom function...")
-			// Kill the entire process group (go run + its compiled binary child).
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}
 	})
@@ -138,22 +148,11 @@ func AssertResourceReady(t *testing.T, resources []*unstructured.Unstructured, k
 	t.Errorf("Resource %s not found", kind)
 }
 
-// AssertFieldValues asserts that at least one resource of kind+apiVersion exists
-// where every field in fields matches its expected value.
+// AssertFieldValues asserts that at least one resource of kind+apiVersion exists where every field in fields matches its expected value.
 // Use "*" as the expected value to assert the field exists and is non-null.
 // Uses gjson path syntax: "metadata.name", "metadata.ownerReferences.0.apiVersion"
 func AssertFieldValues(t *testing.T, resources []*unstructured.Unstructured, kind, apiVersion string, fields map[string]string) {
 	t.Helper()
-
-	type mismatch struct {
-		path     string
-		expected string
-		actual   string
-	}
-	type candidate struct {
-		name       string
-		mismatches []mismatch
-	}
 
 	var candidates []candidate
 
@@ -161,20 +160,8 @@ func AssertFieldValues(t *testing.T, resources []*unstructured.Unstructured, kin
 		if res.GetKind() != kind || res.GetAPIVersion() != apiVersion {
 			continue
 		}
-		data, _ := json.Marshal(res.Object)
-		j := string(data)
 
-		var mismatches []mismatch
-		for path, expected := range fields {
-			val := gjson.Get(j, path)
-			if expected == "*" {
-				if !val.Exists() || val.Type == gjson.Null {
-					mismatches = append(mismatches, mismatch{path: path, expected: "<non-null>", actual: "<missing or null>"})
-				}
-			} else if val.String() != expected {
-				mismatches = append(mismatches, mismatch{path: path, expected: expected, actual: val.String()})
-			}
-		}
+		mismatches := checkResourceFields(res, fields)
 
 		if len(mismatches) == 0 {
 			t.Logf("Fields OK. ApiVersion: %s. Kind:%s. Name: %s", apiVersion, kind, res.GetName())
@@ -196,8 +183,34 @@ func AssertFieldValues(t *testing.T, resources []*unstructured.Unstructured, kin
 	}
 }
 
-// MockByKind returns a deep copy of the first resource matching kind+apiVersion,
-// optionally marking it ready and applying field overrides.
+// checkResourceFields is AssertFieldValues internal function
+func checkResourceFields(res *unstructured.Unstructured, fields map[string]string) []mismatch {
+	var mismatches []mismatch
+
+	data, _ := json.Marshal(res.Object)
+	jsonStr := string(data)
+
+	for path, expected := range fields {
+		val := gjson.Get(jsonStr, path)
+
+		actualStr := val.String()
+		isMissing := !val.Exists() || val.Type == gjson.Null
+
+		if expected == "*" {
+			if isMissing {
+				mismatches = append(mismatches, mismatch{path, "<non-null>", "<missing or null>"})
+			}
+			continue
+		}
+
+		if actualStr != expected {
+			mismatches = append(mismatches, mismatch{path, expected, actualStr})
+		}
+	}
+	return mismatches
+}
+
+// MockByKind returns a deep copy of the first resource matching kind+apiVersion, optionally marking it ready and applying field overrides.
 // fieldChanges keys use dot-separated paths of any depth: "spec.forProvider.region".
 // Pass nil for fieldChanges to skip field overrides.
 func MockByKind(t *testing.T, resources []*unstructured.Unstructured, kind, apiVersion string, makeReady bool, fieldChanges map[string]interface{}) *unstructured.Unstructured {
@@ -225,8 +238,7 @@ func MockByKind(t *testing.T, resources []*unstructured.Unstructured, kind, apiV
 }
 
 // Mock makes a ready copy of a single already-found resource, optionally applying field overrides.
-// Use this instead of MockByKind when you already hold the specific resource (e.g. inside a range loop)
-// and don't need to search a slice.
+// Use this instead of MockByKind when you already hold the specific resource (e.g. inside a range loop) and don't need to search a slice.
 func Mock(t *testing.T, res *unstructured.Unstructured, makeReady bool, fieldChanges map[string]interface{}) *unstructured.Unstructured {
 	t.Helper()
 	return MockByKind(t, []*unstructured.Unstructured{res}, res.GetKind(), res.GetAPIVersion(), makeReady, fieldChanges)
@@ -243,9 +255,9 @@ func AppendToResources(t *testing.T, filename string, resources ...*unstructured
 		data, err := yaml.Marshal(res.Object)
 		require.NoError(t, err)
 		_, err = file.Write([]byte("---\n"))
-		require.NoError(t, err, "Can not write to file %s", filename)
+		require.NoError(t, err, fileWriteError, filename)
 		_, err = file.Write(data)
-		require.NoError(t, err, "Can not write to file %s", filename)
+		require.NoError(t, err, fileWriteError, filename)
 	}
 }
 
@@ -261,9 +273,9 @@ func AppendYamlToResources(t *testing.T, sourceFilename string, destFilename str
 	defer func() { _ = file.Close() }()
 
 	_, err = file.Write([]byte("\n---\n"))
-	require.NoError(t, err, "Can not write to file %s", destFilename)
+	require.NoError(t, err, fileWriteError, destFilename)
 	_, err = file.Write(data)
-	require.NoError(t, err, "Can not write to file %s", destFilename)
+	require.NoError(t, err, fileWriteError, destFilename)
 }
 
 func ParseYamlFileToUnstructured(t *testing.T, filename string) []*unstructured.Unstructured {

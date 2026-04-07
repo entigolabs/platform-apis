@@ -8,12 +8,12 @@ import (
 )
 
 const (
-	composition     = "../apis/valkey-composition.yaml"
-	env             = "../examples/environment-config.yaml"
-	function        = "../../../functions/database"
-	functionsConfig = "../../../test/common/functions-dev.yaml"
-	required        = "../examples/required-resources.yaml"
-	instances       = "../examples/instance.yaml"
+	composition             = "../apis/valkey-composition.yaml"
+	env                     = "../examples/environment-config.yaml"
+	function                = "../../../functions/database"
+	functionsConfig         = "../../../test/common/functions-dev.yaml"
+	required                = "../examples/required-resources.yaml"
+	valkeyInstanceResources = "../examples/instance.yaml"
 )
 
 func TestValkeyCrossplaneRender(t *testing.T) {
@@ -25,7 +25,7 @@ func TestValkeyCrossplaneRender(t *testing.T) {
 	observed := filepath.Join(tmpDir, "observed.yaml")
 	tempInstance := filepath.Join(tmpDir, "instance.yaml")
 
-	instancesUnstructured := crossplane.ParseYamlFileToUnstructured(t, instances)
+	instancesUnstructured := crossplane.ParseYamlFileToUnstructured(t, valkeyInstanceResources)
 	for _, unstructured := range instancesUnstructured {
 		if unstructured.GetName() == "example-valkey-with-custom-settings" {
 			crossplane.AppendToResources(t, tempInstance, unstructured)

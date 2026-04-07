@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── Template data types ───────────────────────────────────────────────────────
-
 type kyvernoNsData struct {
 	Name, Zone, Enforce, Warn string
 }
@@ -29,9 +27,7 @@ type kyvernoKubeconfigData struct {
 	CA, Server, ClusterName, Region, KeyID, Secret string
 }
 
-// ── Setup helpers ─────────────────────────────────────────────────────────────
-
-// ensureKyvernoTestNamespace creates the shared kyverno-test-e2e namespace if it does not exist.
+// ensureKyvernoTestNamespace creates the shared kyverno-test namespace if it does not exist.
 // The namespace is labeled tenancy.entigo.com/zone=a so that zone-deletion and ownership tests
 // can rely on it being attached to zone "a".
 func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions) {
@@ -47,8 +43,6 @@ func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions) 
 func roleKubectlOptions(t *testing.T, base *terrak8s.KubectlOptions, keyID, secret string) *terrak8s.KubectlOptions {
 	t.Helper()
 
-	// Parse region and cluster name from EKS ARN context.
-	// Format: arn:aws:eks:<region>:<account>:cluster/<name>
 	parts := strings.SplitN(base.ContextName, ":", 6)
 	region := parts[3]
 	clusterName := parts[5]
@@ -78,11 +72,7 @@ func roleKubectlOptions(t *testing.T, base *terrak8s.KubectlOptions, keyID, secr
 	return terrak8s.NewKubectlOptions("role-context", f.Name(), "")
 }
 
-// ── Kyverno apply helpers ─────────────────────────────────────────────────────
-
 // kyvernoApply applies yamlStr so admission webhooks fire against real resources.
-// For expected-deny tests the resource is never persisted; for expected-allow tests
-// the caller is responsible for adding a t.Cleanup to delete the created resource.
 func kyvernoApply(t *testing.T, opts *terrak8s.KubectlOptions, yamlStr string) (string, error) {
 	t.Helper()
 	return terrak8s.RunKubectlAndGetOutputE(t, opts, "apply", "-f", writeTempYAML(t, yamlStr))
@@ -131,7 +121,6 @@ func argoAppYAML(t *testing.T, data kyvernoArgoAppData) string {
 // ── Assertion helpers ─────────────────────────────────────────────────────────
 
 // assertKyvernoDenied asserts that the request was explicitly rejected by a Kyverno policy
-// (combined output must contain "denied").
 func assertKyvernoDenied(t *testing.T, out string, err error) {
 	t.Helper()
 	combined := out
@@ -144,8 +133,6 @@ func assertKyvernoDenied(t *testing.T, out string, err error) {
 }
 
 // assertKyvernoAllowed asserts that Kyverno did not deny the request.
-// A non-nil err is acceptable provided it does not contain "denied" (e.g. CRD validation or
-// resource-already-exists — anything that is not a policy denial).
 func assertKyvernoAllowed(t *testing.T, err error) {
 	t.Helper()
 	if err == nil {
