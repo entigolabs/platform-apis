@@ -8,12 +8,12 @@ spec:
   restartPolicy: "Always"
   containers:
     - environment:
-        - name: NEW_ENV
-          secret: false
-          value: ENV_VALUE
-        - name: NEW_SECRET
-          secret: true
-          value: SECRET_VALUE
+      - name: NEW_ENV
+        secret: false
+        value: ENV_VALUE
+      - name: NEW_SECRET
+        secret: true
+        value: SECRET_VALUE
       name: nginx
       registry: 1234567890.dkr.ecr.eu-north-1.amazonaws.com
       repository: nginx

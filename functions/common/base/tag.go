@@ -10,10 +10,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	AWSTagsLimit = 44
+	TagsPrefix   = "tags.entigo.com/"
+)
+
 var (
 	tagSupportCache  sync.Map
 	tagSupportFlight singleflight.Group
 )
+
+type EnvironmentTags struct {
+	Tags map[string]*string `json:"tags,omitempty"`
+}
+
+func (e *EnvironmentTags) Validate() error {
+	return nil
+}
+
+type ResourceTags struct {
+	Zone   string
+	Tags   map[string]string
+	Labels map[string]string
+}
 
 func supportsField(obj client.Object, fieldPath ...string) bool {
 	key := obj.GetObjectKind().GroupVersionKind()
@@ -68,4 +87,55 @@ func resolveFieldPath(obj client.Object, fieldPath []string) bool {
 		}
 	}
 	return true
+}
+
+func extractTags(src map[string]string) map[string]string {
+	tags := make(map[string]string)
+	for key, value := range src {
+		if !strings.HasPrefix(key, TagsPrefix) {
+			continue
+		}
+		tags[strings.TrimPrefix(key, TagsPrefix)] = value
+	}
+	return tags
+}
+
+func extractLabels(src map[string]string) map[string]string {
+	labels := make(map[string]string)
+	for key, value := range src {
+		if !strings.HasPrefix(key, TagsPrefix) {
+			continue
+		}
+		labels[key] = value
+	}
+	return labels
+}
+
+func extractTagsLabels(src map[string]string) (map[string]string, map[string]string) {
+	tags := make(map[string]string)
+	labels := make(map[string]string)
+	for key, value := range src {
+		if !strings.HasPrefix(key, TagsPrefix) {
+			continue
+		}
+		tags[strings.TrimPrefix(key, TagsPrefix)] = value
+		labels[key] = value
+	}
+	return tags, labels
+}
+
+func getObjectTagsLabels(object unstructured.Unstructured) (map[string]string, map[string]string) {
+	tags, labels := extractTagsLabels(object.GetLabels())
+	for key, value := range extractTags(object.GetAnnotations()) {
+		tags[key] = value
+	}
+	return tags, labels
+}
+
+func GetObjectTags(object client.Object) map[string]string {
+	tags := extractTags(object.GetLabels())
+	for key, value := range extractTags(object.GetAnnotations()) {
+		tags[key] = value
+	}
+	return tags
 }

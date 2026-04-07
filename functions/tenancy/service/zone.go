@@ -123,10 +123,9 @@ func GenerateZoneObjects(
 	if err != nil {
 		return nil, err
 	}
-	tags := map[string]*string{
-		base.TenancyZoneLabel: &zone.Name,
-	}
+	tags := make(map[string]*string)
 	maps.Copy(tags, env.Tags)
+	tags[base.TenancyZoneLabel] = &zone.Name
 	generator := zoneGenerator{
 		zone:           zone,
 		observed:       observed,
@@ -710,6 +709,7 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]client.Object {
 		base.TenancyZoneLabel: zoneName,
 	}
 	emptyString := ""
+	ZoneResourceTags := base.GetObjectTags(&g.zone)
 
 	for _, pool := range g.zone.Spec.Pools {
 		zonePool := fmt.Sprintf("%s-%s", zoneName, pool.Name)
@@ -717,21 +717,23 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]client.Object {
 			zonePoolAnnotation: zonePool,
 		}
 		maps.Copy(annotations, g.zoneAnnotations)
-		tags := map[string]*string{
-			base.TenancyZoneLabel: &zoneName,
-			zonePoolAnnotation:    &zonePool,
-		}
+		tags := make(map[string]*string)
 		maps.Copy(tags, g.env.Tags)
-		instanceTags := map[string]*string{
-			"Name":                 &zonePool,
-			base.TenancyZoneAWSTag: &g.zone.Name,
-		}
+		tags[base.TenancyZoneLabel] = &zoneName
+		tags[zonePoolAnnotation] = &zonePool
+		instanceTags := make(map[string]*string)
 		maps.Copy(instanceTags, tags)
-		volumeTags := map[string]*string{
-			"Name":                 base.StringPtr(zonePool + "-root"),
-			base.TenancyZoneAWSTag: &g.zone.Name,
-		}
+		instanceTags["Name"] = &zonePool
+		instanceTags[base.TenancyZoneAWSTag] = &g.zone.Name
+		volumeTags := make(map[string]*string)
 		maps.Copy(volumeTags, tags)
+		volumeTags["Name"] = base.StringPtr(zonePool + "-root")
+		volumeTags[base.TenancyZoneAWSTag] = &g.zone.Name
+		for key, value := range ZoneResourceTags {
+			instanceTags[key] = &value
+			volumeTags[key] = &value
+		}
+
 		var securityGroupIds []*string
 		if g.securityGroup.Status.AtProvider.ID != nil {
 			securityGroupIds = []*string{g.securityGroup.Status.AtProvider.ID}

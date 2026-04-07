@@ -3,6 +3,7 @@ package base
 import (
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"regexp"
 	"strings"
 	"time"
@@ -65,11 +66,23 @@ func RequiredNamespace(name string) *fnv1.ResourceSelector {
 	}
 }
 
+func RequiredZone(name string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       ZoneKey,
+		ApiVersion: TenancyApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+	}
+}
+
 type Validatable interface {
 	Validate() error
 }
 
 func GetEnvironment(key string, required map[string][]resource.Required, obj Validatable) error {
+	resources := required[key]
+	if len(resources) == 0 {
+		return fmt.Errorf("environment config %s not found", key)
+	}
 	if err := getEnvironment(required[key], obj); err != nil {
 		return fmt.Errorf("cannot get environment config %s: %w", key, err)
 	}
@@ -77,9 +90,6 @@ func GetEnvironment(key string, required map[string][]resource.Required, obj Val
 }
 
 func getEnvironment(resources []resource.Required, obj Validatable) error {
-	if len(resources) == 0 {
-		return errors.New("resources not found")
-	}
 	result := make(map[string]interface{})
 	for _, r := range resources {
 		data, found, err := unstructured.NestedMap(r.Resource.Object, "data")
@@ -91,6 +101,9 @@ func getEnvironment(resources []resource.Required, obj Validatable) error {
 				return err
 			}
 		}
+	}
+	if len(result) == 0 {
+		return nil
 	}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(result, obj); err != nil {
 		return err
@@ -117,12 +130,62 @@ func GetTenancyZone(required map[string][]resource.Required, log logging.Logger)
 	return namespace.Labels[TenancyZoneLabel]
 }
 
-func GetTenancyLabels(zone string) map[string]string {
-	var labels map[string]string
-	if zone != "" {
-		labels = map[string]string{TenancyZoneLabel: zone}
+func GetResourceLabels(log logging.Logger, resource client.Object, required map[string][]resource.Required) map[string]string {
+	zone := GetTenancyZone(required, log)
+	if zone == "" {
+		return nil
 	}
+	labels := make(map[string]string)
+	zones, found := required[ZoneKey]
+	if found && len(zones) > 0 && zones[0].Resource != nil {
+		maps.Copy(labels, extractLabels(zones[0].Resource.GetLabels()))
+	}
+	maps.Copy(labels, extractLabels(resource.GetLabels()))
+	labels[TenancyZoneLabel] = zone
 	return labels
+}
+
+func GetResourceTags(log logging.Logger, compositeResource *resource.Composite, requiredResources map[string][]resource.Required) ResourceTags {
+	zone := GetTenancyZone(requiredResources, log)
+	if zone == "" {
+		tags, labels := getObjectTagsLabels(compositeResource.Resource.Unstructured)
+		return ResourceTags{zone, tags, labels}
+	}
+	tags := getZoneEnvironmentTags(log, ZoneEnvKey, requiredResources)
+	labels := make(map[string]string)
+	zones, found := requiredResources[ZoneKey]
+	if found && len(zones) > 0 && zones[0].Resource != nil {
+		zoneTags, zoneLabels := getObjectTagsLabels(*zones[0].Resource)
+		maps.Copy(tags, zoneTags)
+		labels = zoneLabels
+	} else {
+		log.Debug("Cannot get tags from zone, zone not found")
+	}
+	resourceTags, resourceLabels := getObjectTagsLabels(compositeResource.Resource.Unstructured)
+	maps.Copy(tags, resourceTags)
+	maps.Copy(labels, resourceLabels)
+	return ResourceTags{zone, tags, labels}
+}
+
+func GetZoneTags(compositeResource *resource.Composite) ResourceTags {
+	zoneTags, zoneLabels := getObjectTagsLabels(compositeResource.Resource.Unstructured)
+	return ResourceTags{compositeResource.Resource.GetName(), zoneTags, zoneLabels}
+}
+
+func getZoneEnvironmentTags(log logging.Logger, key string, requiredResources map[string][]resource.Required) map[string]string {
+	tags := make(map[string]string)
+	var env EnvironmentTags
+	err := getEnvironment(requiredResources[key], &env)
+	if err != nil {
+		log.Info("Cannot get environment config, skipping tags", "key", key, "error", err)
+	}
+	for key, value := range env.Tags {
+		if value == nil {
+			continue
+		}
+		tags[key] = *value
+	}
+	return tags
 }
 
 func GetNamespace(required map[string][]resource.Required) *corev1.Namespace {

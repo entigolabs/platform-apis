@@ -4,6 +4,10 @@ kind: Repository
 metadata:
   name: test-repo
   namespace: {{ .Release.Namespace }}
+  annotations:
+    tags.entigo.com/antag: antest
+  labels:
+    tags.entigo.com/tag: test
 spec: {}
 ---
 apiVersion: artifact.entigo.com/v1alpha1

@@ -37,6 +37,11 @@ spec:
                   weight: 90
           containers:
           - name: package-runtime
+            {{- if .Values.workspace }}
+            env:
+              - name: WORKSPACE
+                value: {{ .Values.workspace }}
+            {{- end }}
             resources:
               requests:
                 cpu: 1m

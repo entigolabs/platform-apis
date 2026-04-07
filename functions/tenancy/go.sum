@@ -34,8 +34,8 @@ github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XL
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/crossplane/crossplane-runtime/v2 v2.3.0-rc.0 h1:luC7Los3C9Et1iBYXRsN0OwZ+EQfppDKaWa/B5j/TO8=
 github.com/crossplane/crossplane-runtime/v2 v2.3.0-rc.0/go.mod h1:8I+x4w5bG4x8aO8ifF/QC8GZoNCN6v21NHzgoYPNYAQ=
-github.com/crossplane/function-sdk-go v0.6.0 h1:4lRs6diDrlp+HdxnYtpSKp0aHEOQjO4FSng3//mbGuM=
-github.com/crossplane/function-sdk-go v0.6.0/go.mod h1:iyLf7eBOQ7FIWkoCIXLWCyAivLd03Vyk54G//hkpkRo=
+github.com/crossplane/function-sdk-go v0.6.2 h1:B87cWCEqvkfuXVRpqxaqunJWfmfyk9qBZcFjrz0/jS8=
+github.com/crossplane/function-sdk-go v0.6.2/go.mod h1:TZ7gGzZkbxV1p1KuWQxigLiZ//xRAyrfb2xrMnH2OPc=
 github.com/crossplane/upjet/v2 v2.2.1-0.20251128133821-1e4f37b6b5f8 h1:5b+YgFtV7lGygQzIIssdEjU85JfQF1P2cSRU14Ii6BY=
 github.com/crossplane/upjet/v2 v2.2.1-0.20251128133821-1e4f37b6b5f8/go.mod h1:jDCqvAFLrVEzqE+pywmQ5u18HbJK5j5Jj4cTQpqOLqY=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -427,8 +427,8 @@ google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 h1:
 google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171/go.mod h1:M5krXqk4GhBKvB596udGL3UyjL4I1+cTbK0orROM9ng=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 h1:ggcbiqK8WWh6l1dnltU4BgWGIGo+EVYxCaAPih/zQXQ=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
-google.golang.org/grpc v1.79.2 h1:fRMD94s2tITpyJGtBBn7MkMseNpOZU8ZxgC3MMBaXRU=
-google.golang.org/grpc v1.79.2/go.mod h1:KmT0Kjez+0dde/v2j9vzwoAScgEPx/Bw1CYChhHLrHQ=
+google.golang.org/grpc v1.79.3 h1:sybAEdRIEtvcD68Gx7dmnwjZKlyfuc61Dyo9pGXXkKE=
+google.golang.org/grpc v1.79.3/go.mod h1:KmT0Kjez+0dde/v2j9vzwoAScgEPx/Bw1CYChhHLrHQ=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=

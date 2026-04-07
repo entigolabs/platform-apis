@@ -11,6 +11,9 @@ platform-apis:
         namespaceResourceWhitelist:
         - group: '*'
           kind: '*'
+      tags:
+        etag: etest
+        eutag: eutest
   database:
     environmentConfig:
       postgresBackupBeforeDeletion: false

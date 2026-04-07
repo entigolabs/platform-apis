@@ -525,6 +525,140 @@ func TestZoneFunction(t *testing.T) {
 				},
 			},
 		},
+		"Zone/LabelAnnotationTags: Added Entigo tags to zone labels and annotations": {
+			Reason: "Should desire the role bindings and node group once rbac and attachments are ready",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`
+{"apiVersion":"tenancy.entigo.com/v1alpha1","kind":"Zone","metadata":{"annotations":{"tags.entigo.com/foo":"bar"},"labels":{"tags.entigo.com/bar":"foo"},"name":"test-zone"},"spec":{"clusterPermissions":false,"namespaces":[{"name":"test-app-ns"}],"pools":[{"name":"default","requirements":[{"key":"instance-type","values":["t3.large"]},{"key":"capacity-type","value":"ON_DEMAND"},{"key":"min-size","value":1},{"key":"max-size","value":2},{"key":"security-groups","values":["sg-321"]}]}]}}
+`)},
+						Resources: map[string]*fnv1.Resource{
+							service.GetNamespaceKey(nsName):                         withReadyStatus(namespaceJson),
+							service.GetLaunchTemplateKey(zoneName, poolName):        withReadyStatus(launchTemplateJson),
+							service.GetAppProjectKey(zoneName):                      withReadyStatus(appProjectJson),
+							service.GetMutatingPolicyKey(zoneName, nsName):          withReadyStatus(mutatingPolicyJson),
+							service.GetLabelsMutatingPolicyKey(zoneName, nsName):    withReadyStatus(labelsMutatingPolicyJson),
+							service.GetValidatingPolicyKey(zoneName, nsName):        withReadyStatus(validatingPolicyJson),
+							service.GetMutatingPolicyKey(zoneName, extNsName):       withReadyStatus(extMutatingPolicyJson),
+							service.GetLabelsMutatingPolicyKey(zoneName, extNsName): withReadyStatus(extLabelsMutatingPolicyJson),
+							service.GetValidatingPolicyKey(zoneName, extNsName):     withReadyStatus(extValidatingPolicyJson),
+							service.GetNetworkPolicyKey(zoneName, nsName):           withReadyStatus(networkPolicyJson),
+							service.GetNetworkPolicyKey(zoneName, extNsName):        withReadyStatus(extNetworkPolicyJson),
+							targetNetworkPolicyKey:                                  withReadyStatus(targetNetworkPolicyJson),
+							service.GetRoleKey(zoneName):                            withReadyStatus(roleJson),
+							service.GetRoleWNAttachmentKey(zoneName):                withReadyStatus(roleWNAttachmentJson),
+							service.GetRoleECRProxyAttachmentKey(zoneName):          withReadyStatus(roleECRProxyAttachmentJson),
+							service.GetRoleECRROAttachmentKey(zoneName):             withReadyStatus(roleECRROAttachment),
+							service.GetRoleSSMAttachmentKey(zoneName):               withReadyStatus(roleSSMAttachment),
+							service.GetRBACRoleReadKey(zoneName, nsName):            withReadyStatus(rbacRoleReadJson),
+							service.GetRBACRoleAllKey(zoneName, nsName):             withReadyStatus(rbacRoleAllJson),
+							service.GetRBACRoleReadKey(zoneName, extNsName):         withReadyStatus(extRbacRoleReadJson),
+							service.GetRBACRoleAllKey(zoneName, extNsName):          withReadyStatus(extRbacRoleAllJson),
+							service.GetAccessentryKey(zoneName):                     withReadyStatus(accessEntryJson),
+						},
+					},
+					RequiredResources: requiredResources,
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							service.GetNamespaceKey(nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"pod-security.kubernetes.io/enforce":"baseline","pod-security.kubernetes.io/warn":"baseline","tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns"},"spec":{},"status":{}}
+							`), Ready: 1},
+							service.GetLaunchTemplateKey(zoneName, poolName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"ec2.aws.upbound.io/v1beta1","kind":"LaunchTemplate","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-default"},"spec":{"deletionPolicy":"Delete","forProvider":{"description":"test-zone-default","disableApiStop":false,"disableApiTermination":false,"metadataOptions":[{"httpEndpoint":"enabled","httpProtocolIpv6":"","httpPutResponseHopLimit":1,"httpTokens":"required","instanceMetadataTags":""}],"name":"test-zone-default","region":"eu-north-1","tagSpecifications":[{"resourceType":"instance","tags":{"Name":"test-zone-default","bar":"foo","entigo:zone":"test-zone","foo":"bar","tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"}},{"resourceType":"volume","tags":{"Name":"test-zone-default-root","bar":"foo","entigo:zone":"test-zone","foo":"bar","tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"}}],"tags":{"bar":"foo","entigo:zone":"test-zone","foo":"bar","tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"updateDefaultVersion":true,"userData":"","vpcSecurityGroupIds":["sg-123","sg-321"]},"initProvider":{"blockDeviceMappings":[{"deviceName":"/dev/xvda","ebs":[{"deleteOnTermination":"true","encrypted":"true","iops":0,"kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:alias/data","snapshotId":"","throughput":0,"volumeInitializationRate":0,"volumeSize":50,"volumeType":"gp3"}],"noDevice":"","virtualName":""}]},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
+							`), Ready: 1},
+							service.GetNetworkPolicyKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-zone","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"tenancy.entigo.com/zone":"test-zone"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}
+							`), Ready: 1},
+							service.GetNetworkPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-zone","namespace":"test-app-ext-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"tenancy.entigo.com/zone":"test-zone"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}
+							`), Ready: 1},
+							targetNetworkPolicyKey: {Resource: resource.MustStructJSON(`
+{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.1"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}
+							`), Ready: 1},
+							service.GetRoleKey(zoneName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone"},"spec":{"forProvider":{"assumeRolePolicy":"{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"ec2.amazonaws.com\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}","tags":{"bar":"foo","entigo:zone":"test-zone","foo":"bar","tenancy.entigo.com/zone":"test-zone"}},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
+							`), Ready: 1},
+							service.GetAppProjectKey(zoneName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone","namespace":"argocd"},"spec":{"clusterResourceBlacklist":[{"group":"*","kind":"*"}],"description":"Security zone for isolated team deployment","destinations":[{"namespace":"test-app-ext-ns","server":"https://kubernetes.default.svc"},{"namespace":"test-app-ns","server":"https://kubernetes.default.svc"}],"roles":[{"description":"Maintainer permissions","groups":["group-maintainer"],"name":"maintainer","policies":["p, proj:test-zone:maintainer, applications, *, test-zone/*, allow","p, proj:test-zone:maintainer, repositories, *, test-zone/*, allow","p, proj:test-zone:maintainer, applicationsets, *, test-zone/*, allow","p, proj:test-zone:maintainer, logs, *, test-zone/*, allow","p, proj:test-zone:maintainer, exec, *, test-zone/*, allow"]},{"description":"Observer permissions","groups":["group-observer"],"name":"observer","policies":["p, proj:test-zone:observer, applications, get, test-zone/*, allow","p, proj:test-zone:observer, applicationsets, get, test-zone/*, allow"]},{"description":"Contributor permissions","name":"contributor","policies":["p, proj:test-zone:contributor, applications, *, test-zone/*, allow","p, proj:test-zone:contributor, repositories, *, test-zone/*, allow","p, proj:test-zone:contributor, applicationsets, *, test-zone/*, allow","p, proj:test-zone:contributor, logs, *, test-zone/*, allow","p, proj:test-zone:contributor, exec, *, test-zone/*, allow"]},{"description":"Use this role for your CI/CD pipelines","groups":["group-maintainer"],"name":"cicd","policies":["p, proj:test-zone:cicd, applications, sync, test-zone/*, allow","p, proj:test-zone:cicd, applicationsets, sync, test-zone/*, allow","p, proj:test-zone:cicd, applications, get, test-zone/*, allow","p, proj:test-zone:cicd, applicationsets, get, test-zone/*, allow"]}],"sourceNamespaces":["test-app-ext-ns","test-app-ns"],"sourceRepos":["*"]},"status":{}}
+							`), Ready: 1},
+							service.GetMutatingPolicyKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"policies.kyverno.io/v1","kind":"MutatingPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"reports.kyverno.io/disabled":"true","tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-test-app-ns-add-nodeselector"},"spec":{"evaluation":{"admission":{"enabled":true},"mutateExisting":{"enabled":false}},"matchConditions":[{"expression":"object.metadata.namespace == \"test-app-ns\"","name":"namespace-filter"}],"matchConstraints":{"namespaceSelector":{"matchExpressions":[{"key":"tenancy.entigo.com/zone","operator":"Exists"}]},"resourceRules":[{"apiGroups":[""],"apiVersions":["v1"],"operations":["CREATE"],"resources":["pods"]}]},"mutations":[{"jsonPatch":{"expression":"!has(object.spec.nodeSelector) || size(object.spec.nodeSelector) == 0 ?\n[\n  JSONPatch{\n    op: \"add\",\n    path: \"/spec/nodeSelector\",\n    value: {\"tenancy.entigo.com/zone-pool\": \"test-zone-default\"}\n  }\n] : []"},"patchType":"JSONPatch"}]},"status":{"autogen":{},"conditionStatus":{"message":""},"generated":false}}
+							`), Ready: 1},
+							service.GetLabelsMutatingPolicyKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"policies.kyverno.io/v1","kind":"MutatingPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"reports.kyverno.io/disabled":"true","tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-test-app-ns-labels"},"spec":{"evaluation":{"admission":{"enabled":true},"mutateExisting":{"enabled":false}},"matchConditions":[{"expression":"object.metadata.namespace == \"test-app-ns\"","name":"namespace-filter"}],"matchConstraints":{"namespaceSelector":{"matchExpressions":[{"key":"tenancy.entigo.com/zone","operator":"Exists"}]},"resourceRules":[{"apiGroups":[""],"apiVersions":["v1"],"operations":["CREATE"],"resources":["services"]},{"apiGroups":["networking.k8s.io"],"apiVersions":["v1"],"operations":["CREATE"],"resources":["ingresses"]}]},"mutations":[{"jsonPatch":{"expression":"has(object.metadata.labels) ?\n[\n  JSONPatch{\n    op: \"add\",\n    path: \"/metadata/labels/tenancy.entigo.com~1zone\",\n    value: \"test-zone\"\n  }\n] :\n[\n  JSONPatch{\n    op: \"add\",\n    path: \"/metadata/labels\",\n    value: {\n      \"tenancy.entigo.com/zone\": \"test-zone\"\n    }\n  }\n]"},"patchType":"JSONPatch"}]},"status":{"autogen":{},"conditionStatus":{"message":""},"generated":false}}
+							`), Ready: 1},
+							service.GetValidatingPolicyKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"policies.kyverno.io/v1","kind":"ValidatingPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-test-app-ns-validate-nodeselector"},"spec":{"evaluation":{"admission":{"enabled":true},"background":{"enabled":false}},"matchConditions":[{"expression":"object.metadata.namespace == \"test-app-ns\"","name":"namespace-filter"}],"matchConstraints":{"namespaceSelector":{"matchExpressions":[{"key":"tenancy.entigo.com/zone","operator":"Exists"}]},"resourceRules":[{"apiGroups":[""],"apiVersions":["v1"],"operations":["CREATE","UPDATE"],"resources":["pods"]}]},"validationActions":["Deny"],"validations":[{"expression":"has(object.spec.nodeSelector) \u0026\u0026\n\"tenancy.entigo.com/zone-pool\" in object.spec.nodeSelector \u0026\u0026\nobject.spec.nodeSelector[\"tenancy.entigo.com/zone-pool\"] in [\"test-zone-default\"]","message":"Pod nodeSelector must use a valid nodeSelector label value for tenancy.entigo.com/zone-pool. Valid pools: test-zone-default"}]},"status":{"autogen":{},"conditionStatus":{"message":""},"generated":false}}
+							`), Ready: 1},
+							service.GetMutatingPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"policies.kyverno.io/v1","kind":"MutatingPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"reports.kyverno.io/disabled":"true","tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-test-app-ext-ns-add-nodeselector"},"spec":{"evaluation":{"admission":{"enabled":true},"mutateExisting":{"enabled":false}},"matchConditions":[{"expression":"object.metadata.namespace == \"test-app-ext-ns\"","name":"namespace-filter"}],"matchConstraints":{"namespaceSelector":{"matchExpressions":[{"key":"tenancy.entigo.com/zone","operator":"Exists"}]},"resourceRules":[{"apiGroups":[""],"apiVersions":["v1"],"operations":["CREATE"],"resources":["pods"]}]},"mutations":[{"jsonPatch":{"expression":"!has(object.spec.nodeSelector) || size(object.spec.nodeSelector) == 0 ?\n[\n  JSONPatch{\n    op: \"add\",\n    path: \"/spec/nodeSelector\",\n    value: {\"tenancy.entigo.com/zone-pool\": \"test-zone-default\"}\n  }\n] : []"},"patchType":"JSONPatch"}]},"status":{"autogen":{},"conditionStatus":{"message":""},"generated":false}}
+							`), Ready: 1},
+							service.GetLabelsMutatingPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"policies.kyverno.io/v1","kind":"MutatingPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"reports.kyverno.io/disabled":"true","tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-test-app-ext-ns-labels"},"spec":{"evaluation":{"admission":{"enabled":true},"mutateExisting":{"enabled":false}},"matchConditions":[{"expression":"object.metadata.namespace == \"test-app-ext-ns\"","name":"namespace-filter"}],"matchConstraints":{"namespaceSelector":{"matchExpressions":[{"key":"tenancy.entigo.com/zone","operator":"Exists"}]},"resourceRules":[{"apiGroups":[""],"apiVersions":["v1"],"operations":["CREATE"],"resources":["services"]},{"apiGroups":["networking.k8s.io"],"apiVersions":["v1"],"operations":["CREATE"],"resources":["ingresses"]}]},"mutations":[{"jsonPatch":{"expression":"has(object.metadata.labels) ?\n[\n  JSONPatch{\n    op: \"add\",\n    path: \"/metadata/labels/tenancy.entigo.com~1zone\",\n    value: \"test-zone\"\n  }\n] :\n[\n  JSONPatch{\n    op: \"add\",\n    path: \"/metadata/labels\",\n    value: {\n      \"tenancy.entigo.com/zone\": \"test-zone\"\n    }\n  }\n]"},"patchType":"JSONPatch"}]},"status":{"autogen":{},"conditionStatus":{"message":""},"generated":false}}
+							`), Ready: 1},
+							service.GetValidatingPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"policies.kyverno.io/v1","kind":"ValidatingPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-test-app-ext-ns-validate-nodeselector"},"spec":{"evaluation":{"admission":{"enabled":true},"background":{"enabled":false}},"matchConditions":[{"expression":"object.metadata.namespace == \"test-app-ext-ns\"","name":"namespace-filter"}],"matchConstraints":{"namespaceSelector":{"matchExpressions":[{"key":"tenancy.entigo.com/zone","operator":"Exists"}]},"resourceRules":[{"apiGroups":[""],"apiVersions":["v1"],"operations":["CREATE","UPDATE"],"resources":["pods"]}]},"validationActions":["Deny"],"validations":[{"expression":"has(object.spec.nodeSelector) \u0026\u0026\n\"tenancy.entigo.com/zone-pool\" in object.spec.nodeSelector \u0026\u0026\nobject.spec.nodeSelector[\"tenancy.entigo.com/zone-pool\"] in [\"test-zone-default\"]","message":"Pod nodeSelector must use a valid nodeSelector label value for tenancy.entigo.com/zone-pool. Valid pools: test-zone-default"}]},"status":{"autogen":{},"conditionStatus":{"message":""},"generated":false}}
+							`), Ready: 1},
+							service.GetRoleWNAttachmentKey(zoneName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"RolePolicyAttachment","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-wn"},"spec":{"forProvider":{"policyArn":"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy","roleRef":{"name":"test-zone"}},"initProvider":{},"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
+							`), Ready: 1},
+							service.GetRoleECRProxyAttachmentKey(zoneName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"RolePolicyAttachment","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-ecr-proxy"},"spec":{"forProvider":{"policyArnRef":{"name":"ecr-proxy"},"roleRef":{"name":"test-zone"}},"initProvider":{},"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
+							`), Ready: 1},
+							service.GetRoleECRROAttachmentKey(zoneName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"RolePolicyAttachment","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-ecr-ro"},"spec":{"forProvider":{"policyArn":"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly","roleRef":{"name":"test-zone"}},"initProvider":{},"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
+							`), Ready: 1},
+							service.GetRoleSSMAttachmentKey(zoneName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"RolePolicyAttachment","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-ssm"},"spec":{"forProvider":{"policyArn":"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore","roleRef":{"name":"test-zone"}},"initProvider":{},"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
+							`), Ready: 1},
+							service.GetRBACRoleReadKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-read","namespace":"test-app-ns"},"rules":[{"apiGroups":["*"],"resources":["*"],"verbs":["get","watch","list"]}]}
+							`), Ready: 1},
+							service.GetRBACRoleAllKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-all","namespace":"test-app-ns"},"rules":[{"apiGroups":["*"],"resources":["*"],"verbs":["*"]}]}
+							`), Ready: 1},
+							service.GetRBACRoleReadKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-read","namespace":"test-app-ext-ns"},"rules":[{"apiGroups":["*"],"resources":["*"],"verbs":["get","watch","list"]}]}
+							`), Ready: 1},
+							service.GetRBACRoleAllKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-all","namespace":"test-app-ext-ns"},"rules":[{"apiGroups":["*"],"resources":["*"],"verbs":["*"]}]}
+							`), Ready: 1},
+							service.GetAccessentryKey(zoneName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"eks.aws.upbound.io/v1beta1","kind":"AccessEntry","metadata":{"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone"},"spec":{"forProvider":{"clusterNameRef":{"name":"test-cluster"},"principalArnFromRoleRef":{"name":"test-zone"},"region":null,"tags":{"bar":"foo","entigo:zone":"test-zone","foo":"bar"},"type":"EC2_LINUX"},"initProvider":{},"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
+							`), Ready: 1},
+							service.GetRBMaintainerKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-maintainer","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"maintainer"}]}
+							`)},
+							service.GetRBContributorKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-contributor","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"contributor"}]}
+							`)},
+							service.GetRBObserverKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-observer","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-read"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"observer"}]}
+							`)},
+							service.GetRBMaintainerKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-maintainer","namespace":"test-app-ext-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ext-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"maintainer"}]}
+							`)},
+							service.GetRBContributorKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-contributor","namespace":"test-app-ext-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ext-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"contributor"}]}
+							`)},
+							service.GetRBObserverKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-observer","namespace":"test-app-ext-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ext-ns-read"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"observer"}]}
+							`)},
+							service.GetNodeGroupKey(poolName, nodeGroupHash): {Resource: resource.MustStructJSON(`
+{"apiVersion":"eks.aws.upbound.io/v1beta1","kind":"NodeGroup","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-default-050c2b39"},"spec":{"forProvider":{"capacityType":"ON_DEMAND","clusterNameRef":{"name":"test-cluster"},"instanceTypes":["t3.large"],"labels":{"tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"launchTemplate":[{"name":"test-zone-default","version":"1"}],"nodeRoleArnRef":{"name":"test-zone"},"region":null,"scalingConfig":[{"maxSize":2,"minSize":1}],"subnetIds":["subnet-a-id","subnet-b-id"],"tags":{"bar":"foo","entigo:zone":"test-zone","foo":"bar","tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"updateConfig":[{"maxUnavailable":1}],"version":"1.34"},"initProvider":{"scalingConfig":[{"desiredSize":1}]},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
+							`)},
+						},
+					},
+					Requirements: requirements,
+				},
+			},
+		},
 		"Zone/Infralib: Skip": {
 			Reason: "When reconciling for infralib zone, the function should skip processing and return no desired resources.",
 			Args: test.Args{

@@ -22,6 +22,7 @@ type Environment struct {
 	GranularEgress        bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude []string           `json:"granularEgressExclude,omitempty"`
 	PodSecurity           string             `json:"podSecurity"`
+	Workspace             string             `json:"workspace,omitempty"`
 }
 
 type AppProject struct {

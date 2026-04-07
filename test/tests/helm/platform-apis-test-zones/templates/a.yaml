@@ -2,6 +2,11 @@ apiVersion: tenancy.entigo.com/v1alpha1
 kind: Zone
 metadata:
   name: a
+  annotations:
+    tags.entigo.com/etag: eztest
+    tags.entigo.com/zutag: zutest
+  labels:
+    tags.entigo.com/tag: ztest
 spec:
   pools:
     - name: default

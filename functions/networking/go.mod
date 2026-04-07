@@ -7,7 +7,7 @@ replace github.com/entigolabs/function-base => ../common
 require (
 	github.com/alecthomas/kong v1.14.0
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0 // Other dependencies should match versions used in crossplane-runtime
-	github.com/crossplane/function-sdk-go v0.6.0
+	github.com/crossplane/function-sdk-go v0.6.2
 	github.com/entigolabs/function-base v0.0.0-00010101000000-000000000000
 	google.golang.org/protobuf v1.36.11
 	istio.io/api v1.29.1
@@ -81,7 +81,7 @@ require (
 	golang.org/x/tools v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
-	google.golang.org/grpc v1.79.2 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

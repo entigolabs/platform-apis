@@ -42,11 +42,22 @@ func testMinimalRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	require.NotEmpty(t, ecrName)
 	waitSyncedAndReady(t, repoNs, ECRRepositoryKind, ecrName, 60, 10*time.Second)
 
-	// Read: no name/path override — external-name equals the composite name
 	require.Equal(t, RepositoryMinimalName,
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.annotations.crossplane\.io/external-name`))
 	require.NotEmpty(t, getField(t, repoNs, RepositoryKind, RepositoryMinimalName, ".status.repositoryUri"),
 		"repositoryUri should be populated once ECR repo is ready")
+	require.Equal(t, "test",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.labels.tags\.entigo\.com/tag`))
+	require.Equal(t, "test",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.tag`))
+	require.Equal(t, "eztest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.etag`))
+	require.Equal(t, "eutest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.eutag`))
+	require.Equal(t, "zutest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.zutag`))
+	require.Equal(t, "antest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.antag`))
 }
 
 func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
@@ -63,7 +74,6 @@ func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	require.NotEmpty(t, ecrName)
 	waitSyncedAndReady(t, repoNs, ECRRepositoryKind, ecrName, 60, 10*time.Second)
 
-	// Read: external-name = path/name, spec fields preserved on composite
 	require.Equal(t, RepositoryNamedExternalName,
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.annotations.crossplane\.io/external-name`))
 	require.Equal(t, RepositoryNamedECRName,
@@ -71,6 +81,16 @@ func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	require.Equal(t, RepositoryNamedPath,
 		getField(t, repoNs, RepositoryKind, RepositoryNamedName, ".spec.path"))
 	require.NotEmpty(t, getField(t, repoNs, RepositoryKind, RepositoryNamedName, ".status.repositoryUri"))
+	require.Equal(t, "ztest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.metadata.labels.tags\.entigo\.com/tag`))
+	require.Equal(t, "ztest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.tag`))
+	require.Equal(t, "eztest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.etag`))
+	require.Equal(t, "eutest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.eutag`))
+	require.Equal(t, "zutest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.zutag`))
 
 	// Update: name and path are immutable — patch must be rejected
 	_, err = terrak8s.RunKubectlAndGetOutputE(t, repoNs, "patch", RepositoryKind, RepositoryNamedName,

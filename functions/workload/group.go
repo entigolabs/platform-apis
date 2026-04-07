@@ -51,7 +51,7 @@ func (g *GroupImpl) generateWebApp(obj client.Object, required map[string][]reso
 	if err != nil {
 		return nil, err
 	}
-	return service.GenerateWebAppObjects(*webapp, g.getCommonLabels(required)), nil
+	return service.GenerateWebAppObjects(*webapp, g.getCommonLabels(obj, required)), nil
 }
 
 func (g *GroupImpl) generateCronJob(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
@@ -60,7 +60,7 @@ func (g *GroupImpl) generateCronJob(obj client.Object, required map[string][]res
 	if err != nil {
 		return nil, err
 	}
-	return service.GenerateCronJobObjects(*cronjob, g.getCommonLabels(required)), nil
+	return service.GenerateCronJobObjects(*cronjob, g.getCommonLabels(obj, required)), nil
 }
 
 func addWorkloadSpecValues(workload v1alpha1.Workload, required map[string][]resource.Required) error {
@@ -77,8 +77,8 @@ func addWorkloadSpecValues(workload v1alpha1.Workload, required map[string][]res
 	return nil
 }
 
-func (g *GroupImpl) getCommonLabels(required map[string][]resource.Required) map[string]string {
-	return base.GetTenancyLabels(base.GetTenancyZone(required, g.log))
+func (g *GroupImpl) getCommonLabels(obj client.Object, required map[string][]resource.Required) map[string]string {
+	return base.GetResourceLabels(g.log, obj, required)
 }
 
 func (g *GroupImpl) GetSequence(_ client.Object) base.Sequence {
