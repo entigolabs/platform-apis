@@ -58,8 +58,8 @@ func testMinimalRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.etag`))
 	require.Equal(t, "eutest",
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.eutag`))
-	require.Equal(t, "zutag",
-		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.zutest`))
+	require.Equal(t, "zutest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.zutag`))
 	require.Equal(t, "antest",
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.antag`))
 }
@@ -95,8 +95,8 @@ func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.etag`))
 	require.Equal(t, "eutest",
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.eutag`))
-	require.Equal(t, "zutag",
-		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.zutest`))
+	require.Equal(t, "zutest",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.zutag`))
 
 	// Update: name and path are immutable — patch must be rejected
 	_, err = terrak8s.RunKubectlAndGetOutputE(t, repoNs, "patch", RepositoryKind, RepositoryNamedName,
