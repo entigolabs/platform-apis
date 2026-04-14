@@ -74,6 +74,7 @@ type zoneGenerator struct {
 	zoneTags        map[string]*string
 	egressExclude   base.Set[string]
 	uqNamespaces    []string
+	roleMappings    map[string][]string
 }
 
 func GenerateZoneObjects(
@@ -146,8 +147,40 @@ func GenerateZoneObjects(
 		zoneTags:      tags,
 		egressExclude: base.NewSet(env.GranularEgressExclude...),
 		uqNamespaces:  GetUniqueNamespaces(zone, namespaces),
+		roleMappings:  mergeRoleMappings(zone, env),
 	}
 	return generator.generate()
+}
+
+func mergeRoleMappings(zone v1alpha1.Zone, env apis.Environment) map[string][]string {
+	merged := make(map[string][]string)
+	for _, rm := range zone.Spec.RoleMapping {
+		merged[rm.RoleRef] = append(merged[rm.RoleRef], rm.Groups...)
+	}
+
+	if len(env.RoleMapping) == 0 {
+		return merged
+	}
+	for _, rm := range env.RoleMapping {
+		merged[rm.RoleRef] = append(merged[rm.RoleRef], rm.Groups...)
+	}
+
+	for roleRef, groups := range merged {
+		if roleRef == "contributor" {
+			groups = mergeContributorGroups(zone, groups)
+		}
+		uqGroups := base.ToSet(groups).ToSlice()
+		slices.Sort(uqGroups)
+		merged[roleRef] = uqGroups
+	}
+	return merged
+}
+
+func mergeContributorGroups(zone v1alpha1.Zone, groups []string) []string {
+	if zone.Spec.AppProject == nil || len(zone.Spec.AppProject.ContributorGroups) == 0 {
+		return groups
+	}
+	return append(groups, zone.Spec.AppProject.ContributorGroups...)
 }
 
 func GetUniqueNamespaces(zone v1alpha1.Zone, namespaces []*corev1.Namespace) []string {
@@ -215,6 +248,10 @@ func GetRBACRoleAllKey(zone, namespace string) string {
 
 func GetRBACRoleReadKey(zone, namespace string) string {
 	return "rbacrole-read-" + zone + "-" + namespace
+}
+
+func GetRBKey(zone, namespace, roleRef string) string {
+	return "rb-" + roleRef + "-" + zone + "-" + namespace
 }
 
 func GetRBContributorKey(zone, namespace string) string {
@@ -323,12 +360,14 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
 	readRole := g.getReadRole(name)
 	objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
-	contributorBinding := g.getRoleBinding(name, name+"-contributor", allRole.Name, "contributor")
-	objs[GetRBContributorKey(g.zone.Name, name)] = contributorBinding
-	maintainerBinding := g.getRoleBinding(name, name+"-maintainer", allRole.Name, "maintainer")
-	objs[GetRBMaintainerKey(g.zone.Name, name)] = maintainerBinding
-	observerBinding := g.getRoleBinding(name, name+"-observer", readRole.Name, "observer")
-	objs[GetRBObserverKey(g.zone.Name, name)] = observerBinding
+	for role, groups := range g.roleMappings {
+		roleName := allRole.Name
+		if role == "observer" {
+			roleName = readRole.Name
+		}
+		binding := g.getRoleBinding(name, name+"-"+role, roleName, groups)
+		objs[GetRBKey(g.zone.Name, name, role)] = binding
+	}
 	mutatingPolicy := g.getMutatingPolicy(name, pool)
 	objs[GetMutatingPolicyKey(g.zone.Name, name)] = mutatingPolicy
 	labelsMutatingPolicy := g.getLabelsMutatingPolicy(name)
@@ -471,7 +510,15 @@ func (g zoneGenerator) getRole(nsName, roleName string, rules []rbacv1.PolicyRul
 	}
 }
 
-func (g zoneGenerator) getRoleBinding(nsName, bindingName, roleName, group string) *rbacv1.RoleBinding {
+func (g zoneGenerator) getRoleBinding(nsName, bindingName, roleName string, groups []string) *rbacv1.RoleBinding {
+	subjects := make([]rbacv1.Subject, len(groups))
+	for i, group := range groups {
+		subjects[i] = rbacv1.Subject{
+			Kind:     "Group",
+			APIGroup: "rbac.authorization.k8s.io",
+			Name:     group,
+		}
+	}
 	return &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -487,13 +534,7 @@ func (g zoneGenerator) getRoleBinding(nsName, bindingName, roleName, group strin
 			Kind:     "Role",
 			Name:     roleName,
 		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:     "Group",
-				Name:     group,
-				APIGroup: "rbac.authorization.k8s.io",
-			},
-		},
+		Subjects: subjects,
 	}
 }
 
@@ -547,7 +588,7 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) client.
   JSONPatch{
     op: "add",
     path: "/spec/nodeSelector",
-    value: {"tenancy.entigo.com/zone-pool": "` + g.zone.Name + `-` + poolName + `"}
+    value: {"tenancy.entigo.com/zone": "` + g.zone.Name + `"}
   }
 ] : []`,
 					},
@@ -640,6 +681,17 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) client.Object {
 		poolExprList = append(poolExprList, `"`+g.zone.Name+`-`+pool.Name+`"`)
 		poolMsgList = append(poolMsgList, g.zone.Name+`-`+pool.Name)
 	}
+	expression := fmt.Sprintf(`
+has(object.spec.nodeSelector) &&
+(
+"tenancy.entigo.com/zone-pool" in object.spec.nodeSelector &&
+object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [%s]
+) || (
+"tenancy.entigo.com/zone" in object.spec.nodeSelector &&
+object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s"
+)`, strings.Join(poolExprList, ", "), g.zone.Name)
+	message := fmt.Sprintf("Pod nodeSelector must either use tenancy.entigo.com/zone-pool with a valid value [%s]"+
+		" or tenancy.entigo.com/zone with value %s", strings.Join(poolMsgList, ", "), g.zone.Name)
 	return &policyv1.ValidatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
@@ -681,10 +733,8 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) client.Object {
 			}},
 			Validations: []admissionregistrationv1.Validation{
 				{
-					Expression: `has(object.spec.nodeSelector) &&
-"tenancy.entigo.com/zone-pool" in object.spec.nodeSelector &&
-object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [` + strings.Join(poolExprList, ", ") + `]`,
-					Message: "Pod nodeSelector must use a valid nodeSelector label value for tenancy.entigo.com/zone-pool. Valid pools: " + strings.Join(poolMsgList, ", "),
+					Expression: expression,
+					Message:    message,
 				},
 			},
 		},
@@ -1146,10 +1196,6 @@ func (g zoneGenerator) getAppProject() client.Object {
 		whitelist = []argocd.ClusterResourceRestrictionItem{}
 		blacklist = []argocd.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}}
 	}
-	var contributorGroups []string
-	if g.zone.Spec.AppProject != nil {
-		contributorGroups = g.zone.Spec.AppProject.ContributorGroups
-	}
 
 	return &argocd.AppProject{
 		TypeMeta: metav1.TypeMeta{
@@ -1174,7 +1220,7 @@ func (g zoneGenerator) getAppProject() client.Object {
 				{
 					Name:        "maintainer",
 					Description: "Maintainer permissions",
-					Groups:      g.env.AppProject.MaintainerGroups,
+					Groups:      g.roleMappings["maintainer"],
 					Policies: []string{
 						fmt.Sprintf("p, proj:%s:maintainer, applications, *, %s/*, allow", g.zone.Name, g.zone.Name),
 						fmt.Sprintf("p, proj:%s:maintainer, repositories, *, %s/*, allow", g.zone.Name, g.zone.Name),
@@ -1186,7 +1232,7 @@ func (g zoneGenerator) getAppProject() client.Object {
 				{
 					Name:        "observer",
 					Description: "Observer permissions",
-					Groups:      g.env.AppProject.ObserverGroups,
+					Groups:      g.roleMappings["observer"],
 					Policies: []string{
 						fmt.Sprintf("p, proj:%s:observer, applications, get, %s/*, allow", g.zone.Name, g.zone.Name),
 						fmt.Sprintf("p, proj:%s:observer, applicationsets, get, %s/*, allow", g.zone.Name, g.zone.Name),
@@ -1195,7 +1241,7 @@ func (g zoneGenerator) getAppProject() client.Object {
 				{
 					Name:        "contributor",
 					Description: "Contributor permissions",
-					Groups:      contributorGroups,
+					Groups:      g.roleMappings["contributor"],
 					Policies: []string{
 						fmt.Sprintf("p, proj:%s:contributor, applications, *, %s/*, allow", g.zone.Name, g.zone.Name),
 						fmt.Sprintf("p, proj:%s:contributor, repositories, *, %s/*, allow", g.zone.Name, g.zone.Name),
@@ -1207,7 +1253,7 @@ func (g zoneGenerator) getAppProject() client.Object {
 				{
 					Name:        "cicd",
 					Description: "Use this role for your CI/CD pipelines",
-					Groups:      g.env.AppProject.MaintainerGroups,
+					Groups:      g.roleMappings["maintainer"],
 					Policies: []string{
 						fmt.Sprintf("p, proj:%s:cicd, applications, sync, %s/*, allow", g.zone.Name, g.zone.Name),
 						fmt.Sprintf("p, proj:%s:cicd, applicationsets, sync, %s/*, allow", g.zone.Name, g.zone.Name),

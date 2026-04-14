@@ -11,26 +11,30 @@ type Environment struct {
 	ArgoCDNamespace       string             `json:"argoCDNamespace"`
 	AWSProvider           string             `json:"awsProvider"`
 	Cluster               string             `json:"cluster"`
-	DataKMSAlias          string             `json:"dataKMSAlias"`
-	SecurityGroup         string             `json:"securityGroup"`
 	ComputeSubnetType     string             `json:"computeSubnetType"`
-	ServiceSubnetType     string             `json:"serviceSubnetType"`
-	PublicSubnetType      string             `json:"publicSubnetType"`
 	ControlSubnetType     string             `json:"controlSubnetType"`
-	Tags                  map[string]*string `json:"tags,omitempty"`
-	VPC                   string             `json:"vpc"`
+	DataKMSAlias          string             `json:"dataKMSAlias"`
 	GranularEgress        bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude []string           `json:"granularEgressExclude,omitempty"`
 	PodSecurity           string             `json:"podSecurity"`
+	PublicSubnetType      string             `json:"publicSubnetType"`
+	RoleMapping           []RoleMapping      `json:"roleMapping,omitempty"`
+	SecurityGroup         string             `json:"securityGroup"`
+	ServiceSubnetType     string             `json:"serviceSubnetType"`
+	Tags                  map[string]*string `json:"tags,omitempty"`
+	VPC                   string             `json:"vpc"`
 	Workspace             string             `json:"workspace,omitempty"`
 }
 
 type AppProject struct {
-	MaintainerGroups           []string           `json:"maintainerGroups,omitempty"`
-	ObserverGroups             []string           `json:"observerGroups,omitempty"`
-	SourceRepos                []string           `json:"sourceRepos,omitempty"`
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty"`
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty"`
+	SourceRepos                []string           `json:"sourceRepos,omitempty"`
+}
+
+type RoleMapping struct {
+	RoleRef string   `json:"roleRef"`
+	Groups  []string `json:"groups"`
 }
 
 func (e Environment) Validate() error {

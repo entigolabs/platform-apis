@@ -86,6 +86,13 @@ zone:
     granularEgressExclude: []
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
+    roleMapping:
+      - roleRef: maintainer
+        groups: ["maintainer"]
+      - roleRef: observer
+        groups: ["observer"]
+      - roleRef: contributor
+        groups: ["contributor"]
     appProject:
       maintainerGroups: []
       observerGroups: []
@@ -104,10 +111,6 @@ zone:
     controlSubnetType: control
     podSecurity: baseline
     tags: {}
-  clusterrolebinding:
-    maintainerGroups: ["maintainer"]
-    observerGroups: ["observer"]
-    contributorGroups: ["contributor"]
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
   - group: tenancy.entigo.com
