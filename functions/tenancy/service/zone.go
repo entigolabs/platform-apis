@@ -38,6 +38,11 @@ const (
 	zonePoolAnnotation = "tenancy.entigo.com/zone-pool"
 	PoolLabel          = "tenancy.entigo.com/pool"
 
+	RoleContributor = "contributor"
+	RoleMaintainer  = "maintainer"
+	RoleObserver    = "observer"
+	RoleCICD        = "cicd"
+
 	NamespaceKey      = "Namespaces"
 	VPCKey            = "VPC"
 	KMSDataAliasKey   = "KMSDataAlias"
@@ -158,15 +163,12 @@ func mergeRoleMappings(zone v1alpha1.Zone, env apis.Environment) map[string][]st
 		merged[rm.RoleRef] = append(merged[rm.RoleRef], rm.Groups...)
 	}
 
-	if len(env.RoleMapping) == 0 {
-		return merged
-	}
 	for _, rm := range env.RoleMapping {
 		merged[rm.RoleRef] = append(merged[rm.RoleRef], rm.Groups...)
 	}
 
 	for roleRef, groups := range merged {
-		if roleRef == "contributor" {
+		if roleRef == RoleContributor {
 			groups = mergeContributorGroups(zone, groups)
 		}
 		uqGroups := base.ToSet(groups).ToSlice()
@@ -252,18 +254,6 @@ func GetRBACRoleReadKey(zone, namespace string) string {
 
 func GetRBKey(zone, namespace, roleRef string) string {
 	return "rb-" + roleRef + "-" + zone + "-" + namespace
-}
-
-func GetRBContributorKey(zone, namespace string) string {
-	return "rb-contributor-" + zone + "-" + namespace
-}
-
-func GetRBMaintainerKey(zone, namespace string) string {
-	return "rb-maintainer-" + zone + "-" + namespace
-}
-
-func GetRBObserverKey(zone, namespace string) string {
-	return "rb-observer-" + zone + "-" + namespace
 }
 
 func GetMutatingPolicyKey(zone, namespace string) string {
@@ -362,7 +352,7 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 	objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
 	for role, groups := range g.roleMappings {
 		roleName := allRole.Name
-		if role == "observer" {
+		if role == RoleObserver {
 			roleName = readRole.Name
 		}
 		binding := g.getRoleBinding(name, name+"-"+role, roleName, groups)
@@ -1218,47 +1208,47 @@ func (g zoneGenerator) getAppProject() client.Object {
 			NamespaceResourceWhitelist: g.env.AppProject.NamespaceResourceWhitelist,
 			Roles: []argocd.ProjectRole{
 				{
-					Name:        "maintainer",
+					Name:        RoleMaintainer,
 					Description: "Maintainer permissions",
-					Groups:      g.roleMappings["maintainer"],
+					Groups:      g.roleMappings[RoleMaintainer],
 					Policies: []string{
-						fmt.Sprintf("p, proj:%s:maintainer, applications, *, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:maintainer, repositories, *, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:maintainer, applicationsets, *, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:maintainer, logs, *, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:maintainer, exec, *, %s/*, allow", g.zone.Name, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, repositories, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applicationsets, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, logs, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, exec, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
 					},
 				},
 				{
-					Name:        "observer",
+					Name:        RoleObserver,
 					Description: "Observer permissions",
-					Groups:      g.roleMappings["observer"],
+					Groups:      g.roleMappings[RoleObserver],
 					Policies: []string{
-						fmt.Sprintf("p, proj:%s:observer, applications, get, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:observer, applicationsets, get, %s/*, allow", g.zone.Name, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", g.zone.Name, RoleObserver, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", g.zone.Name, RoleObserver, g.zone.Name),
 					},
 				},
 				{
-					Name:        "contributor",
+					Name:        RoleContributor,
 					Description: "Contributor permissions",
-					Groups:      g.roleMappings["contributor"],
+					Groups:      g.roleMappings[RoleContributor],
 					Policies: []string{
-						fmt.Sprintf("p, proj:%s:contributor, applications, *, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:contributor, repositories, *, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:contributor, applicationsets, *, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:contributor, logs, *, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:contributor, exec, *, %s/*, allow", g.zone.Name, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, repositories, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applicationsets, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, logs, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, exec, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
 					},
 				},
 				{
-					Name:        "cicd",
+					Name:        RoleCICD,
 					Description: "Use this role for your CI/CD pipelines",
-					Groups:      g.roleMappings["maintainer"],
+					Groups:      g.roleMappings[RoleMaintainer],
 					Policies: []string{
-						fmt.Sprintf("p, proj:%s:cicd, applications, sync, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:cicd, applicationsets, sync, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:cicd, applications, get, %s/*, allow", g.zone.Name, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:cicd, applicationsets, get, %s/*, allow", g.zone.Name, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applications, sync, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applicationsets, sync, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
+						fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
 					},
 				},
 			},

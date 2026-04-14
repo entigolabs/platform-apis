@@ -161,15 +161,15 @@ func TestZoneFunction(t *testing.T) {
 	}
 	roleMappings := []interface{}{
 		map[string]interface{}{
-			"roleRef": "contributor",
+			"roleRef": service.RoleContributor,
 			"groups":  []interface{}{"group-contributor"},
 		},
 		map[string]interface{}{
-			"roleRef": "maintainer",
+			"roleRef": service.RoleMaintainer,
 			"groups":  []interface{}{"group-maintainer"},
 		},
 		map[string]interface{}{
-			"roleRef": "observer",
+			"roleRef": service.RoleObserver,
 			"groups":  []interface{}{"group-observer"},
 		},
 	}
@@ -420,35 +420,35 @@ func TestZoneFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(nsName):                         {Resource: resource.MustStructJSON(namespaceJson), Ready: 1},
-							service.GetLaunchTemplateKey(zoneName, poolName):        {Resource: resource.MustStructJSON(launchTemplateJson), Ready: 1},
-							service.GetNetworkPolicyKey(zoneName, nsName):           {Resource: resource.MustStructJSON(networkPolicyJson), Ready: 1},
-							service.GetNetworkPolicyKey(zoneName, extNsName):        {Resource: resource.MustStructJSON(extNetworkPolicyJson), Ready: 1},
-							targetNetworkPolicyKey:                                  {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
-							service.GetRoleKey(zoneName):                            {Resource: resource.MustStructJSON(roleJson), Ready: 1},
-							service.GetAppProjectKey(zoneName):                      {Resource: resource.MustStructJSON(appProjectJson), Ready: 1},
-							service.GetMutatingPolicyKey(zoneName, nsName):          {Resource: resource.MustStructJSON(mutatingPolicyJson), Ready: 1},
-							service.GetLabelsMutatingPolicyKey(zoneName, nsName):    {Resource: resource.MustStructJSON(labelsMutatingPolicyJson), Ready: 1},
-							service.GetValidatingPolicyKey(zoneName, nsName):        {Resource: resource.MustStructJSON(validatingPolicyJson), Ready: 1},
-							service.GetMutatingPolicyKey(zoneName, extNsName):       {Resource: resource.MustStructJSON(extMutatingPolicyJson), Ready: 1},
-							service.GetLabelsMutatingPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(extLabelsMutatingPolicyJson), Ready: 1},
-							service.GetValidatingPolicyKey(zoneName, extNsName):     {Resource: resource.MustStructJSON(extValidatingPolicyJson), Ready: 1},
-							service.GetRoleWNAttachmentKey(zoneName):                {Resource: resource.MustStructJSON(roleWNAttachmentJson), Ready: 1},
-							service.GetRoleECRProxyAttachmentKey(zoneName):          {Resource: resource.MustStructJSON(roleECRProxyAttachmentJson), Ready: 1},
-							service.GetRoleECRROAttachmentKey(zoneName):             {Resource: resource.MustStructJSON(roleECRROAttachment), Ready: 1},
-							service.GetRoleSSMAttachmentKey(zoneName):               {Resource: resource.MustStructJSON(roleSSMAttachment), Ready: 1},
-							service.GetRBACRoleReadKey(zoneName, nsName):            {Resource: resource.MustStructJSON(rbacRoleReadJson), Ready: 1},
-							service.GetRBACRoleAllKey(zoneName, nsName):             {Resource: resource.MustStructJSON(rbacRoleAllJson), Ready: 1},
-							service.GetRBACRoleReadKey(zoneName, extNsName):         {Resource: resource.MustStructJSON(extRbacRoleReadJson), Ready: 1},
-							service.GetRBACRoleAllKey(zoneName, extNsName):          {Resource: resource.MustStructJSON(extRbacRoleAllJson), Ready: 1},
-							service.GetAccessentryKey(zoneName):                     {Resource: resource.MustStructJSON(accessEntryJson), Ready: 1},
-							service.GetRBMaintainerKey(zoneName, nsName):            {Resource: resource.MustStructJSON(rbMaintainerJson)},
-							service.GetRBContributorKey(zoneName, nsName):           {Resource: resource.MustStructJSON(rbContributorJson)},
-							service.GetRBObserverKey(zoneName, nsName):              {Resource: resource.MustStructJSON(rbObserverJson)},
-							service.GetRBMaintainerKey(zoneName, extNsName):         {Resource: resource.MustStructJSON(extRBMaintainerJson)},
-							service.GetRBContributorKey(zoneName, extNsName):        {Resource: resource.MustStructJSON(extRBContributorJson)},
-							service.GetRBObserverKey(zoneName, extNsName):           {Resource: resource.MustStructJSON(extRBObserverJson)},
-							service.GetNodeGroupKey(poolName, nodeGroupHash):        {Resource: resource.MustStructJSON(nodegroupJson)},
+							service.GetNamespaceKey(nsName):                                {Resource: resource.MustStructJSON(namespaceJson), Ready: 1},
+							service.GetLaunchTemplateKey(zoneName, poolName):               {Resource: resource.MustStructJSON(launchTemplateJson), Ready: 1},
+							service.GetNetworkPolicyKey(zoneName, nsName):                  {Resource: resource.MustStructJSON(networkPolicyJson), Ready: 1},
+							service.GetNetworkPolicyKey(zoneName, extNsName):               {Resource: resource.MustStructJSON(extNetworkPolicyJson), Ready: 1},
+							targetNetworkPolicyKey:                                         {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
+							service.GetRoleKey(zoneName):                                   {Resource: resource.MustStructJSON(roleJson), Ready: 1},
+							service.GetAppProjectKey(zoneName):                             {Resource: resource.MustStructJSON(appProjectJson), Ready: 1},
+							service.GetMutatingPolicyKey(zoneName, nsName):                 {Resource: resource.MustStructJSON(mutatingPolicyJson), Ready: 1},
+							service.GetLabelsMutatingPolicyKey(zoneName, nsName):           {Resource: resource.MustStructJSON(labelsMutatingPolicyJson), Ready: 1},
+							service.GetValidatingPolicyKey(zoneName, nsName):               {Resource: resource.MustStructJSON(validatingPolicyJson), Ready: 1},
+							service.GetMutatingPolicyKey(zoneName, extNsName):              {Resource: resource.MustStructJSON(extMutatingPolicyJson), Ready: 1},
+							service.GetLabelsMutatingPolicyKey(zoneName, extNsName):        {Resource: resource.MustStructJSON(extLabelsMutatingPolicyJson), Ready: 1},
+							service.GetValidatingPolicyKey(zoneName, extNsName):            {Resource: resource.MustStructJSON(extValidatingPolicyJson), Ready: 1},
+							service.GetRoleWNAttachmentKey(zoneName):                       {Resource: resource.MustStructJSON(roleWNAttachmentJson), Ready: 1},
+							service.GetRoleECRProxyAttachmentKey(zoneName):                 {Resource: resource.MustStructJSON(roleECRProxyAttachmentJson), Ready: 1},
+							service.GetRoleECRROAttachmentKey(zoneName):                    {Resource: resource.MustStructJSON(roleECRROAttachment), Ready: 1},
+							service.GetRoleSSMAttachmentKey(zoneName):                      {Resource: resource.MustStructJSON(roleSSMAttachment), Ready: 1},
+							service.GetRBACRoleReadKey(zoneName, nsName):                   {Resource: resource.MustStructJSON(rbacRoleReadJson), Ready: 1},
+							service.GetRBACRoleAllKey(zoneName, nsName):                    {Resource: resource.MustStructJSON(rbacRoleAllJson), Ready: 1},
+							service.GetRBACRoleReadKey(zoneName, extNsName):                {Resource: resource.MustStructJSON(extRbacRoleReadJson), Ready: 1},
+							service.GetRBACRoleAllKey(zoneName, extNsName):                 {Resource: resource.MustStructJSON(extRbacRoleAllJson), Ready: 1},
+							service.GetAccessentryKey(zoneName):                            {Resource: resource.MustStructJSON(accessEntryJson), Ready: 1},
+							service.GetRBKey(zoneName, nsName, service.RoleMaintainer):     {Resource: resource.MustStructJSON(rbMaintainerJson)},
+							service.GetRBKey(zoneName, nsName, service.RoleContributor):    {Resource: resource.MustStructJSON(rbContributorJson)},
+							service.GetRBKey(zoneName, nsName, service.RoleObserver):       {Resource: resource.MustStructJSON(rbObserverJson)},
+							service.GetRBKey(zoneName, extNsName, service.RoleMaintainer):  {Resource: resource.MustStructJSON(extRBMaintainerJson)},
+							service.GetRBKey(zoneName, extNsName, service.RoleContributor): {Resource: resource.MustStructJSON(extRBContributorJson)},
+							service.GetRBKey(zoneName, extNsName, service.RoleObserver):    {Resource: resource.MustStructJSON(extRBObserverJson)},
+							service.GetNodeGroupKey(poolName, nodeGroupHash):               {Resource: resource.MustStructJSON(nodegroupJson)},
 						},
 					},
 					Requirements: requirements,
@@ -462,29 +462,29 @@ func TestZoneFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(zoneInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							service.GetNamespaceKey(nsName):                         withReadyStatus(namespaceJson),
-							service.GetLaunchTemplateKey(zoneName, poolName):        withReadyStatus(launchTemplateJson),
-							service.GetAppProjectKey(zoneName):                      withReadyStatus(appProjectJson),
-							service.GetMutatingPolicyKey(zoneName, nsName):          withReadyStatus(mutatingPolicyJson),
-							service.GetLabelsMutatingPolicyKey(zoneName, nsName):    withReadyStatus(labelsMutatingPolicyJson),
-							service.GetValidatingPolicyKey(zoneName, nsName):        withReadyStatus(validatingPolicyJson),
-							service.GetMutatingPolicyKey(zoneName, extNsName):       withReadyStatus(extMutatingPolicyJson),
-							service.GetLabelsMutatingPolicyKey(zoneName, extNsName): withReadyStatus(extLabelsMutatingPolicyJson),
-							service.GetValidatingPolicyKey(zoneName, extNsName):     withReadyStatus(extValidatingPolicyJson),
-							service.GetNetworkPolicyKey(zoneName, nsName):           withReadyStatus(networkPolicyJson),
-							service.GetNetworkPolicyKey(zoneName, extNsName):        withReadyStatus(extNetworkPolicyJson),
-							targetNetworkPolicyKey:                                  withReadyStatus(targetNetworkPolicyJson),
-							service.GetRoleKey(zoneName):                            withReadyStatus(roleJson),
-							service.GetRoleWNAttachmentKey(zoneName):                withReadyStatus(roleWNAttachmentJson),
-							service.GetRoleECRProxyAttachmentKey(zoneName):          withReadyStatus(roleECRProxyAttachmentJson),
-							service.GetRoleECRROAttachmentKey(zoneName):             withReadyStatus(roleECRROAttachment),
-							service.GetRoleSSMAttachmentKey(zoneName):               withReadyStatus(roleSSMAttachment),
-							service.GetRBACRoleReadKey(zoneName, nsName):            withReadyStatus(rbacRoleReadJson),
-							service.GetRBACRoleAllKey(zoneName, nsName):             withReadyStatus(rbacRoleAllJson),
-							service.GetRBMaintainerKey(zoneName, nsName):            withReadyStatus(rbMaintainerJson),
-							service.GetRBContributorKey(zoneName, nsName):           withReadyStatus(rbContributorJson),
-							service.GetRBObserverKey(zoneName, nsName):              withReadyStatus(rbObserverJson),
-							service.GetNodeGroupKey(poolName, nodeGroupHash):        withReadyStatus(nodegroupJson),
+							service.GetNamespaceKey(nsName):                             withReadyStatus(namespaceJson),
+							service.GetLaunchTemplateKey(zoneName, poolName):            withReadyStatus(launchTemplateJson),
+							service.GetAppProjectKey(zoneName):                          withReadyStatus(appProjectJson),
+							service.GetMutatingPolicyKey(zoneName, nsName):              withReadyStatus(mutatingPolicyJson),
+							service.GetLabelsMutatingPolicyKey(zoneName, nsName):        withReadyStatus(labelsMutatingPolicyJson),
+							service.GetValidatingPolicyKey(zoneName, nsName):            withReadyStatus(validatingPolicyJson),
+							service.GetMutatingPolicyKey(zoneName, extNsName):           withReadyStatus(extMutatingPolicyJson),
+							service.GetLabelsMutatingPolicyKey(zoneName, extNsName):     withReadyStatus(extLabelsMutatingPolicyJson),
+							service.GetValidatingPolicyKey(zoneName, extNsName):         withReadyStatus(extValidatingPolicyJson),
+							service.GetNetworkPolicyKey(zoneName, nsName):               withReadyStatus(networkPolicyJson),
+							service.GetNetworkPolicyKey(zoneName, extNsName):            withReadyStatus(extNetworkPolicyJson),
+							targetNetworkPolicyKey:                                      withReadyStatus(targetNetworkPolicyJson),
+							service.GetRoleKey(zoneName):                                withReadyStatus(roleJson),
+							service.GetRoleWNAttachmentKey(zoneName):                    withReadyStatus(roleWNAttachmentJson),
+							service.GetRoleECRProxyAttachmentKey(zoneName):              withReadyStatus(roleECRProxyAttachmentJson),
+							service.GetRoleECRROAttachmentKey(zoneName):                 withReadyStatus(roleECRROAttachment),
+							service.GetRoleSSMAttachmentKey(zoneName):                   withReadyStatus(roleSSMAttachment),
+							service.GetRBACRoleReadKey(zoneName, nsName):                withReadyStatus(rbacRoleReadJson),
+							service.GetRBACRoleAllKey(zoneName, nsName):                 withReadyStatus(rbacRoleAllJson),
+							service.GetRBKey(zoneName, nsName, service.RoleMaintainer):  withReadyStatus(rbMaintainerJson),
+							service.GetRBKey(zoneName, nsName, service.RoleContributor): withReadyStatus(rbContributorJson),
+							service.GetRBKey(zoneName, nsName, service.RoleObserver):    withReadyStatus(rbObserverJson),
+							service.GetNodeGroupKey(poolName, nodeGroupHash):            withReadyStatus(nodegroupJson),
 						},
 					},
 					RequiredResources: tagsRequiredResources,
@@ -510,21 +510,21 @@ func TestZoneFunction(t *testing.T) {
 							service.GetAppProjectKey(zoneName): {Resource: resource.MustStructJSON(`
 {"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone","namespace":"argocd"},"spec":{"clusterResourceBlacklist":[{"group":"*","kind":"*"}],"description":"Security zone for isolated team deployment","destinations":[{"namespace":"test-app-ext-ns","server":"https://kubernetes.default.svc"},{"namespace":"test-app-ns","server":"https://kubernetes.default.svc"}],"namespaceResourceBlacklist":[{"group":"*.m.upbound.io","kind":"*"}],"namespaceResourceWhitelist":[{"group":"*.entigo.com","kind":"*"}],"roles":[{"description":"Maintainer permissions","groups":["group-maintainer"],"name":"maintainer","policies":["p, proj:test-zone:maintainer, applications, *, test-zone/*, allow","p, proj:test-zone:maintainer, repositories, *, test-zone/*, allow","p, proj:test-zone:maintainer, applicationsets, *, test-zone/*, allow","p, proj:test-zone:maintainer, logs, *, test-zone/*, allow","p, proj:test-zone:maintainer, exec, *, test-zone/*, allow"]},{"description":"Observer permissions","groups":["group-observer"],"name":"observer","policies":["p, proj:test-zone:observer, applications, get, test-zone/*, allow","p, proj:test-zone:observer, applicationsets, get, test-zone/*, allow"]},{"description":"Contributor permissions","groups":["group-contributor"],"name":"contributor","policies":["p, proj:test-zone:contributor, applications, *, test-zone/*, allow","p, proj:test-zone:contributor, repositories, *, test-zone/*, allow","p, proj:test-zone:contributor, applicationsets, *, test-zone/*, allow","p, proj:test-zone:contributor, logs, *, test-zone/*, allow","p, proj:test-zone:contributor, exec, *, test-zone/*, allow"]},{"description":"Use this role for your CI/CD pipelines","groups":["group-maintainer"],"name":"cicd","policies":["p, proj:test-zone:cicd, applications, sync, test-zone/*, allow","p, proj:test-zone:cicd, applicationsets, sync, test-zone/*, allow","p, proj:test-zone:cicd, applications, get, test-zone/*, allow","p, proj:test-zone:cicd, applicationsets, get, test-zone/*, allow"]}],"sourceNamespaces":["test-app-ext-ns","test-app-ns"],"sourceRepos":["*"]},"status":{}}
 							`), Ready: 1},
-							service.GetMutatingPolicyKey(zoneName, nsName):          {Resource: resource.MustStructJSON(mutatingPolicyJson), Ready: 1},
-							service.GetLabelsMutatingPolicyKey(zoneName, nsName):    {Resource: resource.MustStructJSON(labelsMutatingPolicyJson), Ready: 1},
-							service.GetValidatingPolicyKey(zoneName, nsName):        {Resource: resource.MustStructJSON(validatingPolicyJson), Ready: 1},
-							service.GetMutatingPolicyKey(zoneName, extNsName):       {Resource: resource.MustStructJSON(extMutatingPolicyJson), Ready: 1},
-							service.GetLabelsMutatingPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(extLabelsMutatingPolicyJson), Ready: 1},
-							service.GetValidatingPolicyKey(zoneName, extNsName):     {Resource: resource.MustStructJSON(extValidatingPolicyJson), Ready: 1},
-							service.GetRoleWNAttachmentKey(zoneName):                {Resource: resource.MustStructJSON(roleWNAttachmentJson), Ready: 1},
-							service.GetRoleECRProxyAttachmentKey(zoneName):          {Resource: resource.MustStructJSON(roleECRProxyAttachmentJson), Ready: 1},
-							service.GetRoleECRROAttachmentKey(zoneName):             {Resource: resource.MustStructJSON(roleECRROAttachment), Ready: 1},
-							service.GetRoleSSMAttachmentKey(zoneName):               {Resource: resource.MustStructJSON(roleSSMAttachment), Ready: 1},
-							service.GetRBACRoleReadKey(zoneName, nsName):            {Resource: resource.MustStructJSON(rbacRoleReadJson), Ready: 1},
-							service.GetRBACRoleAllKey(zoneName, nsName):             {Resource: resource.MustStructJSON(rbacRoleAllJson), Ready: 1},
-							service.GetRBMaintainerKey(zoneName, nsName):            {Resource: resource.MustStructJSON(rbMaintainerJson), Ready: 1},
-							service.GetRBContributorKey(zoneName, nsName):           {Resource: resource.MustStructJSON(rbContributorJson), Ready: 1},
-							service.GetRBObserverKey(zoneName, nsName):              {Resource: resource.MustStructJSON(rbObserverJson), Ready: 1},
+							service.GetMutatingPolicyKey(zoneName, nsName):              {Resource: resource.MustStructJSON(mutatingPolicyJson), Ready: 1},
+							service.GetLabelsMutatingPolicyKey(zoneName, nsName):        {Resource: resource.MustStructJSON(labelsMutatingPolicyJson), Ready: 1},
+							service.GetValidatingPolicyKey(zoneName, nsName):            {Resource: resource.MustStructJSON(validatingPolicyJson), Ready: 1},
+							service.GetMutatingPolicyKey(zoneName, extNsName):           {Resource: resource.MustStructJSON(extMutatingPolicyJson), Ready: 1},
+							service.GetLabelsMutatingPolicyKey(zoneName, extNsName):     {Resource: resource.MustStructJSON(extLabelsMutatingPolicyJson), Ready: 1},
+							service.GetValidatingPolicyKey(zoneName, extNsName):         {Resource: resource.MustStructJSON(extValidatingPolicyJson), Ready: 1},
+							service.GetRoleWNAttachmentKey(zoneName):                    {Resource: resource.MustStructJSON(roleWNAttachmentJson), Ready: 1},
+							service.GetRoleECRProxyAttachmentKey(zoneName):              {Resource: resource.MustStructJSON(roleECRProxyAttachmentJson), Ready: 1},
+							service.GetRoleECRROAttachmentKey(zoneName):                 {Resource: resource.MustStructJSON(roleECRROAttachment), Ready: 1},
+							service.GetRoleSSMAttachmentKey(zoneName):                   {Resource: resource.MustStructJSON(roleSSMAttachment), Ready: 1},
+							service.GetRBACRoleReadKey(zoneName, nsName):                {Resource: resource.MustStructJSON(rbacRoleReadJson), Ready: 1},
+							service.GetRBACRoleAllKey(zoneName, nsName):                 {Resource: resource.MustStructJSON(rbacRoleAllJson), Ready: 1},
+							service.GetRBKey(zoneName, nsName, service.RoleMaintainer):  {Resource: resource.MustStructJSON(rbMaintainerJson), Ready: 1},
+							service.GetRBKey(zoneName, nsName, service.RoleContributor): {Resource: resource.MustStructJSON(rbContributorJson), Ready: 1},
+							service.GetRBKey(zoneName, nsName, service.RoleObserver):    {Resource: resource.MustStructJSON(rbObserverJson), Ready: 1},
 							service.GetNodeGroupKey(poolName, nodeGroupHash): {Resource: resource.MustStructJSON(`
 {"apiVersion":"eks.aws.upbound.io/v1beta1","kind":"NodeGroup","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-default-050c2b39"},"spec":{"forProvider":{"capacityType":"ON_DEMAND","clusterNameRef":{"name":"test-cluster"},"instanceTypes":["t3.large"],"labels":{"tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"launchTemplate":[{"name":"test-zone-default","version":"1"}],"nodeRoleArnRef":{"name":"test-zone"},"region":null,"scalingConfig":[{"maxSize":2,"minSize":1}],"subnetIds":["subnet-a-id","subnet-b-id"],"tags":{"entigo:zone":"test-zone","env":"test-environment","tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"updateConfig":[{"maxUnavailable":1}],"version":"1.34"},"initProvider":{"scalingConfig":[{"desiredSize":1}]},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
 							`), Ready: 1},
@@ -647,22 +647,22 @@ func TestZoneFunction(t *testing.T) {
 							service.GetAccessentryKey(zoneName): {Resource: resource.MustStructJSON(`
 {"apiVersion":"eks.aws.upbound.io/v1beta1","kind":"AccessEntry","metadata":{"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone"},"spec":{"forProvider":{"clusterNameRef":{"name":"test-cluster"},"principalArnFromRoleRef":{"name":"test-zone"},"region":null,"tags":{"bar":"foo","entigo:zone":"test-zone","foo":"bar"},"type":"EC2_LINUX"},"initProvider":{},"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
 							`), Ready: 1},
-							service.GetRBMaintainerKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+							service.GetRBKey(zoneName, nsName, service.RoleMaintainer): {Resource: resource.MustStructJSON(`
 {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-maintainer","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-maintainer"}]}
 							`)},
-							service.GetRBContributorKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+							service.GetRBKey(zoneName, nsName, service.RoleContributor): {Resource: resource.MustStructJSON(`
 {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-contributor","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-contributor"}]}
 							`)},
-							service.GetRBObserverKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+							service.GetRBKey(zoneName, nsName, service.RoleObserver): {Resource: resource.MustStructJSON(`
 {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-observer","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-read"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-observer"}]}
 							`)},
-							service.GetRBMaintainerKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+							service.GetRBKey(zoneName, extNsName, service.RoleMaintainer): {Resource: resource.MustStructJSON(`
 {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-maintainer","namespace":"test-app-ext-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ext-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-maintainer"}]}
 							`)},
-							service.GetRBContributorKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+							service.GetRBKey(zoneName, extNsName, service.RoleContributor): {Resource: resource.MustStructJSON(`
 {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-contributor","namespace":"test-app-ext-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ext-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-contributor"}]}
 							`)},
-							service.GetRBObserverKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+							service.GetRBKey(zoneName, extNsName, service.RoleObserver): {Resource: resource.MustStructJSON(`
 {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-observer","namespace":"test-app-ext-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ext-ns-read"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-observer"}]}
 							`)},
 							service.GetNodeGroupKey(poolName, nodeGroupHash): {Resource: resource.MustStructJSON(`
