@@ -358,7 +358,7 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 		binding := g.getRoleBinding(name, name+"-"+role, roleName, groups)
 		objs[GetRBKey(g.zone.Name, name, role)] = binding
 	}
-	mutatingPolicy := g.getMutatingPolicy(name, pool)
+	mutatingPolicy := g.getMutatingPolicy(name)
 	objs[GetMutatingPolicyKey(g.zone.Name, name)] = mutatingPolicy
 	labelsMutatingPolicy := g.getLabelsMutatingPolicy(name)
 	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = labelsMutatingPolicy
@@ -528,8 +528,7 @@ func (g zoneGenerator) getRoleBinding(nsName, bindingName, roleName string, grou
 	}
 }
 
-func (g zoneGenerator) getMutatingPolicy(namespaceName, poolName string) client.Object {
-	poolName = g.getPoolName(poolName)
+func (g zoneGenerator) getMutatingPolicy(namespaceName string) client.Object {
 	return &policyv1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
@@ -729,17 +728,6 @@ object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s"
 			},
 		},
 	}
-}
-
-func (g zoneGenerator) getPoolName(poolName string) string {
-	if poolName != "" {
-		return poolName
-	}
-	pools := g.zone.Spec.Pools
-	if len(pools) > 0 {
-		return pools[0].Name
-	}
-	return "default"
 }
 
 func (g zoneGenerator) generateLaunchTemplates() map[string]client.Object {
