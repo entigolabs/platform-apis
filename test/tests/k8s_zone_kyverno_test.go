@@ -46,6 +46,7 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			testKyvernoGenerateNamespaceFromArgoApp(t, cluster)
 		})
 		if contributorKeyID != "" && contributorSecret != "" {
+			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 			t.Run("ContributorDeny", func(t *testing.T) {
 				t.Parallel()
 				contributor := roleKubectlOptions(t, cluster, contributorKeyID, contributorSecret)
@@ -55,6 +56,7 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			t.Logf("SKIPPING ContributorDeny: %s OR %s ENV VARS NOT SET", ContributorKeyIDEnv, ContributorSecretEnv)
 		}
 		if maintainerKeyID != "" && maintainerSecret != "" {
+			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "maintainer")
 			maintainer := roleKubectlOptions(t, cluster, maintainerKeyID, maintainerSecret)
 			t.Run("MaintainerNamespaceDeny", func(t *testing.T) {
 				t.Parallel()

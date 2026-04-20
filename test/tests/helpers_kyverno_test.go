@@ -38,6 +38,14 @@ func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions) 
 	waitNamespacePoliciesReady(t, cluster, ZoneAName, KyvernoTestNSName)
 }
 
+// waitNamespaceRoleBinding waits until the zone composition has created the per-namespace
+// RoleBinding for the given role, confirming that role-mapping resources have landed.
+func waitNamespaceRoleBinding(t *testing.T, cluster *terrak8s.KubectlOptions, namespace, role string) {
+	t.Helper()
+	nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, namespace)
+	waitResourceExists(t, nsOpts, "rolebindings", namespace+"-"+role, 30, 10*time.Second)
+}
+
 // waitNamespacePoliciesReady waits in parallel until the zone composition has created all
 // per-namespace Kyverno policies, signaling that zone-managed resources for the namespace are ready.
 func waitNamespacePoliciesReady(t *testing.T, cluster *terrak8s.KubectlOptions, zone, namespace string) {
