@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"text/template"
+	"time"
 
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/stretchr/testify/require"
@@ -27,14 +28,34 @@ type kyvernoKubeconfigData struct {
 	CA, Server, ClusterName, Region, KeyID, Secret string
 }
 
-// ensureKyvernoTestNamespace creates the shared kyverno-test namespace if it does not exist.
-// The namespace is labeled tenancy.entigo.com/zone=a so that zone-deletion and ownership tests
-// can rely on it being attached to zone "a".
+// ensureKyvernoTestNamespace creates the shared kyverno-test namespace if it does not exist,
+// then waits until the zone composition has reconciled the per-namespace Kyverno policies.
 func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Helper()
 	applyFile(t, cluster, writeTempYAML(t, nsYAML(t, kyvernoNsData{
 		Name: KyvernoTestNSName, Zone: ZoneAName, Enforce: "baseline", Warn: "baseline",
 	})))
+	waitNamespacePoliciesReady(t, cluster, ZoneAName, KyvernoTestNSName)
+}
+
+// waitNamespacePoliciesReady waits in parallel until the zone composition has created all
+// per-namespace Kyverno policies, signaling that zone-managed resources for the namespace are ready.
+func waitNamespacePoliciesReady(t *testing.T, cluster *terrak8s.KubectlOptions, zone, namespace string) {
+	t.Helper()
+	policies := []struct{ kind, name string }{
+		{"mutatingpolicies.policies.kyverno.io", zone + "-" + namespace + "-add-nodeselector"},
+		{"mutatingpolicies.policies.kyverno.io", zone + "-" + namespace + "-labels"},
+		{"validatingpolicies.policies.kyverno.io", zone + "-" + namespace + "-validate-nodeselector"},
+	}
+	t.Run("wait-namespace-policies", func(t *testing.T) {
+		for _, p := range policies {
+			p := p
+			t.Run(p.name, func(t *testing.T) {
+				t.Parallel()
+				waitResourceExists(t, cluster, p.kind, p.name, 30, 10*time.Second)
+			})
+		}
+	})
 }
 
 // roleKubectlOptions builds a temporary kubeconfig that authenticates to the same EKS cluster
