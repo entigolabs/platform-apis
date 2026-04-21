@@ -73,13 +73,15 @@ spec:
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
                   - key: app
                     operator: In
                     values:
                       - {{ .Release.Name }}second
-              topologyKey: topology.kubernetes.io/zone
+                topologyKey: topology.kubernetes.io/zone
       containers:
       - name: nginx
         image: 877483565445.dkr.ecr.eu-north-1.amazonaws.com/biz-net-ecr-proxy-hub/nginxinc/nginx-unprivileged
