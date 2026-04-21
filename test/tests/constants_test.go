@@ -38,6 +38,7 @@ const (
 	StorageFunctionName    = "platform-apis-storage-fn"
 	TenancyFunctionName    = "platform-apis-tenancy-fn"
 	WorkloadFunctionName   = "platform-apis-workload-fn"
+	QueueFunctionName      = "platform-apis-queue-fn"
 
 	// ── Zone Kyverno ─────────────────────────────────────────────────────
 
@@ -72,28 +73,24 @@ const (
 
 	// ── Kafka ─────────────────────────────────────────────────────────────────
 
-	KafkaNamespaceName   = "test-kafka"
-	KafkaApplicationName = "test-kafka"
+	KafkaNamespaceName          = "test-kafka"
+	KafkaClusterNamespaceName   = "crossplane-kafka-biz"
+	KafkaClusterApplicationName = "test-kafka-cluster"
 
-	KafkaClusterName        = "test-crossplane-cluster"
-	KafkaMSKObserverName    = KafkaClusterName + "-observed"
-	KafkaMSKKind            = "msks.kafka.entigo.com"
-	KafkaClusterProvCfgKind = "clusterproviderconfig.kafka.m.crossplane.io"
+	KafkaClusterName              = "test-kafka-cluster"
+	KafkaMSKObserverName          = KafkaClusterName + "-observed"
+	KafkaMSKKind                  = "msks.queue.entigo.com"
+	KafkaMSKClusterKind           = "serverlesscluster.kafka.aws.upbound.io"
+	KafkaSecurityGroupName        = KafkaClusterName + "-sg"
+	KafkaSecurityGroupIngressName = KafkaClusterName + "-sg-ingress"
+	KafkaClusterProvCfgKind       = "clusterproviderconfig.kafka.m.crossplane.io"
 
 	KafkaTopicName              = "test-topic-a"
-	KafkaTopicKind              = "topics.kafka.entigo.com"
+	KafkaTopicKind              = "topics.queue.entigo.com"
 	KafkaProvTopicKind          = "topic.topic.kafka.m.crossplane.io"
 	KafkaTopicPartitions        = "6"
 	KafkaTopicUpdatedPartitions = "9"
 	KafkaTopicReplicationFactor = "3"
-
-	KafkaUserName      = "test-user-a"
-	KafkaUserKind      = "kafkausers.kafka.entigo.com"
-	KafkaACLKind       = "accesscontrollist.acl.kafka.m.crossplane.io"
-	KafkaAWSSecKind    = "secret.secretsmanager.aws.m.upbound.io"
-	KafkaAWSSecVerKind = "secretversion.secretsmanager.aws.m.upbound.io"
-	KafkaAWSSecPolKind = "secretpolicy.secretsmanager.aws.m.upbound.io"
-	KafkaSCRAMKind     = "singlescramsecretassociation.kafka.aws.m.upbound.io"
 
 	// ── PostgreSQL ────────────────────────────────────────────────────────────
 

@@ -1,0 +1,26 @@
+{{- if not .Values.renderCompositions }}
+apiVersion: kafka.aws.upbound.io/v1beta2
+kind: ServerlessCluster
+metadata:
+  name: {{ .Values.clusterName }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: '20'
+spec:
+  providerConfigRef:
+    name: crossplane-aws
+  forProvider:
+    region: eu-north-1
+    clusterName: {{ .Values.clusterName }}
+    clientAuthentication:
+      sasl:
+        iam:
+          enabled: true
+    vpcConfig:
+      - securityGroupIdRefs:
+          - name: {{ .Values.clusterName }}-sg
+        subnetIdSelector:
+          matchLabels:
+            subnet-type: service
+{{- end }}

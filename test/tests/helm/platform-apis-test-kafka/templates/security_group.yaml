@@ -1,0 +1,41 @@
+{{- if not .Values.renderCompositions }}
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroup
+metadata:
+  name: {{ .Values.clusterName }}-sg
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: '10'
+spec:
+  forProvider:
+    region: eu-north-1
+    description: Security group for test MSK Kafka cluster
+    vpcIdRef:
+      name: vpc
+  providerConfigRef:
+    name: crossplane-aws
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: {{ .Values.clusterName }}-sg-ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: '11'
+spec:
+  forProvider:
+    region: eu-north-1
+    securityGroupIdRef:
+      name: {{ .Values.clusterName }}-sg
+    type: ingress
+    fromPort: 9098
+    toPort: 9098
+    protocol: tcp
+    cidrBlocks:
+      - 0.0.0.0/0
+    description: Allow MSK broker access from provider-kafka
+  providerConfigRef:
+    name: crossplane-aws
+{{- end }}

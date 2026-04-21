@@ -71,8 +71,7 @@ jobs:
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
           echo "any_changes=true" >> $GITHUB_OUTPUT
-          # TODO: add kafka to array, when ready for testing
-          echo 'affected_suites=["zone","postgresql","cronjob","repository","s3bucket","valkey","webaccess","webapp"]' >> $GITHUB_OUTPUT
+          echo 'affected_suites=["zone","postgresql","cronjob","kafka","repository","s3bucket","valkey","webaccess","webapp"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
         if: github.event_name != 'workflow_dispatch'
@@ -107,6 +106,7 @@ jobs:
               - 'test/tests/helm/platform-apis-test-cronjob/**'
             kafka:
               - 'compositions/kafka/**'
+              - 'functions/queue/**'
               - 'helm/templates/kafka.yaml'
               - 'test/tests/helm/platform-apis-test-kafka/**'
             postgresql:
@@ -165,8 +165,7 @@ jobs:
           HELM_ANY_CHANGED: ${{ steps.changed-files.outputs.helm_any_changed || 'false' }}
           HELM_GLOBAL_CHANGED: ${{ steps.changed-files.outputs.helm_global_any_changed || 'false' }}
           CRONJOB_CHANGED: ${{ steps.changed-files.outputs.cronjob_any_changed || 'false' }}
-          # TODO: replace current value with commented out when kafka ready for tests
-          KAFKA_CHANGED: ${{ 'false' }} # ${{ steps.changed-files.outputs.kafka_any_changed || 'false' }}
+          KAFKA_CHANGED: ${{ steps.changed-files.outputs.kafka_any_changed || 'false' }}
           PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_any_changed || 'false' }}
           REPO_CHANGED: ${{ steps.changed-files.outputs.repository_any_changed || 'false' }}
           S3BUCKET_CHANGED: ${{ steps.changed-files.outputs.s3bucket_any_changed || 'false' }}
@@ -202,8 +201,7 @@ jobs:
           # affected_suites: which Go test suites run in infralib.
           # On main push: always run all suites (merges must be fully validated).
           # On PR: zone is always included; other suites added when their code changed.
-          # TODO: add kafka to array, when ready for testing
-          ALL_SUITES='["cronjob","postgresql","repository","s3bucket","valkey","webaccess","webapp","zone"]'
+          ALL_SUITES='["cronjob","kafka","postgresql","repository","s3bucket","valkey","webaccess","webapp","zone"]'
           if [ "$ANY_CHANGES" == "true" ] && ([ "$IS_MAIN_PUSH" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]); then
             echo "affected_suites=${ALL_SUITES}" >> $GITHUB_OUTPUT
           else
@@ -225,8 +223,7 @@ jobs:
           # On main push: always rebuild all charts (merges must be fully validated).
           # On PR with common_lib/helm change: full rebuild.
           # On PR: platform-apis-test-zones always rebuilt; others only when their code changed.
-          # TODO: add kafka to array, when ready for testing
-          ALL_TESTHELM='"platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"'
+          ALL_TESTHELM='"platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-kafka","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"'
           if [ "$ANY_CHANGES" == "true" ] && ([ "$IS_MAIN_PUSH" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]); then
             echo "testhelm=[${ALL_TESTHELM}]" >> $GITHUB_OUTPUT
           else

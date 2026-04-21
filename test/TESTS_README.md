@@ -63,13 +63,6 @@ cd compositions/webapp/test && go test -v ./...
 cd compositions/valkey/test && go test -v ./...
 ```
 
-> **Kafka tests require Docker.**
-> Kafka compositions are not yet migrated to a local Go function and rely on a remote function image
-> that `crossplane render` pulls and runs via the Docker daemon. Make sure Docker is running before
-> executing Kafka render tests:
-> ```bash
-> cd compositions/kafka/test && go test -v ./...
-> ```
 
 ### Function Unit Tests
 
@@ -191,7 +184,7 @@ suites:
   - s3bucket
 ```
 
-If this file is missing (e.g. during development), the fallback `allSuites` slice in `suite_config_test.go` is used, which includes all production-ready suites. **kafka is intentionally excluded** from both `allSuites` and all CI-generated suite lists until its function implementation is complete.
+If this file is missing (e.g. during development), the fallback `allSuites` slice in `suite_config_test.go` is used, which includes all production-ready suites.
 
 CI generates this file based on what changed (`detect-changes.yml`):
 

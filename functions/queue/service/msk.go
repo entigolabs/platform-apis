@@ -1,0 +1,261 @@
+package service
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	kafkanv1alpha1 "github.com/crossplane-contrib/provider-kafka/apis/namespaced/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/function-sdk-go/resource"
+	"github.com/entigolabs/function-base/base"
+	"github.com/entigolabs/platform-apis/apis"
+	"github.com/entigolabs/platform-apis/apis/v1alpha1"
+	kafkacv1beta2 "github.com/upbound/provider-aws/v2/apis/cluster/kafka/v1beta2"
+	kafkacv1beta3 "github.com/upbound/provider-aws/v2/apis/cluster/kafka/v1beta3"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+type mskInstanceGenerator struct {
+	mskInstance v1alpha1.MSKInstance
+	env         apis.Environment
+	observed    map[resource.Name]resource.ObservedComposed
+	hash        string
+	names       resourceNames
+}
+
+type resourceNames struct {
+	mskCluster, configSecret, clusterProviderConfig resource.Name
+}
+
+const (
+	mskApiVersion           = "kafka.aws.upbound.io/v1beta3"
+	mskApiVersionServerless = "kafka.aws.upbound.io/v1beta2"
+)
+
+func GenerateMskInstanceObjects(
+	mskInstance v1alpha1.MSKInstance,
+	required map[string][]resource.Required,
+	observed map[resource.Name]resource.ObservedComposed,
+) (map[string]client.Object, error) {
+	g, err := newMskInstanceGenerator(mskInstance, required, observed)
+	if err != nil {
+		return nil, err
+	}
+	return g.generate()
+}
+
+func newMskInstanceGenerator(
+	mskInstance v1alpha1.MSKInstance,
+	required map[string][]resource.Required,
+	observed map[resource.Name]resource.ObservedComposed,
+) (*mskInstanceGenerator, error) {
+	env, err := GetEnvironment(required)
+	if err != nil {
+		return nil, err
+	}
+	g := &mskInstanceGenerator{
+		mskInstance: mskInstance,
+		env:         env,
+		observed:    observed,
+		hash:        base.GenerateFNVHash(mskInstance.UID),
+	}
+
+	g.generateNames()
+
+	return g, nil
+}
+
+func (g *mskInstanceGenerator) generate() (map[string]client.Object, error) {
+	desired := make(map[string]client.Object)
+
+	cluster, err := g.buildMskCluster()
+	if err != nil {
+		return nil, err
+	}
+	desired[string(g.names.mskCluster)] = cluster
+
+	observedCluster, ok := g.observed[g.names.mskCluster]
+	if !ok || observedCluster.Resource == nil {
+		return desired, nil
+	}
+
+	brokers, found, err := unstructured.NestedString(observedCluster.Resource.Object, "status", "atProvider", "bootstrapBrokersSaslIam")
+	if err != nil || !found || brokers == "" {
+		return desired, nil
+	}
+
+	secret, err := g.buildKafkaSecret(brokers)
+	if err != nil {
+		return nil, err
+	}
+	desired[string(g.names.configSecret)] = secret
+
+	desired[string(g.names.clusterProviderConfig)] = g.buildClusterProviderConfig()
+
+	return desired, nil
+}
+
+func (g *mskInstanceGenerator) buildMskCluster() (client.Object, error) {
+	arn := g.mskInstance.Spec.ClusterARN
+	parts := strings.Split(arn, ":")
+	if len(parts) < 4 {
+		return nil, fmt.Errorf("invalid cluster ARN: %s", arn)
+	}
+	region := parts[3]
+
+	if isServerlessARN(arn) {
+		return &kafkacv1beta2.ServerlessCluster{
+			TypeMeta: metav1.TypeMeta{Kind: "ServerlessCluster", APIVersion: mskApiVersionServerless},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: string(g.names.mskCluster),
+				Annotations: map[string]string{
+					"crossplane.io/external-name": arn,
+				},
+			},
+			Spec: kafkacv1beta2.ServerlessClusterSpec{
+				ResourceSpec: xpv1.ResourceSpec{
+					ProviderConfigReference: &xpv1.Reference{Name: g.env.AWSProvider},
+					ManagementPolicies:      xpv1.ManagementPolicies{"Observe"},
+				},
+				ForProvider: kafkacv1beta2.ServerlessClusterParameters{
+					Region: &region,
+				},
+			},
+		}, nil
+	}
+
+	return &kafkacv1beta3.Cluster{
+		TypeMeta: metav1.TypeMeta{Kind: "Cluster", APIVersion: mskApiVersion},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: string(g.names.mskCluster),
+			Annotations: map[string]string{
+				"crossplane.io/external-name": arn,
+			},
+		},
+		Spec: kafkacv1beta3.ClusterSpec{
+			ResourceSpec: xpv1.ResourceSpec{
+				ProviderConfigReference: &xpv1.Reference{Name: g.env.AWSProvider},
+				ManagementPolicies:      xpv1.ManagementPolicies{"Observe"},
+			},
+			ForProvider: kafkacv1beta3.ClusterParameters{
+				Region: &region,
+			},
+		},
+	}, nil
+}
+
+func (g *mskInstanceGenerator) buildKafkaSecret(brokersStr string) (client.Object, error) {
+	brokers := strings.Split(brokersStr, ",")
+
+	type Sasl struct {
+		Mechanism string `json:"mechanism"`
+	}
+	type Credentials struct {
+		Brokers       []string `json:"brokers"`
+		Sasl          Sasl     `json:"sasl"`
+		TlsEnabled    bool     `json:"tlsEnabled"`
+		SkipTlsVerify bool     `json:"skipTlsVerify"`
+	}
+
+	creds := Credentials{
+		Brokers: brokers,
+		Sasl: Sasl{
+			Mechanism: "AWS-MSK-IAM",
+		},
+		TlsEnabled:    true,
+		SkipTlsVerify: false,
+	}
+
+	credsBytes, err := json.Marshal(creds)
+	if err != nil {
+		return nil, err
+	}
+
+	secretName := string(g.names.configSecret)
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: g.env.KafkaNamespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"credentials": credsBytes,
+		},
+	}
+	return secret, nil
+}
+
+func (g *mskInstanceGenerator) buildClusterProviderConfig() client.Object {
+	return &kafkanv1alpha1.ClusterProviderConfig{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "kafka.m.crossplane.io/v1alpha1",
+			Kind:       "ClusterProviderConfig",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: string(g.names.clusterProviderConfig),
+		},
+		Spec: kafkanv1alpha1.ProviderConfigSpec{
+			Credentials: kafkanv1alpha1.ProviderCredentials{
+				Source: xpv1.CredentialsSourceSecret,
+				CommonCredentialSelectors: xpv1.CommonCredentialSelectors{
+					SecretRef: &xpv1.SecretKeySelector{
+						SecretReference: xpv1.SecretReference{
+							Name:      string(g.names.configSecret),
+							Namespace: g.env.KafkaNamespace,
+						},
+						Key: "credentials",
+					},
+				},
+			},
+		},
+	}
+}
+
+func (g *mskInstanceGenerator) generateNames() {
+	g.names.mskCluster = resource.Name(GetMskClusterName(g.mskInstance.Name, g.hash))
+	g.names.configSecret = resource.Name(GetConfigSecretName(g.mskInstance.Name, g.hash))
+	g.names.clusterProviderConfig = resource.Name(GetClusterProviderConfigName(g.hash))
+}
+
+func isServerlessARN(arn string) bool {
+	parts := strings.Split(arn, "/")
+	if len(parts) == 0 {
+		return false
+	}
+	lastPart := parts[len(parts)-1]
+	idx := strings.LastIndex(lastPart, "-s")
+	if idx == -1 || idx+2 > len(lastPart) {
+		return false
+	}
+	suffix := lastPart[idx+2:]
+	if len(suffix) == 0 {
+		return false
+	}
+	for _, c := range suffix {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func GetMskClusterName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-msk-cluster-%s", instanceName, hash))
+}
+
+func GetConfigSecretName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-kafka-config-secret-%s", instanceName, hash))
+}
+
+func GetClusterProviderConfigName(hash string) string {
+	return fmt.Sprintf("kafka-cluster-provider-config-%s", hash)
+}

@@ -1,2 +1,3 @@
-clusterName: test-crossplane-cluster
-clusterARN: ""  # Required: ARN of the existing MSK cluster
+clusterName: test-kafka-cluster
+clusterARN: ""           # Set after MSK cluster is created and ARN is retrieved
+renderCompositions: false # false = render SG + cluster; true = render MSK observer + topic + user

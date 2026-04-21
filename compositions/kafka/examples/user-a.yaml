@@ -1,5 +1,5 @@
 ---
-apiVersion: kafka.entigo.com/v1alpha1
+apiVersion: queue.entigo.com/v1alpha1
 kind: KafkaUser
 metadata:
   name: user-a

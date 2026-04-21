@@ -66,6 +66,7 @@ jobs:
             ["cronjob"]="platform-apis-cronjob"
             ["database"]="platform-apis-database-fn"
             ["kafka"]="platform-apis-kafka"
+            ["queue"]="platform-apis-queue-fn"
             ["networking"]="platform-apis-networking-fn"
             ["postgresql"]="platform-apis-postgresql"
             ["repository"]="platform-apis-repository"
@@ -76,34 +77,34 @@ jobs:
             ["webaccess"]="platform-apis-webaccess"
             ["webapp"]="platform-apis-webapp"
             ["workload"]="platform-apis-workload-fn"
-            ["zone"]="platform-apis-zone" 
+            ["zone"]="platform-apis-zone"
           )
-          
+
           for KEY in "${!PACKAGES[@]}"; do
             PKG_NAME="${PACKAGES[$KEY]}"
             echo "Fetching tag for $PKG_NAME..."
-          
+
             TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
               "https://api.github.com/orgs/entigolabs/packages/container/$PKG_NAME/versions" \
               | jq -r "[.[] | select(.metadata.container.tags[] | $JQ_FILTER)] | sort_by(.created_at) | .[-1].metadata.container.tags[] | select($JQ_FILTER)" \
               | head -n 1)
-          
+
             if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
               echo "Error: Could not find a matching tag for $PKG_NAME using filter."
               exit 1
             fi
-          
+
             echo "Found tag: $TAG"
-          
+
             if [[ "$PKG_NAME" == *"-fn" ]]; then
               YQ_PATH=".$KEY.function.tag"
             else
               YQ_PATH=".$KEY.package.tag"
             fi
-            
+
             yq -i "$YQ_PATH = \"$TAG\"" ${{ env.CHART_PATH }}/values.yaml
           done
-          
+
           echo "Updated values.yaml"
           cat ${{ env.CHART_PATH }}/values.yaml
 

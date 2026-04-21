@@ -1,31 +1,23 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: test-kafka
-  labels:
-    tenancy.entigo.com/zone: a
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/warn: baseline
----
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: test-kafka
+  name: test-kafka-cluster
   namespace: argocd-biz
 spec:
   destination:
     server: https://kubernetes.default.svc
-    namespace: test-kafka
-  project: a
+    namespace: crossplane-kafka-biz
+  project: default
   source:
     chart: platform-apis-test-kafka
     repoURL: ghcr.io/entigolabs
     targetRevision: '*.*.*-0'
     helm:
-      releaseName: kafka
+      releaseName: kafka-cluster
       values: |
         targetRevision: '*.*.*-0'
-        clusterARN: ""  # Override with the MSK cluster ARN for the target environment
+        clusterName: test-kafka-cluster
+        renderCompositions: false
   syncPolicy:
     syncOptions:
       - RespectIgnoreDifferences=true
