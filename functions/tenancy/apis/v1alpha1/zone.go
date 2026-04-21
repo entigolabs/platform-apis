@@ -35,6 +35,8 @@ type ZoneSpec struct {
 	// List of node pool configurations for cluster-autoscaler
 	// +kubebuilder:validation:MinItems=1
 	Pools []Pool `json:"pools"`
+
+	RoleMapping []RoleMapping `json:"roleMapping,omitempty"`
 }
 
 type AppProject struct {
@@ -72,4 +74,9 @@ type Requirement struct {
 
 	// Array of values for instance-type or availability-zone
 	Values []string `json:"values,omitempty"`
+}
+
+type RoleMapping struct {
+	RoleRef string   `json:"roleRef"`
+	Groups  []string `json:"groups"`
 }

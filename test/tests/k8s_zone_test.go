@@ -16,6 +16,9 @@ func testZone(t *testing.T, ctx context.Context, cluster *terrak8s.KubectlOption
 		return
 	}
 	testZoneApps(t, cluster)
+	if t.Failed() {
+		return
+	}
 	testZoneKyverno(t, cluster)
 }
 

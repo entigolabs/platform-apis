@@ -6,7 +6,7 @@ metadata:
   labels:
     app: {{ .Release.Name }}
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -52,7 +52,7 @@ metadata:
   labels:
     app: {{ .Release.Name }}second
 spec:
-  replicas: 1
+  replicas: 2
   serviceName: {{ .Release.Name }}second
   selector:
     matchLabels:
@@ -70,6 +70,18 @@ spec:
         fsGroup: 101
         seccompProfile:
           type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - {{ .Release.Name }}second
+                topologyKey: topology.kubernetes.io/zone
       containers:
       - name: nginx
         image: 877483565445.dkr.ecr.eu-north-1.amazonaws.com/biz-net-ecr-proxy-hub/nginxinc/nginx-unprivileged

@@ -8,6 +8,10 @@ metadata:
   labels:
     tags.entigo.com/tag: ztest
 spec:
+  roleMapping:
+    - roleRef: contributor
+      groups:
+        - web-read-only-343159627493470238
   pools:
     - name: default
       requirements:

@@ -8,7 +8,7 @@ spec:
     - name: b1
     - name: b2
   pools:
-    - name: default
+    - name: default-a
       requirements:
         - key: instance-type
           values:
@@ -18,15 +18,21 @@ spec:
         - key: min-size
           value: 1
         - key: max-size
-          value: 2
-    - name: second
+          value: 1
+        - key: zone
+          values:
+            - eu-north-1a
+    - name: default-b
       requirements:
         - key: instance-type
           values:
-            - t3.medium
+            - t3.large
         - key: capacity-type
           value: ON_DEMAND
         - key: min-size
-          value: 0
+          value: 1
         - key: max-size
-          value: 0
+          value: 1
+        - key: zone
+          values:
+            - eu-north-1b

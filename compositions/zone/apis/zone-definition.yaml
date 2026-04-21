@@ -28,10 +28,25 @@ spec:
                   properties:
                     contributorGroups:
                       type: array
-                      description: OIDC groups with full access to applications
+                      description: Deprecated, use roleMapping instead. OIDC groups with full access to applications
                       items:
                         type: string
                         minLength: 1
+                roleMapping:
+                  type: array
+                  description: List of role mappings
+                  items:
+                    type: object
+                    properties:
+                      roleRef:
+                        type: string
+                        description: Name of the role
+                      groups:
+                        type: array
+                        description: OIDC groups
+                        items:
+                          type: string
+                          minLength: 1
                 namespaces:
                   type: array
                   description: Deprecated, create namespaces with the matching zone label instead. List of namespaces to manage as part of the Zone. At least one namespace must be specified.

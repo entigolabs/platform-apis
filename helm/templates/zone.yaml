@@ -1,4 +1,26 @@
 {{- if .Values.zone.install }}
+
+{{/* For backwards compatibility, merge together app project groups into role mappings */}}
+{{- $mergedRoleMapping := dict }}
+{{- range .Values.zone.environmentConfig.roleMapping }}
+  {{- $_ := set $mergedRoleMapping .roleRef (default list .groups) }}
+{{- end }}
+
+{{- with .Values.zone.environmentConfig.appProject }}
+  {{- if .maintainerGroups }}
+    {{- $existing := default list (get $mergedRoleMapping "maintainer") }}
+    {{- $_ := set $mergedRoleMapping "maintainer" (concat $existing .maintainerGroups | uniq) }}
+  {{- end }}
+  {{- if .observerGroups }}
+    {{- $existing := default list (get $mergedRoleMapping "observer") }}
+    {{- $_ := set $mergedRoleMapping "observer" (concat $existing .observerGroups | uniq) }}
+  {{- end }}
+{{- end }}
+
+{{- $maintainerGroups := default list (get $mergedRoleMapping "maintainer") }}
+{{- $observerGroups := default list (get $mergedRoleMapping "observer") }}
+{{- $contributorGroups := default list (get $mergedRoleMapping "contributor") }}
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -137,7 +159,7 @@ rules:
 - apiGroups: ["metrics.k8s.io"]
   resources: ["nodes"]
   verbs: ["get", "watch", "list"]
-{{- if .Values.zone.clusterrolebinding.maintainerGroups }}
+{{- if $maintainerGroups }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -148,10 +170,10 @@ roleRef:
   kind: ClusterRole
   name: zone-tenancy-c-maintainer
 subjects:
-{{- range .Values.zone.clusterrolebinding.maintainerGroups }}
-- kind: Group
-  name: {{ . }}
-  apiGroup: rbac.authorization.k8s.io
+{{- range $maintainerGroups }}
+  - kind: Group
+    name: {{ . }}
+    apiGroup: rbac.authorization.k8s.io
 {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -163,14 +185,14 @@ roleRef:
   kind: ClusterRole
   name: zone-tenancy-c-read
 subjects:
-{{- range .Values.zone.clusterrolebinding.maintainerGroups }}
-- kind: Group
-  name: {{ . }}
-  apiGroup: rbac.authorization.k8s.io
+{{- range $maintainerGroups }}
+  - kind: Group
+    name: {{ . }}
+    apiGroup: rbac.authorization.k8s.io
 {{- end }}
 {{- end }}
 
-{{- if .Values.zone.clusterrolebinding.observerGroups }}
+{{- if $observerGroups }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -181,13 +203,13 @@ roleRef:
   kind: ClusterRole
   name: zone-tenancy-c-read
 subjects:
-{{- range .Values.zone.clusterrolebinding.observerGroups }}
+{{- range $observerGroups }}
 - kind: Group
   name: {{ . }}
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
 {{- end }}
-{{- if .Values.zone.clusterrolebinding.contributorGroups }}
+{{- if $contributorGroups }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -198,7 +220,7 @@ roleRef:
   kind: ClusterRole
   name: zone-tenancy-c-read
 subjects:
-{{- range .Values.zone.clusterrolebinding.contributorGroups }}
+{{- range $contributorGroups }}
 - kind: Group
   name: {{ . }}
   apiGroup: rbac.authorization.k8s.io
@@ -270,9 +292,15 @@ data:
   granularEgressExclude: {{ .Values.zone.environmentConfig.granularEgressExclude }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
+  {{- if $mergedRoleMapping }}
+  roleMapping:
+    {{- range $role, $groups := $mergedRoleMapping }}
+    - roleRef: {{ $role }}
+      groups:
+        {{- toYaml $groups | nindent 8 }}
+    {{- end }}
+  {{- end }}
   appProject:
-    maintainerGroups: {{ .Values.zone.environmentConfig.appProject.maintainerGroups }}
-    observerGroups: {{ .Values.zone.environmentConfig.appProject.observerGroups }}
     sourceRepos:
     {{- range .Values.zone.environmentConfig.appProject.sourceRepos }}
       - {{ . | quote }}
@@ -329,8 +357,8 @@ spec:
     []
   {{- end }}
   namespaceResourceBlacklist:
-  - group: '*'
-    kind: '*'
+    - group: '*'
+      kind: '*'
   {{- $sourceRepos := list -}}
   {{- if hasKey .Values.zone.environmentConfig.appProject "sourceRepos" -}}
     {{- $sourceRepos = .Values.zone.environmentConfig.appProject.sourceRepos -}}
@@ -338,43 +366,35 @@ spec:
   {{- if $sourceRepos }}
   sourceRepos:
     {{- range $sourceRepos }}
-  - {{ . | quote }}
+    - {{ . | quote }}
     {{- end }}
   {{- end }}
   roles:
-  - description: Maintainer permissions
-    {{- $maintainerGroups := list -}}
-    {{- if hasKey .Values.zone.environmentConfig.appProject "maintainerGroups" -}}
-      {{- $maintainerGroups = .Values.zone.environmentConfig.appProject.maintainerGroups -}}
-    {{- end }}
+    - description: Maintainer permissions
     {{- if $maintainerGroups }}
-    groups:
+      groups:
     {{- range $maintainerGroups }}
-    - {{ . }}
-      {{- end }}
+        - {{ . }}
+    {{- end }}
     {{- else }}
-    groups: []
+      groups: []
     {{- end }}
-    name: maintainer
-    policies:
-    - p, proj:zone:maintainer, applications, *, zone/*, allow
-    - p, proj:zone:maintainer, repositories, *, zone/*, allow
-  - description: Observer permissions
-    {{- $observerGroups := list -}}
-    {{- if hasKey .Values.zone.environmentConfig.appProject "observerGroups" -}}
-      {{- $observerGroups = .Values.zone.environmentConfig.appProject.observerGroups -}}
-    {{- end }}
+      name: maintainer
+      policies:
+        - p, proj:zone:maintainer, applications, *, zone/*, allow
+        - p, proj:zone:maintainer, repositories, *, zone/*, allow
+    - description: Observer permissions
     {{- if $observerGroups }}
-    groups:
+      groups:
     {{- range $observerGroups }}
-    - {{ . }}
+        - {{ . }}
     {{- end }}
     {{- else }}
-    groups: []
+      groups: []
     {{- end }}
-    name: observer
-    policies:
-    - p, proj:zone:observer, applications, get, zone/*, allow
+      name: observer
+      policies:
+        - p, proj:zone:observer, applications, get, zone/*, allow
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

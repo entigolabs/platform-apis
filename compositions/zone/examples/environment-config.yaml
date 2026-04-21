@@ -20,4 +20,11 @@ data:
   publicSubnetType: public
   controlSubnetType: control
   podSecurity: baseline
+  roleMapping:
+    - roleRef: maintainer
+      groups: [ "maintainer" ]
+    - roleRef: observer
+      groups: [ "observer" ]
+    - roleRef: contributor
+      groups: [ "contributor" ]
   tags: {}
