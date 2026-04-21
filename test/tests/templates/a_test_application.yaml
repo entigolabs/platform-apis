@@ -10,6 +10,15 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: test-kafka
+  labels:
+    tenancy.entigo.com/zone: a
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: a1
   labels:
     tenancy.entigo.com/zone: a

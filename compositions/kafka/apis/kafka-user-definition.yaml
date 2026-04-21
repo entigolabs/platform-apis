@@ -1,10 +1,10 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: kafkausers.kafka.entigo.com
+  name: kafkausers.queue.entigo.com
 spec:
   scope: Namespaced
-  group: kafka.entigo.com
+  group: queue.entigo.com
   names:
     kind: KafkaUser
     plural: kafkausers

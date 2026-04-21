@@ -72,10 +72,9 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 		if cfg.Has("cronjob") {
 			runSuite("cronjob", func(t *testing.T, ctx context.Context) { testCronjob(t, ctx, cluster, argocd) })
 		}
-		//TODO: Kafka tests placeholder. Currently disabled as kafka function work in progress
-		/*if cfg.Has("kafka") {
+		if cfg.Has("kafka") {
 			runSuite("kafka", func(t *testing.T, ctx context.Context) { testKafka(t, ctx, cluster, argocd) })
-		}*/
+		}
 		if cfg.Has("repository") {
 			runSuite("repository", func(t *testing.T, ctx context.Context) { testRepository(t, ctx, cluster, argocd) })
 		}
@@ -97,13 +96,12 @@ func waitPackagesReady(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlO
 				checkPlatformApisHaveRequiredPackages(t, cluster, CronjobConfigurationName, WorkloadFunctionName)
 			})
 		}
-		//  TODO: Update when kafka in go ready
-		/*if cfg.Has("kafka") {
+		if cfg.Has("kafka") {
 			t.Run("kafka", func(t *testing.T) {
 				t.Parallel()
-				checkPlatformApisHaveRequiredPackages(t, cluster, KafkaConfigurationName, ...)
+				checkPlatformApisHaveRequiredPackages(t, cluster, KafkaConfigurationName, QueueFunctionName)
 			})
-		}*/
+		}
 		if cfg.Has("postgresql") {
 			t.Run("postgresql", func(t *testing.T) {
 				t.Parallel()
@@ -196,8 +194,7 @@ func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.Kube
 func preCreateTestNamespaces(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
 	t.Helper()
 
-	// kafka excluded — tests not yet enabled
-	suites := []string{"cronjob", "postgresql", "repository", "s3bucket", "valkey", "webapp", "webaccess"}
+	suites := []string{"cronjob", "postgresql", "repository", "s3bucket", "valkey", "webapp", "webaccess", "kafka"}
 
 	t.Run("pre-create-namespaces", func(t *testing.T) {
 		for _, suite := range suites {

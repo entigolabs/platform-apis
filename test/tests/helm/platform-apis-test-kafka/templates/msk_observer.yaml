@@ -1,0 +1,11 @@
+{{- if and (not .Values.renderCompositions) .Values.clusterARN }}
+apiVersion: queue.entigo.com/v1alpha1
+kind: MSK
+metadata:
+  name: {{ .Values.clusterName }}-observed
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: '30'
+spec:
+  clusterARN: {{ .Values.clusterARN | quote }}
+{{- end }}

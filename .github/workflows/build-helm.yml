@@ -11,17 +11,17 @@ on:
         description: PR number (for rc releases)
         required: false
         type: string
-        default: ''
+        default: ""
       run_number:
         description: Workflow run number
         required: false
         type: string
-        default: ''
+        default: ""
       run_attempt:
         description: Workflow run attempt
         required: false
         type: string
-        default: ''
+        default: ""
     outputs:
       version:
         description: The helm chart version that was built
@@ -73,6 +73,7 @@ jobs:
             ["artifact"]="platform-apis-artifact-fn"
             ["cronjob"]="platform-apis-cronjob"
             ["database"]="platform-apis-database-fn"
+            ["queue"]="platform-apis-queue-fn"
             ["kafka"]="platform-apis-kafka"
             ["networking"]="platform-apis-networking-fn"
             ["postgresql"]="platform-apis-postgresql"
