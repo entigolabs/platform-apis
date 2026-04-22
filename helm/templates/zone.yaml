@@ -254,6 +254,9 @@ rules:
   - apiGroups: ["networking.istio.io"]
     resources: ["*"]
     verbs: ["*"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterrolebindings"]
+    verbs: ["*"]
 
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
