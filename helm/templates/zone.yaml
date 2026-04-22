@@ -137,6 +137,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: zone-tenancy-c-read
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
 rules:
 - apiGroups: [""]
   resources: ["namespaces", "nodes", "persistentvolumes"]
@@ -243,7 +245,7 @@ rules:
     resources: ["appprojects"]
     verbs: ["*"]
   - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["rolebindings", "roles"]
+    resources: ["rolebindings", "roles", "clusterrolebindings"]
     verbs: ["*"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies", "ingresses"]

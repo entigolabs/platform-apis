@@ -209,6 +209,10 @@ func (g zoneGenerator) generate() (map[string]client.Object, error) {
 		return nil, err
 	}
 	maps.Copy(objs, namespaces)
+	crb := g.getClusterRoleBinding(RoleContributor)
+	if crb != nil {
+		objs[GetClusterRoleBindingKey(g.zone.Name, RoleContributor)] = crb
+	}
 	launchTemplates := g.generateLaunchTemplates()
 	maps.Copy(objs, launchTemplates)
 	nodePools, err := g.generateNodePools()
@@ -216,8 +220,7 @@ func (g zoneGenerator) generate() (map[string]client.Object, error) {
 		return nil, err
 	}
 	maps.Copy(objs, nodePools)
-	appProject := g.getAppProject()
-	objs[GetAppProjectKey(g.zone.Name)] = appProject
+	objs[GetAppProjectKey(g.zone.Name)] = g.getAppProject()
 	networkPolicies, err := g.generateTargetNetworkPolicies()
 	if err != nil {
 		return nil, err
@@ -308,13 +311,16 @@ func GetTargetNetworkPolicyKey(namespace, ingress, service string, port intstr.I
 	return "netpol-" + namespace + "-" + ingress + "-" + service + "-" + port.String()
 }
 
+func GetClusterRoleBindingKey(zone, role string) string {
+	return "crb-" + zone + "-" + role
+}
+
 func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 	objs := make(map[string]client.Object)
 	zoneNs := base.NewSet[string]()
 	for _, ns := range g.zone.Spec.Namespaces {
-		namespace := g.getNamespace(ns)
-		objs[GetNamespaceKey(ns.Name)] = namespace
-		err := g.generateNamespace(objs, ns.Name, ns.Pool)
+		objs[GetNamespaceKey(ns.Name)] = g.getNamespace(ns)
+		err := g.generateNamespace(objs, ns.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -324,11 +330,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 		if zoneNs.Contains(ns.Name) || ns.DeletionTimestamp != nil {
 			continue
 		}
-		var pool string
-		if ns.Labels != nil {
-			pool = ns.Labels[PoolLabel]
-		}
-		err := g.generateNamespace(objs, ns.Name, pool)
+		err := g.generateNamespace(objs, ns.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -336,7 +338,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 	return objs, nil
 }
 
-func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, pool string) error {
+func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name string) error {
 	if g.env.GranularEgress {
 		sidecar, err := g.getSidecar(name)
 		if err != nil {
@@ -344,8 +346,7 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 		}
 		objs[GetSidecarKey(g.zone.Name, name)] = sidecar
 	}
-	networkPolicy := g.getNetworkPolicy(name)
-	objs[GetNetworkPolicyKey(g.zone.Name, name)] = networkPolicy
+	objs[GetNetworkPolicyKey(g.zone.Name, name)] = g.getNetworkPolicy(name)
 	allRole := g.getAllRole(name)
 	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
 	readRole := g.getReadRole(name)
@@ -355,15 +356,11 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 		if role == RoleObserver {
 			roleName = readRole.Name
 		}
-		binding := g.getRoleBinding(name, name+"-"+role, roleName, groups)
-		objs[GetRBKey(g.zone.Name, name, role)] = binding
+		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
 	}
-	mutatingPolicy := g.getMutatingPolicy(name)
-	objs[GetMutatingPolicyKey(g.zone.Name, name)] = mutatingPolicy
-	labelsMutatingPolicy := g.getLabelsMutatingPolicy(name)
-	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = labelsMutatingPolicy
-	validatingPolicy := g.getValidatingPolicy(name)
-	objs[GetValidatingPolicyKey(g.zone.Name, name)] = validatingPolicy
+	objs[GetMutatingPolicyKey(g.zone.Name, name)] = g.getMutatingPolicy(name)
+	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = g.getLabelsMutatingPolicy(name)
+	objs[GetValidatingPolicyKey(g.zone.Name, name)] = g.getValidatingPolicy(name)
 	return nil
 }
 
@@ -523,6 +520,37 @@ func (g zoneGenerator) getRoleBinding(nsName, bindingName, roleName string, grou
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",
 			Name:     roleName,
+		},
+		Subjects: subjects,
+	}
+}
+
+func (g zoneGenerator) getClusterRoleBinding(role string) client.Object {
+	groups := g.roleMappings[role]
+	if len(groups) == 0 {
+		return nil
+	}
+	subjects := make([]rbacv1.Subject, len(groups))
+	for i, group := range groups {
+		subjects[i] = rbacv1.Subject{
+			Kind:     "Group",
+			APIGroup: "rbac.authorization.k8s.io",
+			Name:     group,
+		}
+	}
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        g.zone.Name + "-" + role,
+			Annotations: g.zoneAnnotations,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "zone-tenancy-c-read",
 		},
 		Subjects: subjects,
 	}
@@ -848,16 +876,15 @@ func (g zoneGenerator) generateLaunchTemplates() map[string]client.Object {
 
 func (g zoneGenerator) generateNodePools() (map[string]client.Object, error) {
 	objs := make(map[string]client.Object)
-	iamRole := g.getIAMRole()
-	objs[GetRoleKey(g.zone.Name)] = iamRole
-	wnRoleAttachment := g.getIAMRolePolicyAttachment(g.zone.Name+"-wn", "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy")
-	objs[GetRoleWNAttachmentKey(g.zone.Name)] = wnRoleAttachment
-	ecrRORoleAttachment := g.getIAMRolePolicyAttachment(g.zone.Name+"-ecr-ro", "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly")
-	objs[GetRoleECRROAttachmentKey(g.zone.Name)] = ecrRORoleAttachment
-	ssmRoleAttachment := g.getIAMRolePolicyAttachment(g.zone.Name+"-ssm", "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore")
-	objs[GetRoleSSMAttachmentKey(g.zone.Name)] = ssmRoleAttachment
-	ecrProxyRoleAttachment := g.getIAMRolePolicyAttachmentWithArnRef(g.zone.Name+"-ecr-proxy", "ecr-proxy")
-	objs[GetRoleECRProxyAttachmentKey(g.zone.Name)] = ecrProxyRoleAttachment
+	objs[GetRoleKey(g.zone.Name)] = g.getIAMRole()
+	objs[GetRoleWNAttachmentKey(g.zone.Name)] = g.getIAMRolePolicyAttachment(g.zone.Name+"-wn",
+		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy")
+	objs[GetRoleECRROAttachmentKey(g.zone.Name)] = g.getIAMRolePolicyAttachment(g.zone.Name+"-ecr-ro",
+		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly")
+	objs[GetRoleSSMAttachmentKey(g.zone.Name)] = g.getIAMRolePolicyAttachment(g.zone.Name+"-ssm",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore")
+	objs[GetRoleECRProxyAttachmentKey(g.zone.Name)] = g.getIAMRolePolicyAttachmentWithArnRef(g.zone.Name+"-ecr-proxy",
+		"ecr-proxy")
 	accessEntry := g.getAccessEntry(g.zone.Name)
 	objs[GetAccessentryKey(g.zone.Name)] = accessEntry
 	for _, pool := range g.zone.Spec.Pools {
