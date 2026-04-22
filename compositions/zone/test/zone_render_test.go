@@ -355,6 +355,9 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		if res.GetKind() == "RolePolicyAttachment" {
 			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
+		if res.GetKind() == "ClusterRoleBinding" {
+			crossplane.AppendToResources(t, observed, res)
+		}
 	}
 
 	t.Log("Rendering...")
@@ -372,6 +375,22 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "Role", 5)
 	crossplane.AssertResourceCount(t, resources, "RolePolicyAttachment", 4)
 	crossplane.AssertResourceCount(t, resources, "RoleBinding", 6)
+	crossplane.AssertResourceCount(t, resources, "ClusterRoleBinding", 1)
+
+	t.Log("Validating rbac.authorization.k8s.io ClusterRoleRoleBinding fields")
+	crossplane.AssertFieldValues(t, resources, "ClusterRoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
+		"metadata.name":                         "testzone-contributor",
+		"metadata.namespace":                    "",
+		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "Zone",
+		"metadata.ownerReferences.0.name":       "testzone",
+		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
+		"roleRef.kind":                          "ClusterRole",
+		"roleRef.name":                          "zone-tenancy-c-read",
+		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
+		"subjects.0.kind":                       "Group",
+		"subjects.0.name":                       "contributor",
+	})
 
 	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
 	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{

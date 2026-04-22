@@ -52,7 +52,7 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 	switch object.GetObjectKind().GroupVersionKind().Kind {
 	case apis.XRKindZone:
 		return base.NewSequence(true, []string{"namespace-.*", "launchtemplate-.*", "kyverno-mutate-.*"}, []string{"netpol-.*", "role-.*", "sidecar-.*", "kyverno-validate-.*"},
-			[]string{"rbacrole-.*", "rpa-.*", "ae-.*"}, []string{"rb-.*", "nodepool-.*"})
+			[]string{"rbacrole-.*", "rpa-.*", "ae-.*", "crb-.*"}, []string{"rb-.*", "nodepool-.*"})
 	default:
 		return base.Sequence{}
 	}
