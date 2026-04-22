@@ -243,7 +243,7 @@ rules:
     resources: ["appprojects"]
     verbs: ["*"]
   - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["rolebindings", "roles"]
+    resources: ["rolebindings", "roles", "clusterrolebindings"]
     verbs: ["*"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies", "ingresses"]
@@ -253,9 +253,6 @@ rules:
     verbs: ["*"]
   - apiGroups: ["networking.istio.io"]
     resources: ["*"]
-    verbs: ["*"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["clusterrolebindings"]
     verbs: ["*"]
 
 ---
