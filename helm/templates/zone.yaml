@@ -412,6 +412,18 @@ rules:
 - apiGroups: ["argoproj.io"]
   resources: ["applications"]
   verbs: ["get", "list", "watch"]
+- apiGroups: ["storage.entigo.com"]
+  resources: ["s3buckets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["artifact.entigo.com"]
+  resources: ["repositories"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["database.entigo.com"]
+  resources: ["postgresqldatabases", "pginstances", "postgresqlusers", "valkeyinstances"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["queue.entigo.com"]
+  resources: ["topics", "kafkausers"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -866,4 +878,66 @@ spec:
           "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels[variables.zoneLabel]
           : "no zone label - must be labeled manually first")
       ).join(", ")
+
+{{- $deletionProtectedResources := list }}
+{{- if .Values.s3bucket.install }}
+  {{- $deletionProtectedResources = append $deletionProtectedResources (dict "group" "storage.entigo.com"  "version" "v1alpha1" "resource" "s3buckets"           "kind" "S3Bucket") }}
+{{- end }}
+{{- if .Values.repository.install }}
+  {{- $deletionProtectedResources = append $deletionProtectedResources (dict "group" "artifact.entigo.com" "version" "v1alpha1" "resource" "repositories"        "kind" "Repository") }}
+{{- end }}
+{{- if .Values.postgresql.install }}
+  {{- $deletionProtectedResources = append $deletionProtectedResources (dict "group" "database.entigo.com" "version" "v1alpha1" "resource" "postgresqldatabases" "kind" "PostgreSQLDatabase") }}
+  {{- $deletionProtectedResources = append $deletionProtectedResources (dict "group" "database.entigo.com" "version" "v1alpha1" "resource" "pginstances"         "kind" "PostgreSQLInstance") }}
+  {{- $deletionProtectedResources = append $deletionProtectedResources (dict "group" "database.entigo.com" "version" "v1alpha1" "resource" "postgresqlusers"     "kind" "PostgreSQLUser") }}
+{{- end }}
+{{- if .Values.valkey.install }}
+  {{- $deletionProtectedResources = append $deletionProtectedResources (dict "group" "database.entigo.com" "version" "v1alpha1" "resource" "valkeyinstances"     "kind" "ValkeyInstance") }}
+{{- end }}
+{{- if .Values.kafka.install }}
+  {{- $deletionProtectedResources = append $deletionProtectedResources (dict "group" "queue.entigo.com"    "version" "v1alpha1" "resource" "topics"              "kind" "Topic") }}
+  {{- $deletionProtectedResources = append $deletionProtectedResources (dict "group" "queue.entigo.com"    "version" "v1alpha1" "resource" "kafkausers"          "kind" "KafkaUser") }}
+{{- end }}
+{{- if $deletionProtectedResources }}
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-namespace-deletion-check-resources
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  validationActions:
+    - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["namespaces"]
+  matchConditions:
+    - name: has-zone-label
+      expression: >-
+        has(oldObject.metadata.labels) && 'tenancy.entigo.com/zone' in oldObject.metadata.labels && oldObject.metadata.labels['tenancy.entigo.com/zone'] != ''
+  variables:
+    - name: namespace
+      expression: oldObject.metadata.name
+    - name: existingObjects
+      expression: |
+        {{- range $i, $r := $deletionProtectedResources }}
+        {{ if $i }}+ {{ end }}resource.List("{{ $r.group }}/{{ $r.version }}", "{{ $r.resource }}", variables.namespace).items.map(o, "{{ $r.kind }}/" + o.metadata.name)
+        {{- end }}
+  validations:
+    - expression: |
+        variables.existingObjects.size() == 0
+      messageExpression: |
+        "Cannot delete namespace '" + variables.namespace + "': protected objects still exist - " +
+        variables.existingObjects.join(", ")
+{{- end }}
 {{- end }}
