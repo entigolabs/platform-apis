@@ -118,7 +118,8 @@ jobs:
                           cp "$SOURCE/templates/kyverno_namespace.yaml"           "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_zone.yaml"                "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_argoapp.yaml"             "$TARGET/templates/"
-                          cp "$SOURCE/templates/kyverno_kubeconfig.yaml"          "$TARGET/templates/" ;;
+                          cp "$SOURCE/templates/kyverno_kubeconfig.yaml"          "$TARGET/templates/"
+                          cp "$SOURCE/templates/kyverno_repository.yaml"          "$TARGET/templates/" ;;
             esac
           done
 
