@@ -931,7 +931,7 @@ spec:
     {{- range $r := $deletionProtectedResources }}
     - name: {{ $r.resource }}
       expression: >-
-        resource.List("{{ $r.group }}/{{ $r.version }}", "{{ $r.resource }}", variables.namespace).items
+        resource.List("{{ $r.group }}/{{ $r.version }}", "{{ $r.resource }}", variables.namespace).items.orValue([])
     {{- end }}
   validations:
     {{- range $r := $deletionProtectedResources }}
