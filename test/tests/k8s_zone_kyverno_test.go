@@ -45,6 +45,10 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			t.Parallel()
 			testKyvernoGenerateNamespaceFromArgoApp(t, cluster)
 		})
+		t.Run("ZoneNamespaceDeletionCheck", func(t *testing.T) {
+			t.Parallel()
+			testKyvernoZoneNamespaceDeletionCheckResources(t, cluster)
+		})
 		if contributorKeyID != "" && contributorSecret != "" {
 			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 			t.Run("ContributorDeny", func(t *testing.T) {
@@ -254,6 +258,29 @@ func testKyvernoZoneNamespaceOwnership(t *testing.T, cluster *terrak8s.KubectlOp
 		})
 		_, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "patch", ZoneKind, ZoneAName,
 			"--type", "merge", "-p", fmt.Sprintf(`{"spec":{"namespaces":[{"name":%q}]}}`, AAppsNamespace))
+		assertKyvernoAllowed(t, err)
+	})
+}
+
+// testKyvernoZoneNamespaceDeletionCheckResources covers platform-apis-zone-namespace-deletion-check-resources (ValidatingPolicy).
+func testKyvernoZoneNamespaceDeletionCheckResources(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	applyFile(t, cluster, writeTempYAML(t, nsYAML(t, kyvernoNsData{
+		Name: KyvernoTestTmpNSName, Zone: ZoneAName, Enforce: "baseline", Warn: "baseline",
+	})))
+	applyFile(t, cluster, writeTempYAML(t, repositoryYAML(t, kyvernoRepositoryData{
+		Name: KyvernoTestRepositoryName, Namespace: KyvernoTestTmpNSName,
+	})))
+
+	t.Run("fail: cannot delete namespace with repository", func(t *testing.T) {
+		out, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", KyvernoTestTmpNSName)
+		assertKyvernoDenied(t, out, err)
+	})
+
+	tmpNSOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestTmpNSName)
+	cleanupDeleteAndWait(t, tmpNSOpts, RepositoryKind, KyvernoTestRepositoryName, 0)
+
+	t.Run("pass: can delete empty namespace", func(t *testing.T) {
+		_, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", KyvernoTestTmpNSName)
 		assertKyvernoAllowed(t, err)
 	})
 }

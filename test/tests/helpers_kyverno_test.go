@@ -28,6 +28,10 @@ type kyvernoKubeconfigData struct {
 	CA, Server, ClusterName, Region, KeyID, Secret string
 }
 
+type kyvernoRepositoryData struct {
+	Name, Namespace string
+}
+
 // ensureKyvernoTestNamespace creates the shared kyverno-test namespace if it does not exist,
 // then waits until the zone composition has reconciled the per-namespace Kyverno policies.
 func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions) {
@@ -145,6 +149,10 @@ func zoneYAML(t *testing.T, data kyvernoZoneData) string {
 // argoAppYAML renders the kyverno_argoapp.yaml template.
 func argoAppYAML(t *testing.T, data kyvernoArgoAppData) string {
 	return renderTemplate(t, "./templates/kyverno_argoapp.yaml", data)
+}
+
+func repositoryYAML(t *testing.T, data kyvernoRepositoryData) string {
+	return renderTemplate(t, "./templates/kyverno_repository.yaml", data)
 }
 
 // ── Assertion helpers ─────────────────────────────────────────────────────────
