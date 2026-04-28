@@ -47,7 +47,9 @@ const (
 	MaintainerKeyIDEnv   = "MAINTAINER_AWS_ACCESS_KEY_ID"
 	MaintainerSecretEnv  = "MAINTAINER_AWS_SECRET_ACCESS_KEY"
 
-	KyvernoTestNSName = "kyverno-test"
+	KyvernoTestNSName         = "kyverno-test"
+	KyvernoTestTmpNSName      = "kyverno-test-tmp"
+	KyvernoTestRepositoryName = "kyverno-test-repo"
 
 	// ── Zone ─────────────────────────────────────────────────────────────────
 
