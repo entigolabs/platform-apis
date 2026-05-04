@@ -227,6 +227,7 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]client.Objec
 	if g.kmsDataKeyArn != "" {
 		sseDefault.KMSMasterKeyID = &g.kmsDataKeyArn
 	}
+	blockedType := "SSE-C"
 	objects["bucket-server-side-encryption-configuration"] = &s3v1beta1.BucketServerSideEncryptionConfiguration{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "s3.aws.m.upbound.io/v1beta1", Kind: "BucketServerSideEncryptionConfiguration"},
 		ObjectMeta: metav1.ObjectMeta{Name: g.bucketName},
@@ -239,6 +240,7 @@ func (g *s3BucketGenerator) buildBucketResources(objects map[string]client.Objec
 					{
 						ApplyServerSideEncryptionByDefault: sseDefault,
 						BucketKeyEnabled:                   base.BoolPtr(true),
+						BlockedEncryptionTypes:             []*string{&blockedType},
 					},
 				},
 			},
