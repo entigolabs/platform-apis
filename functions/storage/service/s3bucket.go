@@ -510,7 +510,27 @@ func (g *s3BucketGenerator) buildIAMPolicyDocument() string {
 
 	statements = append(statements, map[string]any{
 		"Effect": "Allow",
-		"Action": "s3:*",
+		"Action": []string{
+			// Object operations
+			"s3:PutObject",
+			"s3:GetObject",
+			"s3:GetObjectVersion",
+			"s3:DeleteObject",
+			// Multipart
+			"s3:AbortMultipartUpload",
+			"s3:ListMultipartUploadParts",
+			// Bucket listing/metadata
+			"s3:ListBucket",
+			"s3:ListBucketMultipartUploads",
+			"s3:GetBucketLocation",
+			// Object tagging
+			"s3:GetObjectTagging",
+			"s3:PutObjectTagging",
+			"s3:DeleteObjectTagging",
+			// ACL
+			"s3:GetObjectAcl",
+			"s3:PutObjectAcl",
+		},
 		"Resource": []string{
 			fmt.Sprintf("arn:aws:s3:::%s", g.bucketName),
 			fmt.Sprintf("arn:aws:s3:::%s/*", g.bucketName),
