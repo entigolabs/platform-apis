@@ -29,6 +29,8 @@ type ZoneSpec struct {
 
 	AppProject *AppProject `json:"appProject,omitempty"`
 
+	GranularNamespaceNetworkPolicy *bool `json:"granularNamespaceNetworkPolicy,omitempty"`
+
 	// List of namespaces to manage as part of the Zone.
 	Namespaces []Namespace `json:"namespaces"`
 

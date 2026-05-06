@@ -292,6 +292,7 @@ metadata:
 data:
   granularEgress: {{ .Values.zone.environmentConfig.granularEgress }}
   granularEgressExclude: {{ .Values.zone.environmentConfig.granularEgressExclude }}
+  granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
   {{- if $mergedRoleMapping }}

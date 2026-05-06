@@ -318,9 +318,13 @@ func GetClusterRoleBindingKey(zone, role string) string {
 func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 	objs := make(map[string]client.Object)
 	zoneNs := base.NewSet[string]()
+	granularNetwork := g.env.GranularNamespaceNetworkPolicy
+	if g.zone.Spec.GranularNamespaceNetworkPolicy != nil {
+		granularNetwork = *g.zone.Spec.GranularNamespaceNetworkPolicy
+	}
 	for _, ns := range g.zone.Spec.Namespaces {
 		objs[GetNamespaceKey(ns.Name)] = g.getNamespace(ns)
-		err := g.generateNamespace(objs, ns.Name)
+		err := g.generateNamespace(objs, ns.Name, granularNetwork)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +334,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 		if zoneNs.Contains(ns.Name) || ns.DeletionTimestamp != nil {
 			continue
 		}
-		err := g.generateNamespace(objs, ns.Name)
+		err := g.generateNamespace(objs, ns.Name, granularNetwork)
 		if err != nil {
 			return nil, err
 		}
@@ -338,7 +342,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 	return objs, nil
 }
 
-func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name string) error {
+func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name string, granularNetwork bool) error {
 	if g.env.GranularEgress {
 		sidecar, err := g.getSidecar(name)
 		if err != nil {
@@ -346,7 +350,7 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name str
 		}
 		objs[GetSidecarKey(g.zone.Name, name)] = sidecar
 	}
-	objs[GetNetworkPolicyKey(g.zone.Name, name)] = g.getNetworkPolicy(name)
+	objs[GetNetworkPolicyKey(g.zone.Name, name)] = g.getNetworkPolicy(name, granularNetwork)
 	allRole := g.getAllRole(name)
 	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
 	readRole := g.getReadRole(name)
@@ -430,7 +434,13 @@ func (g zoneGenerator) getSidecar(name string) (client.Object, error) {
 	return u, nil
 }
 
-func (g zoneGenerator) getNetworkPolicy(nsName string) *networkingv1.NetworkPolicy {
+func (g zoneGenerator) getNetworkPolicy(nsName string, granularNetwork bool) *networkingv1.NetworkPolicy {
+	var matchLabels map[string]string
+	if granularNetwork {
+		matchLabels = map[string]string{"kubernetes.io/metadata.name": nsName}
+	} else {
+		matchLabels = map[string]string{base.TenancyZoneLabel: g.zone.Name}
+	}
 	return &networkingv1.NetworkPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1",
@@ -451,11 +461,7 @@ func (g zoneGenerator) getNetworkPolicy(nsName string) *networkingv1.NetworkPoli
 				{
 					From: []networkingv1.NetworkPolicyPeer{
 						{
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									base.TenancyZoneLabel: g.zone.Name,
-								},
-							},
+							NamespaceSelector: &metav1.LabelSelector{MatchLabels: matchLabels},
 						},
 					},
 				},

@@ -3,6 +3,7 @@ kind: Zone
 metadata:
   name: b
 spec:
+  granularNamespaceNetworkPolicy: true
   namespaces:
     - name: b-apps
     - name: b1

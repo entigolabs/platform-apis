@@ -32,6 +32,9 @@ spec:
                       items:
                         type: string
                         minLength: 1
+                granularNamespaceNetworkPolicy:
+                    type: boolean
+                    description: When false, all Namespaces within the same Zone allow unrestricted network traffic between each other. When true, Namespaces must explicitly define NetworkPolicies to permit cross-Namespace communication. Intra-Namespace traffic is always permitted regardless of this setting.
                 roleMapping:
                   type: array
                   description: List of role mappings

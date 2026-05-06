@@ -30,6 +30,7 @@ func testZoneApps(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	deployAndVerifyApp(t, cluster, bApps, "./templates/b_test_application.yaml", BAppsApplicationName)
 
 	verifyAppsRunning(t, cluster)
+	verifyNetworkPolicies(t, cluster)
 }
 
 func testPodsRunning(t *testing.T, cluster *terrak8s.KubectlOptions, namespace, podName string) {
@@ -67,4 +68,33 @@ func verifyAppsRunning(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			testPodsRunning(t, cluster, "b1", "b1-curl")
 		})
 	})
+}
+
+func verifyNetworkPolicies(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	t.Run("network-policies", func(t *testing.T) {
+		t.Run("a1", func(t *testing.T) {
+			t.Parallel()
+			testNetworkPolicyMatchLabels(t, cluster, "a1", map[string]string{"tenancy.entigo.com/zone": "a"})
+		})
+		t.Run("b1", func(t *testing.T) {
+			t.Parallel()
+			testNetworkPolicyMatchLabels(t, cluster, "b1", map[string]string{"kubernetes.io/metadata.name": "b1"})
+		})
+	})
+}
+
+func testNetworkPolicyMatchLabels(t *testing.T, cluster *terrak8s.KubectlOptions, namespace string, expectedLabels map[string]string) {
+	t.Helper()
+	nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, namespace)
+	name := fmt.Sprintf("%s-zone", namespace)
+
+	policy, err := terrak8s.GetNetworkPolicyE(t, nsOpts, name)
+	require.NoError(t, err, "Failed to get network policy")
+
+	require.NotEmpty(t, policy.Spec.Ingress, "Ingress rules should not be empty")
+	require.NotEmpty(t, policy.Spec.Ingress[0].From, "From peers should not be empty")
+	require.NotNil(t, policy.Spec.Ingress[0].From[0].NamespaceSelector, "NamespaceSelector should not be nil")
+
+	actualLabels := policy.Spec.Ingress[0].From[0].NamespaceSelector.MatchLabels
+	require.Equal(t, expectedLabels, actualLabels, "NetworkPolicy matchLabels do not match expected values")
 }

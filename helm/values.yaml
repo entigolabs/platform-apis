@@ -91,6 +91,7 @@ zone:
   environmentConfig:
     granularEgress: false
     granularEgressExclude: []
+    granularNamespaceNetworkPolicy: false
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
     roleMapping:
