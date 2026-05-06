@@ -140,6 +140,11 @@ func (in *ZoneSpec) DeepCopyInto(out *ZoneSpec) {
 		*out = new(AppProject)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.GranularNamespaceNetworkPolicy != nil {
+		in, out := &in.GranularNamespaceNetworkPolicy, &out.GranularNamespaceNetworkPolicy
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Namespaces != nil {
 		in, out := &in.Namespaces, &out.Namespaces
 		*out = make([]Namespace, len(*in))

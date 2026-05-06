@@ -7,23 +7,24 @@ import (
 )
 
 type Environment struct {
-	AppProject            AppProject         `json:"appProject"`
-	ArgoCDNamespace       string             `json:"argoCDNamespace"`
-	AWSProvider           string             `json:"awsProvider"`
-	Cluster               string             `json:"cluster"`
-	ComputeSubnetType     string             `json:"computeSubnetType"`
-	ControlSubnetType     string             `json:"controlSubnetType"`
-	DataKMSAlias          string             `json:"dataKMSAlias"`
-	GranularEgress        bool               `json:"granularEgress,omitempty"`
-	GranularEgressExclude []string           `json:"granularEgressExclude,omitempty"`
-	PodSecurity           string             `json:"podSecurity"`
-	PublicSubnetType      string             `json:"publicSubnetType"`
-	RoleMapping           []RoleMapping      `json:"roleMapping,omitempty"`
-	SecurityGroup         string             `json:"securityGroup"`
-	ServiceSubnetType     string             `json:"serviceSubnetType"`
-	Tags                  map[string]*string `json:"tags,omitempty"`
-	VPC                   string             `json:"vpc"`
-	Workspace             string             `json:"workspace,omitempty"`
+	AppProject                     AppProject         `json:"appProject"`
+	ArgoCDNamespace                string             `json:"argoCDNamespace"`
+	AWSProvider                    string             `json:"awsProvider"`
+	Cluster                        string             `json:"cluster"`
+	ComputeSubnetType              string             `json:"computeSubnetType"`
+	ControlSubnetType              string             `json:"controlSubnetType"`
+	DataKMSAlias                   string             `json:"dataKMSAlias"`
+	GranularEgress                 bool               `json:"granularEgress,omitempty"`
+	GranularEgressExclude          []string           `json:"granularEgressExclude,omitempty"`
+	GranularNamespaceNetworkPolicy bool               `json:"granularNamespaceNetworkPolicy,omitempty"`
+	PodSecurity                    string             `json:"podSecurity"`
+	PublicSubnetType               string             `json:"publicSubnetType"`
+	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
+	SecurityGroup                  string             `json:"securityGroup"`
+	ServiceSubnetType              string             `json:"serviceSubnetType"`
+	Tags                           map[string]*string `json:"tags,omitempty"`
+	VPC                            string             `json:"vpc"`
+	Workspace                      string             `json:"workspace,omitempty"`
 }
 
 type AppProject struct {

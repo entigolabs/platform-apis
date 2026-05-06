@@ -193,8 +193,9 @@ func TestZoneFunction(t *testing.T) {
 		"tags": map[string]interface{}{
 			"env": "test-environment",
 		},
-		"granularEgress":        true,
-		"granularEgressExclude": []interface{}{"test-zone"},
+		"granularEgress":                 true,
+		"granularEgressExclude":          []interface{}{"test-zone"},
+		"granularNamespaceNetworkPolicy": true,
 	}
 	maps.Copy(optEnvironmentData, environmentData)
 	optAppProject := map[string]interface{}{
@@ -506,9 +507,13 @@ func TestZoneFunction(t *testing.T) {
 							service.GetLaunchTemplateKey(zoneName, poolName): {Resource: resource.MustStructJSON(`
 {"apiVersion":"ec2.aws.upbound.io/v1beta1","kind":"LaunchTemplate","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone-default"},"spec":{"deletionPolicy":"Delete","forProvider":{"description":"test-zone-default","disableApiStop":false,"disableApiTermination":false,"metadataOptions":[{"httpEndpoint":"enabled","httpProtocolIpv6":"","httpPutResponseHopLimit":1,"httpTokens":"required","instanceMetadataTags":""}],"name":"test-zone-default","region":"eu-north-1","tagSpecifications":[{"resourceType":"instance","tags":{"Name":"test-zone-default","entigo:zone":"test-zone","env":"test-environment","tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"}},{"resourceType":"volume","tags":{"Name":"test-zone-default-root","entigo:zone":"test-zone","env":"test-environment","tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"}}],"tags":{"entigo:zone":"test-zone","env":"test-environment","tenancy.entigo.com/zone":"test-zone","tenancy.entigo.com/zone-pool":"test-zone-default"},"updateDefaultVersion":true,"userData":"","vpcSecurityGroupIds":["sg-123","sg-321"]},"initProvider":{"blockDeviceMappings":[{"deviceName":"/dev/xvda","ebs":[{"deleteOnTermination":"true","encrypted":"true","iops":0,"kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:alias/data","snapshotId":"","throughput":0,"volumeInitializationRate":0,"volumeSize":50,"volumeType":"gp3"}],"noDevice":"","virtualName":""}]},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
 							`), Ready: 1},
-							service.GetNetworkPolicyKey(zoneName, nsName):    {Resource: resource.MustStructJSON(networkPolicyJson), Ready: 1},
-							service.GetNetworkPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(extNetworkPolicyJson), Ready: 1},
-							targetNetworkPolicyKey:                           {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
+							service.GetNetworkPolicyKey(zoneName, nsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-zone","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"test-app-ns"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}
+`), Ready: 1},
+							service.GetNetworkPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
+{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-zone","namespace":"test-app-ext-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"test-app-ext-ns"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}
+`), Ready: 1},
+							targetNetworkPolicyKey: {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
 							service.GetRoleKey(zoneName): {Resource: resource.MustStructJSON(`
 {"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone"},"spec":{"forProvider":{"assumeRolePolicy":"{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"ec2.amazonaws.com\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}","tags":{"entigo:zone":"test-zone","env":"test-environment","tenancy.entigo.com/zone":"test-zone"}},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
 							`), Ready: 1},
