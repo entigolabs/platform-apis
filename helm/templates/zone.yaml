@@ -801,7 +801,8 @@ spec:
           has(ns.metadata.labels) &&
           variables.zoneLabel in ns.metadata.labels &&
           ns.metadata.labels[variables.zoneLabel] == variables.zoneName &&
-          !(ns.metadata.name in variables.specNamespaceNames)
+          !(ns.metadata.name in variables.specNamespaceNames) &&
+          ns.metadata.name != variables.zoneName + "-apps"
         )
   validations:
     - expression: |
