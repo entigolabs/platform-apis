@@ -330,6 +330,11 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 		}
 		zoneNs.Add(ns.Name)
 	}
+	if g.env.CreateAppsNamespace {
+		name := g.zone.Name + "-apps"
+		g.generateAppsNamespace(objs, name)
+		zoneNs.Add(name)
+	}
 	for _, ns := range g.namespaces {
 		if zoneNs.Contains(ns.Name) || ns.DeletionTimestamp != nil {
 			continue
@@ -366,6 +371,36 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name str
 	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = g.getLabelsMutatingPolicy(name)
 	objs[GetValidatingPolicyKey(g.zone.Name, name)] = g.getValidatingPolicy(name)
 	return nil
+}
+
+func (g zoneGenerator) generateAppsNamespace(objs map[string]client.Object, name string) {
+	ns := v1alpha1.Namespace{Name: name}
+	obj := g.getNamespace(ns)
+	labels := obj.GetLabels()
+	delete(labels, "istio-injection")
+	labels["tenancy.entigo.com/only-argocd-apps"] = "true"
+	obj.SetLabels(labels)
+	objs[GetNamespaceKey(name)] = obj
+
+	allRole := g.getRole(name, name+"-all", []rbacv1.PolicyRule{{
+		APIGroups: []string{"argoproj.io"},
+		Resources: []string{"applications", "applicationsets"},
+		Verbs:     []string{"*"},
+	}})
+	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
+	readRole := g.getRole(name, name+"-read", []rbacv1.PolicyRule{{
+		APIGroups: []string{"argoproj.io"},
+		Resources: []string{"applications", "applicationsets"},
+		Verbs:     []string{"get", "watch", "list"},
+	}})
+	objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
+	for role, groups := range g.roleMappings {
+		roleName := allRole.Name
+		if role == RoleObserver {
+			roleName = readRole.Name
+		}
+		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
+	}
 }
 
 func (g zoneGenerator) getNamespace(ns v1alpha1.Namespace) *corev1.Namespace {

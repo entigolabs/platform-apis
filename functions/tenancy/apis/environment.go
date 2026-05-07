@@ -11,6 +11,7 @@ type Environment struct {
 	ArgoCDNamespace                string             `json:"argoCDNamespace"`
 	AWSProvider                    string             `json:"awsProvider"`
 	Cluster                        string             `json:"cluster"`
+	CreateAppsNamespace            bool               `json:"createAppsNamespace"`
 	ComputeSubnetType              string             `json:"computeSubnetType"`
 	ControlSubnetType              string             `json:"controlSubnetType"`
 	DataKMSAlias                   string             `json:"dataKMSAlias"`

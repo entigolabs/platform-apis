@@ -89,6 +89,7 @@ zone:
     image: ghcr.io/entigolabs/platform-apis-zone
     tag: v0.0.0
   environmentConfig:
+    createAppsNamespace: true
     granularEgress: false
     granularEgressExclude: []
     granularNamespaceNetworkPolicy: false

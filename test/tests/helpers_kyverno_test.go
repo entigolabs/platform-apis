@@ -13,6 +13,15 @@ import (
 
 type kyvernoNsData struct {
 	Name, Zone, Enforce, Warn string
+	OnlyArgoCDApps            bool
+}
+
+type kyvernoConfigMapData struct {
+	Name, Namespace string
+}
+
+type kyvernoRoleData struct {
+	Name, Namespace string
 }
 
 type kyvernoZoneData struct {
@@ -153,6 +162,16 @@ func argoAppYAML(t *testing.T, data kyvernoArgoAppData) string {
 
 func repositoryYAML(t *testing.T, data kyvernoRepositoryData) string {
 	return renderTemplate(t, "./templates/kyverno_repository.yaml", data)
+}
+
+// configMapYAML renders the kyverno_configmap.yaml template.
+func configMapYAML(t *testing.T, data kyvernoConfigMapData) string {
+	return renderTemplate(t, "./templates/kyverno_configmap.yaml", data)
+}
+
+// roleYAML renders the kyverno_role.yaml template.
+func roleYAML(t *testing.T, data kyvernoRoleData) string {
+	return renderTemplate(t, "./templates/kyverno_role.yaml", data)
 }
 
 // ── Assertion helpers ─────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -148,11 +149,16 @@ func isBuiltinResource(apiVersion string) bool {
 
 // extractKyvernoPolicies returns the subset of YAML documents from fullYAML that are
 // Kyverno policies targeting the given resource kind, preventing unrelated policy errors.
+// Policies whose resource rule is the wildcard "*" are always included since they apply
+// to any kind in scope.
 func extractKyvernoPolicies(fullYAML, kind string) string {
 	resource := `"` + strings.ToLower(kind) + `s"`
 	var policies []string
 	for _, doc := range strings.Split(fullYAML, "---") {
-		if strings.Contains(doc, "apiVersion: policies.kyverno.io") && strings.Contains(doc, resource) {
+		if !strings.Contains(doc, "apiVersion: policies.kyverno.io") {
+			continue
+		}
+		if strings.Contains(doc, resource) || strings.Contains(doc, `resources: [ "*" ]`) || strings.Contains(doc, `resources: ["*"]`) {
 			policies = append(policies, strings.TrimSpace(doc))
 		}
 	}
@@ -423,6 +429,19 @@ metadata:
 `, name, zone, enforce, warn)
 }
 
+// GenerateConfigMap returns a ConfigMap resource YAML with a single placeholder data entry in the given namespace.
+func GenerateConfigMap(name, namespace string) string {
+	return fmt.Sprintf(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: %s
+  namespace: %s
+data:
+  key: value
+`, name, namespace)
+}
+
 // GenerateUserInfo returns a kyverno UserInfo YAML placing the given group names in request.userInfo.groups.
 func GenerateUserInfo(groups ...string) string {
 	list := ""
@@ -443,17 +462,45 @@ clusterRoles: []
 }
 
 // GenerateArgoApp returns an ArgoCD Application resource YAML for the given name, project, and destination namespace.
-func GenerateArgoApp(name, project, destNamespace string) string {
+// If namespace is non-empty, it is set as the Application's metadata.namespace.
+func GenerateArgoApp(name, namespace, project, destNamespace string) string {
+	nsLine := ""
+	if namespace != "" {
+		nsLine = "\n  namespace: " + namespace
+	}
 	return fmt.Sprintf(`
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: %s
+  name: %s%s
 spec:
   project: %s
   destination:
     namespace: %s
-`, name, project, destNamespace)
+`, name, nsLine, project, destNamespace)
+}
+
+// GenerateNamespaceLabelsValues returns a kyverno Values YAML that assigns the given labels
+// to the named namespace, so policies with a namespaceSelector evaluate offline.
+func GenerateNamespaceLabelsValues(namespace string, labels map[string]string) string {
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var labelLines string
+	for _, k := range keys {
+		labelLines += fmt.Sprintf("\n    %s: %q", k, labels[k])
+	}
+	return fmt.Sprintf(`
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Values
+metadata:
+  name: values
+namespaceSelector:
+- name: %s
+  labels:%s
+`, namespace, labelLines)
 }
 
 // GenerateOperationValues returns a kyverno Values YAML that sets request.operation to the given value.

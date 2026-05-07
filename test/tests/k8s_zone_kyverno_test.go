@@ -49,6 +49,10 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			t.Parallel()
 			testKyvernoZoneNamespaceDeletionCheckResources(t, cluster)
 		})
+		t.Run("AppsNamespaceRestriction", func(t *testing.T) {
+			t.Parallel()
+			testKyvernoAppsNamespaceRestriction(t, cluster)
+		})
 		if contributorKeyID != "" && contributorSecret != "" {
 			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 			t.Run("ContributorDeny", func(t *testing.T) {
@@ -281,6 +285,66 @@ func testKyvernoZoneNamespaceDeletionCheckResources(t *testing.T, cluster *terra
 
 	t.Run("pass: can delete empty namespace", func(t *testing.T) {
 		_, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", KyvernoTestTmpNSName)
+		assertKyvernoAllowed(t, err)
+	})
+}
+
+// testKyvernoAppsNamespaceRestriction covers platform-apis-zone-apps-namespace-restriction (ValidatingPolicy).
+// In a namespace labeled tenancy.entigo.com/only-argocd-apps=true, only ArgoCD Application/ApplicationSet
+// and rbac Role/RoleBinding may be created or updated; everything else is denied.
+func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	applyFile(t, cluster, writeTempYAML(t, nsYAML(t, kyvernoNsData{
+		Name: KyvernoTestAppsNSName, Zone: ZoneAName, Enforce: "baseline", Warn: "baseline",
+		OnlyArgoCDApps: true,
+	})))
+	t.Cleanup(func() {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", KyvernoTestAppsNSName, "--ignore-not-found", "--wait=false")
+	})
+	appsNS := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestAppsNSName)
+
+	t.Run("fail: ConfigMap denied in apps namespace", func(t *testing.T) {
+		t.Parallel()
+		out, err := kyvernoApply(t, cluster, configMapYAML(t, kyvernoConfigMapData{
+			Name: "kyverno-apps-cm-deny", Namespace: KyvernoTestAppsNSName,
+		}))
+		assertKyvernoDenied(t, out, err)
+	})
+	t.Run("pass: Role allowed in apps namespace", func(t *testing.T) {
+		t.Parallel()
+		const name = "kyverno-apps-role"
+		t.Cleanup(func() {
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, appsNS, "delete", "role", name, "--ignore-not-found", "--wait=false")
+		})
+		_, err := kyvernoApply(t, cluster, roleYAML(t, kyvernoRoleData{
+			Name: name, Namespace: KyvernoTestAppsNSName,
+		}))
+		assertKyvernoAllowed(t, err)
+	})
+	t.Run("pass: ArgoCD Application allowed in apps namespace", func(t *testing.T) {
+		t.Parallel()
+		const (
+			appName = "kyverno-apps-argo"
+			destNS  = "kyverno-apps-argo-dest"
+		)
+		t.Cleanup(func() {
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, appsNS, "delete", "application", appName, "--ignore-not-found", "--wait=false")
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", destNS, "--ignore-not-found", "--wait=false")
+		})
+		_, err := kyvernoApply(t, cluster, argoAppYAML(t, kyvernoArgoAppData{
+			Name: appName, Namespace: KyvernoTestAppsNSName, DestNamespace: destNS, Project: ZoneAName,
+		}))
+		assertKyvernoAllowed(t, err)
+	})
+	t.Run("pass: ConfigMap in non-restricted namespace is unaffected", func(t *testing.T) {
+		t.Parallel()
+		const name = "kyverno-cm-allowed"
+		nonRestrictedNS := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestNSName)
+		t.Cleanup(func() {
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, nonRestrictedNS, "delete", "configmap", name, "--ignore-not-found", "--wait=false")
+		})
+		_, err := kyvernoApply(t, cluster, configMapYAML(t, kyvernoConfigMapData{
+			Name: name, Namespace: KyvernoTestNSName,
+		}))
 		assertKyvernoAllowed(t, err)
 	})
 }
