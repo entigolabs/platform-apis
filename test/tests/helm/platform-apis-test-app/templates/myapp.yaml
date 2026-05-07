@@ -28,7 +28,7 @@ spec:
         image: 877483565445.dkr.ecr.eu-north-1.amazonaws.com/biz-net-ecr-proxy-hub/nginxinc/nginx-unprivileged
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 80
+        - containerPort: 8080
         resources:
           requests:
             cpu: 1m
@@ -87,7 +87,8 @@ spec:
         image: 877483565445.dkr.ecr.eu-north-1.amazonaws.com/biz-net-ecr-proxy-hub/nginxinc/nginx-unprivileged
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 80
+        - containerPort: 8080
+          name: http
         resources:
           requests:
             cpu: 1m
@@ -114,7 +115,7 @@ spec:
     app: {{ .Release.Name }}
   ports:
   - port: 8080
-    targetPort: 80
+    targetPort: 8080
     name: myhttp
 ---
 apiVersion: v1
@@ -127,8 +128,8 @@ spec:
   selector:
     app: {{ .Release.Name }}second
   ports:
-  - port: 8080
-    targetPort: 80
+  - port: 8082
+    targetPort: http
 ---
 apiVersion: v1
 kind: Pod
@@ -191,14 +192,14 @@ spec:
               service:
                 name: {{ .Release.Name }}second #Service nimi
                 port:
-                  number: 8080 # Service port
+                  number: 8082 # Service port
           - path: /apiv2
             pathType: Prefix
             backend:
               service:
                 name: {{ .Release.Name }}second #Service nimi
                 port:
-                  number: 8080 # Service port
+                  number: 8082 # Service port
           - path: /apiv3
             pathType: Prefix
             backend:
