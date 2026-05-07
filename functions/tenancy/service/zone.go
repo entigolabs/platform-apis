@@ -322,18 +322,21 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 	if g.zone.Spec.GranularNamespaceNetworkPolicy != nil {
 		granularNetwork = *g.zone.Spec.GranularNamespaceNetworkPolicy
 	}
+	if g.env.CreateAppsNamespace {
+		name := g.zone.Name + "-apps"
+		g.generateAppsNamespace(objs, name)
+		zoneNs.Add(name)
+	}
 	for _, ns := range g.zone.Spec.Namespaces {
+		if zoneNs.Contains(ns.Name) {
+			continue
+		}
 		objs[GetNamespaceKey(ns.Name)] = g.getNamespace(ns)
 		err := g.generateNamespace(objs, ns.Name, granularNetwork)
 		if err != nil {
 			return nil, err
 		}
 		zoneNs.Add(ns.Name)
-	}
-	if g.env.CreateAppsNamespace {
-		name := g.zone.Name + "-apps"
-		g.generateAppsNamespace(objs, name)
-		zoneNs.Add(name)
 	}
 	for _, ns := range g.namespaces {
 		if zoneNs.Contains(ns.Name) || ns.DeletionTimestamp != nil {

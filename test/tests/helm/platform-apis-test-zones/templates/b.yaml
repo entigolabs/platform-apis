@@ -5,7 +5,6 @@ metadata:
 spec:
   granularNamespaceNetworkPolicy: true
   namespaces:
-    - name: b-apps
     - name: b1
     - name: b2
   pools:
