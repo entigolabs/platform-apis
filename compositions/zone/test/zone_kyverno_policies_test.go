@@ -16,6 +16,7 @@ func TestKyvernoPolicies(t *testing.T) {
 	t.Run("ZoneNamespaceOwnership", testZoneNamespaceOwnership)
 	t.Run("MaintainerInfralibZoneDeny", testMaintainerInfralibZoneDeny)
 	t.Run("GenerateNamespaceFromArgoApp", testGenerateNamespaceFromArgoApp)
+	t.Run("AppsNamespaceRestriction", testAppsNamespaceRestriction)
 }
 
 // testNamespacePodSecurity covers platform-apis-zone-namespace-pod-security (ValidatingPolicy)
@@ -288,7 +289,7 @@ func testGenerateNamespaceFromArgoApp(t *testing.T) {
 			name: "pass: ArgoApp generates namespace",
 			scenario: kyverno.TestScenario{
 				ExpectedAction:   "pass",
-				ResourceYAML:     kyverno.GenerateArgoApp("my-app", "my-project", "my-namespace"),
+				ResourceYAML:     kyverno.GenerateArgoApp("my-app", "", "my-project", "my-namespace"),
 				ExpectedInOutput: "my-namespace",
 			},
 		},
@@ -296,7 +297,101 @@ func testGenerateNamespaceFromArgoApp(t *testing.T) {
 			name: "pass: ArgoApp with infralib project does not generate namespace",
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",
-				ResourceYAML:   kyverno.GenerateArgoApp("infra-app", "infralib", "infra-namespace"),
+				ResourceYAML:   kyverno.GenerateArgoApp("infra-app", "", "infralib", "infra-namespace"),
+			},
+		},
+	}
+	runCases(t, cases)
+}
+
+// testAppsNamespaceRestriction covers platform-apis-zone-apps-namespace-restriction (ValidatingPolicy).
+// In a namespace labeled tenancy.entigo.com/only-argocd-apps=true, only ArgoCD Application/ApplicationSet
+// and rbac Role/RoleBinding resources may be created or updated; everything else is denied.
+func testAppsNamespaceRestriction(t *testing.T) {
+	t.Parallel()
+	const restrictedNs = "apps-ns"
+	restrictedLabels := kyverno.GenerateNamespaceLabelsValues(restrictedNs, map[string]string{
+		"tenancy.entigo.com/only-argocd-apps": "true",
+	})
+	cases := []struct {
+		name     string
+		scenario kyverno.TestScenario
+	}{
+		{
+			name: "fail: ConfigMap denied in restricted namespace",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "fail",
+				ResourceYAML:   kyverno.GenerateConfigMap("my-cm", restrictedNs),
+				VariablesYAML:  restrictedLabels,
+			},
+		},
+		{
+			name: "fail: Service denied in restricted namespace",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "fail",
+				ResourceYAML: `
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+  namespace: apps-ns
+spec:
+  ports:
+  - port: 80`,
+				VariablesYAML: restrictedLabels,
+			},
+		},
+		{
+			name: "pass: Role allowed in restricted namespace",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-role
+  namespace: apps-ns
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get"]`,
+				VariablesYAML: restrictedLabels,
+			},
+		},
+		{
+			name: "pass: RoleBinding allowed in restricted namespace",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-rb
+  namespace: apps-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-role
+subjects:
+- kind: User
+  name: someone
+  apiGroup: rbac.authorization.k8s.io`,
+				VariablesYAML: restrictedLabels,
+			},
+		},
+		{
+			name: "pass: ArgoCD Application allowed in restricted namespace",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML:   kyverno.GenerateArgoApp("my-app", restrictedNs, "my-project", "target-ns"),
+				VariablesYAML:  restrictedLabels,
+			},
+		},
+		{
+			name: "pass: ConfigMap in non-restricted namespace is unaffected",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML:   kyverno.GenerateConfigMap("my-cm", "normal-ns"),
 			},
 		},
 	}

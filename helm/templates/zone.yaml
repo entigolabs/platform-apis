@@ -290,6 +290,7 @@ kind: EnvironmentConfig
 metadata:
   name: platform-apis-zone
 data:
+  createAppsNamespace: {{ .Values.zone.environmentConfig.createAppsNamespace }}
   granularEgress: {{ .Values.zone.environmentConfig.granularEgress }}
   granularEgressExclude: {{ .Values.zone.environmentConfig.granularEgressExclude }}
   granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
@@ -800,7 +801,8 @@ spec:
           has(ns.metadata.labels) &&
           variables.zoneLabel in ns.metadata.labels &&
           ns.metadata.labels[variables.zoneLabel] == variables.zoneName &&
-          !(ns.metadata.name in variables.specNamespaceNames)
+          !(ns.metadata.name in variables.specNamespaceNames) &&
+          ns.metadata.name != variables.zoneName + "-apps"
         )
   validations:
     - expression: |
@@ -941,5 +943,53 @@ spec:
         "Cannot delete namespace '" + variables.namespace + "': protected {{ $r.kind }} objects still exist - " +
         variables.{{ $r.resource }}.map(o, o.metadata.name).join(", ")
     {{- end }}
+{{- end }}
+
+{{- if .Values.zone.environmentConfig.createAppsNamespace }}
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-apps-namespace-restriction
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  validationActions:
+    - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  matchConstraints:
+    namespaceSelector:
+      matchLabels:
+        tenancy.entigo.com/only-argocd-apps: 'true'
+    resourceRules:
+      - apiGroups: [ "*" ]
+        apiVersions: [ "*" ]
+        operations: [ "CREATE", "UPDATE" ]
+        resources: [ "*" ]
+        scope: Namespaced
+  matchConditions:
+    - name: not-argocd-app
+      expression: |
+        !(
+          (
+            object.apiVersion.startsWith('argoproj.io/') &&
+            (object.kind == 'Application' || object.kind == 'ApplicationSet')
+          ) ||
+          (
+            object.apiVersion.startsWith('rbac.authorization.k8s.io/') &&
+            (object.kind == 'Role' || object.kind == 'RoleBinding')
+          )
+        )
+  validations:
+    - expression: "false"
+      messageExpression: |
+        "Namespace " + string(object.metadata.namespace) +
+        " is restricted to ArgoCD Application and ApplicationSet resources. " +
+        "Resource of kind '" + object.kind + "' is not permitted."
 {{- end }}
 {{- end }}

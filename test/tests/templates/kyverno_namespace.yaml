@@ -6,5 +6,8 @@ metadata:
 {{- if .Zone }}
     tenancy.entigo.com/zone: {{ .Zone }}
 {{- end }}
+{{- if .OnlyArgoCDApps }}
+    tenancy.entigo.com/only-argocd-apps: "true"
+{{- end }}
     pod-security.kubernetes.io/enforce: {{ .Enforce }}
     pod-security.kubernetes.io/warn: {{ .Warn }}
