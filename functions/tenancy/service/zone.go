@@ -332,7 +332,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 			continue
 		}
 		objs[GetNamespaceKey(ns.Name)] = g.getNamespace(ns)
-		err := g.generateNamespace(objs, ns.Name, granularNetwork)
+		err := g.generateNamespace(objs, ns.Name, ns.Pool, granularNetwork)
 		if err != nil {
 			return nil, err
 		}
@@ -342,7 +342,11 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 		if zoneNs.Contains(ns.Name) || ns.DeletionTimestamp != nil {
 			continue
 		}
-		err := g.generateNamespace(objs, ns.Name, granularNetwork)
+		var pool string
+		if ns.Labels != nil {
+			pool = ns.Labels[PoolLabel]
+		}
+		err := g.generateNamespace(objs, ns.Name, pool, granularNetwork)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +354,7 @@ func (g zoneGenerator) generateNamespaces() (map[string]client.Object, error) {
 	return objs, nil
 }
 
-func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name string, granularNetwork bool) error {
+func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, pool string, granularNetwork bool) error {
 	if g.env.GranularEgress {
 		sidecar, err := g.getSidecar(name)
 		if err != nil {
@@ -370,7 +374,7 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name str
 		}
 		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
 	}
-	objs[GetMutatingPolicyKey(g.zone.Name, name)] = g.getMutatingPolicy(name)
+	objs[GetMutatingPolicyKey(g.zone.Name, name)] = g.getMutatingPolicy(name, pool)
 	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = g.getLabelsMutatingPolicy(name)
 	objs[GetValidatingPolicyKey(g.zone.Name, name)] = g.getValidatingPolicy(name)
 	return nil
@@ -600,7 +604,13 @@ func (g zoneGenerator) getClusterRoleBinding(role string) client.Object {
 	}
 }
 
-func (g zoneGenerator) getMutatingPolicy(namespaceName string) client.Object {
+func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Object {
+	var patchValue string
+	if pool != "" {
+		patchValue = fmt.Sprintf(`"tenancy.entigo.com/zone-pool": "%s-%s"`, g.zone.Name, pool)
+	} else {
+		patchValue = fmt.Sprintf(`"tenancy.entigo.com/zone": "%s"`, g.zone.Name)
+	}
 	return &policyv1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
@@ -649,7 +659,7 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName string) client.Object {
   JSONPatch{
     op: "add",
     path: "/spec/nodeSelector",
-    value: {"tenancy.entigo.com/zone": "` + g.zone.Name + `"}
+    value: {` + patchValue + `}
   }
 ] : []`,
 					},
