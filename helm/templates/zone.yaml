@@ -269,7 +269,8 @@ spec:
   - launchtemplates.ec2.aws.upbound.io
   - nodegroups.eks.aws.upbound.io
   - accessentries.eks.aws.upbound.io
-  - roles.iam.upbound.io
+  - roles.iam.aws.upbound.io
+  - rolepolicyattachments.iam.aws.upbound.io
 
 # ---
 # apiVersion: rbac.authorization.k8s.io/v1
