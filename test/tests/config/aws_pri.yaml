@@ -1,7 +1,7 @@
 platform-apis:
   zone:
     environmentConfig:
-      granularEgress: true
+      granularEgress: false
       appProject:
         maintainerGroups: ["web-read-only-343159627493470238"]
   database:
@@ -9,8 +9,15 @@ platform-apis:
       backupBeforeDeletion: false
       backupRetentionPeriod: 0
   kafka:
-    install: true
-    environmentConfig:
-      awsProvider: crossplane-aws
-      configKMSKey: config
-      kafkaNamespace: crossplane-kafka-pri
+    install: false
+  functions:
+    function-go-templating:
+      install: false
+    function-auto-ready:
+      install: false
+    function-sequencer:
+      install: false
+    function-patch-and-transform:
+      install: false
+    function-extra-resources:
+      install: false
