@@ -7,7 +7,7 @@ platform-apis:
       granularEgress: true
       roleMapping:
         - roleRef: maintainer
-          groups: ["web-read-only-343159627493470238"]
+          groups: ["web-read-only-343159627493470238", "maintainer"]
       appProject:
         namespaceResourceBlacklist: []
         namespaceResourceWhitelist:
