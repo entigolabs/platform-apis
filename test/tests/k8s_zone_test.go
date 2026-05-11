@@ -33,10 +33,9 @@ func testZoneApps(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	verifyNetworkPolicies(t, cluster)
 }
 
-func testPodsRunning(t *testing.T, cluster *terrak8s.KubectlOptions, namespace, podName string) {
+func testPodsRunning(t *testing.T, nsOpts *terrak8s.KubectlOptions, podName string) {
 	t.Helper()
-	nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, namespace)
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("pod %s/%s Running", namespace, podName), 10, 10*time.Second,
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("pod %s/%s Running", nsOpts.Namespace, podName), 10, 10*time.Second,
 		func() (string, error) {
 			phase, err := terrak8s.RunKubectlAndGetOutputE(t, nsOpts, "get", "pod", podName, "-o", "jsonpath={.status.phase}")
 			if err != nil {
@@ -47,7 +46,7 @@ func testPodsRunning(t *testing.T, cluster *terrak8s.KubectlOptions, namespace, 
 			}
 			return phase, nil
 		})
-	require.NoError(t, err, "pod %s/%s never reached Running", namespace, podName)
+	require.NoError(t, err, "pod %s/%s never reached Running", nsOpts.Namespace, podName)
 }
 
 func deployAndVerifyApp(t *testing.T, cluster, appOpts *terrak8s.KubectlOptions, templatePath, appName string) {
@@ -61,13 +60,25 @@ func verifyAppsRunning(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Run("apps-running", func(t *testing.T) {
 		t.Run("a1", func(t *testing.T) {
 			t.Parallel()
-			testPodsRunning(t, cluster, "a1", "a1-curl")
+			nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, "a1")
+			testPodsRunning(t, nsOpts, "a1-curl")
+			testPodNodeSelector(t, nsOpts, "a1-curl", "tenancy.entigo.com/zone", "a")
 		})
 		t.Run("b1", func(t *testing.T) {
 			t.Parallel()
-			testPodsRunning(t, cluster, "b1", "b1-curl")
+			nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, "b1")
+			testPodsRunning(t, nsOpts, "b1-curl")
+			testPodNodeSelector(t, nsOpts, "b1-curl", "tenancy.entigo.com/zone-pool", "b-default-a")
 		})
 	})
+}
+
+func testPodNodeSelector(t *testing.T, nsOpts *terrak8s.KubectlOptions, podName, key, value string) {
+	t.Helper()
+	pod, err := terrak8s.GetPodE(t, nsOpts, podName)
+	require.NoError(t, err, "Failed to get pod %s/%s", nsOpts.Namespace, podName)
+	require.Equal(t, value, pod.Spec.NodeSelector[key],
+		"pod %s/%s nodeSelector[%q] mismatch (full: %v)", nsOpts.Namespace, podName, key, pod.Spec.NodeSelector)
 }
 
 func verifyNetworkPolicies(t *testing.T, cluster *terrak8s.KubectlOptions) {

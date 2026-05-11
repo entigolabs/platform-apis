@@ -6,6 +6,7 @@ spec:
   granularNamespaceNetworkPolicy: true
   namespaces:
     - name: b1
+      pool: default-a
     - name: b2
   pools:
     - name: default-a
