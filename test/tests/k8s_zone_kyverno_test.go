@@ -311,10 +311,10 @@ func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.Kubectl
 	})
 	t.Run("pass: ConfigMap allowed in apps namespace", func(t *testing.T) {
 		t.Parallel()
-		out, err := kyvernoApply(t, cluster, configMapYAML(t, kyvernoConfigMapData{
+		_, err := kyvernoApply(t, cluster, configMapYAML(t, kyvernoConfigMapData{
 			Name: "kyverno-apps-cm-allow", Namespace: KyvernoTestAppsNSName,
 		}))
-		assertKyvernoDenied(t, out, err)
+		assertKyvernoAllowed(t, err)
 	})
 	t.Run("pass: Role allowed in apps namespace", func(t *testing.T) {
 		t.Parallel()
