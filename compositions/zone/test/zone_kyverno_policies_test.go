@@ -318,9 +318,9 @@ func testAppsNamespaceRestriction(t *testing.T) {
 		scenario kyverno.TestScenario
 	}{
 		{
-			name: "fail: ConfigMap denied in restricted namespace",
+			name: "pass: ConfigMap allowed in restricted namespace",
 			scenario: kyverno.TestScenario{
-				ExpectedAction: "fail",
+				ExpectedAction: "pass",
 				ResourceYAML:   kyverno.GenerateConfigMap("my-cm", restrictedNs),
 				VariablesYAML:  restrictedLabels,
 			},
@@ -355,6 +355,19 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get"]`,
+				VariablesYAML: restrictedLabels,
+			},
+		},
+		{
+			name: "pass: ServiceAccount allowed in restricted namespace",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: `
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: apps-ns`,
 				VariablesYAML: restrictedLabels,
 			},
 		},

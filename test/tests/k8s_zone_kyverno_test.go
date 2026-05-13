@@ -302,10 +302,17 @@ func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.Kubectl
 	})
 	appsNS := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestAppsNSName)
 
-	t.Run("fail: ConfigMap denied in apps namespace", func(t *testing.T) {
+	t.Run("fail: Repository denied in apps namespace", func(t *testing.T) {
+		t.Parallel()
+		out, err := kyvernoApply(t, cluster, repositoryYAML(t, kyvernoRepositoryData{
+			Name: "kyverno-repo-deny", Namespace: KyvernoTestAppsNSName,
+		}))
+		assertKyvernoDenied(t, out, err)
+	})
+	t.Run("pass: ConfigMap allowed in apps namespace", func(t *testing.T) {
 		t.Parallel()
 		out, err := kyvernoApply(t, cluster, configMapYAML(t, kyvernoConfigMapData{
-			Name: "kyverno-apps-cm-deny", Namespace: KyvernoTestAppsNSName,
+			Name: "kyverno-apps-cm-allow", Namespace: KyvernoTestAppsNSName,
 		}))
 		assertKyvernoDenied(t, out, err)
 	})
