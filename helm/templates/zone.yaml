@@ -974,23 +974,18 @@ spec:
         resources: [ "*" ]
         scope: Namespaced
   matchConditions:
-    - name: not-argocd-app
+    - name: not-allowed-resource
       expression: |
         !(
-          (
-            object.apiVersion.startsWith('argoproj.io/') &&
-            (object.kind == 'Application' || object.kind == 'ApplicationSet')
-          ) ||
-          (
-            object.apiVersion.startsWith('rbac.authorization.k8s.io/') &&
-            (object.kind == 'Role' || object.kind == 'RoleBinding')
-          )
+          (object.apiVersion.startsWith('argoproj.io/') && object.kind in ['Application', 'ApplicationSet']) ||
+          (object.apiVersion.startsWith('rbac.authorization.k8s.io/') && object.kind in ['Role', 'RoleBinding']) ||
+          (object.apiVersion == 'v1' && object.kind in ['ConfigMap', 'Secret', 'ServiceAccount'])
         )
   validations:
     - expression: "false"
       messageExpression: |
         "Namespace " + string(object.metadata.namespace) +
-        " is restricted to ArgoCD Application and ApplicationSet resources. " +
+        " is restricted to ArgoCD Applications/ApplicationSets, ConfigMaps and Secrets. " +
         "Resource of kind '" + object.kind + "' is not permitted."
 {{- end }}
 {{- end }}
