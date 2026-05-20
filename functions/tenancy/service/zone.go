@@ -605,12 +605,15 @@ func (g zoneGenerator) getClusterRoleBinding(role string) client.Object {
 }
 
 func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Object {
-	var patchValue string
+	var key, value string
 	if pool != "" {
-		patchValue = fmt.Sprintf(`"tenancy.entigo.com/zone-pool": "%s-%s"`, g.zone.Name, pool)
+		key = "tenancy.entigo.com/zone-pool"
+		value = fmt.Sprintf("%s-%s", g.zone.Name, pool)
 	} else {
-		patchValue = fmt.Sprintf(`"tenancy.entigo.com/zone": "%s"`, g.zone.Name)
+		key = "tenancy.entigo.com/zone"
+		value = g.zone.Name
 	}
+	escapedKey := strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
 	return &policyv1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
@@ -654,14 +657,23 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Obje
 				{
 					PatchType: admissionregistrationv1alpha1.PatchTypeJSONPatch,
 					JSONPatch: &admissionregistrationv1alpha1.JSONPatch{
-						Expression: `!has(object.spec.nodeSelector) || size(object.spec.nodeSelector) == 0 ?
+						Expression: fmt.Sprintf(`!has(object.spec.nodeSelector) ?
 [
   JSONPatch{
     op: "add",
     path: "/spec/nodeSelector",
-    value: {` + patchValue + `}
+    value: {"%s": "%s"}
   }
-] : []`,
+] : (
+  "%s" in object.spec.nodeSelector ? [] :
+  [
+    JSONPatch{
+      op: "add",
+      path: "/spec/nodeSelector/%s",
+      value: "%s"
+    }
+  ]
+)`, key, value, key, escapedKey, value),
 					},
 				},
 			},
