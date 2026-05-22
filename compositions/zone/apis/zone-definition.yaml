@@ -93,6 +93,7 @@ spec:
                               type: string
                               description: Requirement key
                               enum:
+                                - ami-type
                                 - instance-type
                                 - capacity-type
                                 - zone
