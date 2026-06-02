@@ -167,11 +167,11 @@ functions:
   function-go-templating:
     install: true
     image: xpkg.upbound.io/crossplane-contrib/function-go-templating
-    tag: v0.12.0
+    tag: v0.12.1
   function-auto-ready:
     install: true
     image: xpkg.upbound.io/crossplane-contrib/function-auto-ready
-    tag: v0.6.4
+    tag: v0.6.5
   function-sequencer:
     install: false
     image: xpkg.upbound.io/crossplane-contrib/function-sequencer
@@ -179,7 +179,7 @@ functions:
   function-patch-and-transform:
     install: false
     image: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
-    tag: v0.10.4
+    tag: v0.10.6
   function-extra-resources:
     install: false
     image: xpkg.upbound.io/crossplane-contrib/function-extra-resources
