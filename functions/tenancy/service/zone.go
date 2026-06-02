@@ -1104,6 +1104,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 	var capacityType = "ON_DEMAND"
 	var minSize float64 = 1
 	var maxSize float64 = -1
+	var amiType *string
 
 	for _, requirement := range pool.Requirements {
 		switch requirement.Key {
@@ -1125,6 +1126,9 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 				return "", nil, err
 			}
 			maxSize = val
+		case "ami-type":
+			value := requirement.Value.String()
+			amiType = &value
 		}
 	}
 
@@ -1194,6 +1198,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 				Version:       g.cluster.Status.AtProvider.Version,
 				Region:        g.vpc.Status.AtProvider.Region,
 				UpdateConfig:  []eksv1beta1.UpdateConfigParameters{{MaxUnavailable: base.Float64Ptr(1)}},
+				AMIType:       amiType,
 				InstanceTypes: toInstanceTypePointers(instanceTypes),
 				SubnetIds:     subnetIds,
 				Labels:        eksLabels,
