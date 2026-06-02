@@ -16,6 +16,8 @@ spec:
             - t3.large
         - key: capacity-type
           value: ON_DEMAND
+        - key: ami-type
+          value: AL2023_x86_64_STANDARD
         - key: min-size
           value: 1
         - key: max-size
@@ -27,7 +29,9 @@ spec:
       requirements:
         - key: instance-type
           values:
-            - t3.large
+            - t4g.large
+        - key: ami-type
+          value: AL2023_ARM_64_STANDARD
         - key: capacity-type
           value: ON_DEMAND
         - key: min-size
