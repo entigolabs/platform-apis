@@ -1139,7 +1139,7 @@ func (g zoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2v1b
 		return "", nil, nil
 	}
 
-	hash := GetInstanceTypesHash(instanceTypes)
+	hash := GetInstanceTypesHash(instanceTypes, capacityType)
 	name := fmt.Sprintf("%s-%s", zonePool, hash)
 
 	var subnetIds []*string
@@ -1444,7 +1444,7 @@ func getSubnetsBlocks(subnets []*ec2v1beta1.Subnet) []networkingv1.NetworkPolicy
 	return blocks
 }
 
-func GetInstanceTypesHash(instanceTypes []string) string {
-	hash := sha256.Sum256([]byte(strings.Join(instanceTypes, "-")))
+func GetInstanceTypesHash(instanceTypes []string, capacityType string) string {
+	hash := sha256.Sum256([]byte(strings.Join(instanceTypes, "-") + "-" + capacityType))
 	return hex.EncodeToString(hash[:])[:8]
 }
