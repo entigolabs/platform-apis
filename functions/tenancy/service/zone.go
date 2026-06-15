@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -57,6 +58,22 @@ const (
 )
 
 var supportedIngressClasses = base.NewSet("service", "external", "alb")
+
+const albActionAnnotationPrefix = "alb.ingress.kubernetes.io/actions."
+
+type albAction struct {
+	Type          string            `json:"type"`
+	ForwardConfig *albForwardConfig `json:"forwardConfig"`
+}
+
+type albForwardConfig struct {
+	TargetGroups []albTargetGroup `json:"targetGroups"`
+}
+
+type albTargetGroup struct {
+	ServiceName string          `json:"serviceName"`
+	ServicePort json.RawMessage `json:"servicePort"`
+}
 
 type zoneGenerator struct {
 	// Inputs
@@ -1346,7 +1363,6 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object
 	serviceBlocks := getSubnetsBlocks(g.serviceSubnets)
 	publicBlocks := getSubnetsBlocks(g.publicSubnets)
 	controlBlocks := getSubnetsBlocks(g.controlSubnets)
-	protocol := corev1.ProtocolTCP
 	objs := make(map[string]client.Object)
 	for _, ns := range g.uqNamespaces {
 		if ns == "" {
@@ -1361,74 +1377,133 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object
 			return nil, err
 		}
 		for _, ingress := range ingresses {
-			if ingress.Spec.Rules == nil || ingress.Spec.IngressClassName == nil ||
+			if ingress.Spec.IngressClassName == nil ||
 				!supportedIngressClasses.Contains(*ingress.Spec.IngressClassName) {
 				continue
+			}
+			var blocks []networkingv1.NetworkPolicyPeer
+			switch *ingress.Spec.IngressClassName {
+			case "service":
+				blocks = serviceBlocks
+			case "external":
+				blocks = publicBlocks
+			case "alb":
+				blocks = controlBlocks
 			}
 			for _, rule := range ingress.Spec.Rules {
 				if rule.HTTP == nil {
 					continue
 				}
 				for _, path := range rule.HTTP.Paths {
-					var targetPort *intstr.IntOrString
-					serviceName := path.Backend.Service.Name
-					var service corev1.Service
-					for _, svc := range services {
-						if svc.Name != serviceName {
-							continue
-						}
-						service = *svc
-						for _, port := range svc.Spec.Ports {
-							if path.Backend.Service.Port.Name != "" && port.Name == path.Backend.Service.Port.Name ||
-								path.Backend.Service.Port.Number != 0 && port.Port == path.Backend.Service.Port.Number {
-								targetPort = &port.TargetPort
-								break
-							}
-						}
-					}
-					if service.Name == "" || targetPort == nil {
+					addTargetNetworkPolicy(objs, ns, ingress.Name, path.Backend.Service.Name,
+						path.Backend.Service.Port.Name, path.Backend.Service.Port.Number, services, blocks)
+				}
+			}
+			if *ingress.Spec.IngressClassName == "alb" {
+				for _, tg := range collectAlbActionTargetGroups(ingress.Annotations) {
+					portName, portNumber, ok := parseAlbServicePort(tg.ServicePort)
+					if !ok {
 						continue
 					}
-					matchLabels := make(map[string]string)
-					for key, value := range service.Spec.Selector {
-						matchLabels[key] = value
-					}
-					var blocks []networkingv1.NetworkPolicyPeer
-					switch *ingress.Spec.IngressClassName {
-					case "service":
-						blocks = serviceBlocks
-					case "external":
-						blocks = publicBlocks
-					case "alb":
-						// TODO Improved ALB support based on annotations
-						blocks = controlBlocks
-					}
-					objs[GetTargetNetworkPolicyKey(ns, ingress.Name, serviceName, *targetPort)] = &networkingv1.NetworkPolicy{
-						TypeMeta: metav1.TypeMeta{
-							APIVersion: "networking.k8s.io/v1",
-							Kind:       "NetworkPolicy",
-						},
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      fmt.Sprintf("%s-%s-%s", ingress.Name, serviceName, targetPort.String()),
-							Namespace: ns,
-						},
-						Spec: networkingv1.NetworkPolicySpec{
-							PodSelector: metav1.LabelSelector{MatchLabels: matchLabels},
-							PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress},
-							Ingress: []networkingv1.NetworkPolicyIngressRule{{
-								From: blocks,
-								Ports: []networkingv1.NetworkPolicyPort{{
-									Protocol: &protocol,
-									Port:     targetPort,
-								}},
-							}},
-						},
-					}
+					addTargetNetworkPolicy(objs, ns, ingress.Name, tg.ServiceName,
+						portName, portNumber, services, blocks)
 				}
 			}
 		}
 	}
 	return objs, nil
+}
+
+func addTargetNetworkPolicy(objs map[string]client.Object, ns, ingressName, serviceName string,
+	portName string, portNumber int32, services []*corev1.Service, blocks []networkingv1.NetworkPolicyPeer) {
+	if serviceName == "" {
+		return
+	}
+	var service *corev1.Service
+	var targetPort *intstr.IntOrString
+	for _, svc := range services {
+		if svc.Name != serviceName {
+			continue
+		}
+		service = svc
+		for _, port := range svc.Spec.Ports {
+			if portName != "" && port.Name == portName ||
+				portNumber != 0 && port.Port == portNumber {
+				tp := port.TargetPort
+				targetPort = &tp
+				break
+			}
+		}
+		break
+	}
+	if service == nil || targetPort == nil {
+		return
+	}
+	matchLabels := make(map[string]string)
+	for key, value := range service.Spec.Selector {
+		matchLabels[key] = value
+	}
+	protocol := corev1.ProtocolTCP
+	objs[GetTargetNetworkPolicyKey(ns, ingressName, serviceName, *targetPort)] = &networkingv1.NetworkPolicy{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "NetworkPolicy",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%s-%s", ingressName, serviceName, targetPort.String()),
+			Namespace: ns,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{MatchLabels: matchLabels},
+			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{{
+				From: blocks,
+				Ports: []networkingv1.NetworkPolicyPort{{
+					Protocol: &protocol,
+					Port:     targetPort,
+				}},
+			}},
+		},
+	}
+}
+
+func collectAlbActionTargetGroups(annotations map[string]string) []albTargetGroup {
+	var tgs []albTargetGroup
+	for key, value := range annotations {
+		if !strings.HasPrefix(key, albActionAnnotationPrefix) {
+			continue
+		}
+		var action albAction
+		if err := json.Unmarshal([]byte(value), &action); err != nil {
+			continue
+		}
+		if action.Type != "forward" || action.ForwardConfig == nil {
+			continue
+		}
+		tgs = append(tgs, action.ForwardConfig.TargetGroups...)
+	}
+	return tgs
+}
+
+func parseAlbServicePort(raw json.RawMessage) (string, int32, bool) {
+	if len(raw) == 0 {
+		return "", 0, false
+	}
+	var n int32
+	if err := json.Unmarshal(raw, &n); err == nil {
+		return "", n, true
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return "", 0, false
+	}
+	if s == "" {
+		return "", 0, false
+	}
+	if n, err := strconv.Atoi(s); err == nil {
+		return "", int32(n), true
+	}
+	return s, 0, true
 }
 
 func getSubnetsBlocks(subnets []*ec2v1beta1.Subnet) []networkingv1.NetworkPolicyPeer {

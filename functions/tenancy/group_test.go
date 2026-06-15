@@ -62,6 +62,17 @@ const (
         "metadata":{"name":"test-ingress","namespace":"test-app-ns"},
         "spec":{"ingressClassName":"service","rules":[{"host":"example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"test-service","port":{"number":8080}}}}]}}]}
     }`
+	requiredAlbIngressJson = `{
+        "apiVersion":"networking.k8s.io/v1","kind":"Ingress",
+        "metadata":{
+            "name":"test-alb-ingress","namespace":"test-app-ns",
+            "annotations":{
+                "alb.ingress.kubernetes.io/actions.deny-access":"{\"type\":\"fixed-response\",\"fixedResponseConfig\":{\"contentType\":\"text/plain\",\"statusCode\":\"403\",\"messageBody\":\"Forbidden\"}}",
+                "alb.ingress.kubernetes.io/actions.my-service":"{\"type\":\"forward\",\"forwardConfig\":{\"targetGroups\":[{\"serviceName\":\"test-service\",\"servicePort\":\"8080\",\"weight\":100}]}}"
+            }
+        },
+        "spec":{"ingressClassName":"alb"}
+    }`
 	requiredServiceJson = `{
         "apiVersion": "v1", "kind": "Service",
         "metadata": { "name": "test-service", "namespace": "test-app-ns"},
@@ -84,6 +95,7 @@ const (
 	networkPolicyJson           = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-zone","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"tenancy.entigo.com/zone":"test-zone"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}`
 	extNetworkPolicyJson        = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-zone","namespace":"test-app-ext-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"tenancy.entigo.com/zone":"test-zone"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}`
 	targetNetworkPolicyJson     = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.1"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}`
+	targetAlbNetworkPolicyJson  = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-alb-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.3"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}`
 	rbMaintainerJson            = `{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-maintainer","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-maintainer"}]}`
 	extRBMaintainerJson         = `{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-maintainer","namespace":"test-app-ext-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ext-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-maintainer"}]}`
 	roleJson                    = `{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone"},"spec":{"forProvider":{"assumeRolePolicy":"{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"ec2.amazonaws.com\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}","tags":{"entigo:zone":"test-zone","tenancy.entigo.com/zone":"test-zone"}},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}`
@@ -218,6 +230,7 @@ func TestZoneFunction(t *testing.T) {
 	appsNsName := "test-zone-apps"
 	poolName := "default"
 	targetNetworkPolicyKey := service.GetTargetNetworkPolicyKey(nsName, "test-ingress", "test-service", intstr.FromInt32(8081))
+	targetAlbNetworkPolicyKey := service.GetTargetNetworkPolicyKey(nsName, "test-alb-ingress", "test-service", intstr.FromInt32(8081))
 	nodeGroupHash := service.GetInstanceTypesHash([]string{"t3.large"}, "ON_DEMAND")
 
 	requiredResources := map[string]*fnv1.Resources{
@@ -231,7 +244,7 @@ func TestZoneFunction(t *testing.T) {
 		service.ServiceSubnetsKey:      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetAJson)}}},
 		service.PublicSubnetsKey:       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetBJson)}}},
 		service.ControlSubnetsKey:      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetCJson)}}},
-		nsName + service.IngressKey:    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredIngressJson)}}},
+		nsName + service.IngressKey:    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredIngressJson)}, {Resource: resource.MustStructJSON(requiredAlbIngressJson)}}},
 		nsName + service.ServiceKey:    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredServiceJson)}}},
 		extNsName + service.IngressKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredExtIngressJson)}}},
 		extNsName + service.ServiceKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredExtServiceJson)}}},
@@ -326,6 +339,7 @@ func TestZoneFunction(t *testing.T) {
 							service.GetNetworkPolicyKey(zoneName, nsName):           {Resource: resource.MustStructJSON(networkPolicyJson)},
 							service.GetNetworkPolicyKey(zoneName, extNsName):        {Resource: resource.MustStructJSON(extNetworkPolicyJson)},
 							targetNetworkPolicyKey:                                  {Resource: resource.MustStructJSON(targetNetworkPolicyJson)},
+							targetAlbNetworkPolicyKey:                               {Resource: resource.MustStructJSON(targetAlbNetworkPolicyJson)},
 							service.GetRoleKey(zoneName):                            {Resource: resource.MustStructJSON(roleJson)},
 						},
 					},
@@ -352,6 +366,7 @@ func TestZoneFunction(t *testing.T) {
 							service.GetNetworkPolicyKey(zoneName, nsName):           withReadyStatus(networkPolicyJson),
 							service.GetNetworkPolicyKey(zoneName, extNsName):        withReadyStatus(extNetworkPolicyJson),
 							targetNetworkPolicyKey:                                  withReadyStatus(targetNetworkPolicyJson),
+							targetAlbNetworkPolicyKey:                               withReadyStatus(targetAlbNetworkPolicyJson),
 							service.GetRoleKey(zoneName):                            withReadyStatus(roleJson),
 						},
 					},
@@ -368,6 +383,7 @@ func TestZoneFunction(t *testing.T) {
 							service.GetNetworkPolicyKey(zoneName, nsName):                       {Resource: resource.MustStructJSON(networkPolicyJson), Ready: 1},
 							service.GetNetworkPolicyKey(zoneName, extNsName):                    {Resource: resource.MustStructJSON(extNetworkPolicyJson), Ready: 1},
 							targetNetworkPolicyKey:                                              {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
+							targetAlbNetworkPolicyKey:                                           {Resource: resource.MustStructJSON(targetAlbNetworkPolicyJson), Ready: 1},
 							service.GetRoleKey(zoneName):                                        {Resource: resource.MustStructJSON(roleJson), Ready: 1},
 							service.GetAppProjectKey(zoneName):                                  {Resource: resource.MustStructJSON(appProjectJson), Ready: 1},
 							service.GetMutatingPolicyKey(zoneName, nsName):                      {Resource: resource.MustStructJSON(mutatingPolicyJson), Ready: 1},
@@ -411,6 +427,7 @@ func TestZoneFunction(t *testing.T) {
 							service.GetNetworkPolicyKey(zoneName, nsName):                       withReadyStatus(networkPolicyJson),
 							service.GetNetworkPolicyKey(zoneName, extNsName):                    withReadyStatus(extNetworkPolicyJson),
 							targetNetworkPolicyKey:                                              withReadyStatus(targetNetworkPolicyJson),
+							targetAlbNetworkPolicyKey:                                           withReadyStatus(targetAlbNetworkPolicyJson),
 							service.GetRoleKey(zoneName):                                        withReadyStatus(roleJson),
 							service.GetRoleWNAttachmentKey(zoneName):                            withReadyStatus(roleWNAttachmentJson),
 							service.GetRoleECRProxyAttachmentKey(zoneName):                      withReadyStatus(roleECRProxyAttachmentJson),
@@ -437,6 +454,7 @@ func TestZoneFunction(t *testing.T) {
 							service.GetNetworkPolicyKey(zoneName, nsName):                       {Resource: resource.MustStructJSON(networkPolicyJson), Ready: 1},
 							service.GetNetworkPolicyKey(zoneName, extNsName):                    {Resource: resource.MustStructJSON(extNetworkPolicyJson), Ready: 1},
 							targetNetworkPolicyKey:                                              {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
+							targetAlbNetworkPolicyKey:                                           {Resource: resource.MustStructJSON(targetAlbNetworkPolicyJson), Ready: 1},
 							service.GetRoleKey(zoneName):                                        {Resource: resource.MustStructJSON(roleJson), Ready: 1},
 							service.GetAppProjectKey(zoneName):                                  {Resource: resource.MustStructJSON(appProjectJson), Ready: 1},
 							service.GetMutatingPolicyKey(zoneName, nsName):                      {Resource: resource.MustStructJSON(mutatingPolicyJson), Ready: 1},
@@ -488,6 +506,7 @@ func TestZoneFunction(t *testing.T) {
 							service.GetNetworkPolicyKey(zoneName, nsName):                       withReadyStatus(networkPolicyJson),
 							service.GetNetworkPolicyKey(zoneName, extNsName):                    withReadyStatus(extNetworkPolicyJson),
 							targetNetworkPolicyKey:                                              withReadyStatus(targetNetworkPolicyJson),
+							targetAlbNetworkPolicyKey:                                           withReadyStatus(targetAlbNetworkPolicyJson),
 							service.GetRoleKey(zoneName):                                        withReadyStatus(roleJson),
 							service.GetRoleWNAttachmentKey(zoneName):                            withReadyStatus(roleWNAttachmentJson),
 							service.GetRoleECRProxyAttachmentKey(zoneName):                      withReadyStatus(roleECRProxyAttachmentJson),
@@ -528,7 +547,8 @@ func TestZoneFunction(t *testing.T) {
 							service.GetNetworkPolicyKey(zoneName, extNsName): {Resource: resource.MustStructJSON(`
 {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-zone","namespace":"test-app-ext-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"test-app-ext-ns"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}
 `), Ready: 1},
-							targetNetworkPolicyKey: {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
+							targetNetworkPolicyKey:    {Resource: resource.MustStructJSON(targetNetworkPolicyJson), Ready: 1},
+							targetAlbNetworkPolicyKey: {Resource: resource.MustStructJSON(targetAlbNetworkPolicyJson), Ready: 1},
 							service.GetRoleKey(zoneName): {Resource: resource.MustStructJSON(`
 {"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone"},"spec":{"forProvider":{"assumeRolePolicy":"{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"ec2.amazonaws.com\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}","tags":{"entigo:zone":"test-zone","env":"test-environment","tenancy.entigo.com/zone":"test-zone"}},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
 							`), Ready: 1},
@@ -592,6 +612,7 @@ func TestZoneFunction(t *testing.T) {
 							service.GetNetworkPolicyKey(zoneName, nsName):                       withReadyStatus(networkPolicyJson),
 							service.GetNetworkPolicyKey(zoneName, extNsName):                    withReadyStatus(extNetworkPolicyJson),
 							targetNetworkPolicyKey:                                              withReadyStatus(targetNetworkPolicyJson),
+							targetAlbNetworkPolicyKey:                                           withReadyStatus(targetAlbNetworkPolicyJson),
 							service.GetRoleKey(zoneName):                                        withReadyStatus(roleJson),
 							service.GetRoleWNAttachmentKey(zoneName):                            withReadyStatus(roleWNAttachmentJson),
 							service.GetRoleECRProxyAttachmentKey(zoneName):                      withReadyStatus(roleECRProxyAttachmentJson),
@@ -627,6 +648,9 @@ func TestZoneFunction(t *testing.T) {
 									`), Ready: 1},
 							targetNetworkPolicyKey: {Resource: resource.MustStructJSON(`
 		{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.1"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}
+									`), Ready: 1},
+							targetAlbNetworkPolicyKey: {Resource: resource.MustStructJSON(`
+		{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-alb-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.3"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}
 									`), Ready: 1},
 							service.GetRoleKey(zoneName): {Resource: resource.MustStructJSON(`
 		{"apiVersion":"iam.aws.upbound.io/v1beta1","kind":"Role","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-zone"},"spec":{"forProvider":{"assumeRolePolicy":"{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"ec2.amazonaws.com\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}","tags":{"bar":"foo","entigo:zone":"test-zone","foo":"bar","tenancy.entigo.com/zone":"test-zone"}},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"name":"aws-provider"}},"status":{"atProvider":{}}}
