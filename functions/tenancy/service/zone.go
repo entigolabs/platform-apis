@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
@@ -71,11 +72,12 @@ type albForwardConfig struct {
 }
 
 type albTargetGroup struct {
-	ServiceName string          `json:"serviceName"`
-	ServicePort json.RawMessage `json:"servicePort"`
+	ServiceName string             `json:"serviceName"`
+	ServicePort intstr.IntOrString `json:"servicePort"`
 }
 
 type zoneGenerator struct {
+	log logging.Logger
 	// Inputs
 	zone     v1alpha1.Zone
 	observed map[resource.Name]resource.ObservedComposed
@@ -103,6 +105,7 @@ func GenerateZoneObjects(
 	zone v1alpha1.Zone,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
+	log logging.Logger,
 ) (map[string]client.Object, error) {
 	env, err := GetEnvironment(required)
 	if err != nil {
@@ -150,6 +153,7 @@ func GenerateZoneObjects(
 	maps.Copy(tags, env.Tags)
 	tags[base.TenancyZoneLabel] = &zone.Name
 	generator := zoneGenerator{
+		log:            log,
 		zone:           zone,
 		observed:       observed,
 		required:       required,
@@ -1400,8 +1404,8 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object
 				}
 			}
 			if *ingress.Spec.IngressClassName == "alb" {
-				for _, tg := range collectAlbActionTargetGroups(ingress.Annotations) {
-					portName, portNumber, ok := parseAlbServicePort(tg.ServicePort)
+				for _, tg := range g.collectAlbActionTargetGroups(ingress) {
+					portName, portNumber, ok := albServicePortRef(tg.ServicePort)
 					if !ok {
 						continue
 					}
@@ -1467,43 +1471,41 @@ func addTargetNetworkPolicy(objs map[string]client.Object, ns, ingressName, serv
 	}
 }
 
-func collectAlbActionTargetGroups(annotations map[string]string) []albTargetGroup {
+func (g zoneGenerator) collectAlbActionTargetGroups(ingress *networkingv1.Ingress) []albTargetGroup {
 	var tgs []albTargetGroup
-	for key, value := range annotations {
+	for key, value := range ingress.Annotations {
 		if !strings.HasPrefix(key, albActionAnnotationPrefix) {
 			continue
 		}
 		var action albAction
 		if err := json.Unmarshal([]byte(value), &action); err != nil {
+			g.log.Debug("Failed to parse ALB action annotation", "ingress", ingress.Name, "key", key, "error", err)
 			continue
 		}
 		if action.Type != "forward" || action.ForwardConfig == nil {
 			continue
 		}
-		tgs = append(tgs, action.ForwardConfig.TargetGroups...)
+		for _, tg := range action.ForwardConfig.TargetGroups {
+			if tg.ServiceName == "" {
+				continue
+			}
+			tgs = append(tgs, tg)
+		}
 	}
 	return tgs
 }
 
-func parseAlbServicePort(raw json.RawMessage) (string, int32, bool) {
-	if len(raw) == 0 {
+func albServicePortRef(p intstr.IntOrString) (name string, number int32, ok bool) {
+	if p.Type == intstr.Int {
+		return "", p.IntVal, p.IntVal != 0
+	}
+	if p.StrVal == "" {
 		return "", 0, false
 	}
-	var n int32
-	if err := json.Unmarshal(raw, &n); err == nil {
-		return "", n, true
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return "", 0, false
-	}
-	if s == "" {
-		return "", 0, false
-	}
-	if n, err := strconv.Atoi(s); err == nil {
+	if n, err := strconv.Atoi(p.StrVal); err == nil {
 		return "", int32(n), true
 	}
-	return s, 0, true
+	return p.StrVal, 0, true
 }
 
 func getSubnetsBlocks(subnets []*ec2v1beta1.Subnet) []networkingv1.NetworkPolicyPeer {

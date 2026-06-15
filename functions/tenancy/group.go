@@ -45,7 +45,7 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 }
 
 func (g *GroupImpl) generateZone(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
-	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed)
+	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed, g.log)
 }
 
 func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
