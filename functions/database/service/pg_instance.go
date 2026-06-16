@@ -21,6 +21,7 @@ import (
 	rdsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/rds/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -322,10 +323,6 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 	rdsInstances := make(map[string]client.Object)
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
-	finalSnapshotIdentifier := string(g.names.rdsInstanceFinalSnapshot)
-	if observedRDSInstance, ok := g.observed[g.names.rdsInstance]; ok {
-		finalSnapshotIdentifier += getInstanceCreationTimestampSuffix(observedRDSInstance.Resource)
-	}
 	region := g.vpc.Spec.ForProvider.Region
 	var availabilityZone *string
 	if !g.pgInstance.Spec.MultiAZ {
@@ -346,6 +343,14 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 		backupRetentionPeriod = g.env.BackupRetentionPeriod
 	}
 
+	applyImmediately := false
+	finalSnapshotIdentifier := string(g.names.rdsInstanceFinalSnapshot)
+
+	if observedRDSInstance, ok := g.observed[g.names.rdsInstance]; ok {
+		finalSnapshotIdentifier += getInstanceCreationTimestampSuffix(observedRDSInstance.Resource)
+		applyImmediately = rdsNeedsApplyImmediately(observedRDSInstance, g.pgInstance.Spec)
+	}
+
 	rdsInstance := &rdsmv1beta1.Instance{
 		TypeMeta:   metav1.TypeMeta{Kind: "Instance", APIVersion: rdsApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: rdsInstanceName, Namespace: g.pgInstance.Namespace},
@@ -355,6 +360,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 			},
 			ForProvider: rdsmv1beta1.InstanceParameters{
 				AllocatedStorage:            &g.pgInstance.Spec.AllocatedStorage,
+				ApplyImmediately:            &applyImmediately,
 				AllowMajorVersionUpgrade:    &g.pgInstance.Spec.AllowMajorVersionUpgrade,
 				AutoMinorVersionUpgrade:     &g.pgInstance.Spec.AutoMinorVersionUpgrade,
 				AvailabilityZone:            availabilityZone,
@@ -652,4 +658,24 @@ func GetRDSInstanceReadyStatus(observed *composed.Unstructured) resource.Ready {
 		return resource.ReadyFalse
 	}
 	return base.GetCrossplaneReadyStatus(observed)
+}
+
+func rdsNeedsApplyImmediately(observed resource.ObservedComposed, spec v1alpha1.PostgreSQLInstanceSpec) bool {
+	var observedInstance rdsmv1beta1.Instance
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(observed.Resource.Object, &observedInstance); err != nil {
+		return false
+	}
+
+	atProvider := observedInstance.Status.AtProvider
+	return paramChanged(atProvider.AllocatedStorage, spec.AllocatedStorage) ||
+		paramChanged(atProvider.EngineVersion, spec.EngineVersion) ||
+		paramChanged(atProvider.InstanceClass, spec.InstanceType) ||
+		(spec.Iops != 0 && paramChanged(atProvider.Iops, spec.Iops)) ||
+		(atProvider.MultiAz != nil && *atProvider.MultiAz) != spec.MultiAZ ||
+		(spec.MaintenanceWindow != "" && paramChanged(atProvider.MaintenanceWindow, spec.MaintenanceWindow)) ||
+		(spec.ParameterGroupName != "" && paramChanged(atProvider.ParameterGroupName, spec.ParameterGroupName))
+}
+
+func paramChanged[T comparable](observed *T, desired T) bool {
+	return observed != nil && *observed != desired
 }
