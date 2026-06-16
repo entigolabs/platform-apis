@@ -396,6 +396,9 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 	if g.pgInstance.Spec.MaintenanceWindow != "" {
 		rdsInstance.Spec.ForProvider.MaintenanceWindow = &g.pgInstance.Spec.MaintenanceWindow
 	}
+	if g.pgInstance.Spec.Iops != 0 {
+		rdsInstance.Spec.ForProvider.Iops = &g.pgInstance.Spec.Iops
+	}
 	if g.pgInstance.Spec.ParameterGroupName != "" {
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.pgInstance.Spec.ParameterGroupName
 	}
