@@ -327,7 +327,11 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 		finalSnapshotIdentifier += getInstanceCreationTimestampSuffix(observedRDSInstance.Resource)
 	}
 	region := g.vpc.Spec.ForProvider.Region
-	availabilityZone := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a"))
+	var availabilityZone *string
+	if !g.pgInstance.Spec.MultiAZ {
+		az := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a"))
+		availabilityZone = &az
+	}
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 
@@ -353,7 +357,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 				AllocatedStorage:            &g.pgInstance.Spec.AllocatedStorage,
 				AllowMajorVersionUpgrade:    &g.pgInstance.Spec.AllowMajorVersionUpgrade,
 				AutoMinorVersionUpgrade:     &g.pgInstance.Spec.AutoMinorVersionUpgrade,
-				AvailabilityZone:            &availabilityZone,
+				AvailabilityZone:            availabilityZone,
 				BackupRetentionPeriod:       backupRetentionPeriod,
 				DBName:                      &dbName,
 				DBSubnetGroupNameRef:        &xpv2v1.NamespacedReference{Name: g.subnetGroup.Name, Namespace: g.subnetGroup.Namespace},
