@@ -4,7 +4,7 @@ metadata:
   name: postgresql-instance-test
 spec:
   allocatedStorage: 20
-  engineVersion: "17.2"
+  engineVersion: "17.10"
   instanceType: db.t3.micro
   allowMajorVersionUpgrade: false
   autoMinorVersionUpgrade: true

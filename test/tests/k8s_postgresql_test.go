@@ -87,7 +87,7 @@ func testInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 
 	// RDS fields must reflect what was specified on the composite
 	require.Equal(t, "20", getField(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.allocatedStorage"))
-	require.Equal(t, "17.2", getField(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.engineVersion"))
+	require.Equal(t, "17.10", getField(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.engineVersion"))
 	require.Equal(t, "db.t3.micro", getField(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.instanceClass"))
 	require.Equal(t, "false", getField(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.deletionProtection"))
 
@@ -107,7 +107,25 @@ func testInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.deletionProtection", "true", 30, 10*time.Second)
 	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, `{"spec":{"deletionProtection":false}}`)
 	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.deletionProtection", "false", 30, 10*time.Second)
+
+	/*t.Run("ApplyImmediately", func(t *testing.T) {
+		testApplyImmediately(t, pgNs, rdsName)
+	})*/
 }
+
+/*func testApplyImmediately(t *testing.T, pgNs *terrak8s.KubectlOptions, rdsName string) {
+		t.Helper()
+
+		patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, `{"spec":{"multiAZ":true}}`)
+		waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.applyImmediately", "true", 30, 10*time.Second)
+		waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.multiAz", "true", 120, 10*time.Second)
+		waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.applyImmediately", "false", 30, 10*time.Second)
+
+		patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, `{"spec":{"iops":5000}}`)
+		waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.applyImmediately", "true", 30, 10*time.Second)
+		waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.iops", "5000", 120, 10*time.Second)
+		waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.applyImmediately", "false", 30, 10*time.Second)
+}*/
 
 func waitSecurityGroupRulesReady(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	t.Helper()
