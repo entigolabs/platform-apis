@@ -196,6 +196,7 @@ func (g *valkeyInstanceGenerator) buildParameterGroup(objects map[string]client.
 				ProviderConfigReference: g.providerConfigRef(),
 			},
 			ForProvider: elasticachemv1beta1.ParameterGroupParameters{
+				Name:        &name,
 				Region:      &g.region,
 				Family:      &family,
 				Description: &description,
