@@ -80,6 +80,13 @@ spec:
                   description: |
                     Name of the parameter group to associate with this replication group.
                     If not specified, the default parameter group for the engine version is used.
+                parameterGroupParameters:
+                  additionalProperties:
+                    type: string
+                  type: object
+                  description: |
+                    Parameters for a custom, automatically generated parameter group.
+                    Key is the parameter name, value is parameter value.
               required:
                 - engineVersion
                 - instanceType

@@ -173,12 +173,14 @@ const (
 
 	// ── Valkey ────────────────────────────────────────────────────────────────
 
-	ValkeyNamespaceName   = "test-valkey"
-	ValkeyApplicationName = "test-valkey"
-	ValkeyCustomName      = "test-valkey-custom"
+	ValkeyNamespaceName      = "test-valkey"
+	ValkeyApplicationName    = "test-valkey"
+	ValkeyCustomName         = "test-valkey-custom"
+	ValkeyParameterGroupName = "test-valkey-parameter-group"
 
 	ValkeyInstanceKind         = "valkeyinstances.database.entigo.com"
 	ValkeyReplicationGroupKind = "replicationgroup.elasticache.aws.m.upbound.io"
+	ValkeyParameterGroupKind   = "parametergroup.elasticache.aws.m.upbound.io"
 
 	// ── WebApp ────────────────────────────────────────────────────────────────
 

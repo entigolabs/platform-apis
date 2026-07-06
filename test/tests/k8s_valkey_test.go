@@ -24,6 +24,7 @@ func testValkey(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Kub
 
 	t.Run("instances", func(t *testing.T) {
 		t.Run("CustomValkeyInstance", func(t *testing.T) { t.Parallel(); testCustomValkeyInstance(t, vkNs) })
+		t.Run("ParameterGroupValkeyInstance", func(t *testing.T) { t.Parallel(); testParameterGroupValkeyInstance(t, vkNs) })
 	})
 }
 
@@ -47,13 +48,36 @@ func testCustomValkeyInstance(t *testing.T, vkNs *terrak8s.KubectlOptions) {
 	require.Equal(t, "3", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.snapshotRetentionLimit"))
 }
 
+func testParameterGroupValkeyInstance(t *testing.T, vkNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	// Create
+	waitSyncedAndReady(t, vkNs, ValkeyInstanceKind, ValkeyParameterGroupName, 120, 10*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	rgName, err := getFirstByLabel(t, vkNs, ValkeyReplicationGroupKind, ValkeyParameterGroupName)
+	require.NoError(t, err)
+	require.NotEmpty(t, rgName)
+
+	pgName, err := getFirstByLabel(t, vkNs, ValkeyParameterGroupKind, ValkeyParameterGroupName)
+	require.NoError(t, err)
+	require.NotEmpty(t, pgName)
+
+	// Read: verify the generated ParameterGroup is attached and carries the requested parameter
+	require.Equal(t, pgName, getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName"))
+	require.Equal(t, "notify-keyspace-events", getField(t, vkNs, ValkeyParameterGroupKind, pgName, ".spec.forProvider.parameter[0].name"))
+	require.Equal(t, "Ex", getField(t, vkNs, ValkeyParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value"))
+}
+
 func cleanupValkey(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {
 		return
 	}
 	vkNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, ValkeyNamespaceName)
 
-	cleanupDeleteParallel(t, vkNs, ValkeyInstanceKind, ValkeyCustomName)
+	cleanupDeleteParallel(t, vkNs, ValkeyInstanceKind, ValkeyCustomName, ValkeyParameterGroupName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", ValkeyApplicationName, "--ignore-not-found")
 }

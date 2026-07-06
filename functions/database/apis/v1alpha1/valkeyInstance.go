@@ -38,8 +38,9 @@ type ValkeyInstanceSpec struct {
 	// +kubebuilder:default=7
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=35
-	SnapshotRetentionLimit float64 `json:"snapshotRetentionLimit,omitempty"`
-	ParameterGroupName     string  `json:"parameterGroupName,omitempty"`
+	SnapshotRetentionLimit   float64           `json:"snapshotRetentionLimit,omitempty"`
+	ParameterGroupName       string            `json:"parameterGroupName,omitempty"`
+	ParameterGroupParameters map[string]string `json:"parameterGroupParameters,omitempty"`
 }
 
 type ValkeyInstanceStatus struct {

@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"strings"
 
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
@@ -38,6 +40,7 @@ type valkeyInstanceGenerator struct {
 	instance v1alpha1.ValkeyInstance
 	observed map[resource.Name]resource.ObservedComposed
 	env      apis.Environment
+	hash     string
 	// Dependencies
 	vpc                    ec2mv1beta1.VPC
 	elasticacheSubnetGroup elasticachemv1beta1.SubnetGroup
@@ -45,11 +48,12 @@ type valkeyInstanceGenerator struct {
 	kmsConfigKey           kmsmv1beta1.Key
 	computeSubnets         []*ec2mv1beta1.Subnet
 	// Derived values
-	region          string
-	vpcID           string
-	subnetGroupName string
-	kmsDataKeyArn   string
-	kmsConfigKeyArn string
+	region             string
+	vpcID              string
+	subnetGroupName    string
+	kmsDataKeyArn      string
+	kmsConfigKeyArn    string
+	parameterGroupName string
 }
 
 func GenerateValkeyInstanceObjects(
@@ -103,6 +107,7 @@ func newValkeyInstanceGenerator(
 		instance:               instance,
 		observed:               observed,
 		env:                    env,
+		hash:                   base.GenerateFNVHash(instance.UID),
 		vpc:                    vpc,
 		elasticacheSubnetGroup: elasticacheSubnetGroup,
 		kmsDataKey:             kmsDataKey,
@@ -139,6 +144,13 @@ func (g *valkeyInstanceGenerator) computeDerivedValues() {
 func (g *valkeyInstanceGenerator) generate() (map[string]client.Object, error) {
 	objects := make(map[string]client.Object)
 
+	if g.instance.Spec.ParameterGroupParameters != nil {
+		if g.instance.Spec.ParameterGroupName != "" {
+			return objects, errors.Errorf("valkey instance may have parameterGroupName or parameterGroupParameters, not both")
+		}
+		g.buildParameterGroup(objects)
+	}
+
 	g.buildReplicationGroup(objects)
 	g.buildSecurityGroup(objects)
 	g.buildSecurityGroupRules(objects)
@@ -157,6 +169,42 @@ func (g *valkeyInstanceGenerator) buildTags() map[string]*string {
 	maps.Copy(tags, g.env.Tags)
 	tags["Name"] = base.StringPtr(g.instance.GetName())
 	return tags
+}
+
+func (g *valkeyInstanceGenerator) buildParameterGroup(objects map[string]client.Object) {
+	name := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s", g.instance.Name, g.hash))
+	g.parameterGroupName = name
+	tags := g.buildTags()
+	description := fmt.Sprintf("Parameter group for Valkey %s", g.instance.Name)
+	family := fmt.Sprintf("valkey%s", strings.SplitN(g.instance.Spec.EngineVersion, ".", 2)[0])
+
+	parameters := make([]elasticachemv1beta1.ParameterParameters, 0)
+
+	for key, value := range g.instance.Spec.ParameterGroupParameters {
+		parameter := elasticachemv1beta1.ParameterParameters{
+			Name:  &key,
+			Value: &value,
+		}
+		parameters = append(parameters, parameter)
+	}
+
+	pg := &elasticachemv1beta1.ParameterGroup{
+		TypeMeta:   metav1.TypeMeta{APIVersion: elasticacheApiVersion, Kind: "ParameterGroup"},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: elasticachemv1beta1.ParameterGroupSpec{
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
+				ProviderConfigReference: g.providerConfigRef(),
+			},
+			ForProvider: elasticachemv1beta1.ParameterGroupParameters{
+				Region:      &g.region,
+				Family:      &family,
+				Description: &description,
+				Parameter:   parameters,
+				Tags:        tags,
+			},
+		},
+	}
+	objects["parameter-group"] = pg
 }
 
 func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]client.Object) {
@@ -209,7 +257,9 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 		},
 	}
 
-	if g.instance.Spec.ParameterGroupName != "" {
+	if g.parameterGroupName != "" {
+		rg.Spec.ForProvider.ParameterGroupName = &g.parameterGroupName
+	} else if g.instance.Spec.ParameterGroupName != "" {
 		rg.Spec.ForProvider.ParameterGroupName = &g.instance.Spec.ParameterGroupName
 	}
 
