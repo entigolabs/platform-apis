@@ -34,6 +34,7 @@ const (
 	elasticacheApiVersion    = "elasticache.aws.m.upbound.io/v1beta1"
 	secretsmanagerApiVersion = "secretsmanager.aws.m.upbound.io/v1beta1"
 	rgKey                    = "replication-group"
+	parameterGroupKeyPrefix  = "parameter-group-"
 )
 
 type valkeyInstanceGenerator struct {
@@ -156,8 +157,9 @@ func (g *valkeyInstanceGenerator) generate() (map[string]client.Object, error) {
 		if g.instance.Spec.ParameterGroupName != "" {
 			return objects, errors.Errorf("valkey instance may have parameterGroupName or parameterGroupParameters, not both")
 		}
-		if family, ok := computeFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok && !g.parameterGroupFamilyChanged(family) {
+		if family, ok := computeFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok {
 			g.buildParameterGroup(objects, family)
+			g.keepStaleParameterGroups(objects, family)
 		}
 	}
 
@@ -170,13 +172,37 @@ func (g *valkeyInstanceGenerator) generate() (map[string]client.Object, error) {
 	return objects, nil
 }
 
-func (g *valkeyInstanceGenerator) parameterGroupFamilyChanged(desiredFamily string) bool {
-	pgObserved, ok := g.observed["parameter-group"]
+func (g *valkeyInstanceGenerator) keepStaleParameterGroups(objects map[string]client.Object, currentFamily string) {
+	currentKey := parameterGroupKeyPrefix + currentFamily
+	if g.replicationGroupSwitchedTo(g.parameterGroupName) {
+		return
+	}
+	for key, observedResource := range g.observed {
+		name := string(key)
+		if name == currentKey || !strings.HasPrefix(name, parameterGroupKeyPrefix) {
+			continue
+		}
+		spec, found, _ := unstructured.NestedMap(observedResource.Resource.Object, "spec")
+		if !found {
+			continue
+		}
+		obj := &unstructured.Unstructured{}
+		obj.SetAPIVersion(observedResource.Resource.GetAPIVersion())
+		obj.SetKind(observedResource.Resource.GetKind())
+		obj.SetName(observedResource.Resource.GetName())
+		_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
+		_ = unstructured.SetNestedMap(obj.Object, map[string]interface{}{"atProvider": map[string]interface{}{}}, "status")
+		objects[name] = obj
+	}
+}
+
+func (g *valkeyInstanceGenerator) replicationGroupSwitchedTo(parameterGroupName string) bool {
+	rgObserved, ok := g.observed[rgKey]
 	if !ok {
 		return false
 	}
-	observedFamily, found, _ := unstructured.NestedString(pgObserved.Resource.Object, "spec", "forProvider", "family")
-	return found && observedFamily != "" && observedFamily != desiredFamily
+	appliedName, found, _ := unstructured.NestedString(rgObserved.Resource.Object, "status", "atProvider", "parameterGroupName")
+	return found && appliedName != "" && appliedName == parameterGroupName
 }
 
 func (g *valkeyInstanceGenerator) providerConfigRef() *xpvcommon.ProviderConfigReference {
@@ -191,7 +217,7 @@ func (g *valkeyInstanceGenerator) buildTags() map[string]*string {
 }
 
 func (g *valkeyInstanceGenerator) buildParameterGroup(objects map[string]client.Object, family string) {
-	name := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s", g.instance.Name, g.hash))
+	name := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s-%s", g.instance.Name, family, g.hash))
 	g.parameterGroupName = name
 	tags := g.buildTags()
 	description := fmt.Sprintf("Parameter group for Valkey %s", g.instance.Name)
@@ -224,7 +250,7 @@ func (g *valkeyInstanceGenerator) buildParameterGroup(objects map[string]client.
 		},
 	}
 
-	objects["parameter-group"] = pg
+	objects[parameterGroupKeyPrefix+family] = pg
 }
 
 func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]client.Object) {

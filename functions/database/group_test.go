@@ -596,22 +596,23 @@ const (
 	valkeyCredentialsResJson     = `{"apiVersion":"v1","kind":"Secret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-credentials","namespace":"testspace"},"stringData":{"AUTH_TOKEN":"test-auth-token","PORT":"6379","PRIMARY_ENDPOINT":"test-valkey.eun1.cache.amazonaws.com","READER_ENDPOINT":"test-valkey-ro.eun1.cache.amazonaws.com","credentials.json":"{\"AUTH_TOKEN\": \"test-auth-token\", \"PORT\": \"6379\", \"PRIMARY_ENDPOINT\": \"test-valkey.eun1.cache.amazonaws.com\", \"READER_ENDPOINT\": \"test-valkey-ro.eun1.cache.amazonaws.com\"}"},"type":"Opaque"}`
 
 	valkeyParameterGroupInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"ValkeyInstance","metadata":{"name":"test-valkey","namespace":"testspace"},"spec":{"engineVersion":"8.2","instanceType":"cache.t4g.small","numCacheClusters":2,"autoMinorVersionUpgrade":true,"maintenanceWindow":"sun:05:00-sun:06:00","snapshotWindow":"03:00-05:00","snapshotRetentionLimit":7,"parameterGroupParameters":{"notify-keyspace-events":"Ex"}}}`
-	valkeyPGResJson               = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-parametergroup-811c9dc5"},"spec":{"forProvider":{"description":"Parameter group for Valkey test-valkey","family":"valkey8","name":"test-valkey-parametergroup-811c9dc5","parameter":[{"name":"notify-keyspace-events","value":"Ex"}],"region":"eu-north-1","tags":{"Name":"test-valkey","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	valkeyRGWithPGResJson         = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey"},"spec":{"forProvider":{"applyImmediately":true,"atRestEncryptionEnabled":"true","authTokenSecretRef":{"key":"auth-token","name":"test-valkey-auth-token"},"authTokenUpdateStrategy":"SET","autoGenerateAuthToken":true,"autoMinorVersionUpgrade":"true","automaticFailoverEnabled":true,"description":"test-valkey","engine":"valkey","engineVersion":"8.2","finalSnapshotIdentifier":"test-valkey-final-snapshot","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","maintenanceWindow":"sun:05:00-sun:06:00","multiAzEnabled":true,"nodeType":"cache.t4g.small","numCacheClusters":2,"parameterGroupName":"test-valkey-parametergroup-811c9dc5","region":"eu-north-1","securityGroupIdRefs":[{"name":"test-valkey"}],"snapshotRetentionLimit":7,"snapshotWindow":"03:00-05:00","subnetGroupName":"test-elasticache-sg","tags":{"Name":"test-valkey","entigo:zone":"zone-a"},"transitEncryptionEnabled":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"test-valkey"}},"status":{"atProvider":{}}}`
+	valkeyPGResJson               = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-parametergroup-valkey8-811c9dc5"},"spec":{"forProvider":{"description":"Parameter group for Valkey test-valkey","family":"valkey8","name":"test-valkey-parametergroup-valkey8-811c9dc5","parameter":[{"name":"notify-keyspace-events","value":"Ex"}],"region":"eu-north-1","tags":{"Name":"test-valkey","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeyRGWithPGResJson         = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey"},"spec":{"forProvider":{"applyImmediately":true,"atRestEncryptionEnabled":"true","authTokenSecretRef":{"key":"auth-token","name":"test-valkey-auth-token"},"authTokenUpdateStrategy":"SET","autoGenerateAuthToken":true,"autoMinorVersionUpgrade":"true","automaticFailoverEnabled":true,"description":"test-valkey","engine":"valkey","engineVersion":"8.2","finalSnapshotIdentifier":"test-valkey-final-snapshot","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","maintenanceWindow":"sun:05:00-sun:06:00","multiAzEnabled":true,"nodeType":"cache.t4g.small","numCacheClusters":2,"parameterGroupName":"test-valkey-parametergroup-valkey8-811c9dc5","region":"eu-north-1","securityGroupIdRefs":[{"name":"test-valkey"}],"snapshotRetentionLimit":7,"snapshotWindow":"03:00-05:00","subnetGroupName":"test-elasticache-sg","tags":{"Name":"test-valkey","entigo:zone":"zone-a"},"transitEncryptionEnabled":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"test-valkey"}},"status":{"atProvider":{}}}`
 
 	valkeyNoEngineVersionInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"ValkeyInstance","metadata":{"name":"test-valkey","namespace":"testspace"},"spec":{"instanceType":"cache.t4g.small","numCacheClusters":2,"autoMinorVersionUpgrade":true,"maintenanceWindow":"sun:05:00-sun:06:00","snapshotWindow":"03:00-05:00","snapshotRetentionLimit":7}}`
 	valkeyRGNoEngineVersionResJson = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey"},"spec":{"forProvider":{"applyImmediately":true,"atRestEncryptionEnabled":"true","authTokenSecretRef":{"key":"auth-token","name":"test-valkey-auth-token"},"authTokenUpdateStrategy":"SET","autoGenerateAuthToken":true,"autoMinorVersionUpgrade":"true","automaticFailoverEnabled":true,"description":"test-valkey","engine":"valkey","finalSnapshotIdentifier":"test-valkey-final-snapshot","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","maintenanceWindow":"sun:05:00-sun:06:00","multiAzEnabled":true,"nodeType":"cache.t4g.small","numCacheClusters":2,"region":"eu-north-1","securityGroupIdRefs":[{"name":"test-valkey"}],"snapshotRetentionLimit":7,"snapshotWindow":"03:00-05:00","subnetGroupName":"test-elasticache-sg","tags":{"Name":"test-valkey","entigo:zone":"zone-a"},"transitEncryptionEnabled":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"test-valkey"}},"status":{"atProvider":{}}}`
 
 	valkeyNoEngineVersionParameterGroupInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"ValkeyInstance","metadata":{"name":"test-valkey","namespace":"testspace"},"spec":{"instanceType":"cache.t4g.small","numCacheClusters":2,"autoMinorVersionUpgrade":true,"maintenanceWindow":"sun:05:00-sun:06:00","snapshotWindow":"03:00-05:00","snapshotRetentionLimit":7,"parameterGroupParameters":{"notify-keyspace-events":"Ex"}}}`
 	valkeyRGObservedEngineVersionActualJson      = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"name":"test-valkey"},"status":{"atProvider":{"engineVersionActual":"8.2"}}}`
-	valkeyRGNoEngineVersionWithPGResJson         = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey"},"spec":{"forProvider":{"applyImmediately":true,"atRestEncryptionEnabled":"true","authTokenSecretRef":{"key":"auth-token","name":"test-valkey-auth-token"},"authTokenUpdateStrategy":"SET","autoGenerateAuthToken":true,"autoMinorVersionUpgrade":"true","automaticFailoverEnabled":true,"description":"test-valkey","engine":"valkey","finalSnapshotIdentifier":"test-valkey-final-snapshot","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","maintenanceWindow":"sun:05:00-sun:06:00","multiAzEnabled":true,"nodeType":"cache.t4g.small","numCacheClusters":2,"parameterGroupName":"test-valkey-parametergroup-811c9dc5","region":"eu-north-1","securityGroupIdRefs":[{"name":"test-valkey"}],"snapshotRetentionLimit":7,"snapshotWindow":"03:00-05:00","subnetGroupName":"test-elasticache-sg","tags":{"Name":"test-valkey","entigo:zone":"zone-a"},"transitEncryptionEnabled":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"test-valkey"}},"status":{"atProvider":{}}}`
+	valkeyRGNoEngineVersionWithPGResJson         = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey"},"spec":{"forProvider":{"applyImmediately":true,"atRestEncryptionEnabled":"true","authTokenSecretRef":{"key":"auth-token","name":"test-valkey-auth-token"},"authTokenUpdateStrategy":"SET","autoGenerateAuthToken":true,"autoMinorVersionUpgrade":"true","automaticFailoverEnabled":true,"description":"test-valkey","engine":"valkey","finalSnapshotIdentifier":"test-valkey-final-snapshot","kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","maintenanceWindow":"sun:05:00-sun:06:00","multiAzEnabled":true,"nodeType":"cache.t4g.small","numCacheClusters":2,"parameterGroupName":"test-valkey-parametergroup-valkey8-811c9dc5","region":"eu-north-1","securityGroupIdRefs":[{"name":"test-valkey"}],"snapshotRetentionLimit":7,"snapshotWindow":"03:00-05:00","subnetGroupName":"test-elasticache-sg","tags":{"Name":"test-valkey","entigo:zone":"zone-a"},"transitEncryptionEnabled":true},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"test-valkey"}},"status":{"atProvider":{}}}`
 
-	valkeyOldFamilyPGResJson = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-parametergroup-811c9dc5"},"spec":{"forProvider":{"description":"Parameter group for Valkey test-valkey","family":"valkey9","name":"test-valkey-parametergroup-811c9dc5","parameter":[{"name":"notify-keyspace-events","value":"Ex"}],"region":"eu-north-1","tags":{"Name":"test-valkey","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeyOldFamilyPGResJson = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-parametergroup-valkey9-811c9dc5"},"spec":{"forProvider":{"description":"Parameter group for Valkey test-valkey","family":"valkey9","name":"test-valkey-parametergroup-valkey9-811c9dc5","parameter":[{"name":"notify-keyspace-events","value":"Ex"}],"region":"eu-north-1","tags":{"Name":"test-valkey","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 
-	// same family, changed parameter value: must update the existing ParameterGroup in place
-	// (parameter/value is Optional on the provider, not ForceNew - no recreate needed).
+	valkeyRGObservedStillOnOldPGJson    = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"name":"test-valkey"},"status":{"atProvider":{"parameterGroupName":"test-valkey-parametergroup-valkey9-811c9dc5"}}}`
+	valkeyRGObservedSwitchedToNewPGJson = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ReplicationGroup","metadata":{"name":"test-valkey"},"status":{"atProvider":{"parameterGroupName":"test-valkey-parametergroup-valkey8-811c9dc5"}}}`
+
 	valkeyParameterGroupUpdatedInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"ValkeyInstance","metadata":{"name":"test-valkey","namespace":"testspace"},"spec":{"engineVersion":"8.2","instanceType":"cache.t4g.small","numCacheClusters":2,"autoMinorVersionUpgrade":true,"maintenanceWindow":"sun:05:00-sun:06:00","snapshotWindow":"03:00-05:00","snapshotRetentionLimit":7,"parameterGroupParameters":{"notify-keyspace-events":"KEA"}}}`
-	valkeyPGUpdatedResJson               = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-parametergroup-811c9dc5"},"spec":{"forProvider":{"description":"Parameter group for Valkey test-valkey","family":"valkey8","name":"test-valkey-parametergroup-811c9dc5","parameter":[{"name":"notify-keyspace-events","value":"KEA"}],"region":"eu-north-1","tags":{"Name":"test-valkey","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	valkeyPGUpdatedResJson               = `{"apiVersion":"elasticache.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-valkey-parametergroup-valkey8-811c9dc5"},"spec":{"forProvider":{"description":"Parameter group for Valkey test-valkey","family":"valkey8","name":"test-valkey-parametergroup-valkey8-811c9dc5","parameter":[{"name":"notify-keyspace-events","value":"KEA"}],"region":"eu-north-1","tags":{"Name":"test-valkey","entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 )
 
 func valkeyRequiredResources() map[string]*fnv1.Resources {
@@ -765,8 +766,8 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"security-group":  {Resource: resource.MustStructJSON(valkeySGResJson)},
-							"parameter-group": {Resource: resource.MustStructJSON(valkeyPGResJson)},
+							"security-group":          {Resource: resource.MustStructJSON(valkeySGResJson)},
+							"parameter-group-valkey8": {Resource: resource.MustStructJSON(valkeyPGResJson)},
 						},
 					},
 					Requirements: valkeyExpectedRequirements(),
@@ -791,8 +792,8 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"security-group":  {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
-							"parameter-group": {Resource: resource.MustStructJSON(valkeyPGResJson)},
+							"security-group":          {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"parameter-group-valkey8": {Resource: resource.MustStructJSON(valkeyPGResJson)},
 						},
 					},
 					Requirements: valkeyExpectedRequirements(),
@@ -806,8 +807,8 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyParameterGroupInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							"security-group":  withReadyStatus(valkeySGResJson),
-							"parameter-group": withReadyStatus(valkeyPGResJson),
+							"security-group":          withReadyStatus(valkeySGResJson),
+							"parameter-group-valkey8": withReadyStatus(valkeyPGResJson),
 						},
 					},
 					RequiredResources: valkeyRequiredResources(),
@@ -818,9 +819,9 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"security-group":    {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
-							"parameter-group":   {Resource: resource.MustStructJSON(valkeyPGResJson), Ready: 1},
-							"replication-group": {Resource: resource.MustStructJSON(valkeyRGWithPGResJson)},
+							"security-group":          {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"parameter-group-valkey8": {Resource: resource.MustStructJSON(valkeyPGResJson), Ready: 1},
+							"replication-group":       {Resource: resource.MustStructJSON(valkeyRGWithPGResJson)},
 						},
 					},
 					Requirements: valkeyExpectedRequirements(),
@@ -894,24 +895,25 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"security-group":    {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
-							"parameter-group":   {Resource: resource.MustStructJSON(valkeyPGResJson)},
-							"replication-group": {Resource: resource.MustStructJSON(valkeyRGNoEngineVersionWithPGResJson), Ready: 2},
+							"security-group":          {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"parameter-group-valkey8": {Resource: resource.MustStructJSON(valkeyPGResJson)},
+							"replication-group":       {Resource: resource.MustStructJSON(valkeyRGNoEngineVersionWithPGResJson), Ready: 2},
 						},
 					},
 					Requirements: valkeyExpectedRequirements(),
 				},
 			},
 		},
-		"ValkeyInstance/Stage 10: EngineVersion changed to a different major version recreates ParameterGroup": {
-			Reason: "family is immutable on the AWS ParameterGroup; the provider refuses in-place updates to it. An observed ParameterGroup with a stale family must be withheld so Crossplane deletes it, and ReplicationGroup temporarily falls back to the engine default until the new one is built and ready.",
+		"ValkeyInstance/Stage 10: EngineVersion changed to a different major version builds new ParameterGroup while keeping the old one alive": {
+			Reason: "family is immutable on the AWS ParameterGroup and can't be replaced in place. AWS also refuses to delete a ParameterGroup while a ReplicationGroup still uses it, so the old one must keep being desired (kept alive, unchanged) alongside the newly-built one until ReplicationGroup's observed status confirms it switched away.",
 			Args: test.Args{
 				Req: &fnv1.RunFunctionRequest{
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyParameterGroupInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							"security-group":  withReadyStatus(valkeySGResJson),
-							"parameter-group": withReadyStatus(valkeyOldFamilyPGResJson),
+							"security-group":          withReadyStatus(valkeySGResJson),
+							"parameter-group-valkey9": withReadyStatus(valkeyOldFamilyPGResJson),
+							"replication-group":       {Resource: resource.MustStructJSON(valkeyRGObservedStillOnOldPGJson)},
 						},
 					},
 					RequiredResources: valkeyRequiredResources(),
@@ -922,8 +924,40 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"security-group":    {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
-							"replication-group": {Resource: resource.MustStructJSON(valkeyRGResJson)},
+							"security-group":          {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"parameter-group-valkey9": {Resource: resource.MustStructJSON(valkeyOldFamilyPGResJson), Ready: 1},
+							"parameter-group-valkey8": {Resource: resource.MustStructJSON(valkeyPGResJson)},
+							"replication-group":       {Resource: resource.MustStructJSON(valkeyRGWithPGResJson), Ready: 2},
+						},
+					},
+					Requirements: valkeyExpectedRequirements(),
+				},
+			},
+		},
+		"ValkeyInstance/Stage 10b: old ParameterGroup is dropped once ReplicationGroup confirms the switch": {
+			Reason: "Only the ReplicationGroup's observed status (not the desired spec we've already been setting) proves AWS actually stopped using the old ParameterGroup - only then is it safe to stop declaring it, so Crossplane deletes it.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							"security-group":          withReadyStatus(valkeySGResJson),
+							"parameter-group-valkey9": withReadyStatus(valkeyOldFamilyPGResJson),
+							"parameter-group-valkey8": withReadyStatus(valkeyPGResJson),
+							"replication-group":       {Resource: resource.MustStructJSON(valkeyRGObservedSwitchedToNewPGJson)},
+						},
+					},
+					RequiredResources: valkeyRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"security-group":          {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"parameter-group-valkey8": {Resource: resource.MustStructJSON(valkeyPGResJson), Ready: 1},
+							"replication-group":       {Resource: resource.MustStructJSON(valkeyRGWithPGResJson), Ready: 2},
 						},
 					},
 					Requirements: valkeyExpectedRequirements(),
@@ -937,8 +971,8 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							"security-group":  withReadyStatus(valkeySGResJson),
-							"parameter-group": withReadyStatus(valkeyPGResJson),
+							"security-group":          withReadyStatus(valkeySGResJson),
+							"parameter-group-valkey8": withReadyStatus(valkeyPGResJson),
 						},
 					},
 					RequiredResources: valkeyRequiredResources(),
@@ -964,8 +998,8 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(valkeyParameterGroupUpdatedInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							"security-group":  withReadyStatus(valkeySGResJson),
-							"parameter-group": withReadyStatus(valkeyPGResJson),
+							"security-group":          withReadyStatus(valkeySGResJson),
+							"parameter-group-valkey8": withReadyStatus(valkeyPGResJson),
 						},
 					},
 					RequiredResources: valkeyRequiredResources(),
@@ -976,9 +1010,9 @@ func TestValkeyInstanceFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							"security-group":    {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
-							"parameter-group":   {Resource: resource.MustStructJSON(valkeyPGUpdatedResJson), Ready: 1},
-							"replication-group": {Resource: resource.MustStructJSON(valkeyRGWithPGResJson)},
+							"security-group":          {Resource: resource.MustStructJSON(valkeySGResJson), Ready: 1},
+							"parameter-group-valkey8": {Resource: resource.MustStructJSON(valkeyPGUpdatedResJson), Ready: 1},
+							"replication-group":       {Resource: resource.MustStructJSON(valkeyRGWithPGResJson)},
 						},
 					},
 					Requirements: valkeyExpectedRequirements(),

@@ -71,11 +71,13 @@ func testValkeyLifecycle(t *testing.T, vkNs *terrak8s.KubectlOptions) {
 	}
 	patchResource(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, `{"spec":{"engineVersion":"`+newVersion+`"}}`)
 
-	cleanupWaitGone(t, vkNs, ValkeyParameterGroupKind, pgName, 30)
-	recreatedPgName := waitSyncedAndReadyByLabel(t, vkNs, ValkeyParameterGroupKind, ValkeyLifecycleName, 60, 10*time.Second)
-	require.Equal(t, newFamily, getField(t, vkNs, ValkeyParameterGroupKind, recreatedPgName, ".spec.forProvider.family"))
+	recreatedPgName := waitSyncedAndReadyByLabelWhere(t, vkNs, ValkeyParameterGroupKind, ValkeyLifecycleName, ".spec.forProvider.family", newFamily, 60, 10*time.Second)
+	require.NotEqual(t, pgName, recreatedPgName)
+	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".status.atProvider.parameterGroupName", recreatedPgName, 120, 10*time.Second)
 	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName", recreatedPgName, 60, 10*time.Second)
 	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.engineVersion", newVersion, 60, 10*time.Second)
+
+	cleanupWaitGone(t, vkNs, ValkeyParameterGroupKind, pgName, 30)
 
 	patchResource(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, `{"spec":{"parameterGroupParameters":null}}`)
 
