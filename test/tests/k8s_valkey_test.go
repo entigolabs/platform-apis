@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,52 +24,66 @@ func testValkey(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Kub
 	}
 
 	t.Run("instances", func(t *testing.T) {
-		t.Run("CustomValkeyInstance", func(t *testing.T) { t.Parallel(); testCustomValkeyInstance(t, vkNs) })
-		t.Run("ParameterGroupValkeyInstance", func(t *testing.T) { t.Parallel(); testParameterGroupValkeyInstance(t, vkNs) })
+		t.Run("ValkeyLifecycle", func(t *testing.T) { testValkeyLifecycle(t, vkNs) })
 	})
 }
 
-func testCustomValkeyInstance(t *testing.T, vkNs *terrak8s.KubectlOptions) {
+func testValkeyLifecycle(t *testing.T, vkNs *terrak8s.KubectlOptions) {
 	t.Helper()
 
-	// Create
-	waitSyncedAndReady(t, vkNs, ValkeyInstanceKind, ValkeyCustomName, 120, 10*time.Second)
+	waitSyncedAndReady(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, 120, 10*time.Second)
 	if t.Failed() {
 		return
 	}
 
-	rgName, err := getFirstByLabel(t, vkNs, ValkeyReplicationGroupKind, ValkeyCustomName)
+	rgName, err := getFirstByLabel(t, vkNs, ValkeyReplicationGroupKind, ValkeyLifecycleName)
 	require.NoError(t, err)
 	require.NotEmpty(t, rgName)
 
-	// Read: verify custom spec fields propagated to the provider resource
 	require.Equal(t, "cache.t4g.medium", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.nodeType"))
-	require.Equal(t, "8.2", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.engineVersion"))
 	require.Equal(t, "2", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.numCacheClusters"))
 	require.Equal(t, "3", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.snapshotRetentionLimit"))
-}
+	require.Empty(t, getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.engineVersion"))
 
-func testParameterGroupValkeyInstance(t *testing.T, vkNs *terrak8s.KubectlOptions) {
-	t.Helper()
+	_, err = getFirstByLabel(t, vkNs, ValkeyParameterGroupKind, ValkeyLifecycleName)
+	require.Error(t, err, "no ParameterGroup should exist while engineVersion is unset and parameterGroupParameters is unset")
 
-	// Create
-	waitSyncedAndReady(t, vkNs, ValkeyInstanceKind, ValkeyParameterGroupName, 120, 10*time.Second)
-	if t.Failed() {
-		return
-	}
+	actualVersion := waitFieldNonEmpty(t, vkNs, ValkeyReplicationGroupKind, rgName, ".status.atProvider.engineVersionActual", 60, 10*time.Second)
+	actualFamily := "valkey" + strings.SplitN(actualVersion, ".", 2)[0]
 
-	rgName, err := getFirstByLabel(t, vkNs, ValkeyReplicationGroupKind, ValkeyParameterGroupName)
-	require.NoError(t, err)
-	require.NotEmpty(t, rgName)
+	patchResource(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, `{"spec":{"parameterGroupParameters":{"notify-keyspace-events":"Ex"}}}`)
 
-	pgName, err := getFirstByLabel(t, vkNs, ValkeyParameterGroupKind, ValkeyParameterGroupName)
-	require.NoError(t, err)
+	pgName := waitSyncedAndReadyByLabel(t, vkNs, ValkeyParameterGroupKind, ValkeyLifecycleName, 60, 10*time.Second)
 	require.NotEmpty(t, pgName)
-
-	// Read: verify the generated ParameterGroup is attached and carries the requested parameter
-	require.Equal(t, pgName, getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName"))
+	require.Equal(t, actualFamily, getField(t, vkNs, ValkeyParameterGroupKind, pgName, ".spec.forProvider.family"))
 	require.Equal(t, "notify-keyspace-events", getField(t, vkNs, ValkeyParameterGroupKind, pgName, ".spec.forProvider.parameter[0].name"))
 	require.Equal(t, "Ex", getField(t, vkNs, ValkeyParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value"))
+	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName", pgName, 60, 10*time.Second)
+
+	// Changing a parameter value (same family) must update the existing ParameterGroup in place -
+	// parameter/value is Optional on the provider, not ForceNew, so no delete/recreate should happen.
+	patchResource(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, `{"spec":{"parameterGroupParameters":{"notify-keyspace-events":"KEA"}}}`)
+
+	waitFieldEquals(t, vkNs, ValkeyParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value", "KEA", 60, 10*time.Second)
+	require.Equal(t, pgName, getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName"),
+		"ParameterGroup should update in place, not be recreated under a different name")
+
+	newVersion, newFamily := "9.1", "valkey9"
+	if actualFamily == "valkey9" {
+		newVersion, newFamily = "8.2", "valkey8"
+	}
+	patchResource(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, `{"spec":{"engineVersion":"`+newVersion+`"}}`)
+
+	cleanupWaitGone(t, vkNs, ValkeyParameterGroupKind, pgName, 30)
+	recreatedPgName := waitSyncedAndReadyByLabel(t, vkNs, ValkeyParameterGroupKind, ValkeyLifecycleName, 60, 10*time.Second)
+	require.Equal(t, newFamily, getField(t, vkNs, ValkeyParameterGroupKind, recreatedPgName, ".spec.forProvider.family"))
+	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName", recreatedPgName, 60, 10*time.Second)
+	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.engineVersion", newVersion, 60, 10*time.Second)
+
+	patchResource(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, `{"spec":{"parameterGroupParameters":null}}`)
+
+	cleanupWaitGone(t, vkNs, ValkeyParameterGroupKind, recreatedPgName, 30)
+	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName", "default."+newFamily, 60, 10*time.Second)
 }
 
 func cleanupValkey(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
@@ -77,7 +92,7 @@ func cleanupValkey(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	vkNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, ValkeyNamespaceName)
 
-	cleanupDeleteParallel(t, vkNs, ValkeyInstanceKind, ValkeyCustomName, ValkeyParameterGroupName)
+	cleanupDeleteParallel(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", ValkeyApplicationName, "--ignore-not-found")
 }

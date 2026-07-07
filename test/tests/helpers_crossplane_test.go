@@ -80,6 +80,26 @@ func waitFieldEquals(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fi
 	require.NoError(t, err, "%s/%s: field %s never reached %q", kind, name, fieldPath, expected)
 }
 
+// waitFieldNonEmpty polls until a jsonpath field on a resource is non-empty.
+func waitFieldNonEmpty(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fieldPath string, retries int, interval time.Duration) string {
+	t.Helper()
+	var val string
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s/%s %s non-empty", kind, name, fieldPath), retries, interval,
+		func() (string, error) {
+			v, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o", fmt.Sprintf("jsonpath={%s}", fieldPath))
+			if err != nil {
+				return "", err
+			}
+			if v == "" {
+				return "", fmt.Errorf("%s/%s: field %s still empty", kind, name, fieldPath)
+			}
+			val = v
+			return v, nil
+		})
+	require.NoError(t, err, "%s/%s: field %s never became non-empty", kind, name, fieldPath)
+	return val
+}
+
 // patchResource applies a JSON merge patch to a resource.
 func patchResource(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, patch string) {
 	t.Helper()

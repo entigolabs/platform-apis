@@ -33,7 +33,6 @@ spec:
                   description: |
                     Cache engine version. ElastiCache automatically uses the latest patch version.
                     For supported versions, see: https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/supported-engine-versions.html
-                  default: "8.2"
                 instanceType:
                   type: string
                   description: |
@@ -88,7 +87,6 @@ spec:
                     Parameters for a custom, automatically generated parameter group.
                     Key is the parameter name, value is parameter value.
               required:
-                - engineVersion
                 - instanceType
             status:
               type: object

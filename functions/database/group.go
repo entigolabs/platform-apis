@@ -23,6 +23,7 @@ import (
 
 const (
 	environmentName = "platform-apis-database"
+	ec2ApiVersion   = "ec2.aws.m.upbound.io/v1beta1"
 )
 
 type GroupImpl struct {
@@ -157,7 +158,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		secretNamespace := compositeResource.GetNamespace()
 		resources["VPC"] = &fnv1.ResourceSelector{
 			Kind:       "VPC",
-			ApiVersion: "ec2.aws.m.upbound.io/v1beta1",
+			ApiVersion: ec2ApiVersion,
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
 			Namespace:  &env.AWSProvider,
 		}
@@ -178,7 +179,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 	case apis.XRKindValkey:
 		resources[service.VPCKey] = &fnv1.ResourceSelector{
 			Kind:       "VPC",
-			ApiVersion: "ec2.aws.m.upbound.io/v1beta1",
+			ApiVersion: ec2ApiVersion,
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
 			Namespace:  &env.AWSProvider,
 		}
@@ -192,7 +193,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
 		resources[service.ComputeSubnetsKey] = &fnv1.ResourceSelector{
 			Kind:       "Subnet",
-			ApiVersion: "ec2.aws.m.upbound.io/v1beta1",
+			ApiVersion: ec2ApiVersion,
 			Match: &fnv1.ResourceSelector_MatchLabels{
 				MatchLabels: &fnv1.MatchLabels{
 					Labels: map[string]string{"subnet-type": "compute"},
