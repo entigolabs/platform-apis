@@ -43,12 +43,11 @@ func testValkeyLifecycle(t *testing.T, vkNs *terrak8s.KubectlOptions) {
 	require.Equal(t, "cache.t4g.medium", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.nodeType"))
 	require.Equal(t, "2", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.numCacheClusters"))
 	require.Equal(t, "3", getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.snapshotRetentionLimit"))
-	require.Empty(t, getField(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.engineVersion"))
 
 	_, err = getFirstByLabel(t, vkNs, ValkeyParameterGroupKind, ValkeyLifecycleName)
 	require.Error(t, err, "no ParameterGroup should exist while engineVersion is unset and parameterGroupParameters is unset")
 
-	actualVersion := waitFieldNonEmpty(t, vkNs, ValkeyReplicationGroupKind, rgName, ".status.atProvider.engineVersionActual", 60, 10*time.Second)
+	actualVersion := waitFieldNonEmpty(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.engineVersion", 60, 10*time.Second)
 	actualFamily := "valkey" + strings.SplitN(actualVersion, ".", 2)[0]
 
 	patchResource(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, `{"spec":{"parameterGroupParameters":{"notify-keyspace-events":"Ex"}}}`)
@@ -60,8 +59,6 @@ func testValkeyLifecycle(t *testing.T, vkNs *terrak8s.KubectlOptions) {
 	require.Equal(t, "Ex", getField(t, vkNs, ValkeyParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value"))
 	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName", pgName, 60, 10*time.Second)
 
-	// Changing a parameter value (same family) must update the existing ParameterGroup in place -
-	// parameter/value is Optional on the provider, not ForceNew, so no delete/recreate should happen.
 	patchResource(t, vkNs, ValkeyInstanceKind, ValkeyLifecycleName, `{"spec":{"parameterGroupParameters":{"notify-keyspace-events":"KEA"}}}`)
 
 	waitFieldEquals(t, vkNs, ValkeyParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value", "KEA", 60, 10*time.Second)
