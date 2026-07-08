@@ -32,6 +32,13 @@ const (
 	rdsApiVersion           = "rds.aws.m.upbound.io/v1beta1"
 	pgSqlApiVersion         = "postgresql.sql.m.crossplane.io/v1alpha1"
 	parameterGroupKeyPrefix = "parameter-group-"
+
+	// parameterGroupApplyMethodKey is a reserved key in ParameterGroupParameters: it sets how every
+	// parameter in the group is applied ("immediate" or "pending-reboot") and is not itself a DB
+	// parameter. AWS rejects "immediate" for static parameters (e.g. max_connections), so callers
+	// must opt into "pending-reboot" for those.
+	parameterGroupApplyMethodKey = "applyMethod"
+	defaultParameterApplyMethod  = "immediate"
 )
 
 type pgInstanceGenerator struct {
@@ -393,12 +400,21 @@ func (g *pgInstanceGenerator) buildParameterGroup(family string) map[string]clie
 	tags := g.env.Tags
 	description := fmt.Sprintf("Parameter group for PostgreSQL %s", g.pgInstance.Name)
 
+	applyMethod := g.pgInstance.Spec.ParameterGroupParameters[parameterGroupApplyMethodKey]
+	if applyMethod == "" {
+		applyMethod = defaultParameterApplyMethod
+	}
+
 	parameters := make([]rdsmv1beta1.ParameterParameters, 0)
 
 	for key, value := range g.pgInstance.Spec.ParameterGroupParameters {
+		if key == parameterGroupApplyMethodKey {
+			continue
+		}
 		parameter := rdsmv1beta1.ParameterParameters{
-			Name:  &key,
-			Value: &value,
+			ApplyMethod: &applyMethod,
+			Name:        &key,
+			Value:       &value,
 		}
 		parameters = append(parameters, parameter)
 	}

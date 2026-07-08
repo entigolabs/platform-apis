@@ -37,8 +37,11 @@ type PostgreSQLInstanceSpec struct {
 	Iops               float64 `json:"iops,omitempty"`
 	MaintenanceWindow  string  `json:"maintenanceWindow,omitempty"`
 	// +kubebuilder:default=false
-	MultiAZ                  bool              `json:"multiAZ"`
-	ParameterGroupName       string            `json:"parameterGroupName,omitempty"`
+	MultiAZ            bool   `json:"multiAZ"`
+	ParameterGroupName string `json:"parameterGroupName,omitempty"`
+	// Key is the parameter name, value is the parameter value. The reserved key "applyMethod"
+	// ("immediate" or "pending-reboot", defaults to "immediate") controls how every parameter in
+	// this group is applied - it is not itself a DB parameter.
 	ParameterGroupParameters map[string]string `json:"parameterGroupParameters,omitempty"`
 	SnapshotIdentifier       string            `json:"snapshotIdentifier,omitempty"`
 }
