@@ -74,8 +74,6 @@ func testPostgresqlLifecycle(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	_, err = getFirstByLabel(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName)
 	require.Error(t, err, "no ParameterGroup should exist while parameterGroupParameters is unset")
 
-	// max_connections is a static parameter - AWS rejects the default "immediate" apply method for
-	// it, so applyMethod must be set to "pending-reboot" via the reserved key.
 	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"parameterGroupParameters":{"applyMethod":"pending-reboot","max_connections":"200"}}}`)
 
 	pgName := waitSyncedAndReadyByLabel(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName, 60, 10*time.Second)
@@ -85,33 +83,26 @@ func testPostgresqlLifecycle(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	require.Equal(t, "200", getField(t, pgNs, RdsParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value"))
 	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.parameterGroupName", pgName, 60, 10*time.Second)
 
-	// Changing a parameter value (same family) must update the existing ParameterGroup in place -
-	// parameter/value is Optional on the provider, not ForceNew, so no delete/recreate should happen.
 	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"parameterGroupParameters":{"max_connections":"300"}}}`)
 
 	waitFieldEquals(t, pgNs, RdsParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value", "300", 60, 10*time.Second)
 	require.Equal(t, pgName, getField(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.parameterGroupName"),
 		"ParameterGroup should update in place, not be recreated under a different name")
 
-	// engineVersion upgraded to a different (newer) major version -> family is immutable on the AWS
-	// ParameterGroup and AWS refuses to delete one still referenced by an Instance, so the old and
-	// new ParameterGroup must coexist until the Instance's observed status (not just its desired
-	// spec) confirms the switch - only then can the old one actually be deleted.
 	newVersion, newFamily := "18.4", "postgres18"
 	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"engineVersion":"`+newVersion+`"}}`)
 
 	recreatedPgName := waitSyncedAndReadyByLabelWhere(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName, ".spec.forProvider.family", newFamily, 60, 10*time.Second)
 	require.NotEqual(t, pgName, recreatedPgName)
-	// Major version upgrades are slow (modify + reboot), give the switch confirmation more headroom.
+
 	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.parameterGroupName", recreatedPgName, 240, 15*time.Second)
 	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.parameterGroupName", recreatedPgName, 60, 10*time.Second)
 	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.engineVersion", newVersion, 60, 10*time.Second)
+	newMajor := strings.TrimPrefix(newFamily, "postgres")
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.optionGroupName", "default:postgres-"+newMajor, 60, 10*time.Second)
 
 	cleanupWaitGone(t, pgNs, RdsParameterGroupKind, pgName, 30)
 
-	// parameterGroupParameters removed -> ParameterGroup deleted, Instance reverts explicitly to the
-	// engine default (parameterGroupName is Optional+Computed on the provider, so merely omitting it
-	// would leave the previous custom group name untouched).
 	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"parameterGroupParameters":null}}`)
 
 	cleanupWaitGone(t, pgNs, RdsParameterGroupKind, recreatedPgName, 30)

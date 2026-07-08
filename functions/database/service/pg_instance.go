@@ -529,6 +529,11 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &defaultName
 	}
 
+	if family, ok := computeFamily(g.pgInstance.Spec.EngineVersion, g.engineVersionActual); ok {
+		defaultOptionGroupName := "default:postgres-" + strings.TrimPrefix(family, "postgres")
+		rdsInstance.Spec.ForProvider.OptionGroupName = &defaultOptionGroupName
+	}
+
 	if g.pgInstance.Spec.SnapshotIdentifier != "" {
 		rdsInstance.Spec.ForProvider.SnapshotIdentifier = &g.pgInstance.Spec.SnapshotIdentifier
 	}
