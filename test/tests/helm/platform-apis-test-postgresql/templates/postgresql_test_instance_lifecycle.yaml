@@ -1,0 +1,11 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: postgresql-instance-lifecycle
+spec:
+  allocatedStorage: 20
+  instanceType: db.t3.micro
+  allowMajorVersionUpgrade: true
+  autoMinorVersionUpgrade: true
+  deletionProtection: false
+  multiAZ: false

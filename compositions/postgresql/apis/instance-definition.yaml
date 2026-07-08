@@ -72,6 +72,13 @@ spec:
                 parameterGroupName:
                   type: string
                   description: Reference to a custom parameter group.
+                parameterGroupParameters:
+                  additionalProperties:
+                    type: string
+                  type: object
+                  description: |
+                    Parameters for a custom, automatically generated parameter group.
+                    Key is the parameter name, value is parameter value.
                 snapshotIdentifier:
                   type: string
                   description: Specifies whether or not to create this database from a snapshot. This corresponds to the snapshot ID in the RDS console.
@@ -80,7 +87,6 @@ spec:
                   message: "snapshotIdentifier cannot be changed when deletionProtection is enabled"
               required:
                 - allocatedStorage
-                - engineVersion
                 - instanceType
             status:
               type: object

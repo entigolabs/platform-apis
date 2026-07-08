@@ -108,6 +108,9 @@ const (
 	ExternalSecretKind     = "externalsecret.external-secrets.io"
 	SqlProviderConfigKind  = "providerconfig.postgresql.sql.m.crossplane.io"
 
+	PostgresqlLifecycleName = "postgresql-instance-lifecycle"
+	RdsParameterGroupKind   = "parametergroup.rds.aws.m.upbound.io"
+
 	PostgresqlAdminUserName     = "test-owner"
 	PostgresqlUserKind          = "postgresqlusers.database.entigo.com"
 	PostgresqlAdminUserSpecName = "test_owner"

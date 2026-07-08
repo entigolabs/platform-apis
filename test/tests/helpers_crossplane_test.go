@@ -104,6 +104,42 @@ func getFirstByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind, composit
 	return strings.TrimSpace(out), err
 }
 
+func getByLabelWhere(t *testing.T, opts *terrak8s.KubectlOptions, kind, composite, fieldPath, expected string) (string, error) {
+	t.Helper()
+	names, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", composite),
+		"-o", "jsonpath={.items[*].metadata.name}")
+	if err != nil {
+		return "", err
+	}
+	for _, name := range strings.Fields(names) {
+		val, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o", fmt.Sprintf("jsonpath={%s}", fieldPath))
+		if err == nil && val == expected {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("no %s with composite=%s and %s=%q", kind, composite, fieldPath, expected)
+}
+
+func waitSyncedAndReadyByLabelWhere(t *testing.T, opts *terrak8s.KubectlOptions, kind, composite, fieldPath, expected string, retries int, interval time.Duration) string {
+	t.Helper()
+	var name string
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s composite=%s %s=%s Synced+Ready", kind, composite, fieldPath, expected), retries, interval,
+		func() (string, error) {
+			n, err := getByLabelWhere(t, opts, kind, composite, fieldPath, expected)
+			if err != nil {
+				return "", err
+			}
+			result, err := checkConditions(t, opts, kind, n, "Synced", "Ready")
+			if err == nil {
+				name = n
+			}
+			return result, err
+		})
+	require.NoError(t, err)
+	return name
+}
+
 // testDeletionRejected verifies that a deletion is rejected at the API level (e.g. by a validating webhook).
 func testDeletionRejected(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string) {
 	t.Helper()

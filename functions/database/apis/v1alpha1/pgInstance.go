@@ -32,14 +32,15 @@ type PostgreSQLInstanceSpec struct {
 	BackupWindow            string   `json:"backupWindow,omitempty"`
 	// +kubebuilder:default=true
 	DeletionProtection bool    `json:"deletionProtection"`
-	EngineVersion      string  `json:"engineVersion"`
+	EngineVersion      *string `json:"engineVersion,omitempty"`
 	InstanceType       string  `json:"instanceType"`
 	Iops               float64 `json:"iops,omitempty"`
 	MaintenanceWindow  string  `json:"maintenanceWindow,omitempty"`
 	// +kubebuilder:default=false
-	MultiAZ            bool   `json:"multiAZ"`
-	ParameterGroupName string `json:"parameterGroupName,omitempty"`
-	SnapshotIdentifier string `json:"snapshotIdentifier,omitempty"`
+	MultiAZ                  bool              `json:"multiAZ"`
+	ParameterGroupName       string            `json:"parameterGroupName,omitempty"`
+	ParameterGroupParameters map[string]string `json:"parameterGroupParameters,omitempty"`
+	SnapshotIdentifier       string            `json:"snapshotIdentifier,omitempty"`
 }
 
 type PostgreSQLInstanceStatus struct {
