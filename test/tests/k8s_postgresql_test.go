@@ -68,15 +68,15 @@ func testPostgresqlLifecycle(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	require.NoError(t, err)
 	require.NotEmpty(t, rdsName)
 
-	// No engineVersion was specified -> AWS applies its own default, reported via engineVersionActual.
-	actualVersion := getField(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.engineVersionActual")
-	require.NotEmpty(t, actualVersion, "AWS should report a default engine version")
-	actualFamily := "postgres" + strings.SplitN(actualVersion, ".", 2)[0]
+	require.Equal(t, "17.1", getField(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.engineVersion"))
+	actualFamily := "postgres17"
 
 	_, err = getFirstByLabel(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName)
 	require.Error(t, err, "no ParameterGroup should exist while parameterGroupParameters is unset")
 
-	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"parameterGroupParameters":{"max_connections":"200"}}}`)
+	// max_connections is a static parameter - AWS rejects the default "immediate" apply method for
+	// it, so applyMethod must be set to "pending-reboot" via the reserved key.
+	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"parameterGroupParameters":{"applyMethod":"pending-reboot","max_connections":"200"}}}`)
 
 	pgName := waitSyncedAndReadyByLabel(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName, 60, 10*time.Second)
 	require.NotEmpty(t, pgName)
@@ -97,7 +97,7 @@ func testPostgresqlLifecycle(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	// ParameterGroup and AWS refuses to delete one still referenced by an Instance, so the old and
 	// new ParameterGroup must coexist until the Instance's observed status (not just its desired
 	// spec) confirms the switch - only then can the old one actually be deleted.
-	newVersion, newFamily := "18.1", "postgres18"
+	newVersion, newFamily := "18.4", "postgres18"
 	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"engineVersion":"`+newVersion+`"}}`)
 
 	recreatedPgName := waitSyncedAndReadyByLabelWhere(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName, ".spec.forProvider.family", newFamily, 60, 10*time.Second)
