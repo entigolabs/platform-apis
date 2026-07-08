@@ -68,7 +68,7 @@ func testPostgresqlLifecycle(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	require.NoError(t, err)
 	require.NotEmpty(t, rdsName)
 
-	require.Equal(t, "17.1", getField(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.engineVersion"))
+	require.Equal(t, "17.7", getField(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.engineVersion"))
 	actualFamily := "postgres17"
 
 	_, err = getFirstByLabel(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName)
