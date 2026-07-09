@@ -438,13 +438,12 @@ func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 
 	cleanupDisableDeletionProtectionOnDatabases(t, pgNs)
-	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
+	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, 30, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
 
-	cleanupDeleteParallel(t, pgNs, PostgresqlUserKind, PostgresqlRegularUserName, PostgresqlAdminUserName)
+	cleanupDeleteParallel(t, pgNs, PostgresqlUserKind, 30, PostgresqlRegularUserName, PostgresqlAdminUserName)
 
 	cleanupDisableDeletionProtectionOnInstance(t, pgNs)
-	cleanupDeleteAndWait(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
-	cleanupDeleteAndWait(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, 180)
+	cleanupDeleteParallel(t, pgNs, PostgresqlInstanceKind, 180, PostgresqlInstanceName, PostgresqlLifecycleName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
 }

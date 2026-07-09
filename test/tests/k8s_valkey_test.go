@@ -53,7 +53,7 @@ func cleanupValkey(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	vkNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, ValkeyNamespaceName)
 
-	cleanupDeleteParallel(t, vkNs, ValkeyInstanceKind, ValkeyCustomName)
+	cleanupDeleteParallel(t, vkNs, ValkeyInstanceKind, 30, ValkeyCustomName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", ValkeyApplicationName, "--ignore-not-found")
 }

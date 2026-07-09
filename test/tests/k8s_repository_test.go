@@ -104,7 +104,7 @@ func cleanupRepository(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	repoNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, RepositoryNamespaceName)
 
-	cleanupDeleteParallel(t, repoNs, RepositoryKind, RepositoryMinimalName, RepositoryNamedName)
+	cleanupDeleteParallel(t, repoNs, RepositoryKind, 30, RepositoryMinimalName, RepositoryNamedName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", RepositoryApplicationName, "--ignore-not-found")
 }
