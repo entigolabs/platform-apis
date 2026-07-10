@@ -80,6 +80,26 @@ func waitFieldEquals(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fi
 	require.NoError(t, err, "%s/%s: field %s never reached %q", kind, name, fieldPath, expected)
 }
 
+// waitFieldNonEmpty polls until a jsonpath field on a resource is non-empty.
+func waitFieldNonEmpty(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fieldPath string, retries int, interval time.Duration) string {
+	t.Helper()
+	var val string
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s/%s %s non-empty", kind, name, fieldPath), retries, interval,
+		func() (string, error) {
+			v, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o", fmt.Sprintf("jsonpath={%s}", fieldPath))
+			if err != nil {
+				return "", err
+			}
+			if v == "" {
+				return "", fmt.Errorf("%s/%s: field %s still empty", kind, name, fieldPath)
+			}
+			val = v
+			return v, nil
+		})
+	require.NoError(t, err, "%s/%s: field %s never became non-empty", kind, name, fieldPath)
+	return val
+}
+
 // patchResource applies a JSON merge patch to a resource.
 func patchResource(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, patch string) {
 	t.Helper()
@@ -102,6 +122,42 @@ func getFirstByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind, composit
 		"-l", fmt.Sprintf("crossplane.io/composite=%s", composite),
 		"-o", "jsonpath={.items[0].metadata.name}")
 	return strings.TrimSpace(out), err
+}
+
+func getByLabelWhere(t *testing.T, opts *terrak8s.KubectlOptions, kind, composite, fieldPath, expected string) (string, error) {
+	t.Helper()
+	names, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind,
+		"-l", fmt.Sprintf("crossplane.io/composite=%s", composite),
+		"-o", "jsonpath={.items[*].metadata.name}")
+	if err != nil {
+		return "", err
+	}
+	for _, name := range strings.Fields(names) {
+		val, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o", fmt.Sprintf("jsonpath={%s}", fieldPath))
+		if err == nil && val == expected {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("no %s with composite=%s and %s=%q", kind, composite, fieldPath, expected)
+}
+
+func waitSyncedAndReadyByLabelWhere(t *testing.T, opts *terrak8s.KubectlOptions, kind, composite, fieldPath, expected string, retries int, interval time.Duration) string {
+	t.Helper()
+	var name string
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s composite=%s %s=%s Synced+Ready", kind, composite, fieldPath, expected), retries, interval,
+		func() (string, error) {
+			n, err := getByLabelWhere(t, opts, kind, composite, fieldPath, expected)
+			if err != nil {
+				return "", err
+			}
+			result, err := checkConditions(t, opts, kind, n, "Synced", "Ready")
+			if err == nil {
+				name = n
+			}
+			return result, err
+		})
+	require.NoError(t, err)
+	return name
 }
 
 // testDeletionRejected verifies that a deletion is rejected at the API level (e.g. by a validating webhook).
