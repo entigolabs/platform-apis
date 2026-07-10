@@ -34,7 +34,6 @@ const (
 	elasticacheApiVersion    = "elasticache.aws.m.upbound.io/v1beta1"
 	secretsmanagerApiVersion = "secretsmanager.aws.m.upbound.io/v1beta1"
 	rgKey                    = "replication-group"
-	parameterGroupKeyPrefix  = "parameter-group-"
 )
 
 type valkeyInstanceGenerator struct {
@@ -157,7 +156,7 @@ func (g *valkeyInstanceGenerator) generate() (map[string]client.Object, error) {
 		if g.instance.Spec.ParameterGroupName != "" {
 			return objects, errors.Errorf("valkey instance may have parameterGroupName or parameterGroupParameters, not both")
 		}
-		if family, ok := computeFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok {
+		if family, ok := computeValkeyFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok {
 			g.buildParameterGroup(objects, family)
 			g.keepStaleParameterGroups(objects, family)
 		}
@@ -307,7 +306,7 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 		rg.Spec.ForProvider.ParameterGroupName = &g.parameterGroupName
 	} else if g.instance.Spec.ParameterGroupName != "" {
 		rg.Spec.ForProvider.ParameterGroupName = &g.instance.Spec.ParameterGroupName
-	} else if family, ok := computeFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok {
+	} else if family, ok := computeValkeyFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok {
 		defaultName := "default." + family
 		rg.Spec.ForProvider.ParameterGroupName = &defaultName
 	}
@@ -550,7 +549,7 @@ func GetValkeySecurityGroupRuleStatus(sgr ec2mv1beta1.SecurityGroupRule) v1alpha
 	return rule
 }
 
-func computeFamily(engineVersion, engineVersionActual *string) (string, bool) {
+func computeValkeyFamily(engineVersion, engineVersionActual *string) (string, bool) {
 	v := engineVersion
 	if v == nil {
 		v = engineVersionActual
