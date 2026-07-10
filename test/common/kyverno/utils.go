@@ -171,6 +171,10 @@ func injectOfflineMocks(policies string, includeNamespaceMock bool) string {
 		`resource.List("tenancy.entigo.com/v1alpha1", "zones", "")`,
 		`{"items": [{"metadata": {"name": "my-zone"}}, {"metadata": {"name": "default-zone-name"}}]}`)
 
+	policies = strings.ReplaceAll(policies,
+		"  - name: exclude-infralib\n    expression: \"!((has(object.metadata) && object.metadata.name == 'infralib') || (has(oldObject.metadata) && oldObject.metadata.name == 'infralib'))\"\n",
+		"")
+
 	if includeNamespaceMock {
 		policies = strings.ReplaceAll(policies,
 			`resource.List("v1", "namespaces", "")`,
