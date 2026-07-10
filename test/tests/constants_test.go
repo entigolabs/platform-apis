@@ -178,10 +178,11 @@ const (
 
 	ValkeyNamespaceName   = "test-valkey"
 	ValkeyApplicationName = "test-valkey"
-	ValkeyCustomName      = "test-valkey-custom"
+	ValkeyLifecycleName   = "test-valkey-lifecycle"
 
 	ValkeyInstanceKind         = "valkeyinstances.database.entigo.com"
 	ValkeyReplicationGroupKind = "replicationgroup.elasticache.aws.m.upbound.io"
+	ValkeyParameterGroupKind   = "parametergroup.elasticache.aws.m.upbound.io"
 
 	// ── WebApp ────────────────────────────────────────────────────────────────
 

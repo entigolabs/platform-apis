@@ -107,7 +107,7 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 		return base.NewSequence(true, []string{sg, sgIngress, sgEgress, pc, "parameter-group-.*"}, []string{rdsInstance}, []string{es})
 	case apis.XRKindValkey:
 		return base.NewSequence(true,
-			[]string{"security-group"},
+			[]string{"security-group", "parameter-group-.*"},
 			[]string{"replication-group"},
 			[]string{"sg-.*"},
 			[]string{"secrets-manager-secret", "credentials"},

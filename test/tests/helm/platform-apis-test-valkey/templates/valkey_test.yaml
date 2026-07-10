@@ -2,11 +2,11 @@
 apiVersion: database.entigo.com/v1alpha1
 kind: ValkeyInstance
 metadata:
-  name: test-valkey-custom
+  name: test-valkey-lifecycle
   namespace: {{ .Release.Namespace }}
 spec:
   deletionProtection: false
-  engineVersion: "8.2"
+  engineVersion: "7.2"
   instanceType: cache.t4g.medium
   numCacheClusters: 2
   snapshotRetentionLimit: 3

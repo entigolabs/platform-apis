@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"strings"
 
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
@@ -31,6 +33,8 @@ const (
 
 	elasticacheApiVersion    = "elasticache.aws.m.upbound.io/v1beta1"
 	secretsmanagerApiVersion = "secretsmanager.aws.m.upbound.io/v1beta1"
+	rgKey                    = "replication-group"
+	parameterGroupKeyPrefix  = "parameter-group-"
 )
 
 type valkeyInstanceGenerator struct {
@@ -38,6 +42,7 @@ type valkeyInstanceGenerator struct {
 	instance v1alpha1.ValkeyInstance
 	observed map[resource.Name]resource.ObservedComposed
 	env      apis.Environment
+	hash     string
 	// Dependencies
 	vpc                    ec2mv1beta1.VPC
 	elasticacheSubnetGroup elasticachemv1beta1.SubnetGroup
@@ -45,11 +50,13 @@ type valkeyInstanceGenerator struct {
 	kmsConfigKey           kmsmv1beta1.Key
 	computeSubnets         []*ec2mv1beta1.Subnet
 	// Derived values
-	region          string
-	vpcID           string
-	subnetGroupName string
-	kmsDataKeyArn   string
-	kmsConfigKeyArn string
+	region              string
+	vpcID               string
+	subnetGroupName     string
+	kmsDataKeyArn       string
+	kmsConfigKeyArn     string
+	parameterGroupName  string
+	engineVersionActual *string
 }
 
 func GenerateValkeyInstanceObjects(
@@ -103,6 +110,7 @@ func newValkeyInstanceGenerator(
 		instance:               instance,
 		observed:               observed,
 		env:                    env,
+		hash:                   base.GenerateFNVHash(instance.UID),
 		vpc:                    vpc,
 		elasticacheSubnetGroup: elasticacheSubnetGroup,
 		kmsDataKey:             kmsDataKey,
@@ -134,10 +142,26 @@ func (g *valkeyInstanceGenerator) computeDerivedValues() {
 	if g.kmsConfigKey.Status.AtProvider.Arn != nil {
 		g.kmsConfigKeyArn = *g.kmsConfigKey.Status.AtProvider.Arn
 	}
+
+	if rgObserved, ok := g.observed[rgKey]; ok {
+		if v, found, _ := unstructured.NestedString(rgObserved.Resource.Object, "status", "atProvider", "engineVersionActual"); found && v != "" {
+			g.engineVersionActual = &v
+		}
+	}
 }
 
 func (g *valkeyInstanceGenerator) generate() (map[string]client.Object, error) {
 	objects := make(map[string]client.Object)
+
+	if g.instance.Spec.ParameterGroupParameters != nil {
+		if g.instance.Spec.ParameterGroupName != "" {
+			return objects, errors.Errorf("valkey instance may have parameterGroupName or parameterGroupParameters, not both")
+		}
+		if family, ok := computeFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok {
+			g.buildParameterGroup(objects, family)
+			g.keepStaleParameterGroups(objects, family)
+		}
+	}
 
 	g.buildReplicationGroup(objects)
 	g.buildSecurityGroup(objects)
@@ -146,6 +170,39 @@ func (g *valkeyInstanceGenerator) generate() (map[string]client.Object, error) {
 	g.buildCredentialsSecret(objects)
 
 	return objects, nil
+}
+
+func (g *valkeyInstanceGenerator) keepStaleParameterGroups(objects map[string]client.Object, currentFamily string) {
+	currentKey := parameterGroupKeyPrefix + currentFamily
+	if g.replicationGroupSwitchedTo(g.parameterGroupName) {
+		return
+	}
+	for key, observedResource := range g.observed {
+		name := string(key)
+		if name == currentKey || !strings.HasPrefix(name, parameterGroupKeyPrefix) {
+			continue
+		}
+		spec, found, _ := unstructured.NestedMap(observedResource.Resource.Object, "spec")
+		if !found {
+			continue
+		}
+		obj := &unstructured.Unstructured{}
+		obj.SetAPIVersion(observedResource.Resource.GetAPIVersion())
+		obj.SetKind(observedResource.Resource.GetKind())
+		obj.SetName(observedResource.Resource.GetName())
+		_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
+		_ = unstructured.SetNestedMap(obj.Object, map[string]interface{}{"atProvider": map[string]interface{}{}}, "status")
+		objects[name] = obj
+	}
+}
+
+func (g *valkeyInstanceGenerator) replicationGroupSwitchedTo(parameterGroupName string) bool {
+	rgObserved, ok := g.observed[rgKey]
+	if !ok {
+		return false
+	}
+	appliedName, found, _ := unstructured.NestedString(rgObserved.Resource.Object, "status", "atProvider", "parameterGroupName")
+	return found && appliedName != "" && appliedName == parameterGroupName
 }
 
 func (g *valkeyInstanceGenerator) providerConfigRef() *xpvcommon.ProviderConfigReference {
@@ -157,6 +214,43 @@ func (g *valkeyInstanceGenerator) buildTags() map[string]*string {
 	maps.Copy(tags, g.env.Tags)
 	tags["Name"] = base.StringPtr(g.instance.GetName())
 	return tags
+}
+
+func (g *valkeyInstanceGenerator) buildParameterGroup(objects map[string]client.Object, family string) {
+	name := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s-%s", g.instance.Name, family, g.hash))
+	g.parameterGroupName = name
+	tags := g.buildTags()
+	description := fmt.Sprintf("Parameter group for Valkey %s", g.instance.Name)
+
+	parameters := make([]elasticachemv1beta1.ParameterParameters, 0)
+
+	for key, value := range g.instance.Spec.ParameterGroupParameters {
+		parameter := elasticachemv1beta1.ParameterParameters{
+			Name:  &key,
+			Value: &value,
+		}
+		parameters = append(parameters, parameter)
+	}
+
+	pg := &elasticachemv1beta1.ParameterGroup{
+		TypeMeta:   metav1.TypeMeta{APIVersion: elasticacheApiVersion, Kind: "ParameterGroup"},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: elasticachemv1beta1.ParameterGroupSpec{
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
+				ProviderConfigReference: g.providerConfigRef(),
+			},
+			ForProvider: elasticachemv1beta1.ParameterGroupParameters{
+				Name:        &name,
+				Region:      &g.region,
+				Family:      &family,
+				Description: &description,
+				Parameter:   parameters,
+				Tags:        tags,
+			},
+		},
+	}
+
+	objects[parameterGroupKeyPrefix+family] = pg
 }
 
 func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]client.Object) {
@@ -181,7 +275,7 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 				Region:                   &g.region,
 				Engine:                   &engine,
 				Description:              &name,
-				EngineVersion:            &g.instance.Spec.EngineVersion,
+				EngineVersion:            g.instance.Spec.EngineVersion,
 				NodeType:                 &g.instance.Spec.InstanceType,
 				NumCacheClusters:         &g.instance.Spec.NumCacheClusters,
 				AutomaticFailoverEnabled: base.BoolPtr(true),
@@ -209,15 +303,20 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 		},
 	}
 
-	if g.instance.Spec.ParameterGroupName != "" {
+	if g.parameterGroupName != "" {
+		rg.Spec.ForProvider.ParameterGroupName = &g.parameterGroupName
+	} else if g.instance.Spec.ParameterGroupName != "" {
 		rg.Spec.ForProvider.ParameterGroupName = &g.instance.Spec.ParameterGroupName
+	} else if family, ok := computeFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok {
+		defaultName := "default." + family
+		rg.Spec.ForProvider.ParameterGroupName = &defaultName
 	}
 
 	if *g.env.ValkeyBackupBeforeDeletion {
 		rg.Spec.ForProvider.FinalSnapshotIdentifier = &finalSnapshotIdentifier
 	}
 
-	objects["replication-group"] = rg
+	objects[rgKey] = rg
 }
 
 func (g *valkeyInstanceGenerator) buildSecurityGroup(objects map[string]client.Object) {
@@ -333,7 +432,7 @@ func (g *valkeyInstanceGenerator) buildSecretsManagerResources(objects map[strin
 }
 
 func (g *valkeyInstanceGenerator) buildCredentialsSecret(objects map[string]client.Object) {
-	rgObserved, ok := g.observed["replication-group"]
+	rgObserved, ok := g.observed[rgKey]
 	if !ok {
 		return
 	}
@@ -449,6 +548,17 @@ func GetValkeySecurityGroupRuleStatus(sgr ec2mv1beta1.SecurityGroupRule) v1alpha
 	}
 
 	return rule
+}
+
+func computeFamily(engineVersion, engineVersionActual *string) (string, bool) {
+	v := engineVersion
+	if v == nil {
+		v = engineVersionActual
+	}
+	if v == nil {
+		return "", false
+	}
+	return fmt.Sprintf("valkey%s", strings.SplitN(*v, ".", 2)[0]), true
 }
 
 func mustJSONString(s string) string {

@@ -20,9 +20,8 @@ type ValkeyInstance struct {
 
 type ValkeyInstanceSpec struct {
 	// +kubebuilder:default=true
-	DeletionProtection bool `json:"deletionProtection,omitempty"`
-	// +kubebuilder:default="8.2"
-	EngineVersion string `json:"engineVersion"`
+	DeletionProtection bool    `json:"deletionProtection,omitempty"`
+	EngineVersion      *string `json:"engineVersion,omitempty"`
 	// +kubebuilder:default="cache.t4g.small"
 	InstanceType string `json:"instanceType"`
 	// +kubebuilder:default=2
@@ -38,8 +37,9 @@ type ValkeyInstanceSpec struct {
 	// +kubebuilder:default=7
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=35
-	SnapshotRetentionLimit float64 `json:"snapshotRetentionLimit,omitempty"`
-	ParameterGroupName     string  `json:"parameterGroupName,omitempty"`
+	SnapshotRetentionLimit   float64           `json:"snapshotRetentionLimit,omitempty"`
+	ParameterGroupName       string            `json:"parameterGroupName,omitempty"`
+	ParameterGroupParameters map[string]string `json:"parameterGroupParameters,omitempty"`
 }
 
 type ValkeyInstanceStatus struct {

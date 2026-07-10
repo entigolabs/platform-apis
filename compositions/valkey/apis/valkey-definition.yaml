@@ -33,7 +33,6 @@ spec:
                   description: |
                     Cache engine version. ElastiCache automatically uses the latest patch version.
                     For supported versions, see: https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/supported-engine-versions.html
-                  default: "8.2"
                 instanceType:
                   type: string
                   description: |
@@ -80,8 +79,14 @@ spec:
                   description: |
                     Name of the parameter group to associate with this replication group.
                     If not specified, the default parameter group for the engine version is used.
+                parameterGroupParameters:
+                  additionalProperties:
+                    type: string
+                  type: object
+                  description: |
+                    Parameters for a custom, automatically generated parameter group.
+                    Key is the parameter name, value is parameter value.
               required:
-                - engineVersion
                 - instanceType
             status:
               type: object
