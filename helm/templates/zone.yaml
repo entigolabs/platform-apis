@@ -783,6 +783,8 @@ spec:
   matchConditions:
   - name: delete-only
     expression: request.operation == "DELETE"
+  - name: exclude-infralib
+    expression: "!((has(object.metadata) && object.metadata.name == 'infralib') || (has(oldObject.metadata) && oldObject.metadata.name == 'infralib'))"
   variables:
     - name: zoneLabel
       expression: |
