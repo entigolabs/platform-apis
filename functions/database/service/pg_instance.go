@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"maps"
 	"strconv"
+	"strings"
 	"time"
 
 	postgresv1alpha1 "github.com/crossplane-contrib/provider-sql/apis/namespaced/postgresql/v1alpha1"
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
@@ -26,9 +28,17 @@ import (
 )
 
 const (
-	ec2ApiVersion   = "ec2.aws.m.upbound.io/v1beta1"
-	rdsApiVersion   = "rds.aws.m.upbound.io/v1beta1"
-	pgSqlApiVersion = "postgresql.sql.m.crossplane.io/v1alpha1"
+	ec2ApiVersion           = "ec2.aws.m.upbound.io/v1beta1"
+	rdsApiVersion           = "rds.aws.m.upbound.io/v1beta1"
+	pgSqlApiVersion         = "postgresql.sql.m.crossplane.io/v1alpha1"
+	parameterGroupKeyPrefix = "parameter-group-"
+
+	// parameterGroupApplyMethodKey is a reserved key in ParameterGroupParameters: it sets how every
+	// parameter in the group is applied ("immediate" or "pending-reboot") and is not itself a DB
+	// parameter. AWS rejects "immediate" for static parameters (e.g. max_connections), so callers
+	// must opt into "pending-reboot" for those.
+	parameterGroupApplyMethodKey = "applyMethod"
+	defaultParameterApplyMethod  = "immediate"
 )
 
 type pgInstanceGenerator struct {
@@ -43,8 +53,10 @@ type pgInstanceGenerator struct {
 	kmsConfigKey kmsmv1beta1.Key
 	subnetGroup  rdsmv1beta1.SubnetGroup
 	// Internal State
-	names        resourceNames
-	readinessMap map[resource.Name]bool
+	names               resourceNames
+	readinessMap        map[resource.Name]bool
+	parameterGroupName  string
+	engineVersionActual *string
 }
 
 type resourceNames struct {
@@ -60,6 +72,13 @@ func GeneratePgInstanceObjects(
 	if err != nil {
 		return nil, err
 	}
+
+	if rgObserved, ok := g.observed[g.names.rdsInstance]; ok {
+		if v, found, _ := unstructured.NestedString(rgObserved.Resource.Object, "status", "atProvider", "engineVersionActual"); found && v != "" {
+			g.engineVersionActual = &v
+		}
+	}
+
 	return g.generate()
 }
 
@@ -128,6 +147,16 @@ func (g *pgInstanceGenerator) generate() (map[string]client.Object, error) {
 	maps.Copy(desired, g.buildSecurityGroup())
 	maps.Copy(desired, g.buildSqlProviderConfig())
 
+	if g.pgInstance.Spec.ParameterGroupParameters != nil {
+		if g.pgInstance.Spec.ParameterGroupName != "" {
+			return desired, errors.Errorf("PostgreSQL instance may have parameterGroupName or parameterGroupParameters, not both")
+		}
+		if family, ok := computeFamily(g.pgInstance.Spec.EngineVersion, g.engineVersionActual); ok {
+			maps.Copy(desired, g.buildParameterGroup(family))
+			g.keepStaleParameterGroups(desired, family)
+		}
+	}
+
 	recreateRDS := false
 	observedRDSInstance, rdsExists := g.observed[g.names.rdsInstance]
 
@@ -160,6 +189,55 @@ func (g *pgInstanceGenerator) generate() (map[string]client.Object, error) {
 	maps.Copy(desired, g.buildExternalSecret(secretARN, endpoint, port))
 
 	return desired, nil
+}
+
+func GetSGName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-%s", instanceName, hash))
+}
+
+func GetSGIngressName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-ingress-%s", instanceName, hash))
+}
+
+func GetSGEgressName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-egress-%s", instanceName, hash))
+}
+
+func GetRDSInstanceName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-%s", instanceName, hash))
+}
+
+func GetRDSInstanceFinalSnapshotName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-snapshot-%s", instanceName, hash))
+}
+
+func GetESName(instanceName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-es-%s", instanceName, hash))
+}
+
+func GetPCName(instanceName string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-providerconfig", instanceName))
+}
+
+func (g *pgInstanceGenerator) generateNames() {
+	g.names.sg = resource.Name(GetSGName(g.pgInstance.Name, g.hash))
+	g.names.sgIngress = resource.Name(GetSGIngressName(g.pgInstance.Name, g.hash))
+	g.names.sgEgress = resource.Name(GetSGEgressName(g.pgInstance.Name, g.hash))
+	g.names.rdsInstance = resource.Name(GetRDSInstanceName(g.pgInstance.Name, g.hash))
+	g.names.rdsInstanceFinalSnapshot = resource.Name(GetRDSInstanceFinalSnapshotName(g.pgInstance.Name, g.hash))
+	g.names.es = resource.Name(GetESName(g.pgInstance.Name, g.hash))
+	g.names.pc = resource.Name(GetPCName(g.pgInstance.Name))
+}
+
+func computeFamily(engineVersion, engineVersionActual *string) (string, bool) {
+	v := engineVersion
+	if v == nil {
+		v = engineVersionActual
+	}
+	if v == nil {
+		return "", false
+	}
+	return fmt.Sprintf("postgres%s", strings.SplitN(*v, ".", 2)[0]), true
 }
 
 func (g *pgInstanceGenerator) checkSecretConflict(required map[string][]resource.Required) error {
@@ -205,42 +283,37 @@ func (g *pgInstanceGenerator) checkSecretConflict(required map[string][]resource
 	return nil
 }
 
-func GetSGName(instanceName string, hash string) string {
-	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-%s", instanceName, hash))
+func (g *pgInstanceGenerator) keepStaleParameterGroups(objects map[string]client.Object, currentFamily string) {
+	currentKey := parameterGroupKeyPrefix + currentFamily
+	if g.rdsInstanceSwitchedTo(g.parameterGroupName) {
+		return
+	}
+	for key, observedResource := range g.observed {
+		name := string(key)
+		if name == currentKey || !strings.HasPrefix(name, parameterGroupKeyPrefix) {
+			continue
+		}
+		spec, found, _ := unstructured.NestedMap(observedResource.Resource.Object, "spec")
+		if !found {
+			continue
+		}
+		obj := &unstructured.Unstructured{}
+		obj.SetAPIVersion(observedResource.Resource.GetAPIVersion())
+		obj.SetKind(observedResource.Resource.GetKind())
+		obj.SetName(observedResource.Resource.GetName())
+		_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
+		_ = unstructured.SetNestedMap(obj.Object, map[string]interface{}{"atProvider": map[string]interface{}{}}, "status")
+		objects[name] = obj
+	}
 }
 
-func GetSGIngressName(instanceName string, hash string) string {
-	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-ingress-%s", instanceName, hash))
-}
-
-func GetSGEgressName(instanceName string, hash string) string {
-	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-egress-%s", instanceName, hash))
-}
-
-func GetRDSInstanceName(instanceName string, hash string) string {
-	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-%s", instanceName, hash))
-}
-
-func GetRDSInstanceFinalSnapshotName(instanceName string, hash string) string {
-	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-instance-snapshot-%s", instanceName, hash))
-}
-
-func GetESName(instanceName string, hash string) string {
-	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-es-%s", instanceName, hash))
-}
-
-func GetPCName(instanceName string) string {
-	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-providerconfig", instanceName))
-}
-
-func (g *pgInstanceGenerator) generateNames() {
-	g.names.sg = resource.Name(GetSGName(g.pgInstance.Name, g.hash))
-	g.names.sgIngress = resource.Name(GetSGIngressName(g.pgInstance.Name, g.hash))
-	g.names.sgEgress = resource.Name(GetSGEgressName(g.pgInstance.Name, g.hash))
-	g.names.rdsInstance = resource.Name(GetRDSInstanceName(g.pgInstance.Name, g.hash))
-	g.names.rdsInstanceFinalSnapshot = resource.Name(GetRDSInstanceFinalSnapshotName(g.pgInstance.Name, g.hash))
-	g.names.es = resource.Name(GetESName(g.pgInstance.Name, g.hash))
-	g.names.pc = resource.Name(GetPCName(g.pgInstance.Name))
+func (g *pgInstanceGenerator) rdsInstanceSwitchedTo(parameterGroupName string) bool {
+	rdsInstanceObserved, ok := g.observed[g.names.rdsInstance]
+	if !ok {
+		return false
+	}
+	appliedName, found, _ := unstructured.NestedString(rdsInstanceObserved.Resource.Object, "status", "atProvider", "parameterGroupName")
+	return found && appliedName != "" && appliedName == parameterGroupName
 }
 
 func (g *pgInstanceGenerator) buildSecurityGroup() map[string]client.Object {
@@ -319,6 +392,54 @@ func (g *pgInstanceGenerator) buildSecurityGroup() map[string]client.Object {
 	return groups
 }
 
+func (g *pgInstanceGenerator) buildParameterGroup(family string) map[string]client.Object {
+	groups := make(map[string]client.Object)
+	pgName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s-%s", g.pgInstance.Name, family, g.hash))
+	region := g.vpc.Spec.ForProvider.Region
+	g.parameterGroupName = pgName
+	tags := g.env.Tags
+	description := fmt.Sprintf("Parameter group for PostgreSQL %s", g.pgInstance.Name)
+
+	applyMethod := g.pgInstance.Spec.ParameterGroupParameters[parameterGroupApplyMethodKey]
+	if applyMethod == "" {
+		applyMethod = defaultParameterApplyMethod
+	}
+
+	parameters := make([]rdsmv1beta1.ParameterParameters, 0)
+
+	for key, value := range g.pgInstance.Spec.ParameterGroupParameters {
+		if key == parameterGroupApplyMethodKey {
+			continue
+		}
+		parameter := rdsmv1beta1.ParameterParameters{
+			ApplyMethod: &applyMethod,
+			Name:        &key,
+			Value:       &value,
+		}
+		parameters = append(parameters, parameter)
+	}
+
+	pg := &rdsmv1beta1.ParameterGroup{
+		TypeMeta:   metav1.TypeMeta{APIVersion: rdsApiVersion, Kind: "ParameterGroup"},
+		ObjectMeta: metav1.ObjectMeta{Name: pgName},
+		Spec: rdsmv1beta1.ParameterGroupSpec{
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
+				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
+			},
+			ForProvider: rdsmv1beta1.ParameterGroupParameters{
+				Region:      region,
+				Family:      &family,
+				Description: &description,
+				Parameter:   parameters,
+				Tags:        tags,
+			},
+		},
+	}
+
+	groups[parameterGroupKeyPrefix+family] = pg
+	return groups
+}
+
 func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 	rdsInstances := make(map[string]client.Object)
 	rdsInstanceName := string(g.names.rdsInstance)
@@ -369,7 +490,7 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 				DBSubnetGroupNameRef:        &xpv2v1.NamespacedReference{Name: g.subnetGroup.Name, Namespace: g.subnetGroup.Namespace},
 				DeletionProtection:          &g.pgInstance.Spec.DeletionProtection,
 				Engine:                      &engine,
-				EngineVersion:               &g.pgInstance.Spec.EngineVersion,
+				EngineVersion:               g.pgInstance.Spec.EngineVersion,
 				FinalSnapshotIdentifier:     &finalSnapshotIdentifier,
 				Identifier:                  &rdsInstanceName,
 				InstanceClass:               &g.pgInstance.Spec.InstanceType,
@@ -399,8 +520,18 @@ func (g *pgInstanceGenerator) buildRDSInstance() map[string]client.Object {
 	if g.pgInstance.Spec.Iops != 0 {
 		rdsInstance.Spec.ForProvider.Iops = &g.pgInstance.Spec.Iops
 	}
-	if g.pgInstance.Spec.ParameterGroupName != "" {
+	if g.parameterGroupName != "" {
+		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.parameterGroupName
+	} else if g.pgInstance.Spec.ParameterGroupName != "" {
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.pgInstance.Spec.ParameterGroupName
+	} else if family, ok := computeFamily(g.pgInstance.Spec.EngineVersion, g.engineVersionActual); ok {
+		defaultName := "default." + family
+		rdsInstance.Spec.ForProvider.ParameterGroupName = &defaultName
+	}
+
+	if family, ok := computeFamily(g.pgInstance.Spec.EngineVersion, g.engineVersionActual); ok {
+		defaultOptionGroupName := "default:postgres-" + strings.TrimPrefix(family, "postgres")
+		rdsInstance.Spec.ForProvider.OptionGroupName = &defaultOptionGroupName
 	}
 
 	if g.pgInstance.Spec.SnapshotIdentifier != "" {
@@ -671,7 +802,7 @@ func rdsNeedsApplyImmediately(observed resource.ObservedComposed, spec v1alpha1.
 
 	atProvider := observedInstance.Status.AtProvider
 	return paramChanged(atProvider.AllocatedStorage, spec.AllocatedStorage) ||
-		paramChanged(atProvider.EngineVersion, spec.EngineVersion) ||
+		(spec.EngineVersion != nil && paramChanged(atProvider.EngineVersion, *spec.EngineVersion)) ||
 		paramChanged(atProvider.InstanceClass, spec.InstanceType) ||
 		(spec.Iops != 0 && paramChanged(atProvider.Iops, spec.Iops)) ||
 		(atProvider.MultiAz != nil && *atProvider.MultiAz) != spec.MultiAZ ||

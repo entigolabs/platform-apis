@@ -255,7 +255,7 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
     // Disable deletion protection before deleting
     patchDeletionProtectionIfEnabled(t, ns, MyResourceKind, MyResourceMinimalName)
 
-    cleanupDeleteParallel(t, ns, MyResourceKind, MyResourceMinimalName, MyResourceCustomName)
+    cleanupDeleteParallel(t, ns, MyResourceKind, 30, MyResourceMinimalName, MyResourceCustomName)
 
     // Delete the ArgoCD application but keep the namespace — zone-managed resources
     // (netpols, RBAC, Kyverno policies) persist for faster subsequent test runs.
@@ -307,7 +307,7 @@ All helpers live in `helpers_argocd_test.go`, `helpers_crossplane_test.go`.
 | Helper | When to use |
 | --- | --- |
 | `cleanupDeleteAndWait(t, ns, kind, name, maxRetries)` | Delete one resource and wait for it to disappear |
-| `cleanupDeleteParallel(t, ns, kind, names...)` | Delete multiple resources of the same kind concurrently |
+| `cleanupDeleteParallel(t, ns, kind, maxRetries, names...)` | Delete multiple resources of the same kind concurrently |
 
 ### ArgoCD helpers
 
@@ -489,7 +489,7 @@ func cleanupMyResource(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
     ns := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, MyResourceNamespaceName)
 
     patchDeletionProtectionIfEnabled(t, ns, MyResourceKind, MyResourceMinimalName)
-    cleanupDeleteParallel(t, ns, MyResourceKind, MyResourceMinimalName, MyResourceCustomName)
+    cleanupDeleteParallel(t, ns, MyResourceKind, 30, MyResourceMinimalName, MyResourceCustomName)
 
     _, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MyResourceApplicationName, "--ignore-not-found")
 }

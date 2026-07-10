@@ -109,7 +109,7 @@ func cleanupKafka(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	kfNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KafkaNamespaceName)
 	kfClusterNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KafkaClusterNamespaceName)
 
-	cleanupDeleteParallel(t, kfNs, KafkaTopicKind, KafkaTopicName)
+	cleanupDeleteParallel(t, kfNs, KafkaTopicKind, 30, KafkaTopicName)
 
 	cleanupDeleteAndWait(t, cluster, KafkaMSKKind, KafkaMSKObserverName, 30)
 

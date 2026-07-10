@@ -45,6 +45,68 @@ func testPostgresql(t *testing.T, ctx context.Context, cluster, argocd *terrak8s
 	}
 
 	t.Run("MinimalDatabase", func(t *testing.T) { testPostgresqlMinimalDatabase(t, pgNs) })
+	if t.Failed() {
+		return
+	}
+
+	t.Run("Lifecycle", func(t *testing.T) { testPostgresqlLifecycle(t, pgNs) })
+}
+
+// testPostgresqlLifecycle drives a single PostgreSQLInstance through every engineVersion/
+// parameterGroupParameters combination worth covering, since each transition is a real (slow) AWS
+// RDS change and provisioning a separate instance per case would multiply e2e cost for no extra
+// coverage.
+func testPostgresqlLifecycle(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	waitSyncedAndReady(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, 120, 10*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	rdsName, err := getFirstByLabel(t, pgNs, RdsInstanceKind, PostgresqlLifecycleName)
+	require.NoError(t, err)
+	require.NotEmpty(t, rdsName)
+
+	require.Equal(t, "17.7", getField(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.engineVersion"))
+	actualFamily := "postgres17"
+
+	_, err = getFirstByLabel(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName)
+	require.Error(t, err, "no ParameterGroup should exist while parameterGroupParameters is unset")
+
+	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"parameterGroupParameters":{"applyMethod":"pending-reboot","max_connections":"200"}}}`)
+
+	pgName := waitSyncedAndReadyByLabel(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName, 60, 10*time.Second)
+	require.NotEmpty(t, pgName)
+	require.Equal(t, actualFamily, getField(t, pgNs, RdsParameterGroupKind, pgName, ".spec.forProvider.family"))
+	require.Equal(t, "max_connections", getField(t, pgNs, RdsParameterGroupKind, pgName, ".spec.forProvider.parameter[0].name"))
+	require.Equal(t, "200", getField(t, pgNs, RdsParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value"))
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.parameterGroupName", pgName, 60, 10*time.Second)
+
+	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"parameterGroupParameters":{"max_connections":"300"}}}`)
+
+	waitFieldEquals(t, pgNs, RdsParameterGroupKind, pgName, ".spec.forProvider.parameter[0].value", "300", 60, 10*time.Second)
+	require.Equal(t, pgName, getField(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.parameterGroupName"),
+		"ParameterGroup should update in place, not be recreated under a different name")
+
+	newVersion, newFamily := "18.4", "postgres18"
+	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"engineVersion":"`+newVersion+`"}}`)
+
+	recreatedPgName := waitSyncedAndReadyByLabelWhere(t, pgNs, RdsParameterGroupKind, PostgresqlLifecycleName, ".spec.forProvider.family", newFamily, 60, 10*time.Second)
+	require.NotEqual(t, pgName, recreatedPgName)
+
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.parameterGroupName", recreatedPgName, 240, 15*time.Second)
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.parameterGroupName", recreatedPgName, 60, 10*time.Second)
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.engineVersion", newVersion, 60, 10*time.Second)
+	newMajor := strings.TrimPrefix(newFamily, "postgres")
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.optionGroupName", "default:postgres-"+newMajor, 60, 10*time.Second)
+
+	cleanupWaitGone(t, pgNs, RdsParameterGroupKind, pgName, 30)
+
+	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlLifecycleName, `{"spec":{"parameterGroupParameters":null}}`)
+
+	cleanupWaitGone(t, pgNs, RdsParameterGroupKind, recreatedPgName, 30)
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.parameterGroupName", "default."+newFamily, 60, 10*time.Second)
 }
 
 func testInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
@@ -376,12 +438,12 @@ func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 
 	cleanupDisableDeletionProtectionOnDatabases(t, pgNs)
-	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
+	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, 30, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
 
-	cleanupDeleteParallel(t, pgNs, PostgresqlUserKind, PostgresqlRegularUserName, PostgresqlAdminUserName)
+	cleanupDeleteParallel(t, pgNs, PostgresqlUserKind, 30, PostgresqlRegularUserName, PostgresqlAdminUserName)
 
 	cleanupDisableDeletionProtectionOnInstance(t, pgNs)
-	cleanupDeleteAndWait(t, pgNs, PostgresqlInstanceKind, PostgresqlInstanceName, 180)
+	cleanupDeleteParallel(t, pgNs, PostgresqlInstanceKind, 180, PostgresqlInstanceName, PostgresqlLifecycleName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
 }

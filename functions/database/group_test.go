@@ -36,10 +36,27 @@ const (
 	sgResJson                   = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"description":"allow traffic from vpc","region":"eu-north-1","tags":{"Name":"%s","entigo:zone":"zone-a"}, "vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 	ingressResJson              = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":5432,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":5432,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 	egressResJson               = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":0,"protocol":"-1","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":0,"type":"egress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	instanceResJson             = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
-	instanceWithSnapshotResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"snapshotIdentifier":"rds:test-snapshot-id","storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	instanceResJson             = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"default.postgres17","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	instanceWithSnapshotResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"default.postgres17","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"snapshotIdentifier":"rds:test-snapshot-id","storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
 	esResJson                   = `{"apiVersion":"external-secrets.io/v1","kind":"ExternalSecret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"data":[{"remoteRef":{"key":"arn:aws:secretsmanager:eu-north-1:123456789012:secret:test-db-secret-xyz","property":"password","version":"AWSCURRENT"},"secretKey":"password"}],"refreshInterval":"15m0s","refreshPolicy":"Periodic","secretStoreRef":{"kind":"ClusterSecretStore","name":"external-secrets"},"target":{"creationPolicy":"Owner","deletionPolicy":"Delete","name":"%s", "template":{"metadata":{},"data":{"endpoint":"test.rds.amazonaws.com","password":"{{ .password | toString }}","port":"5432","username":"dbadmin"}}}},"status":{"binding":{},"refreshTime":null}}`
 	providerConfigJson          = `{"apiVersion":"postgresql.sql.m.crossplane.io/v1alpha1","kind":"ProviderConfig","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"credentials":{"connectionSecretRef":{"name":"test-db-dbadmin"},"source":"PostgreSQLConnectionSecret"},"sslMode":"require"},"status":{}}`
+
+	postgresParameterGroupInputJson                = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "PostgreSQLInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"engineVersion": "17.2","instanceType": "db.t3.micro","parameterGroupParameters":{"max_connections":"200"}}}`
+	postgresParameterGroupUpdatedInputJson         = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "PostgreSQLInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"engineVersion": "17.2","instanceType": "db.t3.micro","parameterGroupParameters":{"max_connections":"300"}}}`
+	postgresNoEngineVersionInputJson               = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "PostgreSQLInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"instanceType": "db.t3.micro"}}`
+	postgresNoEngineVersionParameterGroupInputJson = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "PostgreSQLInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"instanceType": "db.t3.micro","parameterGroupParameters":{"max_connections":"200"}}}`
+
+	pgParameterGroupResJson          = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"description":"Parameter group for PostgreSQL test-db","family":"postgres17","parameter":[{"applyMethod":"immediate","name":"max_connections","value":"200"}],"region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	pgParameterGroupUpdatedResJson   = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"description":"Parameter group for PostgreSQL test-db","family":"postgres17","parameter":[{"applyMethod":"immediate","name":"max_connections","value":"300"}],"region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	pgOldFamilyParameterGroupResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"description":"Parameter group for PostgreSQL test-db","family":"postgres16","parameter":[{"applyMethod":"immediate","name":"max_connections","value":"200"}],"region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+
+	instanceWithParamGroupResJson        = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"%s","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	instanceNoEngineVersionResJson       = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	instanceNoEngineVersionWithPGResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"%s","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+
+	instanceObservedEngineVersionActualJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"status":{"atProvider":{"engineVersionActual":"17.2"}}}`
+	instanceObservedStillOnOldPGJson        = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"status":{"atProvider":{"parameterGroupName":"%s"}}}`
+	instanceObservedSwitchedToNewPGJson     = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"status":{"atProvider":{"parameterGroupName":"%s"}}}`
 )
 
 func withReadyStatus(jsonStr string) *fnv1.Resource {
@@ -129,6 +146,30 @@ func TestDatabaseFunction(t *testing.T) {
 	secretName := "test-db-dbadmin"
 	ns := "testspace"
 	reqResNs := "aws-provider"
+	pgGroupName17 := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s-%s", pgInstanceName, "postgres17", setHash))
+	pgGroupName16 := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s-%s", pgInstanceName, "postgres16", setHash))
+	pgGroupKey17 := "parameter-group-postgres17"
+	pgGroupKey16 := "parameter-group-postgres16"
+	postgresRequiredResources := func() map[string]*fnv1.Resources {
+		return map[string]*fnv1.Resources{
+			"VPC":           {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
+			"KMSDataKey":    test.KMSKeyResource("data", reqResNs, "mrk-data123"),
+			"KMSConfigKey":  test.KMSKeyResource("config", reqResNs, "mrk-config456"),
+			"DBSubnetGroup": {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredDBSubnetGroupJson)}}},
+			"Secret":        {Items: []*fnv1.Resource{}},
+		}
+	}
+	postgresExpectedRequirements := func() *fnv1.Requirements {
+		return &fnv1.Requirements{
+			Resources: map[string]*fnv1.ResourceSelector{
+				"VPC":           {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
+				"KMSDataKey":    base.RequiredKMSKey(environmentData["dataKMSKey"].(string), reqResNs),
+				"KMSConfigKey":  base.RequiredKMSKey(environmentData["configKMSKey"].(string), reqResNs),
+				"DBSubnetGroup": {Kind: "SubnetGroup", ApiVersion: "rds.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
+				"Secret":        {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
+			},
+		}
+	}
 
 	cases := map[string]test.Case{
 		"PostgreSQLInstance/Stage 1: Create Network when Secret is not found": {
@@ -230,7 +271,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
-							instanceName:  withReadyStatus(fmt.Sprintf(`{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"creationTimestamp":null,"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`, instanceName, snapshotName, instanceName, sgName)),
+							instanceName:  withReadyStatus(fmt.Sprintf(`{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"creationTimestamp":null,"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"default.postgres17","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`, instanceName, snapshotName, instanceName, sgName)),
 						},
 					},
 					RequiredResources: map[string]*fnv1.Resources{
@@ -251,7 +292,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
-							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`, instanceName, snapshotName, instanceName, sgName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"default.postgres17","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`, instanceName, snapshotName, instanceName, sgName)), Ready: 1},
 							esName:        {Resource: resource.MustStructJSON(fmt.Sprintf(esResJson, esName, secretName))},
 							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName))},
 						},
@@ -360,7 +401,7 @@ func TestDatabaseFunction(t *testing.T) {
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							instanceName: {Resource: resource.MustStructJSON(`
-{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-db-instance-811c9dc5","namespace":"testspace"},"spec":{"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"test-db-instance-snapshot-811c9dc5","identifier":"test-db-instance-811c9dc5","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"env":"test-environment","entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"test-db-sg-811c9dc5"}]},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
+{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"test-db-instance-811c9dc5","namespace":"testspace"},"spec":{"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"test-db-instance-snapshot-811c9dc5","identifier":"test-db-instance-811c9dc5","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"default.postgres17","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"env":"test-environment","entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"test-db-sg-811c9dc5"}]},"initProvider":{},"managementPolicies":["*"],"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}
 							`), Ready: 1},
 							esName: {Resource: resource.MustStructJSON(fmt.Sprintf(esResJson, esName, secretName)), Ready: 1},
 							pcName: {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName))},
@@ -423,6 +464,328 @@ func TestDatabaseFunction(t *testing.T) {
 							"Secret":        {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
 						},
 					},
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 1: ParameterGroupParameters set creates ParameterGroup alongside network stack": {
+			Reason: "With no observed resources and parameterGroupParameters set, ParameterGroup should be desired together with the SecurityGroup/ProviderConfig stack.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresParameterGroupInputJson)},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName))},
+							pgGroupKey17:  {Resource: resource.MustStructJSON(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17))},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 2: Instance withheld while ParameterGroup is not yet Ready": {
+			Reason: "Network resources being ready is not enough; the RDS Instance must also wait for the generated ParameterGroup to be Ready.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
+						},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
+							pgGroupKey17:  {Resource: resource.MustStructJSON(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17))},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 3: Instance references generated ParameterGroup once network and ParameterGroup are Ready": {
+			Reason: "Once the network stack and ParameterGroup are both ready, the RDS Instance should be desired with parameterGroupName set to the generated ParameterGroup.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
+							pgGroupKey17:  withReadyStatus(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17)),
+						},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
+							pgGroupKey17:  {Resource: resource.MustStructJSON(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceWithParamGroupResJson, instanceName, snapshotName, instanceName, pgGroupName17, sgName))},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 4: EngineVersion omitted leaves Instance without an explicit version or parameterGroupName": {
+			Reason: "engineVersion is optional; when unset, the RDS Instance must not pin a version (AWS picks its own default/latest) and, since the family can't be computed yet, must not guess a parameterGroupName either.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresNoEngineVersionInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
+						},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceNoEngineVersionResJson, instanceName, snapshotName, instanceName, sgName))},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 5: EngineVersion omitted with ParameterGroupParameters set withholds ParameterGroup until family is known": {
+			Reason: "The ParameterGroup can't be built without a family, and the family can't be computed without an engine version (spec or observed engineVersionActual), so it must be withheld rather than created without one.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresNoEngineVersionParameterGroupInputJson)},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName))},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 6: ParameterGroup is created once Instance reports its actual engine version": {
+			Reason: "Once the RDS Instance exists and AWS has reported status.atProvider.engineVersionActual, the family can be derived from it, so the custom ParameterGroup gets built and the Instance is wired to it.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresNoEngineVersionParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceObservedEngineVersionActualJson, instanceName))},
+						},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
+							pgGroupKey17:  {Resource: resource.MustStructJSON(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17))},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceNoEngineVersionWithPGResJson, instanceName, snapshotName, instanceName, pgGroupName17, sgName)), Ready: 2},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 7: EngineVersion change builds new ParameterGroup while keeping the old one alive": {
+			Reason: "family is immutable on the AWS ParameterGroup and can't be replaced in place. AWS also refuses to delete a ParameterGroup while an Instance still uses it, so the old one must keep being desired (kept alive, unchanged) alongside the newly-built one until the Instance's observed status confirms it switched away.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
+							pgGroupKey16:  withReadyStatus(fmt.Sprintf(pgOldFamilyParameterGroupResJson, pgGroupName16)),
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceObservedStillOnOldPGJson, instanceName, pgGroupName16))},
+						},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
+							pgGroupKey16:  {Resource: resource.MustStructJSON(fmt.Sprintf(pgOldFamilyParameterGroupResJson, pgGroupName16)), Ready: 1},
+							pgGroupKey17:  {Resource: resource.MustStructJSON(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17))},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceWithParamGroupResJson, instanceName, snapshotName, instanceName, pgGroupName17, sgName)), Ready: 2},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 7b: old ParameterGroup is dropped once Instance confirms the switch": {
+			Reason: "Only the Instance's observed status (not the desired spec we've already been setting) proves AWS actually stopped using the old ParameterGroup - only then is it safe to stop declaring it, so Crossplane deletes it.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
+							pgGroupKey16:  withReadyStatus(fmt.Sprintf(pgOldFamilyParameterGroupResJson, pgGroupName16)),
+							pgGroupKey17:  withReadyStatus(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17)),
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceObservedSwitchedToNewPGJson, instanceName, pgGroupName17))},
+						},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
+							pgGroupKey17:  {Resource: resource.MustStructJSON(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceWithParamGroupResJson, instanceName, snapshotName, instanceName, pgGroupName17, sgName)), Ready: 2},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 8: Removing ParameterGroupParameters deletes ParameterGroup and reverts Instance to the default": {
+			Reason: "Clearing parameterGroupParameters must withhold the ParameterGroup so Crossplane deletes it, and the Instance must be pinned explicitly to default.<family> - parameterGroupName is Optional+Computed on the provider, so merely omitting it would leave the previously-applied custom group name untouched.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
+							pgGroupKey17:  withReadyStatus(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17)),
+						},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceResJson, instanceName, snapshotName, instanceName, sgName))},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
+				},
+			},
+		},
+		"PostgreSQLInstance/ParameterGroup Stage 9: Changing a ParameterGroupParameters value updates the existing ParameterGroup in place": {
+			Reason: "family is unchanged, only the parameter value changed. parameter/value is Optional (not ForceNew) on the provider, so the same ParameterGroup must be updated in place, not withheld/recreated.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(postgresParameterGroupUpdatedInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(providerConfigJson, pcName)),
+							pgGroupKey17:  withReadyStatus(fmt.Sprintf(pgParameterGroupResJson, pgGroupName17)),
+						},
+					},
+					RequiredResources: postgresRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(providerConfigJson, pcName)), Ready: 1},
+							pgGroupKey17:  {Resource: resource.MustStructJSON(fmt.Sprintf(pgParameterGroupUpdatedResJson, pgGroupName17)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(instanceWithParamGroupResJson, instanceName, snapshotName, instanceName, pgGroupName17, sgName))},
+						},
+					},
+					Requirements: postgresExpectedRequirements(),
 				},
 			},
 		},

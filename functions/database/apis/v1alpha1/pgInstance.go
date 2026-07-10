@@ -32,14 +32,18 @@ type PostgreSQLInstanceSpec struct {
 	BackupWindow            string   `json:"backupWindow,omitempty"`
 	// +kubebuilder:default=true
 	DeletionProtection bool    `json:"deletionProtection"`
-	EngineVersion      string  `json:"engineVersion"`
+	EngineVersion      *string `json:"engineVersion,omitempty"`
 	InstanceType       string  `json:"instanceType"`
 	Iops               float64 `json:"iops,omitempty"`
 	MaintenanceWindow  string  `json:"maintenanceWindow,omitempty"`
 	// +kubebuilder:default=false
 	MultiAZ            bool   `json:"multiAZ"`
 	ParameterGroupName string `json:"parameterGroupName,omitempty"`
-	SnapshotIdentifier string `json:"snapshotIdentifier,omitempty"`
+	// Key is the parameter name, value is the parameter value. The reserved key "applyMethod"
+	// ("immediate" or "pending-reboot", defaults to "immediate") controls how every parameter in
+	// this group is applied - it is not itself a DB parameter.
+	ParameterGroupParameters map[string]string `json:"parameterGroupParameters,omitempty"`
+	SnapshotIdentifier       string            `json:"snapshotIdentifier,omitempty"`
 }
 
 type PostgreSQLInstanceStatus struct {

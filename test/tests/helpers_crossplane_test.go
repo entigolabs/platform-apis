@@ -194,7 +194,7 @@ func testUsage(t *testing.T, opts *terrak8s.KubectlOptions, usageName, ofKind, o
 }
 
 // cleanupDeleteParallel deletes multiple resources of the same kind concurrently and waits for all to disappear.
-func cleanupDeleteParallel(t *testing.T, opts *terrak8s.KubectlOptions, kind string, names ...string) {
+func cleanupDeleteParallel(t *testing.T, opts *terrak8s.KubectlOptions, kind string, maxRetries int, names ...string) {
 	if len(names) == 0 {
 		return
 	}
@@ -208,7 +208,7 @@ func cleanupDeleteParallel(t *testing.T, opts *terrak8s.KubectlOptions, kind str
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cleanupWaitGone(t, opts, kind, name, 30)
+			cleanupWaitGone(t, opts, kind, name, maxRetries)
 		}()
 	}
 	wg.Wait()

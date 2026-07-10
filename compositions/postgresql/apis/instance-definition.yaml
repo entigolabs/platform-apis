@@ -72,6 +72,17 @@ spec:
                 parameterGroupName:
                   type: string
                   description: Reference to a custom parameter group.
+                parameterGroupParameters:
+                  additionalProperties:
+                    type: string
+                  type: object
+                  description: |
+                    Parameters for a custom, automatically generated parameter group.
+                    Key is the parameter name, value is parameter value.
+                    The reserved key "applyMethod" ("immediate" or "pending-reboot", defaults to
+                    "immediate") is not a DB parameter - it controls how every parameter in this
+                    group is applied. AWS rejects "immediate" for static parameters (e.g.
+                    max_connections), so set it to "pending-reboot" when using those.
                 snapshotIdentifier:
                   type: string
                   description: Specifies whether or not to create this database from a snapshot. This corresponds to the snapshot ID in the RDS console.
@@ -80,7 +91,6 @@ spec:
                   message: "snapshotIdentifier cannot be changed when deletionProtection is enabled"
               required:
                 - allocatedStorage
-                - engineVersion
                 - instanceType
             status:
               type: object
