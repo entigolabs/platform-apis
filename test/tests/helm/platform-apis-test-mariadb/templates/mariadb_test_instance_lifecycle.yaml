@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   allocatedStorage: 20
-  engineVersion: "10.11.11"
+  engineVersion: "10.11.16"
   instanceType: db.t3.micro
   allowMajorVersionUpgrade: true
   autoMinorVersionUpgrade: true

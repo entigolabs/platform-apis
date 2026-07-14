@@ -73,7 +73,7 @@ func testMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 
 	// RDS fields must reflect what was specified on the composite
 	require.Equal(t, "20", getField(t, mdbNs, RdsInstanceKind, rdsName, ".status.atProvider.allocatedStorage"))
-	require.Equal(t, "11.4.5", getField(t, mdbNs, RdsInstanceKind, rdsName, ".status.atProvider.engineVersion"))
+	require.Equal(t, "11.4.10", getField(t, mdbNs, RdsInstanceKind, rdsName, ".status.atProvider.engineVersion"))
 	require.Equal(t, "db.t3.micro", getField(t, mdbNs, RdsInstanceKind, rdsName, ".status.atProvider.instanceClass"))
 	require.Equal(t, "false", getField(t, mdbNs, RdsInstanceKind, rdsName, ".status.atProvider.deletionProtection"))
 
@@ -99,11 +99,6 @@ func testMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 // parameterGroupParameters combination worth covering, since each transition is a real (slow) AWS
 // RDS change and provisioning a separate instance per case would multiply e2e cost for no extra
 // coverage.
-//
-// The instance starts at a deliberately low major version ("10.11.11", see the helm template). RDS
-// only supports major version upgrades, never downgrades, so starting low keeps the later
-// engineVersion transition in this test a valid upgrade (10.11 -> 11.4, requiring
-// allowMajorVersionUpgrade=true on the composite).
 func testMariadbLifecycle(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	t.Helper()
 
@@ -116,7 +111,7 @@ func testMariadbLifecycle(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	require.NoError(t, err)
 	require.NotEmpty(t, rdsName)
 
-	require.Equal(t, "10.11.11", getField(t, mdbNs, RdsInstanceKind, rdsName, ".spec.forProvider.engineVersion"))
+	require.Equal(t, "10.11.16", getField(t, mdbNs, RdsInstanceKind, rdsName, ".spec.forProvider.engineVersion"))
 	actualFamily := "mariadb10.11"
 
 	_, err = getFirstByLabel(t, mdbNs, RdsParameterGroupKind, MariadbLifecycleName)
@@ -137,7 +132,7 @@ func testMariadbLifecycle(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	require.Equal(t, pgName, getField(t, mdbNs, RdsInstanceKind, rdsName, ".spec.forProvider.parameterGroupName"),
 		"ParameterGroup should update in place, not be recreated under a different name")
 
-	newVersion, newFamily := "11.4.5", "mariadb11.4"
+	newVersion, newFamily := "11.4.10", "mariadb11.4"
 	patchResource(t, mdbNs, MariadbInstanceKind, MariadbLifecycleName, `{"spec":{"engineVersion":"`+newVersion+`"}}`)
 
 	recreatedPgName := waitSyncedAndReadyByLabelWhere(t, mdbNs, RdsParameterGroupKind, MariadbLifecycleName, ".spec.forProvider.family", newFamily, 60, 10*time.Second)
