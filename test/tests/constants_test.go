@@ -22,6 +22,7 @@ const (
 
 	CronjobConfigurationName    = "platform-apis-cronjob"
 	KafkaConfigurationName      = "platform-apis-kafka"
+	MariadbConfigurationName    = "platform-apis-mariadb"
 	PostgresqlConfigurationName = "platform-apis-postgresql"
 	RepositoryConfigurationName = "platform-apis-repository"
 	S3BucketConfigurationName   = "platform-apis-s3bucket"
@@ -183,6 +184,17 @@ const (
 	ValkeyInstanceKind         = "valkeyinstances.database.entigo.com"
 	ValkeyReplicationGroupKind = "replicationgroup.elasticache.aws.m.upbound.io"
 	ValkeyParameterGroupKind   = "parametergroup.elasticache.aws.m.upbound.io"
+
+	// ── MariaDB ───────────────────────────────────────────────────────────────
+
+	MariadbNamespaceName   = "test-mariadb"
+	MariadbApplicationName = "test-mariadb"
+
+	MariadbInstanceName          = "mariadb-instance-test"
+	MariadbInstanceKind          = "mariadbinstances.database.entigo.com"
+	MariadbSqlProviderConfigKind = "providerconfig.mysql.sql.m.crossplane.io"
+
+	MariadbLifecycleName = "mariadb-instance-lifecycle"
 
 	// ── WebApp ────────────────────────────────────────────────────────────────
 

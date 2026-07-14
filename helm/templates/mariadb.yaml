@@ -1,0 +1,61 @@
+{{- if .Values.mariadb.install }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+  name: platform-apis-mariadb
+rules:
+  - apiGroups: ["external-secrets.io"]
+    resources: ["externalsecrets", "secretstores", "pushsecrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+  - securitygrouprules.ec2.aws.m.upbound.io
+  - securitygroups.ec2.aws.m.upbound.io
+  - instances.rds.aws.m.upbound.io
+  - parametergroups.rds.aws.m.upbound.io
+  - providerconfigs.mysql.sql.crossplane.io
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-mariadb
+spec:
+  package: {{ .Values.postgresql.package.image }}:{{ .Values.postgresql.package.tag }}
+  skipDependencyResolution: true
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: platform-apis-mariadb
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["database.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["mariadbinstances"]
+  validations:
+    - expression: "!has(oldObject.spec.deletionProtection) || oldObject.spec.deletionProtection != true"
+      message: "MariaDBInstance is protected from deletion. Set spec.deletionProtection to false before deleting."
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: platform-apis-mariadb
+spec:
+  policyName: platform-apis-mariadb
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector: {}
+{{- end }}

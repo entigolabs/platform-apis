@@ -1,0 +1,13 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: MariaDBInstance
+metadata:
+  name: mariadb-instance-test
+  namespace: {{ .Release.Namespace }}
+spec:
+  allocatedStorage: 20
+  engineVersion: "11.4.5"
+  instanceType: db.t3.micro
+  allowMajorVersionUpgrade: false
+  autoMinorVersionUpgrade: true
+  deletionProtection: false
+  multiAZ: false

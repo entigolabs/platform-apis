@@ -1,0 +1,149 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: mariadbinstances.database.entigo.com
+spec:
+  defaultCompositeDeletePolicy: Foreground
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: MariaDBInstance
+    plural: mariadbinstances
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                allocatedStorage:
+                  default: 20
+                  type: number
+                  minimum: 20
+                  maximum: 5000
+                  description: Database disk size in GB. Default is 20GB.
+                allowMajorVersionUpgrade:
+                  default: false
+                  type: boolean
+                  description: Indicates that major version upgrades are allowed. Default is false.
+                autoMinorVersionUpgrade:
+                  default: true
+                  type: boolean
+                  description: Indicates that minor engine upgrades will be applied automatically to the DB instance during the maintenance window. Defaults to true.
+                backupRetentionPeriod:
+                  type: number
+                  minimum: 0
+                  maximum: 35
+                  description: The days to retain backups for. Must be between 0 and 35.
+                backupWindow:
+                  type: string
+                  description: |
+                    The daily time range (in UTC) during which automated backups are created if they are enabled. Example: '09:46-10:16'. 
+                    Must not overlap with maintenance_window. Default value is determined by the region.
+                deletionProtection:
+                  default: true
+                  type: boolean
+                  description: If the DB instance should have deletion protection enabled. The database can't be deleted when this value is set to true. The default is true.
+                engineVersion:
+                  type: string
+                  description: |
+                    Database engine version. Use AWS documentation to find a list of supported versions: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/MariaDB.Concepts.VersionMgmt.html
+                instanceType:
+                  type: string
+                  description: |
+                    AWS database instance type. For a list of available instance types: https://aws.amazon.com/rds/instance-types/
+                iops:
+                  type: number
+                  description: Use reserved IOPS for the database. For most use-cases it is more cost effective to increase the disk size than to by IOPS. Default unset.
+                maintenanceWindow:
+                  type: string
+                  description: |
+                    The window to perform maintenance in. Syntax: "ddd:hh24:mi-ddd:hh24:mi". Eg: "Mon:00:00-Mon:03:00". See RDS Maintenance Window docs for more information.
+                multiAZ:
+                  default: false
+                  type: boolean
+                  description: Specifies if the Database instance is multi-AZ. Default false.
+                parameterGroupName:
+                  type: string
+                  description: Reference to a custom parameter group.
+                parameterGroupParameters:
+                  additionalProperties:
+                    type: string
+                  type: object
+                  description: |
+                    Parameters for a custom, automatically generated parameter group.
+                    Key is the parameter name, value is parameter value.
+                    The reserved key "applyMethod" ("immediate" or "pending-reboot", defaults to
+                    "immediate") is not a DB parameter - it controls how every parameter in this
+                    group is applied. AWS rejects "immediate" for static parameters (e.g.
+                    max_connections), so set it to "pending-reboot" when using those.
+                snapshotIdentifier:
+                  type: string
+                  description: Specifies whether or not to create this database from a snapshot. This corresponds to the snapshot ID in the RDS console.
+              x-kubernetes-validations:
+                - rule: "!self.deletionProtection || (has(self.snapshotIdentifier) ? self.snapshotIdentifier : '') == (has(oldSelf.snapshotIdentifier) ? oldSelf.snapshotIdentifier : '')"
+                  message: "snapshotIdentifier cannot be changed when deletionProtection is enabled"
+              required:
+                - allocatedStorage
+                - instanceType
+            status:
+              type: object
+              properties:
+                allowMajorVersionUpgrade:
+                  type: boolean
+                autoMinorVersionUpgrade:
+                  type: boolean
+                backupWindow:
+                  type: string
+                dbInstanceIdentifier:
+                  type: string
+                endpoint:
+                  properties:
+                    address:
+                      type: string
+                    hostedZoneId:
+                      type: string
+                    port:
+                      type: number
+                  required:
+                    - address
+                    - hostedZoneId
+                    - port
+                  type: object
+                finalSnapshotIdentifier:
+                  type: string
+                iops:
+                  type: number
+                kmsKeyId:
+                  type: string
+                latestRestorableTime:
+                  format: date-time
+                  type: string
+                maintenanceWindow:
+                  type: string
+                parameterGroupName:
+                  type: string
+                resourceId:
+                  type: string
+                snapshotIdentifier:
+                  type: string
+                status:
+                  type: string
+                storageEncrypted:
+                  type: boolean
+                storageThroughput:
+                  type: number
+                storageType:
+                  type: string
+                vpcSecurityGroupIds:
+                  items:
+                    type: string
+                  type: array
+          required:
+            - spec

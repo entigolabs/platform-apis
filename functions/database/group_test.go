@@ -1387,3 +1387,573 @@ func TestValkeyInstanceFunction(t *testing.T) {
 	test.AddZoneResources(cases, "testspace", "zone-a")
 	test.RunFunctionCases(t, func() base.GroupService { return &GroupImpl{} }, cases, "annotations", "force-sync", "lastTransitionTime")
 }
+
+// MariaDB test constants
+const (
+	mariadbInputJson         = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "MariaDBInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"engineVersion": "11.4","instanceType": "db.t3.micro"}}`
+	mariadbSnapshotInputJson = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "MariaDBInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"engineVersion": "11.4","instanceType": "db.t3.micro","snapshotIdentifier":"rds:test-snapshot-id"}}`
+
+	mysqlProviderConfigJson = `{"apiVersion":"mysql.sql.m.crossplane.io/v1alpha1","kind":"ProviderConfig","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"credentials":{"connectionSecretRef":{"name":"test-db-dbadmin"},"source":"MySQLConnectionSecret"},"tls":null,"tlsConfig":null},"status":{}}`
+
+	mariadbInstanceResJson             = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"mariadb","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"mariadb","engineVersion":"11.4","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:mariadb-11-4","parameterGroupName":"default.mariadb11.4","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	mariadbInstanceWithSnapshotResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"mariadb","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"mariadb","engineVersion":"11.4","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:mariadb-11-4","parameterGroupName":"default.mariadb11.4","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"snapshotIdentifier":"rds:test-snapshot-id","storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+
+	mariadbParameterGroupInputJson                = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "MariaDBInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"engineVersion": "11.4","instanceType": "db.t3.micro","parameterGroupParameters":{"max_connections":"200"}}}`
+	mariadbParameterGroupUpdatedInputJson         = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "MariaDBInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"engineVersion": "11.4","instanceType": "db.t3.micro","parameterGroupParameters":{"max_connections":"300"}}}`
+	mariadbNoEngineVersionInputJson               = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "MariaDBInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"instanceType": "db.t3.micro"}}`
+	mariadbNoEngineVersionParameterGroupInputJson = `{"apiVersion": "database.entigo.com/v1alpha1","kind": "MariaDBInstance","metadata": {"name":"test-db", "namespace":"testspace"},"spec": {"allocatedStorage":20,"instanceType": "db.t3.micro","parameterGroupParameters":{"max_connections":"200"}}}`
+
+	mariadbParameterGroupResJson          = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"description":"Parameter group for MariaDB test-db","family":"mariadb11.4","parameter":[{"applyMethod":"immediate","name":"max_connections","value":"200"}],"region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	mariadbParameterGroupUpdatedResJson   = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"description":"Parameter group for MariaDB test-db","family":"mariadb11.4","parameter":[{"applyMethod":"immediate","name":"max_connections","value":"300"}],"region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	mariadbOldFamilyParameterGroupResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"ParameterGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s"},"spec":{"forProvider":{"description":"Parameter group for MariaDB test-db","family":"mariadb10.11","parameter":[{"applyMethod":"immediate","name":"max_connections","value":"200"}],"region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+
+	mariadbInstanceWithParamGroupResJson        = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"mariadb","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"mariadb","engineVersion":"11.4","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:mariadb-11-4","parameterGroupName":"%s","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	mariadbInstanceNoEngineVersionResJson       = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"mariadb","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"mariadb","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+	mariadbInstanceNoEngineVersionWithPGResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"mariadb","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"mariadb","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:mariadb-11-4","parameterGroupName":"%s","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
+
+	mariadbInstanceObservedEngineVersionActualJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"engine":"mariadb"}},"status":{"atProvider":{"engineVersionActual":"11.4"}}}`
+	mariadbInstanceObservedStillOnOldPGJson        = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"engine":"mariadb"}},"status":{"atProvider":{"parameterGroupName":"%s"}}}`
+	mariadbInstanceObservedSwitchedToNewPGJson     = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"engine":"mariadb"}},"status":{"atProvider":{"parameterGroupName":"%s"}}}`
+)
+
+func TestMariaDBInstanceFunction(t *testing.T) {
+	var cr v1alpha1.MariaDBInstance
+	if err := json.Unmarshal([]byte(mariadbInputJson), &cr); err != nil {
+		t.Fatalf("Failed to unmarshal test composite resource: %v", err)
+	}
+	setHash := base.GenerateFNVHash(cr.UID)
+
+	environmentData := map[string]interface{}{
+		"awsProvider":            "aws-provider",
+		"dataKMSKey":             "data",
+		"configKMSKey":           "config",
+		"vpc":                    "test-net-vpc",
+		"subnetGroup":            "test-net-vpc",
+		"elasticacheSubnetGroup": "test-elasticache-sg",
+		"esClusterSecretStore":   "external-secrets",
+		"backupRetentionPeriod":  float64(14),
+	}
+
+	instanceName := service.GetRDSInstanceName("test-db", setHash)
+	sgName := service.GetSGName("test-db", setHash)
+	sgIngressName := service.GetSGIngressName("test-db", setHash)
+	sgEgressName := service.GetSGEgressName("test-db", setHash)
+	snapshotName := service.GetRDSInstanceFinalSnapshotName("test-db", setHash)
+	esName := service.GetESName("test-db", setHash)
+	pcName := service.GetPCName("test-db")
+	secretName := "test-db-dbadmin"
+	ns := "testspace"
+	reqResNs := "aws-provider"
+	mariadbGroupName114 := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s-%s", "test-db", "mariadb11.4", setHash))
+	mariadbGroupName1011 := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s-%s", "test-db", "mariadb10.11", setHash))
+	mariadbGroupKey114 := "parameter-group-mariadb11.4"
+	mariadbGroupKey1011 := "parameter-group-mariadb10.11"
+
+	mariadbRequiredResources := func() map[string]*fnv1.Resources {
+		return map[string]*fnv1.Resources{
+			"VPC":           {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredResVPCjson)}}},
+			"KMSDataKey":    test.KMSKeyResource("data", reqResNs, "mrk-data123"),
+			"KMSConfigKey":  test.KMSKeyResource("config", reqResNs, "mrk-config456"),
+			"DBSubnetGroup": {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredDBSubnetGroupJson)}}},
+			"Secret":        {Items: []*fnv1.Resource{}},
+		}
+	}
+	mariadbExpectedRequirements := func() *fnv1.Requirements {
+		return &fnv1.Requirements{
+			Resources: map[string]*fnv1.ResourceSelector{
+				"VPC":           {Kind: "VPC", ApiVersion: "ec2.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
+				"KMSDataKey":    base.RequiredKMSKey(environmentData["dataKMSKey"].(string), reqResNs),
+				"KMSConfigKey":  base.RequiredKMSKey(environmentData["configKMSKey"].(string), reqResNs),
+				"DBSubnetGroup": {Kind: "SubnetGroup", ApiVersion: "rds.aws.m.upbound.io/v1beta1", Namespace: &reqResNs, Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-net-vpc"}},
+				"Secret":        {Kind: "Secret", ApiVersion: "v1", Namespace: &ns, Match: &fnv1.ResourceSelector_MatchName{MatchName: secretName}},
+			},
+		}
+	}
+
+	cases := map[string]test.Case{
+		"MariaDBInstance/Stage 1: Create Network when Secret is not found": {
+			Reason: "When all requirements are met and no secret exists, desire the network stack.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbInputJson)},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/Stage 2: Create Instance when Network is Ready": {
+			Reason: "When network is ready, should desire the network stack AND the RDS Instance.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/Stage 3: Create ExternalSecret when Instance is Ready": {
+			Reason: "When instance is ready, should desire all resources including the ExternalSecret.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db", "namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"storageType":"gp3"}}`)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							instanceName:  withReadyStatus(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName)),
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"allowMajorVersionUpgrade": false,"autoMinorVersionUpgrade":false,"endpoint":{"address":"test.rds.amazonaws.com","hostedZoneId":"Z12345","port":5432},"storageEncrypted":false,"storageType":"gp3","dbInstanceIdentifier":"%s"}}`, instanceName))},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName)), Ready: 1},
+							esName:        {Resource: resource.MustStructJSON(fmt.Sprintf(esResJson, esName, secretName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/Stage 4: Set Composite Ready when All Resources are Ready": {
+			Reason: "When all composed resources are ready, the composite itself should become Ready.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"storageEncrypted":false}}`)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							instanceName:  withReadyStatus(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName)),
+							esName:        withReadyStatus(fmt.Sprintf(esResJson, esName, secretName)),
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName))},
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"allowMajorVersionUpgrade": false,"autoMinorVersionUpgrade":false,"endpoint":{"address":"test.rds.amazonaws.com","hostedZoneId":"Z12345","port":5432},"storageEncrypted":false,"dbInstanceIdentifier":"%s"}}`, instanceName))},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName)), Ready: 1},
+							esName:        {Resource: resource.MustStructJSON(fmt.Sprintf(esResJson, esName, secretName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/WithSnapshot: snapshotIdentifier propagated to RDS Instance": {
+			Reason: "When snapshotIdentifier is set in spec and network is ready, the RDS Instance should include snapshotIdentifier in forProvider.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbSnapshotInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceWithSnapshotResJson, instanceName, snapshotName, instanceName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 1: ParameterGroupParameters set creates ParameterGroup alongside network stack": {
+			Reason: "With no observed resources and parameterGroupParameters set, ParameterGroup should be desired together with the SecurityGroup/ProviderConfig stack.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed:          &fnv1.State{Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)}},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
+							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName))},
+							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 2: Instance withheld while ParameterGroup is not yet Ready": {
+			Reason: "Network resources being ready is not enough; the RDS Instance must also wait for the generated ParameterGroup to be Ready.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 3: Instance references generated ParameterGroup once network and ParameterGroup are Ready": {
+			Reason: "Once the network stack and ParameterGroup are both ready, the RDS Instance should be desired with parameterGroupName set to the generated ParameterGroup.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:             withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:      withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:       withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:             withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+							mariadbGroupKey114: withReadyStatus(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)),
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)), Ready: 1},
+							instanceName:       {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceWithParamGroupResJson, instanceName, snapshotName, instanceName, mariadbGroupName114, sgName))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 4: EngineVersion omitted leaves Instance without an explicit version or parameterGroupName": {
+			Reason: "engineVersion is optional; when unset, the RDS Instance must not pin a version and, since the family can't be computed yet, must not guess a parameterGroupName either.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbNoEngineVersionInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceNoEngineVersionResJson, instanceName, snapshotName, instanceName, sgName))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 5: EngineVersion omitted with ParameterGroupParameters set withholds ParameterGroup until family is known": {
+			Reason: "The ParameterGroup can't be built without a family, and the family can't be computed without an engine version, so it must be withheld rather than created without one.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed:          &fnv1.State{Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbNoEngineVersionParameterGroupInputJson)}},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 6: ParameterGroup is created once Instance reports its actual engine version": {
+			Reason: "Once the RDS Instance exists and AWS has reported status.atProvider.engineVersionActual, the family can be derived from it, so the custom ParameterGroup gets built and the Instance is wired to it.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbNoEngineVersionParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceObservedEngineVersionActualJson, instanceName))},
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114))},
+							instanceName:       {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceNoEngineVersionWithPGResJson, instanceName, snapshotName, instanceName, mariadbGroupName114, sgName)), Ready: 2},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 7: EngineVersion change builds new ParameterGroup while keeping the old one alive": {
+			Reason: "family is immutable on the AWS ParameterGroup. AWS refuses to delete a ParameterGroup while an Instance still uses it, so the old one must keep being desired alongside the newly-built one until the Instance's observed status confirms it switched away.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:              withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:       withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:        withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:              withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+							mariadbGroupKey1011: withReadyStatus(fmt.Sprintf(mariadbOldFamilyParameterGroupResJson, mariadbGroupName1011)),
+							instanceName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceObservedStillOnOldPGJson, instanceName, mariadbGroupName1011))},
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:              {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:              {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+							mariadbGroupKey1011: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbOldFamilyParameterGroupResJson, mariadbGroupName1011)), Ready: 1},
+							mariadbGroupKey114:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114))},
+							instanceName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceWithParamGroupResJson, instanceName, snapshotName, instanceName, mariadbGroupName114, sgName)), Ready: 2},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 7b: old ParameterGroup is dropped once Instance confirms the switch": {
+			Reason: "Only the Instance's observed status proves AWS actually stopped using the old ParameterGroup - only then is it safe to stop declaring it, so Crossplane deletes it.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:              withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:       withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:        withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:              withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+							mariadbGroupKey1011: withReadyStatus(fmt.Sprintf(mariadbOldFamilyParameterGroupResJson, mariadbGroupName1011)),
+							mariadbGroupKey114:  withReadyStatus(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)),
+							instanceName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceObservedSwitchedToNewPGJson, instanceName, mariadbGroupName114))},
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)), Ready: 1},
+							instanceName:       {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceWithParamGroupResJson, instanceName, snapshotName, instanceName, mariadbGroupName114, sgName)), Ready: 2},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 8: Removing ParameterGroupParameters deletes ParameterGroup and reverts Instance to the default": {
+			Reason: "Clearing parameterGroupParameters must withhold the ParameterGroup so Crossplane deletes it, and the Instance must be pinned explicitly to default.<family>.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:             withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:      withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:       withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:             withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+							mariadbGroupKey114: withReadyStatus(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)),
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+		"MariaDBInstance/ParameterGroup Stage 9: Changing a ParameterGroupParameters value updates the existing ParameterGroup in place": {
+			Reason: "family is unchanged, only the parameter value changed, so the same ParameterGroup must be updated in place, not withheld/recreated.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupUpdatedInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:             withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:      withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgEgressName:       withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							pcName:             withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
+							mariadbGroupKey114: withReadyStatus(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)),
+						},
+					},
+					RequiredResources: mariadbRequiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
+							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupUpdatedResJson, mariadbGroupName114)), Ready: 1},
+							instanceName:       {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceWithParamGroupResJson, instanceName, snapshotName, instanceName, mariadbGroupName114, sgName))},
+						},
+					},
+					Requirements: mariadbExpectedRequirements(),
+				},
+			},
+		},
+	}
+
+	test.AddEnvironmentConfig(cases, environmentName, environmentData)
+	test.AddZoneResources(cases, ns, "zone-a")
+	newService := func() base.GroupService {
+		return &GroupImpl{}
+	}
+	test.RunFunctionCases(t, newService, cases, "annotations", "force-sync", "lastTransitionTime")
+}

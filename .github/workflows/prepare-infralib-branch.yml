@@ -21,7 +21,7 @@ on:
         description: 'JSON array of testhelm chart names actually built this run (used to pin versions only for built charts)'
         required: false
         type: string
-        default: '["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-webaccess","platform-apis-test-webapp"]'
+        default: '["platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-mariadb","platform-apis-test-webaccess","platform-apis-test-webapp"]'
     outputs:
       branch_name:
         description: "The name of the created branch"
@@ -153,6 +153,7 @@ jobs:
             [platform-apis-test-repository]="repository_test_application.yaml"
             [platform-apis-test-s3bucket]="s3bucket_test_application.yaml"
             [platform-apis-test-valkey]="valkey_test_application.yaml"
+            [platform-apis-test-mariadb]="mariadb_test_application.yaml"
             [platform-apis-test-webaccess]="webaccess_test_application.yaml"
             [platform-apis-test-webapp]="webapp_test_application.yaml"
           )

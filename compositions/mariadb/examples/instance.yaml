@@ -1,0 +1,8 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: MariaDBInstance
+metadata:
+  name: mariadb-example
+spec:
+  allocatedStorage: 20
+  engineVersion: "11.4.10"
+  instanceType: db.t3.micro

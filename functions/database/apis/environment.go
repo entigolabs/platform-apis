@@ -13,6 +13,7 @@ type Environment struct {
 	ElasticacheSubnetGroup       string             `json:"elasticacheSubnetGroup"`
 	EsClusterSecretStore         string             `json:"esClusterSecretStore"`
 	PostgresBackupBeforeDeletion *bool              `json:"postgresBackupBeforeDeletion"`
+	MariaDBBackupBeforeDeletion  *bool              `json:"mariaDBBackupBeforeDeletion"`
 	ValkeyBackupBeforeDeletion   *bool              `json:"valkeyBackupBeforeDeletion"`
 	BackupRetentionPeriod        *float64           `json:"backupRetentionPeriod"`
 	Tags                         map[string]*string `json:"tags,omitempty"`
@@ -43,6 +44,10 @@ func (e *Environment) Validate() error {
 	if e.PostgresBackupBeforeDeletion == nil {
 		defaultTrue := true
 		e.PostgresBackupBeforeDeletion = &defaultTrue
+	}
+	if e.MariaDBBackupBeforeDeletion == nil {
+		defaultTrue := true
+		e.MariaDBBackupBeforeDeletion = &defaultTrue
 	}
 	if e.ValkeyBackupBeforeDeletion == nil {
 		defaultTrue := true

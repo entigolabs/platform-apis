@@ -46,6 +46,10 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 			Instantiate: func() client.Object { return &v1alpha1.PostgreSQLInstance{} },
 			Generate:    g.generatePostgreSQL,
 		},
+		apis.XRKindMariaDBInstance: {
+			Instantiate: func() client.Object { return &v1alpha1.MariaDBInstance{} },
+			Generate:    g.generateMariaDB,
+		},
 		apis.XRKindValkey: {
 			Instantiate: func() client.Object { return &v1alpha1.ValkeyInstance{} },
 			Generate:    g.generateValkeyInstance,
@@ -63,6 +67,10 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 
 func (g *GroupImpl) generatePostgreSQL(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	return service.GeneratePgInstanceObjects(*obj.(*v1alpha1.PostgreSQLInstance), required, observed)
+}
+
+func (g *GroupImpl) generateMariaDB(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
+	return service.GenerateMariaDBInstanceObjects(*obj.(*v1alpha1.MariaDBInstance), required, observed)
 }
 
 func (g *GroupImpl) generateValkeyInstance(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
@@ -95,15 +103,15 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 			[]string{"owner-protection"},
 			[]string{"instance-protection"},
 		)
-	case apis.XRKindPostgreSQL:
-		instance := *object.(*v1alpha1.PostgreSQLInstance)
-		setHash := base.GenerateFNVHash(instance.GetUID())
-		sg := service.GetSGName(instance.GetName(), setHash)
-		sgIngress := service.GetSGIngressName(instance.GetName(), setHash)
-		sgEgress := service.GetSGEgressName(instance.GetName(), setHash)
-		pc := service.GetPCName(instance.GetName())
-		rdsInstance := service.GetRDSInstanceName(instance.GetName(), setHash)
-		es := service.GetESName(instance.GetName(), setHash)
+	case apis.XRKindPostgreSQL, apis.XRKindMariaDBInstance:
+		name := object.GetName()
+		setHash := base.GenerateFNVHash(object.GetUID())
+		sg := service.GetSGName(name, setHash)
+		sgIngress := service.GetSGIngressName(name, setHash)
+		sgEgress := service.GetSGEgressName(name, setHash)
+		pc := service.GetPCName(name)
+		rdsInstance := service.GetRDSInstanceName(name, setHash)
+		es := service.GetESName(name, setHash)
 		return base.NewSequence(true, []string{sg, sgIngress, sgEgress, pc, "parameter-group-.*"}, []string{rdsInstance}, []string{es})
 	case apis.XRKindValkey:
 		return base.NewSequence(true,
@@ -153,7 +161,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 	}
 
 	switch compositeResource.GetKind() {
-	case apis.XRKindPostgreSQL:
+	case apis.XRKindPostgreSQL, apis.XRKindMariaDBInstance:
 		secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", compositeResource.GetName(), "dbadmin"))
 		secretNamespace := compositeResource.GetNamespace()
 		resources["VPC"] = &fnv1.ResourceSelector{
@@ -259,6 +267,11 @@ func getDBInstanceStatus(observed *composed.Unstructured) (map[string]interface{
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(observed.Object, &dbInstance); err != nil {
 		return nil, fmt.Errorf("cannot convert Instance object to RDS Instance: %w", err)
 	}
+	if dbInstance.Spec.ForProvider.Engine != nil && *dbInstance.Spec.ForProvider.Engine == "mariadb" {
+		mariaDBStatus := service.GetMariaDBStatusFromDbInstance(dbInstance)
+		return runtime.DefaultUnstructuredConverter.ToUnstructured(&mariaDBStatus)
+	}
+
 	postgreSQLStatus := service.GetPostgreSQLStatusFromDbInstance(dbInstance)
 	return runtime.DefaultUnstructuredConverter.ToUnstructured(&postgreSQLStatus)
 }

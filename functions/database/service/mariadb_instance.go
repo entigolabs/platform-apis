@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	postgresv1alpha1 "github.com/crossplane-contrib/provider-sql/apis/namespaced/postgresql/v1alpha1"
+	mysqlv1alpha1 "github.com/crossplane-contrib/provider-sql/apis/namespaced/mysql/v1alpha1"
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
@@ -19,15 +19,15 @@ import (
 )
 
 const (
-	pgSqlApiVersion = "postgresql.sql.m.crossplane.io/v1alpha1"
+	mySqlApiVersion = "mysql.sql.m.crossplane.io/v1alpha1"
 )
 
-func GeneratePgInstanceObjects(
-	pgInstance v1alpha1.PostgreSQLInstance,
+func GenerateMariaDBInstanceObjects(
+	mariaDBInstance v1alpha1.MariaDBInstance,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
 ) (map[string]client.Object, error) {
-	g, err := newRDSInstanceGenerator(&pgInstance, nil, required, observed)
+	g, err := newRDSInstanceGenerator(nil, &mariaDBInstance, required, observed)
 	if err != nil {
 		return nil, err
 	}
@@ -41,26 +41,26 @@ func GeneratePgInstanceObjects(
 	return g.generate()
 }
 
-func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
+func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Object {
 	rdsInstances := make(map[string]client.Object)
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
 	var availabilityZone *string
-	if !g.pgInstance.Spec.MultiAZ {
+	if !g.mariaDBInstance.Spec.MultiAZ {
 		az := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a"))
 		availabilityZone = &az
 	}
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 
-	dbName, engine, storageType, masterUsername := "postgres", "postgres", "gp3", "dbadmin"
+	dbName, engine, storageType, masterUsername := "mariadb", "mariadb", "gp3", "dbadmin"
 	manageMasterUserPassword, performanceInsightsEnabled, publiclyAccessible, skipFinalSnapshot, storageEncrypted := true, false, false, false, true
-	if !*g.env.PostgresBackupBeforeDeletion {
+	if !*g.env.MariaDBBackupBeforeDeletion {
 		skipFinalSnapshot = true
 	}
 
-	backupRetentionPeriod := g.pgInstance.Spec.BackupRetentionPeriod
+	backupRetentionPeriod := g.mariaDBInstance.Spec.BackupRetentionPeriod
 	if backupRetentionPeriod == nil {
 		backupRetentionPeriod = g.env.BackupRetentionPeriod
 	}
@@ -75,30 +75,30 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 
 	rdsInstance := &rdsmv1beta1.Instance{
 		TypeMeta:   metav1.TypeMeta{Kind: "Instance", APIVersion: rdsApiVersion},
-		ObjectMeta: metav1.ObjectMeta{Name: rdsInstanceName, Namespace: g.pgInstance.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: rdsInstanceName, Namespace: g.mariaDBInstance.Namespace},
 		Spec: rdsmv1beta1.InstanceSpec{
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
 			},
 			ForProvider: rdsmv1beta1.InstanceParameters{
-				AllocatedStorage:            &g.pgInstance.Spec.AllocatedStorage,
+				AllocatedStorage:            &g.mariaDBInstance.Spec.AllocatedStorage,
 				ApplyImmediately:            &applyImmediately,
-				AllowMajorVersionUpgrade:    &g.pgInstance.Spec.AllowMajorVersionUpgrade,
-				AutoMinorVersionUpgrade:     &g.pgInstance.Spec.AutoMinorVersionUpgrade,
+				AllowMajorVersionUpgrade:    &g.mariaDBInstance.Spec.AllowMajorVersionUpgrade,
+				AutoMinorVersionUpgrade:     &g.mariaDBInstance.Spec.AutoMinorVersionUpgrade,
 				AvailabilityZone:            availabilityZone,
 				BackupRetentionPeriod:       backupRetentionPeriod,
 				DBName:                      &dbName,
 				DBSubnetGroupNameRef:        &xpv2v1.NamespacedReference{Name: g.subnetGroup.Name, Namespace: g.subnetGroup.Namespace},
-				DeletionProtection:          &g.pgInstance.Spec.DeletionProtection,
+				DeletionProtection:          &g.mariaDBInstance.Spec.DeletionProtection,
 				Engine:                      &engine,
-				EngineVersion:               g.pgInstance.Spec.EngineVersion,
+				EngineVersion:               g.mariaDBInstance.Spec.EngineVersion,
 				FinalSnapshotIdentifier:     &finalSnapshotIdentifier,
 				Identifier:                  &rdsInstanceName,
-				InstanceClass:               &g.pgInstance.Spec.InstanceType,
+				InstanceClass:               &g.mariaDBInstance.Spec.InstanceType,
 				KMSKeyIDRef:                 &xpv2v1.NamespacedReference{Name: g.kmsDataKey.Name, Namespace: g.kmsDataKey.Namespace},
 				ManageMasterUserPassword:    &manageMasterUserPassword,
 				MasterUserSecretKMSKeyIDRef: &xpv2v1.NamespacedReference{Name: g.kmsConfigKey.Name, Namespace: g.kmsConfigKey.Namespace},
-				MultiAz:                     &g.pgInstance.Spec.MultiAZ,
+				MultiAz:                     &g.mariaDBInstance.Spec.MultiAZ,
 				PerformanceInsightsEnabled:  &performanceInsightsEnabled,
 				PubliclyAccessible:          &publiclyAccessible,
 				Region:                      region,
@@ -112,31 +112,31 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 		},
 	}
 
-	if g.pgInstance.Spec.BackupWindow != "" {
-		rdsInstance.Spec.ForProvider.BackupWindow = &g.pgInstance.Spec.BackupWindow
+	if g.mariaDBInstance.Spec.BackupWindow != "" {
+		rdsInstance.Spec.ForProvider.BackupWindow = &g.mariaDBInstance.Spec.BackupWindow
 	}
-	if g.pgInstance.Spec.MaintenanceWindow != "" {
-		rdsInstance.Spec.ForProvider.MaintenanceWindow = &g.pgInstance.Spec.MaintenanceWindow
+	if g.mariaDBInstance.Spec.MaintenanceWindow != "" {
+		rdsInstance.Spec.ForProvider.MaintenanceWindow = &g.mariaDBInstance.Spec.MaintenanceWindow
 	}
-	if g.pgInstance.Spec.Iops != 0 {
-		rdsInstance.Spec.ForProvider.Iops = &g.pgInstance.Spec.Iops
+	if g.mariaDBInstance.Spec.Iops != 0 {
+		rdsInstance.Spec.ForProvider.Iops = &g.mariaDBInstance.Spec.Iops
 	}
 	if g.parameterGroupName != "" {
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.parameterGroupName
-	} else if g.pgInstance.Spec.ParameterGroupName != "" {
-		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.pgInstance.Spec.ParameterGroupName
-	} else if family, ok := computeFamily("postgres", g.pgInstance.Spec.EngineVersion, g.engineVersionActual); ok {
+	} else if g.mariaDBInstance.Spec.ParameterGroupName != "" {
+		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.mariaDBInstance.Spec.ParameterGroupName
+	} else if family, ok := computeFamily("mariadb", g.mariaDBInstance.Spec.EngineVersion, g.engineVersionActual); ok {
 		defaultName := "default." + family
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &defaultName
 	}
 
-	if family, ok := computeFamily("postgres", g.pgInstance.Spec.EngineVersion, g.engineVersionActual); ok {
-		defaultOptionGroupName := "default:postgres-" + strings.TrimPrefix(family, "postgres")
+	if family, ok := computeFamily("mariadb", g.mariaDBInstance.Spec.EngineVersion, g.engineVersionActual); ok {
+		defaultOptionGroupName := "default:mariadb-" + strings.ReplaceAll(strings.TrimPrefix(family, "mariadb"), ".", "-")
 		rdsInstance.Spec.ForProvider.OptionGroupName = &defaultOptionGroupName
 	}
 
-	if g.pgInstance.Spec.SnapshotIdentifier != "" {
-		rdsInstance.Spec.ForProvider.SnapshotIdentifier = &g.pgInstance.Spec.SnapshotIdentifier
+	if g.mariaDBInstance.Spec.SnapshotIdentifier != "" {
+		rdsInstance.Spec.ForProvider.SnapshotIdentifier = &g.mariaDBInstance.Spec.SnapshotIdentifier
 	}
 
 	rdsInstance.SetManagementPolicies(xpv2v1.ManagementPolicies{"*"})
@@ -145,30 +145,28 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 	return rdsInstances
 }
 
-func (g *rdsInstanceGenerator) buildPgSqlProviderConfig() map[string]client.Object {
+func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() map[string]client.Object {
 	providerConfigs := make(map[string]client.Object)
 	pcName := string(g.names.pc)
-	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.pgInstance.Name, "dbadmin"))
-	sslMode := "require"
-	providerConfig := &postgresv1alpha1.ProviderConfig{
-		TypeMeta:   metav1.TypeMeta{Kind: "ProviderConfig", APIVersion: pgSqlApiVersion},
-		ObjectMeta: metav1.ObjectMeta{Name: pcName, Namespace: g.pgInstance.Namespace},
-		Spec: postgresv1alpha1.ProviderConfigSpec{
-			Credentials: postgresv1alpha1.ProviderCredentials{
-				Source: "PostgreSQLConnectionSecret",
+	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.mariaDBInstance.Name, "dbadmin"))
+	providerConfig := &mysqlv1alpha1.ProviderConfig{
+		TypeMeta:   metav1.TypeMeta{Kind: "ProviderConfig", APIVersion: mySqlApiVersion},
+		ObjectMeta: metav1.ObjectMeta{Name: pcName, Namespace: g.mariaDBInstance.Namespace},
+		Spec: mysqlv1alpha1.ProviderConfigSpec{
+			Credentials: mysqlv1alpha1.ProviderCredentials{
+				Source: "MySQLConnectionSecret",
 				ConnectionSecretRef: xpv2v1.LocalSecretReference{
 					Name: secretName,
 				},
 			},
-			SSLMode: &sslMode,
 		},
 	}
 	providerConfigs[providerConfig.Name] = providerConfig
 	return providerConfigs
 }
 
-func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.PostgreSQLInstanceStatus {
-	status := v1alpha1.PostgreSQLInstanceStatus{}
+func GetMariaDBStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.MariaDBInstanceStatus {
+	status := v1alpha1.MariaDBInstanceStatus{}
 	dbInstanceName := dbInstance.Name
 
 	base.SetBool(dbInstance.Status.AtProvider.AllowMajorVersionUpgrade, &status.AllowMajorVersionUpgrade)
@@ -176,7 +174,7 @@ func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1
 	base.SetString(dbInstance.Status.AtProvider.BackupWindow, &status.BackupWindow)
 	base.SetString(&dbInstanceName, &status.DBInstanceIdentifier)
 
-	endpoint := v1alpha1.PostgreSQLInstanceEndpoint{}
+	endpoint := v1alpha1.MariaDBInstanceEndpoint{}
 
 	base.SetString(dbInstance.Status.AtProvider.Address, &endpoint.Address)
 	base.SetString(dbInstance.Status.AtProvider.HostedZoneID, &endpoint.HostedZoneID)
