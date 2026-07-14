@@ -15,6 +15,7 @@ import (
 	rdsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/rds/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -149,6 +150,8 @@ func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() map[string]client
 	providerConfigs := make(map[string]client.Object)
 	pcName := string(g.names.pc)
 	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.mariaDBInstance.Name, "dbadmin"))
+	tls := "preferred"
+
 	providerConfig := &mysqlv1alpha1.ProviderConfig{
 		TypeMeta:   metav1.TypeMeta{Kind: "ProviderConfig", APIVersion: mySqlApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: pcName, Namespace: g.mariaDBInstance.Namespace},
@@ -159,9 +162,16 @@ func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() map[string]client
 					Name: secretName,
 				},
 			},
+			TLS: &tls,
 		},
 	}
-	providerConfigs[providerConfig.Name] = providerConfig
+
+	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(providerConfig)
+	if err != nil {
+		return providerConfigs
+	}
+	unstructured.RemoveNestedField(obj, "spec", "tlsConfig")
+	providerConfigs[pcName] = &unstructured.Unstructured{Object: obj}
 	return providerConfigs
 }
 
