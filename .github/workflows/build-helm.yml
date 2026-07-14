@@ -75,6 +75,7 @@ jobs:
             ["database"]="platform-apis-database-fn"
             ["queue"]="platform-apis-queue-fn"
             ["kafka"]="platform-apis-kafka"
+            ["mariadb"]="platform-apis-mariadb"
             ["networking"]="platform-apis-networking-fn"
             ["postgresql"]="platform-apis-postgresql"
             ["repository"]="platform-apis-repository"
