@@ -196,17 +196,17 @@ const (
 
 	MariadbLifecycleName = "mariadb-instance-lifecycle"
 
-	MariadbUserKind      = "mariadbusers.database.entigo.com"
-	MysqlUserKind        = "user.mysql.sql.m.crossplane.io"
-	MysqlGrantKind       = "grant.mysql.sql.m.crossplane.io"
-	MariadbUserName      = "test-user"
-	MariadbUserSpecName  = "test_user"
-	MariadbUserGrantUser = "test-user"
+	MariadbUserKind         = "mariadbusers.database.entigo.com"
+	MysqlUserKind           = "user.mysql.sql.m.crossplane.io"
+	MysqlGrantKind          = "grant.mysql.sql.m.crossplane.io"
+	MysqlDatabaseKind       = "database.mysql.sql.m.crossplane.io"
+	MariadbUserName         = "test-user"
+	MariadbUserSpecName     = "test_user"
+	MariadbUserGrantUser    = "test-user"
+	MariadbUserDatabaseName = "test-user-db"
 
-	MariadbUserExpectedGrantName      = "grant-" + MariadbUserName + "-" + MariadbUserGrantUser + "-" + MariadbInstanceName
-	MariadbUserExpectedUsageName      = "usage-" + MariadbUserExpectedGrantName
-	MariadbUserInstanceProtectionName = MariadbUserName + "-instance-protection"
-	MariadbUserExpectedSecretName     = MariadbInstanceName + "-" + MariadbUserName
+	MariadbUserExpectedGrantName  = "grant-" + MariadbUserName + "-" + MariadbUserGrantUser + "-" + MariadbInstanceName
+	MariadbUserExpectedSecretName = MariadbInstanceName + "-" + MariadbUserName
 
 	// ── WebApp ────────────────────────────────────────────────────────────────
 

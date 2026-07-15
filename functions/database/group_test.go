@@ -1988,7 +1988,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 	test.RunFunctionCases(t, newService, cases, "annotations", "force-sync", "lastTransitionTime")
 }
 
-const mariaDBUserInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"MariaDBUser","metadata":{"name":"user-example","namespace":"testspace"},"spec":{"name":"user_example","instanceRef":{"name":"mariadb-example"},"privileges":["SELECT","INSERT"],"grant":{"users":["example-user"]}}}`
+const mariaDBUserInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"MariaDBUser","metadata":{"name":"user-example","namespace":"testspace"},"spec":{"name":"user_example","instanceRef":{"name":"mariadb-example"},"databaseRef":{"name":"example-db"},"privileges":["SELECT","INSERT"],"grant":{"users":["example-user"]}}}`
 
 func mariaDBInstanceRequired(ready bool) map[string][]resource.Required {
 	status := map[string]interface{}{}
@@ -2083,8 +2083,8 @@ func TestMariaDBUserFunction(t *testing.T) {
 		if got := objField(t, grantObj, "spec", "forProvider", "user"); got != "user_example" {
 			t.Errorf("grant forProvider.user = %q", got)
 		}
-		if got := objField(t, grantObj, "spec", "forProvider", "database"); got != "*" {
-			t.Errorf("grant forProvider.database = %q, want *", got)
+		if got := objField(t, grantObj, "spec", "forProvider", "databaseRef", "name"); got != "example-db" {
+			t.Errorf("grant forProvider.databaseRef.name = %q, want example-db", got)
 		}
 		if got := objField(t, grantObj, "spec", "forProvider", "table"); got != "*" {
 			t.Errorf("grant forProvider.table = %q, want *", got)

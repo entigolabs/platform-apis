@@ -6,6 +6,8 @@ spec:
   name: user_example
   instanceRef:
     name: mariadb-example
+  databaseRef:
+    name: example-db
   privileges:
     - SELECT
     - INSERT

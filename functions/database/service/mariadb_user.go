@@ -124,6 +124,12 @@ func (g *mariaDBUserGenerator) buildGrants() map[string]client.Object {
 	if g.mariaDBUser.Spec.Grant == nil {
 		return grants
 	}
+	// MariaDB grants are database-scoped only: provider-sql cannot observe a global (*.*)
+	// grant on MariaDB (its SHOW GRANTS output appends an IDENTIFIED BY PASSWORD clause that
+	// the provider's regex rejects), so the grant would loop forever in "Creating".
+	if g.mariaDBUser.Spec.DatabaseRef == nil {
+		return grants
+	}
 	for _, user := range g.mariaDBUser.Spec.Grant.Users {
 		convertedRoleName := strings.ReplaceAll(user, "_", "-")
 		grantName := base.GenerateEligibleKubernetesFullName("grant-" + g.mariaDBUser.Name + "-" + convertedRoleName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
@@ -149,14 +155,9 @@ func (g *mariaDBUserGenerator) buildGrants() map[string]client.Object {
 			},
 		}
 
-		if g.mariaDBUser.Spec.DatabaseRef != nil {
-			grant.Spec.ForProvider.DatabaseRef = &xpv1.NamespacedReference{
-				Name:      g.mariaDBUser.Spec.DatabaseRef.Name,
-				Namespace: g.mariaDBUser.Namespace,
-			}
-		} else {
-			database := "*"
-			grant.Spec.ForProvider.Database = &database
+		grant.Spec.ForProvider.DatabaseRef = &xpv1.NamespacedReference{
+			Name:      g.mariaDBUser.Spec.DatabaseRef.Name,
+			Namespace: g.mariaDBUser.Namespace,
 		}
 
 		if g.mariaDBUser.Spec.Table != nil {

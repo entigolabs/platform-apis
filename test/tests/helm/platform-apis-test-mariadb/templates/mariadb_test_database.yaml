@@ -1,0 +1,14 @@
+# Raw provider-sql Database, created directly (not via a composition) as a bridge until a
+# MariaDBDatabase composition exists. MariaDB grants must be database-scoped: provider-sql cannot
+# observe a global (*.*) grant on MariaDB, so the user's grant references this database.
+apiVersion: mysql.sql.m.crossplane.io/v1alpha1
+kind: Database
+metadata:
+  name: test-user-db
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    crossplane.io/external-name: test_user_db
+spec:
+  providerConfigRef:
+    kind: ProviderConfig
+    name: mariadb-instance-test-providerconfig

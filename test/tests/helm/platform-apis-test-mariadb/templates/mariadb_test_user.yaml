@@ -7,6 +7,8 @@ spec:
   name: test_user
   instanceRef:
     name: mariadb-instance-test
+  databaseRef:
+    name: test-user-db
   privileges:
     - SELECT
   grant:

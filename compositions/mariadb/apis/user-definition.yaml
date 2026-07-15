@@ -81,5 +81,6 @@ spec:
                       type: string
             required:
               - instanceRef
+              - databaseRef
               - privileges
 

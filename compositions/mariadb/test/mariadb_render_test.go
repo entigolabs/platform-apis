@@ -214,6 +214,7 @@ func testUserCrossplaneRender(t *testing.T) {
 	crossplane.AssertFieldValues(t, resources, "MariaDBUser", "database.entigo.com/v1alpha1", map[string]string{
 		"metadata.name":         "user-example",
 		"spec.instanceRef.name": "mariadb-example",
+		"spec.databaseRef.name": "example-db",
 		"spec.name":             "user_example",
 		"spec.grant.users.0":    "example-user",
 		"spec.privileges.0":     "SELECT",
@@ -251,7 +252,7 @@ func testUserCrossplaneRender(t *testing.T) {
 		"metadata.ownerReferences.0.name":       "user-example",
 		"spec.providerConfigRef.name":           "mariadb-example-providerconfig",
 		"spec.forProvider.user":                 "user_example",
-		"spec.forProvider.database":             "*",
+		"spec.forProvider.databaseRef.name":     "example-db",
 		"spec.forProvider.table":                "*",
 		"spec.forProvider.privileges.0":         "SELECT",
 		"spec.forProvider.privileges.1":         "INSERT",
