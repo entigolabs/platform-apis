@@ -37,6 +37,7 @@ const (
 	sgResJson                   = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"description":"allow traffic from vpc","region":"eu-north-1","tags":{"Name":"%s","entigo:zone":"zone-a"}, "vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 	ingressResJson              = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":5432,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":5432,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 	egressResJson               = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":0,"protocol":"-1","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":0,"type":"egress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	mariadbIngressResJson       = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":3306,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":3306,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 	instanceResJson             = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"default.postgres17","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
 	instanceWithSnapshotResJson = `{"apiVersion":"rds.aws.m.upbound.io/v1beta1","kind":"Instance","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"providerConfigRef":{"name":"aws-provider","kind":"ClusterProviderConfig"},"managementPolicies":["*"],"forProvider":{"allocatedStorage":20,"allowMajorVersionUpgrade":false,"applyImmediately":false,"autoMinorVersionUpgrade":false,"availabilityZone":"eu-north-1a","backupRetentionPeriod":14,"dbName":"postgres","dbSubnetGroupNameRef":{"name":"test-net-vpc","namespace":"aws-provider"},"deletionProtection":false,"engine":"postgres","engineVersion":"17.2","finalSnapshotIdentifier":"%s","identifier":"%s","instanceClass":"db.t3.micro","kmsKeyIdRef":{"name":"data","namespace":"aws-provider"},"manageMasterUserPassword":true,"masterUserSecretKmsKeyIdRef":{"name":"config","namespace":"aws-provider"},"multiAz":false,"optionGroupName":"default:postgres-17","parameterGroupName":"default.postgres17","performanceInsightsEnabled":false,"publiclyAccessible":false,"region":"eu-north-1","skipFinalSnapshot":false,"snapshotIdentifier":"rds:test-snapshot-id","storageEncrypted":true,"storageType":"gp3","tags":{"entigo:zone":"zone-a"},"username":"dbadmin","vpcSecurityGroupIdRefs":[{"name":"%s"}]},"initProvider":{}},"status":{"atProvider":{}}}`
 	esResJson                   = `{"apiVersion":"external-secrets.io/v1","kind":"ExternalSecret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"data":[{"remoteRef":{"key":"arn:aws:secretsmanager:eu-north-1:123456789012:secret:test-db-secret-xyz","property":"password","version":"AWSCURRENT"},"secretKey":"password"}],"refreshInterval":"15m0s","refreshPolicy":"Periodic","secretStoreRef":{"kind":"ClusterSecretStore","name":"external-secrets"},"target":{"creationPolicy":"Owner","deletionPolicy":"Delete","name":"%s", "template":{"metadata":{},"data":{"endpoint":"test.rds.amazonaws.com","password":"{{ .password | toString }}","port":"5432","username":"dbadmin"}}}},"status":{"binding":{},"refreshTime":null}}`
@@ -1516,7 +1517,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName))},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
 							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName))},
 						},
@@ -1533,7 +1534,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 						},
@@ -1547,7 +1548,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName))},
 							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
@@ -1565,7 +1566,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db", "namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"storageType":"gp3"}}`)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							instanceName:  withReadyStatus(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName)),
 						},
@@ -1580,7 +1581,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"allowMajorVersionUpgrade": false,"autoMinorVersionUpgrade":false,"endpoint":{"address":"test.rds.amazonaws.com","hostedZoneId":"Z12345","port":5432},"storageEncrypted":false,"storageType":"gp3","dbInstanceIdentifier":"%s"}}`, instanceName))},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName)), Ready: 1},
 							esName:        {Resource: resource.MustStructJSON(fmt.Sprintf(esResJson, esName, secretName))},
@@ -1599,7 +1600,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"storageEncrypted":false}}`)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							instanceName:  withReadyStatus(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName)),
 							esName:        withReadyStatus(fmt.Sprintf(esResJson, esName, secretName)),
@@ -1616,7 +1617,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"allowMajorVersionUpgrade": false,"autoMinorVersionUpgrade":false,"endpoint":{"address":"test.rds.amazonaws.com","hostedZoneId":"Z12345","port":5432},"storageEncrypted":false,"dbInstanceIdentifier":"%s"}}`, instanceName))},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName)), Ready: 1},
 							esName:        {Resource: resource.MustStructJSON(fmt.Sprintf(esResJson, esName, secretName)), Ready: 1},
@@ -1635,7 +1636,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbSnapshotInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 						},
@@ -1649,7 +1650,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceWithSnapshotResJson, instanceName, snapshotName, instanceName, sgName))},
 							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
@@ -1673,7 +1674,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
-							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName))},
 							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
 							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName))},
 							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114))},
@@ -1691,7 +1692,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 						},
@@ -1705,7 +1706,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
 							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114))},
@@ -1723,7 +1724,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:             withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName:      withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName:      withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:       withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:             withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 							mariadbGroupKey114: withReadyStatus(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)),
@@ -1738,7 +1739,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
 							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)), Ready: 1},
@@ -1757,7 +1758,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbNoEngineVersionInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 						},
@@ -1771,7 +1772,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceNoEngineVersionResJson, instanceName, snapshotName, instanceName, sgName))},
@@ -1795,7 +1796,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName))},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
 							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName))},
 						},
@@ -1812,7 +1813,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbNoEngineVersionParameterGroupInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName: withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:        withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceObservedEngineVersionActualJson, instanceName))},
@@ -1827,7 +1828,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
 							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114))},
@@ -1846,7 +1847,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:              withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName:       withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName:       withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:        withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:              withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 							mariadbGroupKey1011: withReadyStatus(fmt.Sprintf(mariadbOldFamilyParameterGroupResJson, mariadbGroupName1011)),
@@ -1862,7 +1863,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:              {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							pcName:              {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
 							mariadbGroupKey1011: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbOldFamilyParameterGroupResJson, mariadbGroupName1011)), Ready: 1},
@@ -1882,7 +1883,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:              withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName:       withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName:       withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:        withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:              withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 							mariadbGroupKey1011: withReadyStatus(fmt.Sprintf(mariadbOldFamilyParameterGroupResJson, mariadbGroupName1011)),
@@ -1899,7 +1900,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
 							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)), Ready: 1},
@@ -1918,7 +1919,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:             withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName:      withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName:      withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:       withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:             withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 							mariadbGroupKey114: withReadyStatus(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)),
@@ -1933,7 +1934,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							pcName:        {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
 							instanceName:  {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbInstanceResJson, instanceName, snapshotName, instanceName, sgName))},
@@ -1951,7 +1952,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(mariadbParameterGroupUpdatedInputJson)},
 						Resources: map[string]*fnv1.Resource{
 							sgName:             withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName:      withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgIngressName:      withReadyStatus(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)),
 							sgEgressName:       withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							pcName:             withReadyStatus(fmt.Sprintf(mysqlProviderConfigJson, pcName)),
 							mariadbGroupKey114: withReadyStatus(fmt.Sprintf(mariadbParameterGroupResJson, mariadbGroupName114)),
@@ -1966,7 +1967,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							sgName:             {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgIngressName:      {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
 							sgEgressName:       {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							pcName:             {Resource: resource.MustStructJSON(fmt.Sprintf(mysqlProviderConfigJson, pcName)), Ready: 1},
 							mariadbGroupKey114: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbParameterGroupUpdatedResJson, mariadbGroupName114)), Ready: 1},

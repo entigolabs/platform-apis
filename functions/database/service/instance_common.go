@@ -221,6 +221,13 @@ func GetPCName(instanceName string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-providerconfig", instanceName))
 }
 
+func enginePort(engine string) float64 {
+	if engine == "mariadb" {
+		return 3306
+	}
+	return 5432
+}
+
 func computeFamily(engine string, engineVersion, engineVersionActual *string) (string, bool) {
 	v := engineVersion
 	if v == nil {
@@ -411,7 +418,7 @@ func (g *rdsInstanceGenerator) buildSecurityGroup() map[string]client.Object {
 	cidrBlock := "0.0.0.0/0"
 	ingressType := "ingress"
 	ingressProtocol := "tcp"
-	ingressPort := float64(5432)
+	ingressPort := enginePort(g.common.engine)
 	ingressRule := &ec2mv1beta1.SecurityGroupRule{
 		TypeMeta:   metav1.TypeMeta{Kind: "SecurityGroupRule", APIVersion: ec2ApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: ingressName, Namespace: g.common.namespace},
