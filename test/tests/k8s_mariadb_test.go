@@ -30,7 +30,50 @@ func testMariadb(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Ku
 		return
 	}
 
+	t.Run("User", func(t *testing.T) { testMariadbUser(t, mdbNs) })
+
 	t.Run("Lifecycle", func(t *testing.T) { testMariadbLifecycle(t, mdbNs) })
+}
+
+// testMariadbUser drives a MariaDBUser granting privileges on *.* (no databaseRef, since the
+// MariaDB database composition does not exist yet). It verifies the generated mysql User + Grant,
+// the Usage protection chain, and the connection secret.
+func testMariadbUser(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	waitSyncedAndReady(t, mdbNs, MariadbUserKind, MariadbUserName, 60, 10*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	userName, err := getFirstByLabel(t, mdbNs, MysqlUserKind, MariadbUserName)
+	require.NoError(t, err)
+	require.NotEmpty(t, userName)
+
+	// User external name must match spec username (snake_case)
+	require.Equal(t, MariadbUserSpecName,
+		getField(t, mdbNs, MysqlUserKind, userName, `.metadata.annotations.crossplane\.io/external-name`))
+
+	// Grant: privileges applied to the user on *.*
+	waitSyncedAndReady(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, 60, 10*time.Second)
+	require.Equal(t, MariadbUserSpecName,
+		getField(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, ".spec.forProvider.user"))
+	require.Equal(t, "*",
+		getField(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, ".spec.forProvider.database"))
+	require.Equal(t, "*",
+		getField(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, ".spec.forProvider.table"))
+
+	// Grant is protected by User (cannot delete User while Grant references it)
+	testUsage(t, mdbNs, MariadbUserExpectedUsageName, "User", MariadbUserName, "Grant", MariadbUserExpectedGrantName)
+
+	// Instance is protected from deletion while this user's User resource exists
+	testUsage(t, mdbNs, MariadbUserInstanceProtectionName, "MariaDBInstance", MariadbInstanceName, "User", MariadbUserName)
+
+	// Connection secret must be created
+	waitResourceExists(t, mdbNs, "secret", MariadbUserExpectedSecretName, 60, 10*time.Second)
+
+	// User cannot be deleted while Grant exists
+	testUsageBlocksDeletion(t, mdbNs, MysqlUserKind, userName)
 }
 
 func testMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
@@ -203,6 +246,9 @@ func cleanupMariadb(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 		return // leave resources in place for debugging
 	}
 	mdbNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, MariadbNamespaceName)
+
+	// Users must go first: their instance-protection Usage blocks MariaDBInstance deletion.
+	cleanupDeleteParallel(t, mdbNs, MariadbUserKind, 120, MariadbUserName)
 
 	cleanupDisableDeletionProtectionOnMariadbInstance(t, mdbNs)
 	cleanupDeleteParallel(t, mdbNs, MariadbInstanceKind, 180, MariadbInstanceName, MariadbLifecycleName)

@@ -1,0 +1,14 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: MariaDBUser
+metadata:
+  name: user-example
+spec:
+  name: user_example
+  instanceRef:
+    name: mariadb-example
+  privileges:
+    - SELECT
+    - INSERT
+  grant:
+    users:
+      - example-user

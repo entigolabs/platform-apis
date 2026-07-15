@@ -1,0 +1,14 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: MariaDBUser
+metadata:
+  name: test-user
+  namespace: {{ .Release.Namespace }}
+spec:
+  name: test_user
+  instanceRef:
+    name: mariadb-instance-test
+  privileges:
+    - SELECT
+  grant:
+    users:
+      - test-user

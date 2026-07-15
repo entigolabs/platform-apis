@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/entigolabs/static-common/crossplane"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -16,6 +17,12 @@ const (
 	// Instance test files
 	instanceComposition = "../apis/instance-composition.yaml"
 	instanceResource    = "../examples/instance.yaml"
+
+	// User test files
+	userComposition       = "../apis/user-composition.yaml"
+	userWithGrantResource = "../examples/user-with-grant.yaml"
+
+	mySqlApiVersion = "mysql.sql.m.crossplane.io/v1alpha1"
 )
 
 func TestMariaDBCrossplaneRender(t *testing.T) {
@@ -23,6 +30,7 @@ func TestMariaDBCrossplaneRender(t *testing.T) {
 	crossplane.StartCustomFunction(t, function, "9443")
 
 	t.Run("Instance", testInstanceCrossplaneRender)
+	t.Run("User", testUserCrossplaneRender)
 }
 
 func testInstanceCrossplaneRender(t *testing.T) {
@@ -185,4 +193,157 @@ func testInstanceCrossplaneRender(t *testing.T) {
 
 	t.Log("Asserting database.entigo.com MariaDBInstance Ready Status")
 	crossplane.AssertResourceReady(t, resources, "MariaDBInstance", "database.entigo.com/v1alpha1")
+}
+
+func testUserCrossplaneRender(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	extra := filepath.Join(tmpDir, "extra.yaml")
+	observed := filepath.Join(tmpDir, "observed.yaml")
+
+	crossplane.AppendToResources(t, extra, mariaDBInstanceExtraResource())
+
+	t.Log("Rendering...")
+	resources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), nil)
+
+	t.Log("Asserting rendered resources count")
+	crossplane.AssertResourceCount(t, resources, "MariaDBUser", 1)
+	crossplane.AssertResourceCount(t, resources, "User", 1)
+
+	t.Log("Validating database.entigo.com MariaDBUser fields")
+	crossplane.AssertFieldValues(t, resources, "MariaDBUser", "database.entigo.com/v1alpha1", map[string]string{
+		"metadata.name":         "user-example",
+		"spec.instanceRef.name": "mariadb-example",
+		"spec.name":             "user_example",
+		"spec.grant.users.0":    "example-user",
+		"spec.privileges.0":     "SELECT",
+		"spec.privileges.1":     "INSERT",
+	})
+
+	t.Log("Validating mysql.sql.m.crossplane.io User fields")
+	crossplane.AssertFieldValues(t, resources, "User", mySqlApiVersion, map[string]string{
+		"metadata.name":                                      "user-example",
+		"metadata.ownerReferences.0.apiVersion":              "database.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":                    "MariaDBUser",
+		"metadata.ownerReferences.0.name":                    "user-example",
+		"metadata.annotations.crossplane\\.io/external-name": "user_example",
+		"spec.providerConfigRef.name":                        "mariadb-example-providerconfig",
+		"spec.writeConnectionSecretToRef.name":               "mariadb-example-user-example",
+	})
+
+	t.Log("Mocking observed resources")
+	mockedUser := crossplane.MockByKind(t, resources, "User", mySqlApiVersion, true, nil)
+	crossplane.AppendToResources(t, observed, mockedUser)
+
+	t.Log("Rendering...")
+	resources = crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+
+	t.Log("Asserting rendered resources count")
+	crossplane.AssertResourceCount(t, resources, "MariaDBUser", 1)
+	crossplane.AssertResourceCount(t, resources, "User", 1)
+	crossplane.AssertResourceCount(t, resources, "Grant", 1)
+
+	t.Log("Validating mysql.sql.m.crossplane.io Grant fields")
+	crossplane.AssertFieldValues(t, resources, "Grant", mySqlApiVersion, map[string]string{
+		"metadata.name":                         "grant-user-example-example-user-mariadb-example",
+		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "MariaDBUser",
+		"metadata.ownerReferences.0.name":       "user-example",
+		"spec.providerConfigRef.name":           "mariadb-example-providerconfig",
+		"spec.forProvider.user":                 "user_example",
+		"spec.forProvider.database":             "*",
+		"spec.forProvider.table":                "*",
+		"spec.forProvider.privileges.0":         "SELECT",
+		"spec.forProvider.privileges.1":         "INSERT",
+	})
+
+	t.Log("Mocking observed resources")
+	mockedGrant := crossplane.MockByKind(t, resources, "Grant", mySqlApiVersion, true, nil)
+	crossplane.AppendToResources(t, observed, mockedGrant)
+
+	t.Log("Rendering...")
+	resources = crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+
+	t.Log("Asserting rendered resources count")
+	crossplane.AssertResourceCount(t, resources, "MariaDBUser", 1)
+	crossplane.AssertResourceCount(t, resources, "User", 1)
+	crossplane.AssertResourceCount(t, resources, "Grant", 1)
+	crossplane.AssertResourceCount(t, resources, "Usage", 1)
+
+	t.Log("Validating protection.crossplane.io grant Usage fields")
+	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
+		"metadata.name":                         "usage-grant-user-example-example-user-mariadb-example",
+		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "MariaDBUser",
+		"metadata.ownerReferences.0.name":       "user-example",
+		"spec.by.apiVersion":                    mySqlApiVersion,
+		"spec.by.kind":                          "Grant",
+		"spec.by.resourceRef.name":              "grant-user-example-example-user-mariadb-example",
+		"spec.of.apiVersion":                    mySqlApiVersion,
+		"spec.of.kind":                          "User",
+		"spec.of.resourceRef.name":              "user-example",
+		"spec.replayDeletion":                   "true",
+	})
+
+	t.Log("Mocking observed resources")
+	for _, res := range resources {
+		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "usage-grant-user-example-example-user-mariadb-example" {
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
+		}
+	}
+
+	t.Log("Rendering...")
+	resources = crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+
+	t.Log("Asserting rendered resources count")
+	crossplane.AssertResourceCount(t, resources, "MariaDBUser", 1)
+	crossplane.AssertResourceCount(t, resources, "User", 1)
+	crossplane.AssertResourceCount(t, resources, "Grant", 1)
+	crossplane.AssertResourceCount(t, resources, "Usage", 2)
+
+	t.Log("Validating protection.crossplane.io instance-protection Usage fields")
+	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
+		"metadata.name":                         "user-example-instance-protection",
+		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "MariaDBUser",
+		"metadata.ownerReferences.0.name":       "user-example",
+		"spec.by.apiVersion":                    mySqlApiVersion,
+		"spec.by.kind":                          "User",
+		"spec.by.resourceRef.name":              "user-example",
+		"spec.of.apiVersion":                    "database.entigo.com/v1alpha1",
+		"spec.of.kind":                          "MariaDBInstance",
+		"spec.of.resourceRef.name":              "mariadb-example",
+		"spec.replayDeletion":                   "true",
+	})
+
+	t.Log("Mocking observed resources")
+	for _, res := range resources {
+		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "user-example-instance-protection" {
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
+		}
+	}
+
+	t.Log("Rendering...")
+	resources = crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+
+	t.Log("Asserting database.entigo.com MariaDBUser Ready Status")
+	crossplane.AssertResourceReady(t, resources, "MariaDBUser", "database.entigo.com/v1alpha1")
+}
+
+// mariaDBInstanceExtraResource creates a mock MariaDBInstance resource for use as an extra resource.
+func mariaDBInstanceExtraResource() *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "database.entigo.com/v1alpha1",
+			"kind":       "MariaDBInstance",
+			"metadata": map[string]interface{}{
+				"name": "mariadb-example",
+			},
+			"status": map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{"type": "Ready", "status": "True"},
+				},
+			},
+		},
+	}
 }

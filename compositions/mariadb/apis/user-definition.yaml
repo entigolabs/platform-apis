@@ -1,0 +1,85 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: mariadbusers.database.entigo.com
+spec:
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  group: database.entigo.com
+  names:
+    kind: MariaDBUser
+    plural: mariadbusers
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Alternative, i.e. non kubernetes compliant name
+              instanceRef:
+                type: object
+                properties:
+                  name:
+                    description: Name of the database instance the user should be created in
+                    type: string
+                required:
+                  - name
+              databaseRef:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                  - name
+                description: DatabaseRef references the database object this user is for
+              table:
+                type: string
+                description: Tables this grant is for, default *
+                default: '*'
+              privileges:
+                description: |-
+                  Privileges to be granted.
+                  See https://mariadb.com/kb/en/grant/#database-privileges for available privileges.
+                items:
+                  description: GrantPrivilege represents a privilege to be granted
+                  pattern: ^([A-Z0-9_ ]+|[A-Z_ ]+ [(]`[^`]+`(, `[^`]+`)*[)])$
+                  type: string
+                minItems: 1
+                type: array
+              maxConnectionsPerHour:
+                type: number
+                description: MaxConnectionsPerHour sets the number of times an account can connect to the server per hour
+                default: 5
+              maxQueriesPerHour:
+                type: number
+                description: MaxQueriesPerHour sets the number of queries an account can issue per hour
+                default: 20
+              maxUpdatesPerHour:
+                type: number
+                description: MaxUpdatesPerHour sets the number of updates an account can issue per hour
+                default: 10
+              maxUserConnections:
+                type: number
+                description: MaxUserConnections sets The number of simultaneous connections to the server by an account
+                default: 2
+              grant:
+                type: object
+                properties:
+                  users:
+                    description: An array of user names to be granted.
+                    type: array
+                    items:
+                      type: string
+            required:
+              - instanceRef
+              - privileges
+
