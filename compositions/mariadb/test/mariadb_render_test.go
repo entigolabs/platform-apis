@@ -22,6 +22,10 @@ const (
 	userComposition       = "../apis/user-composition.yaml"
 	userWithGrantResource = "../examples/user-with-grant.yaml"
 
+	// Database test files
+	databaseComposition = "../apis/database-composition.yaml"
+	databaseResource    = "../examples/database.yaml"
+
 	mySqlApiVersion = "mysql.sql.m.crossplane.io/v1alpha1"
 )
 
@@ -30,6 +34,7 @@ func TestMariaDBCrossplaneRender(t *testing.T) {
 	crossplane.StartCustomFunction(t, function, "9443")
 
 	t.Run("Instance", testInstanceCrossplaneRender)
+	t.Run("Database", testDatabaseCrossplaneRender)
 	t.Run("User", testUserCrossplaneRender)
 }
 
@@ -202,6 +207,7 @@ func testUserCrossplaneRender(t *testing.T) {
 	observed := filepath.Join(tmpDir, "observed.yaml")
 
 	crossplane.AppendToResources(t, extra, mariaDBInstanceExtraResource())
+	crossplane.AppendToResources(t, extra, mariaDBDatabaseExtraResource())
 
 	t.Log("Rendering...")
 	resources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), nil)
@@ -302,6 +308,37 @@ func testUserCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "Grant", 1)
 	crossplane.AssertResourceCount(t, resources, "Usage", 2)
 
+	t.Log("Validating protection.crossplane.io db-protection Usage fields")
+	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
+		"metadata.name":                         "db-protection-user-example-example-user-mariadb-example",
+		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "MariaDBUser",
+		"metadata.ownerReferences.0.name":       "user-example",
+		"spec.by.apiVersion":                    mySqlApiVersion,
+		"spec.by.kind":                          "Grant",
+		"spec.by.resourceRef.name":              "grant-user-example-example-user-mariadb-example",
+		"spec.of.apiVersion":                    "database.entigo.com/v1alpha1",
+		"spec.of.kind":                          "MariaDBDatabase",
+		"spec.of.resourceRef.name":              "example-db",
+		"spec.replayDeletion":                   "true",
+	})
+
+	t.Log("Mocking observed resources")
+	for _, res := range resources {
+		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "db-protection-user-example-example-user-mariadb-example" {
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
+		}
+	}
+
+	t.Log("Rendering...")
+	resources = crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+
+	t.Log("Asserting rendered resources count")
+	crossplane.AssertResourceCount(t, resources, "MariaDBUser", 1)
+	crossplane.AssertResourceCount(t, resources, "User", 1)
+	crossplane.AssertResourceCount(t, resources, "Grant", 1)
+	crossplane.AssertResourceCount(t, resources, "Usage", 3)
+
 	t.Log("Validating protection.crossplane.io instance-protection Usage fields")
 	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
 		"metadata.name":                         "user-example-instance-protection",
@@ -331,6 +368,78 @@ func testUserCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceReady(t, resources, "MariaDBUser", "database.entigo.com/v1alpha1")
 }
 
+func testDatabaseCrossplaneRender(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	extra := filepath.Join(tmpDir, "extra.yaml")
+	observed := filepath.Join(tmpDir, "observed.yaml")
+
+	crossplane.AppendToResources(t, extra, mariaDBInstanceExtraResource())
+
+	t.Log("Rendering...")
+	resources := crossplane.CrossplaneRender(t, databaseResource, databaseComposition, functionsConfig, crossplane.Ptr(extra), nil)
+
+	t.Log("Asserting rendered resources count")
+	crossplane.AssertResourceCount(t, resources, "MariaDBDatabase", 1)
+	crossplane.AssertResourceCount(t, resources, "Database", 1)
+
+	t.Log("Validating database.entigo.com MariaDBDatabase fields")
+	crossplane.AssertFieldValues(t, resources, "MariaDBDatabase", "database.entigo.com/v1alpha1", map[string]string{
+		"metadata.name":         "example-db",
+		"spec.instanceRef.name": "mariadb-example",
+	})
+
+	t.Log("Validating mysql.sql.m.crossplane.io Database fields")
+	crossplane.AssertFieldValues(t, resources, "Database", mySqlApiVersion, map[string]string{
+		"metadata.name":                                      "example-db",
+		"metadata.ownerReferences.0.apiVersion":              "database.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":                    "MariaDBDatabase",
+		"metadata.ownerReferences.0.name":                    "example-db",
+		"metadata.annotations.crossplane\\.io/external-name": "example-db",
+		"spec.providerConfigRef.name":                        "mariadb-example-providerconfig",
+	})
+
+	t.Log("Mocking observed resources")
+	mockedDatabase := crossplane.MockByKind(t, resources, "Database", mySqlApiVersion, true, nil)
+	crossplane.AppendToResources(t, observed, mockedDatabase)
+
+	t.Log("Rendering...")
+	resources = crossplane.CrossplaneRender(t, databaseResource, databaseComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+
+	t.Log("Asserting rendered resources count")
+	crossplane.AssertResourceCount(t, resources, "MariaDBDatabase", 1)
+	crossplane.AssertResourceCount(t, resources, "Database", 1)
+	crossplane.AssertResourceCount(t, resources, "Usage", 1)
+
+	t.Log("Validating protection.crossplane.io instance-protection Usage fields")
+	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
+		"metadata.name":                         "example-db-instance-protection",
+		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "MariaDBDatabase",
+		"metadata.ownerReferences.0.name":       "example-db",
+		"spec.by.apiVersion":                    mySqlApiVersion,
+		"spec.by.kind":                          "Database",
+		"spec.by.resourceRef.name":              "example-db",
+		"spec.of.apiVersion":                    "database.entigo.com/v1alpha1",
+		"spec.of.kind":                          "MariaDBInstance",
+		"spec.of.resourceRef.name":              "mariadb-example",
+		"spec.replayDeletion":                   "true",
+	})
+
+	t.Log("Mocking observed resources")
+	for _, res := range resources {
+		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "example-db-instance-protection" {
+			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
+		}
+	}
+
+	t.Log("Rendering...")
+	resources = crossplane.CrossplaneRender(t, databaseResource, databaseComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+
+	t.Log("Asserting database.entigo.com MariaDBDatabase Ready Status")
+	crossplane.AssertResourceReady(t, resources, "MariaDBDatabase", "database.entigo.com/v1alpha1")
+}
+
 // mariaDBInstanceExtraResource creates a mock MariaDBInstance resource for use as an extra resource.
 func mariaDBInstanceExtraResource() *unstructured.Unstructured {
 	return &unstructured.Unstructured{
@@ -339,6 +448,24 @@ func mariaDBInstanceExtraResource() *unstructured.Unstructured {
 			"kind":       "MariaDBInstance",
 			"metadata": map[string]interface{}{
 				"name": "mariadb-example",
+			},
+			"status": map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{"type": "Ready", "status": "True"},
+				},
+			},
+		},
+	}
+}
+
+// mariaDBDatabaseExtraResource creates a mock MariaDBDatabase resource for use as an extra resource.
+func mariaDBDatabaseExtraResource() *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "database.entigo.com/v1alpha1",
+			"kind":       "MariaDBDatabase",
+			"metadata": map[string]interface{}{
+				"name": "example-db",
 			},
 			"status": map[string]interface{}{
 				"conditions": []interface{}{

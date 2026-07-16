@@ -1,0 +1,45 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: mariadbdatabases.database.entigo.com
+spec:
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  group: database.entigo.com
+  names:
+    kind: MariaDBDatabase
+    plural: mariadbdatabases
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Alternative, i.e. non kubernetes compliant name
+#                defaultCharacterSet:
+#                  description: DefaultCharacterSet defines the default character set for this database.
+#                  type: string
+#                defaultCollation:
+#                  description: DefaultCollation defines the default collation for this database.
+#                  type: string
+                instanceRef:
+                  type: object
+                  properties:
+                    name:
+                      description: Name of the database instance the db should be created in
+                      type: string
+                  required:
+                    - name
+                deletionProtection:
+                  default: true
+                  type: boolean
+                  description: Prevents accidental deletion of MariaDBDatabase resource
+              required:
+                - instanceRef

@@ -7,4 +7,5 @@ const (
 	XRKindPostgreSQLUser     = "PostgreSQLUser"
 	XRKindMariaDBUser        = "MariaDBUser"
 	XRKindPostgreSQLDatabase = "PostgreSQLDatabase"
+	XRKindMariaDBDatabase    = "MariaDBDatabase"
 )

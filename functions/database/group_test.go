@@ -1990,23 +1990,35 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 
 const mariaDBUserInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"MariaDBUser","metadata":{"name":"user-example","namespace":"testspace"},"spec":{"name":"user_example","instanceRef":{"name":"mariadb-example"},"databaseRef":{"name":"example-db"},"privileges":["SELECT","INSERT"],"grant":{"users":["example-user"]}}}`
 
-func mariaDBInstanceRequired(ready bool) map[string][]resource.Required {
-	status := map[string]interface{}{}
-	if ready {
-		status["conditions"] = []interface{}{
-			map[string]interface{}{"type": "Ready", "status": "True"},
+func mariaDBUserRequired(instanceReady, databaseReady bool) map[string][]resource.Required {
+	readyStatus := func(ready bool) map[string]interface{} {
+		status := map[string]interface{}{}
+		if ready {
+			status["conditions"] = []interface{}{
+				map[string]interface{}{"type": "Ready", "status": "True"},
+			}
 		}
+		return status
 	}
 	instance := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "database.entigo.com/v1alpha1",
 			"kind":       "MariaDBInstance",
 			"metadata":   map[string]interface{}{"name": "mariadb-example", "namespace": "testspace"},
-			"status":     status,
+			"status":     readyStatus(instanceReady),
+		},
+	}
+	database := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "database.entigo.com/v1alpha1",
+			"kind":       "MariaDBDatabase",
+			"metadata":   map[string]interface{}{"name": "example-db", "namespace": "testspace"},
+			"status":     readyStatus(databaseReady),
 		},
 	}
 	return map[string][]resource.Required{
 		"MariaDBInstance": {{Resource: instance}},
+		"MariaDBDatabase": {{Resource: database}},
 	}
 }
 
@@ -2042,24 +2054,32 @@ func TestMariaDBUserFunction(t *testing.T) {
 	}
 
 	const (
-		grantName = "grant-user-example-example-user-mariadb-example"
-		usageName = "usage-grant-user-example-example-user-mariadb-example"
+		grantName    = "grant-user-example-example-user-mariadb-example"
+		usageName    = "usage-grant-user-example-example-user-mariadb-example"
+		dbProtection = "db-protection-user-example-example-user-mariadb-example"
 	)
 
 	t.Run("InstanceNotReady", func(t *testing.T) {
-		_, err := service.GenerateMariaDBUserObjects(user, mariaDBInstanceRequired(false))
+		_, err := service.GenerateMariaDBUserObjects(user, mariaDBUserRequired(false, true))
 		if err == nil {
 			t.Fatal("expected error while MariaDBInstance is not ready, got nil")
 		}
 	})
 
+	t.Run("DatabaseNotReady", func(t *testing.T) {
+		_, err := service.GenerateMariaDBUserObjects(user, mariaDBUserRequired(true, false))
+		if err == nil {
+			t.Fatal("expected error while MariaDBDatabase is not ready, got nil")
+		}
+	})
+
 	t.Run("GeneratesUserGrantAndProtection", func(t *testing.T) {
-		objs, err := service.GenerateMariaDBUserObjects(user, mariaDBInstanceRequired(true))
+		objs, err := service.GenerateMariaDBUserObjects(user, mariaDBUserRequired(true, true))
 		if err != nil {
 			t.Fatalf("GenerateMariaDBUserObjects: %v", err)
 		}
 
-		for _, key := range []string{"user", grantName, usageName, "instance-protection"} {
+		for _, key := range []string{"user", grantName, usageName, dbProtection, "instance-protection"} {
 			if _, ok := objs[key]; !ok {
 				t.Fatalf("expected object %q in generated resources, got keys %v", key, keysOf(objs))
 			}
@@ -2096,6 +2116,17 @@ func TestMariaDBUserFunction(t *testing.T) {
 		}
 		if got := objField(t, protObj, "spec", "by", "kind"); got != "User" {
 			t.Errorf("instance-protection by.kind = %q", got)
+		}
+
+		dbProtObj := objs[dbProtection]
+		if got := objField(t, dbProtObj, "spec", "of", "kind"); got != "MariaDBDatabase" {
+			t.Errorf("db-protection of.kind = %q, want MariaDBDatabase", got)
+		}
+		if got := objField(t, dbProtObj, "spec", "of", "resourceRef", "name"); got != "example-db" {
+			t.Errorf("db-protection of.resourceRef.name = %q, want example-db", got)
+		}
+		if got := objField(t, dbProtObj, "spec", "by", "kind"); got != "Grant" {
+			t.Errorf("db-protection by.kind = %q, want Grant", got)
 		}
 	})
 }

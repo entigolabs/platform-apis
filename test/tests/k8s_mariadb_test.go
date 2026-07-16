@@ -30,25 +30,50 @@ func testMariadb(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Ku
 		return
 	}
 
+	t.Run("Database", func(t *testing.T) { testMariadbDatabase(t, mdbNs) })
+	if t.Failed() {
+		return
+	}
+
 	t.Run("User", func(t *testing.T) { testMariadbUser(t, mdbNs) })
 
 	t.Run("Lifecycle", func(t *testing.T) { testMariadbLifecycle(t, mdbNs) })
 }
 
-// testMariadbUser drives a MariaDBUser whose grant is scoped to a database. There is no MariaDBDatabase
-// composition yet, so the grant references a raw provider-sql Database created by the test chart.
-// The grant is database-scoped because provider-sql cannot observe a global (*.*) grant on MariaDB:
-// MariaDB's SHOW GRANTS output for *.* carries an "IDENTIFIED BY PASSWORD" clause the provider's regex
-// rejects, so a *.* grant would loop forever in "Creating". Coverage here is therefore partial: we
-// assert the mysql User is Ready and the Grant is created + Synced, but do not gate on the Grant (or
-// the downstream Usage protection chain) becoming Ready.
+// testMariadbDatabase drives a MariaDBDatabase composite: the composition creates a provider-sql
+// Database plus an instance-protection Usage, and deletionProtection is enforced by the
+// ValidatingAdmissionPolicy. Creation order is instance -> database -> user, so this runs before
+// the user test whose grant is scoped to this database.
+func testMariadbDatabase(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	waitSyncedAndReady(t, mdbNs, MariadbDatabaseKind, MariadbUserDatabaseName, 60, 10*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	sqlDbName, err := getFirstByLabel(t, mdbNs, MysqlDatabaseKind, MariadbUserDatabaseName)
+	require.NoError(t, err)
+	require.NotEmpty(t, sqlDbName)
+
+	// Database external name must match spec.name (snake_case); providerConfig points at the instance.
+	require.Equal(t, MariadbDatabaseSpecName,
+		getField(t, mdbNs, MysqlDatabaseKind, sqlDbName, `.metadata.annotations.crossplane\.io/external-name`))
+	require.Equal(t, MariadbInstanceName+"-providerconfig",
+		getField(t, mdbNs, MysqlDatabaseKind, sqlDbName, ".spec.providerConfigRef.name"))
+
+	// Instance is protected from deletion while this database exists.
+	testUsage(t, mdbNs, MariadbDatabaseInstanceProtectionName, "MariaDBInstance", MariadbInstanceName, "Database", MariadbUserDatabaseName)
+
+	// deletionProtection=true by default; deletion must be rejected by the admission policy.
+	require.Equal(t, "true", getField(t, mdbNs, MariadbDatabaseKind, MariadbUserDatabaseName, ".spec.deletionProtection"))
+	testDeletionRejected(t, mdbNs, MariadbDatabaseKind, MariadbUserDatabaseName)
+}
+
 func testMariadbUser(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	t.Helper()
 
-	// Bridge database the grant is scoped to.
-	waitSyncedAndReady(t, mdbNs, MysqlDatabaseKind, MariadbUserDatabaseName, 60, 10*time.Second)
-
-	// The mysql User must become Ready even though the composite may not (grant readiness is not asserted).
+	waitSyncedAndReady(t, mdbNs, MariadbUserKind, MariadbUserName, 60, 10*time.Second)
 	waitSyncedAndReadyByLabel(t, mdbNs, MysqlUserKind, MariadbUserName, 60, 10*time.Second)
 	if t.Failed() {
 		return
@@ -62,18 +87,27 @@ func testMariadbUser(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	require.Equal(t, MariadbUserSpecName,
 		getField(t, mdbNs, MysqlUserKind, userName, `.metadata.annotations.crossplane\.io/external-name`))
 
-	// Grant must be created and Synced, scoped to the referenced database.
-	waitResourceExists(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, 60, 10*time.Second)
-	_, err = retry.DoWithRetryE(t, fmt.Sprintf("Grant %s Synced", MariadbUserExpectedGrantName), 30, 10*time.Second,
-		func() (string, error) {
-			return checkConditions(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, "Synced")
-		})
-	require.NoError(t, err)
+	// Grant must become Ready, scoped to the referenced database.
+	waitSyncedAndReady(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, 60, 10*time.Second)
 	require.Equal(t, MariadbUserSpecName,
 		getField(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, ".spec.forProvider.user"))
+	require.Equal(t, MariadbUserDatabaseName,
+		getField(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, ".spec.forProvider.databaseRef.name"))
+
+	// Grant is protected by User (cannot delete User while Grant references it)
+	testUsage(t, mdbNs, MariadbUserExpectedUsageName, "User", MariadbUserName, "Grant", MariadbUserExpectedGrantName)
+
+	// Database is protected while this user's Grant references it
+	testUsage(t, mdbNs, MariadbUserDbProtectionName, "MariaDBDatabase", MariadbUserDatabaseName, "Grant", MariadbUserExpectedGrantName)
+
+	// Instance is protected from deletion while this user's User exists
+	testUsage(t, mdbNs, MariadbUserInstanceProtectionName, "MariaDBInstance", MariadbInstanceName, "User", MariadbUserName)
 
 	// Connection secret must be created
 	waitResourceExists(t, mdbNs, "secret", MariadbUserExpectedSecretName, 60, 10*time.Second)
+
+	// User cannot be deleted while Grant exists
+	testUsageBlocksDeletion(t, mdbNs, MysqlUserKind, userName)
 }
 
 func testMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
@@ -247,15 +281,19 @@ func cleanupMariadb(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	mdbNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, MariadbNamespaceName)
 
-	// Users must go first: their instance-protection Usage blocks MariaDBInstance deletion.
 	cleanupDeleteParallel(t, mdbNs, MariadbUserKind, 120, MariadbUserName)
-	// Then the bridge Database, which connects through the instance's ProviderConfig.
-	cleanupDeleteParallel(t, mdbNs, MysqlDatabaseKind, 120, MariadbUserDatabaseName)
+
+	cleanupDisableDeletionProtectionOnMariadbDatabases(t, mdbNs)
+	cleanupDeleteParallel(t, mdbNs, MariadbDatabaseKind, 120, MariadbUserDatabaseName)
 
 	cleanupDisableDeletionProtectionOnMariadbInstance(t, mdbNs)
 	cleanupDeleteParallel(t, mdbNs, MariadbInstanceKind, 180, MariadbInstanceName, MariadbLifecycleName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MariadbApplicationName, "--ignore-not-found")
+}
+
+func cleanupDisableDeletionProtectionOnMariadbDatabases(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
+	patchDeletionProtectionIfEnabled(t, mdbNs, MariadbDatabaseKind, MariadbUserDatabaseName)
 }
 
 func cleanupDisableDeletionProtectionOnMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {

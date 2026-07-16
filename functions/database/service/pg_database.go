@@ -10,14 +10,11 @@ import (
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	xpv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/function-sdk-go/resource"
-	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-const CrossplaneProtectionApi = "protection.crossplane.io/v1beta1"
 
 type pgDatabaseGenerator struct {
 	pgDatabase         v1alpha1.PostgreSQLDatabase
@@ -199,13 +196,6 @@ func (g *pgDatabaseGenerator) buildExtensions() map[string]client.Object {
 		extensions[resourceName] = extension
 	}
 	return extensions
-}
-
-func GetPgDatabaseDatabaseReadyStatus(observed *composed.Unstructured) resource.Ready {
-	if isResourceReady(observed) {
-		return resource.ReadyTrue
-	}
-	return resource.ReadyFalse
 }
 
 func (g *pgDatabaseGenerator) buildGrantUsage() map[string]client.Object {

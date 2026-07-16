@@ -20,6 +20,7 @@ import (
 type mariaDBUserGenerator struct {
 	mariaDBUser        v1alpha1.MariaDBUser
 	mariaDBInstance    v1alpha1.MariaDBInstance
+	mariaDBDatabase    v1alpha1.MariaDBDatabase
 	providerConfigName string
 	userDisplayName    string
 }
@@ -44,6 +45,13 @@ func newMariaDBUserGenerator(
 		return nil, err
 	}
 
+	var mariaDBDatabase v1alpha1.MariaDBDatabase
+	if mariaDBUser.Spec.DatabaseRef != nil {
+		if err := base.ExtractRequiredResource(required, "MariaDBDatabase", &mariaDBDatabase); err != nil {
+			return nil, err
+		}
+	}
+
 	userDisplayName := mariaDBUser.Name
 	if mariaDBUser.Spec.Name != "" {
 		userDisplayName = mariaDBUser.Spec.Name
@@ -52,6 +60,7 @@ func newMariaDBUserGenerator(
 	return &mariaDBUserGenerator{
 		mariaDBUser:        mariaDBUser,
 		mariaDBInstance:    mariaDBInstance,
+		mariaDBDatabase:    mariaDBDatabase,
 		providerConfigName: mariaDBUser.Spec.InstanceRef.Name + "-providerconfig",
 		userDisplayName:    userDisplayName,
 	}, nil
@@ -64,11 +73,25 @@ func (g *mariaDBUserGenerator) generate() (map[string]client.Object, error) {
 		return desired, fmt.Errorf("temporarily waiting for MariaDBInstance %s to become ready", g.mariaDBInstance.Name)
 	}
 
+	if g.mariaDBUser.Spec.DatabaseRef != nil && !isMariaDBDatabaseReady(g.mariaDBDatabase) {
+		return desired, fmt.Errorf("temporarily waiting for MariaDBDatabase %s to become ready", g.mariaDBUser.Spec.DatabaseRef.Name)
+	}
+
 	maps.Copy(desired, g.buildUser())
 	maps.Copy(desired, g.buildGrants())
 	maps.Copy(desired, g.buildGrantUsages())
+	maps.Copy(desired, g.buildDatabaseProtections())
 	maps.Copy(desired, g.buildInstanceProtection())
 	return desired, nil
+}
+
+func isMariaDBDatabaseReady(database v1alpha1.MariaDBDatabase) bool {
+	for _, condition := range database.Status.Conditions {
+		if condition.Type == "Ready" && condition.Status == "True" {
+			return true
+		}
+	}
+	return false
 }
 
 func isMariaDBInstanceReady(pgInstance v1alpha1.MariaDBInstance) bool {
@@ -180,7 +203,7 @@ func (g *mariaDBUserGenerator) buildGrants() map[string]client.Object {
 
 func (g *mariaDBUserGenerator) buildGrantUsages() map[string]client.Object {
 	usages := make(map[string]client.Object)
-	if g.mariaDBUser.Spec.Grant == nil {
+	if g.mariaDBUser.Spec.Grant == nil || g.mariaDBUser.Spec.DatabaseRef == nil {
 		return usages
 	}
 	for _, user := range g.mariaDBUser.Spec.Grant.Users {
@@ -219,6 +242,49 @@ func (g *mariaDBUserGenerator) buildGrantUsages() map[string]client.Object {
 		usages[usageName] = usage
 	}
 	return usages
+}
+
+func (g *mariaDBUserGenerator) buildDatabaseProtections() map[string]client.Object {
+	protections := make(map[string]client.Object)
+	if g.mariaDBUser.Spec.Grant == nil || g.mariaDBUser.Spec.DatabaseRef == nil {
+		return protections
+	}
+	for _, user := range g.mariaDBUser.Spec.Grant.Users {
+		convertedUserName := strings.ReplaceAll(user, "_", "-")
+		grantName := base.GenerateEligibleKubernetesFullName("grant-" + g.mariaDBUser.Name + "-" + convertedUserName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
+		protectionName := base.GenerateEligibleKubernetesFullName("db-protection-" + g.mariaDBUser.Name + "-" + convertedUserName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
+		replayDeletion := true
+
+		usage := &xpv1beta1.Usage{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Usage",
+				APIVersion: "protection.crossplane.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      protectionName,
+				Namespace: g.mariaDBUser.Namespace,
+			},
+			Spec: xpv1beta1.UsageSpec{
+				ReplayDeletion: &replayDeletion,
+				Of: xpv1beta1.Resource{
+					Kind:       "MariaDBDatabase",
+					APIVersion: "database.entigo.com/v1alpha1",
+					ResourceRef: &xpv1beta1.ResourceRef{
+						Name: g.mariaDBUser.Spec.DatabaseRef.Name,
+					},
+				},
+				By: &xpv1beta1.Resource{
+					Kind:       "Grant",
+					APIVersion: mySqlApiVersion,
+					ResourceRef: &xpv1beta1.ResourceRef{
+						Name: grantName,
+					},
+				},
+			},
+		}
+		protections[protectionName] = usage
+	}
+	return protections
 }
 
 func (g *mariaDBUserGenerator) buildInstanceProtection() map[string]client.Object {
