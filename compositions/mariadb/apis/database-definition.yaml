@@ -23,12 +23,12 @@ spec:
                 name:
                   type: string
                   description: Alternative, i.e. non kubernetes compliant name
-#                defaultCharacterSet:
-#                  description: DefaultCharacterSet defines the default character set for this database.
-#                  type: string
-#                defaultCollation:
-#                  description: DefaultCollation defines the default collation for this database.
-#                  type: string
+                defaultCharacterSet:
+                  description: DefaultCharacterSet defines the default character set for this database.
+                  type: string
+                defaultCollation:
+                  description: DefaultCollation defines the default collation for this database.
+                  type: string
                 instanceRef:
                   type: object
                   properties:

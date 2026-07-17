@@ -88,7 +88,10 @@ func (g *mariaDBDatabaseGenerator) buildDatabase() map[string]client.Object {
 					Name: g.providerConfigName,
 				},
 			},
-			ForProvider: mysqlv1alpha1.DatabaseParameters{},
+			ForProvider: mysqlv1alpha1.DatabaseParameters{
+				DefaultCollation:    g.mariaDBDatabase.Spec.DefaultCollation,
+				DefaultCharacterSet: g.mariaDBDatabase.Spec.DefaultCharacterSet,
+			},
 		},
 	}
 	return map[string]client.Object{"mariadb-database": db}

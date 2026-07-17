@@ -19,10 +19,10 @@ type MariaDBDatabase struct {
 }
 
 type MariaDBDatabaseSpec struct {
-	Name        string                     `json:"name,omitempty"`
-	InstanceRef MariaDBDatabaseInstanceRef `json:"instanceRef"`
-	//DefaultCharacterSet *string                    `json:"defaultCharacterSet,omitempty"`
-	//DefaultCollation    *string                    `json:"defaultCollation,omitempty"`
+	Name                string                     `json:"name,omitempty"`
+	InstanceRef         MariaDBDatabaseInstanceRef `json:"instanceRef"`
+	DefaultCharacterSet *string                    `json:"defaultCharacterSet,omitempty"`
+	DefaultCollation    *string                    `json:"defaultCollation,omitempty"`
 	// +kubebuilder:default=true
 	DeletionProtection bool `json:"deletionProtection"`
 }
