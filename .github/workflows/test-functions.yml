@@ -9,7 +9,7 @@ on:
         type: string
 
 env:
-  GO_VERSION: '1.25'
+  GO_VERSION: '1.26'
   GOLANGCI_VERSION: 'v2.7.2'
 
 jobs:
