@@ -1,0 +1,16 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: rabbitmq.mq.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: mq.entigo.com/v1alpha1
+    kind: RabbitMQ
+  mode: Pipeline
+  pipeline:
+    - step: rabbitmq
+      functionRef:
+        name: platform-apis-mq-fn
+
+
+
