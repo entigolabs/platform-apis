@@ -23,12 +23,31 @@ const (
 	mySqlApiVersion = "mysql.sql.m.crossplane.io/v1alpha1"
 )
 
+func newMariaDBInstanceCommon(mariaDBInstance *v1alpha1.MariaDBInstance) instanceCommon {
+	return instanceCommon{
+		name:                     mariaDBInstance.Name,
+		namespace:                mariaDBInstance.Namespace,
+		uid:                      mariaDBInstance.UID,
+		engine:                   "mariadb",
+		engineTitle:              "MariaDB",
+		engineVersion:            mariaDBInstance.Spec.EngineVersion,
+		parameterGroupName:       mariaDBInstance.Spec.ParameterGroupName,
+		parameterGroupParameters: mariaDBInstance.Spec.ParameterGroupParameters,
+		snapshotIdentifier:       mariaDBInstance.Spec.SnapshotIdentifier,
+		allocatedStorage:         mariaDBInstance.Spec.AllocatedStorage,
+		instanceType:             mariaDBInstance.Spec.InstanceType,
+		iops:                     mariaDBInstance.Spec.Iops,
+		multiAZ:                  mariaDBInstance.Spec.MultiAZ,
+		maintenanceWindow:        mariaDBInstance.Spec.MaintenanceWindow,
+	}
+}
+
 func GenerateMariaDBInstanceObjects(
 	mariaDBInstance v1alpha1.MariaDBInstance,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
 ) (map[string]client.Object, error) {
-	g, err := newRDSInstanceGenerator(nil, &mariaDBInstance, required, observed)
+	g, err := newRDSInstanceGenerator(nil, &mariaDBInstance, newMariaDBInstanceCommon(&mariaDBInstance), required, observed)
 	if err != nil {
 		return nil, err
 	}
@@ -42,8 +61,7 @@ func GenerateMariaDBInstanceObjects(
 	return g.generate()
 }
 
-func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Object {
-	rdsInstances := make(map[string]client.Object)
+func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() client.Object {
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
@@ -53,8 +71,6 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Objec
 	}
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
-
-	skipFinalSnapshot := !*g.env.MariaDBBackupBeforeDeletion
 
 	backupRetentionPeriod := g.mariaDBInstance.Spec.BackupRetentionPeriod
 	if backupRetentionPeriod == nil {
@@ -98,7 +114,7 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Objec
 				PerformanceInsightsEnabled:  new(false),
 				PubliclyAccessible:          new(false),
 				Region:                      region,
-				SkipFinalSnapshot:           &skipFinalSnapshot,
+				SkipFinalSnapshot:           new(!*g.env.MariaDBBackupBeforeDeletion),
 				StorageType:                 new("gp3"),
 				StorageEncrypted:            new(true),
 				Tags:                        g.env.Tags,
@@ -135,12 +151,10 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Objec
 
 	rdsInstance.SetManagementPolicies(xpv2v1.ManagementPolicies{"*"})
 
-	rdsInstances[rdsInstance.Name] = rdsInstance
-	return rdsInstances
+	return rdsInstance
 }
 
-func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() map[string]client.Object {
-	providerConfigs := make(map[string]client.Object)
+func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() client.Object {
 	pcName := string(g.names.pc)
 	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.mariaDBInstance.Name, "dbadmin"))
 	providerConfig := &mysqlv1alpha1.ProviderConfig{
@@ -159,11 +173,11 @@ func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() map[string]client
 
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(providerConfig)
 	if err != nil {
-		return providerConfigs
+		return providerConfig
 	}
 	unstructured.RemoveNestedField(obj, "spec", "tlsConfig")
-	providerConfigs[pcName] = &unstructured.Unstructured{Object: obj}
-	return providerConfigs
+	providerConfigObj := &unstructured.Unstructured{Object: obj}
+	return providerConfigObj
 }
 
 func GetMariaDBStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.MariaDBInstanceStatus {

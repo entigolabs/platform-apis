@@ -79,11 +79,13 @@ func (g *mariaDBUserGenerator) generate() (map[string]client.Object, error) {
 		return desired, fmt.Errorf("temporarily waiting for MariaDBDatabase %s to become ready", g.mariaDBUser.Spec.DatabaseRef.Name)
 	}
 
-	maps.Copy(desired, g.buildUser())
+	user := g.buildUser()
+	desired["user"] = user
 	maps.Copy(desired, g.buildGrants())
 	maps.Copy(desired, g.buildGrantUsages())
 	maps.Copy(desired, g.buildDatabaseProtections())
-	maps.Copy(desired, g.buildInstanceProtection())
+	usage := g.buildInstanceProtection()
+	desired["instance-protection"] = usage
 	return desired, nil
 }
 
@@ -96,8 +98,8 @@ func isMariaDBDatabaseReady(database v1alpha1.MariaDBDatabase) bool {
 	return false
 }
 
-func isMariaDBInstanceReady(pgInstance v1alpha1.MariaDBInstance) bool {
-	conditions := pgInstance.Status.Conditions
+func isMariaDBInstanceReady(mariaDBInstance v1alpha1.MariaDBInstance) bool {
+	conditions := mariaDBInstance.Status.Conditions
 	for _, condition := range conditions {
 		if condition.Type == "Ready" && condition.Status == "True" {
 			return true
@@ -106,7 +108,7 @@ func isMariaDBInstanceReady(pgInstance v1alpha1.MariaDBInstance) bool {
 	return false
 }
 
-func (g *mariaDBUserGenerator) buildUser() map[string]client.Object {
+func (g *mariaDBUserGenerator) buildUser() client.Object {
 	connSecretName := base.GenerateEligibleKubernetesFullName(g.mariaDBUser.Spec.InstanceRef.Name + "-" + g.mariaDBUser.Name)
 	user := &mysqlv1alpha1.User{
 		TypeMeta: metav1.TypeMeta{
@@ -141,7 +143,7 @@ func (g *mariaDBUserGenerator) buildUser() map[string]client.Object {
 			},
 		},
 	}
-	return map[string]client.Object{"user": user}
+	return user
 }
 
 // MariaDB grants are database-scoped only: provider-sql cannot observe a global (*.*) using mySQL provider
@@ -282,8 +284,7 @@ func (g *mariaDBUserGenerator) buildDatabaseProtections() map[string]client.Obje
 	return protections
 }
 
-func (g *mariaDBUserGenerator) buildInstanceProtection() map[string]client.Object {
-	instanceUsages := make(map[string]client.Object)
+func (g *mariaDBUserGenerator) buildInstanceProtection() client.Object {
 
 	usage := &xpv1beta1.Usage{
 		TypeMeta: metav1.TypeMeta{
@@ -312,6 +313,5 @@ func (g *mariaDBUserGenerator) buildInstanceProtection() map[string]client.Objec
 			},
 		},
 	}
-	instanceUsages["instance-protection"] = usage
-	return instanceUsages
+	return usage
 }

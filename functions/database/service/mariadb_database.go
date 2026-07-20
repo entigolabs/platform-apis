@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"maps"
 
 	mysqlv1alpha1 "github.com/crossplane-contrib/provider-sql/apis/namespaced/mysql/v1alpha1"
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
@@ -61,14 +60,16 @@ func (g *mariaDBDatabaseGenerator) generate() (map[string]client.Object, error) 
 		return desired, fmt.Errorf("temporarily waiting for MariaDBInstance %s to become ready", g.mariaDBInstance.Name)
 	}
 
-	maps.Copy(desired, g.buildDatabase())
+	db := g.buildDatabase()
+	desired["mariadb-database"] = db
 	if g.mariaDBDatabase.Spec.DeletionProtection {
-		maps.Copy(desired, g.buildInstanceProtection())
+		usage := g.buildInstanceProtection()
+		desired["instance-protection"] = usage
 	}
 	return desired, nil
 }
 
-func (g *mariaDBDatabaseGenerator) buildDatabase() map[string]client.Object {
+func (g *mariaDBDatabaseGenerator) buildDatabase() client.Object {
 	db := &mysqlv1alpha1.Database{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Database",
@@ -94,10 +95,10 @@ func (g *mariaDBDatabaseGenerator) buildDatabase() map[string]client.Object {
 			},
 		},
 	}
-	return map[string]client.Object{"mariadb-database": db}
+	return db
 }
 
-func (g *mariaDBDatabaseGenerator) buildInstanceProtection() map[string]client.Object {
+func (g *mariaDBDatabaseGenerator) buildInstanceProtection() client.Object {
 	usage := &xpv1beta1.Usage{
 		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: crossplaneProtectionApiVersion},
 		ObjectMeta: metav1.ObjectMeta{
@@ -118,5 +119,5 @@ func (g *mariaDBDatabaseGenerator) buildInstanceProtection() map[string]client.O
 			},
 		},
 	}
-	return map[string]client.Object{"instance-protection": usage}
+	return usage
 }
