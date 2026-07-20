@@ -98,15 +98,14 @@ func (g *mariaDBDatabaseGenerator) buildDatabase() map[string]client.Object {
 }
 
 func (g *mariaDBDatabaseGenerator) buildInstanceProtection() map[string]client.Object {
-	replayDeletion := true
 	usage := &xpv1beta1.Usage{
-		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: CrossplaneProtectionApi},
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: crossplaneProtectionApiVersion},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.mariaDBDatabase.Name + "-instance-protection",
 			Namespace: g.mariaDBDatabase.Namespace,
 		},
 		Spec: xpv1beta1.UsageSpec{
-			ReplayDeletion: &replayDeletion,
+			ReplayDeletion: new(true),
 			Of: xpv1beta1.Resource{
 				Kind:        "MariaDBInstance",
 				APIVersion:  "database.entigo.com/v1alpha1",

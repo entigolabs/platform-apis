@@ -28,9 +28,10 @@ import (
 )
 
 const (
-	ec2ApiVersion           = "ec2.aws.m.upbound.io/v1beta1"
-	rdsApiVersion           = "rds.aws.m.upbound.io/v1beta1"
-	parameterGroupKeyPrefix = "parameter-group-"
+	ec2ApiVersion                  = "ec2.aws.m.upbound.io/v1beta1"
+	rdsApiVersion                  = "rds.aws.m.upbound.io/v1beta1"
+	crossplaneProtectionApiVersion = "protection.crossplane.io/v1beta1"
+	parameterGroupKeyPrefix        = "parameter-group-"
 
 	// parameterGroupApplyMethodKey is a reserved key in ParameterGroupParameters: it sets how every
 	// parameter in the group is applied ("immediate" or "pending-reboot") and is not itself a DB
@@ -705,4 +706,11 @@ func rdsNeedsApplyImmediately(observed resource.ObservedComposed, common instanc
 		(atProvider.MultiAz != nil && *atProvider.MultiAz) != common.multiAZ ||
 		(common.maintenanceWindow != "" && paramChanged(atProvider.MaintenanceWindow, common.maintenanceWindow)) ||
 		(common.parameterGroupName != "" && paramChanged(atProvider.ParameterGroupName, common.parameterGroupName))
+}
+
+func GetResourceReadyStatus(observed *composed.Unstructured) resource.Ready {
+	if isResourceReady(observed) {
+		return resource.ReadyTrue
+	}
+	return resource.ReadyFalse
 }

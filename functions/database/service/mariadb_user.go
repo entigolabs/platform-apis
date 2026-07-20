@@ -17,6 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const grantPrefix = "grant-"
+
 type mariaDBUserGenerator struct {
 	mariaDBUser        v1alpha1.MariaDBUser
 	mariaDBInstance    v1alpha1.MariaDBInstance
@@ -142,20 +144,18 @@ func (g *mariaDBUserGenerator) buildUser() map[string]client.Object {
 	return map[string]client.Object{"user": user}
 }
 
+// MariaDB grants are database-scoped only: provider-sql cannot observe a global (*.*) using mySQL provider
 func (g *mariaDBUserGenerator) buildGrants() map[string]client.Object {
 	grants := make(map[string]client.Object)
 	if g.mariaDBUser.Spec.Grant == nil {
 		return grants
 	}
-	// MariaDB grants are database-scoped only: provider-sql cannot observe a global (*.*)
-	// grant on MariaDB (its SHOW GRANTS output appends an IDENTIFIED BY PASSWORD clause that
-	// the provider's regex rejects), so the grant would loop forever in "Creating".
 	if g.mariaDBUser.Spec.DatabaseRef == nil {
 		return grants
 	}
 	for _, user := range g.mariaDBUser.Spec.Grant.Users {
 		convertedRoleName := strings.ReplaceAll(user, "_", "-")
-		grantName := base.GenerateEligibleKubernetesFullName("grant-" + g.mariaDBUser.Name + "-" + convertedRoleName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
+		grantName := base.GenerateEligibleKubernetesFullName(grantPrefix + g.mariaDBUser.Name + "-" + convertedRoleName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
 		grant := &mysqlv1alpha1.Grant{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Grant",
@@ -186,8 +186,7 @@ func (g *mariaDBUserGenerator) buildGrants() map[string]client.Object {
 		if g.mariaDBUser.Spec.Table != nil {
 			grant.Spec.ForProvider.Table = g.mariaDBUser.Spec.Table
 		} else {
-			table := "*"
-			grant.Spec.ForProvider.Table = &table
+			grant.Spec.ForProvider.Table = new("*")
 		}
 
 		privileges := mysqlv1alpha1.GrantPrivileges{}
@@ -208,21 +207,19 @@ func (g *mariaDBUserGenerator) buildGrantUsages() map[string]client.Object {
 	}
 	for _, user := range g.mariaDBUser.Spec.Grant.Users {
 		convertedUserName := strings.ReplaceAll(user, "_", "-")
-		grantName := base.GenerateEligibleKubernetesFullName("grant-" + g.mariaDBUser.Name + "-" + convertedUserName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
+		grantName := base.GenerateEligibleKubernetesFullName(grantPrefix + g.mariaDBUser.Name + "-" + convertedUserName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
 		usageName := base.GenerateEligibleKubernetesFullName("usage-grant-" + g.mariaDBUser.Name + "-" + convertedUserName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
-		replayDeletion := true
-
 		usage := &xpv1beta1.Usage{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Usage",
-				APIVersion: "protection.crossplane.io/v1beta1",
+				APIVersion: crossplaneProtectionApiVersion,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      usageName,
 				Namespace: g.mariaDBUser.Namespace,
 			},
 			Spec: xpv1beta1.UsageSpec{
-				ReplayDeletion: &replayDeletion,
+				ReplayDeletion: new(true),
 				Of: xpv1beta1.Resource{
 					Kind:       "User",
 					APIVersion: mySqlApiVersion,
@@ -251,10 +248,8 @@ func (g *mariaDBUserGenerator) buildDatabaseProtections() map[string]client.Obje
 	}
 	for _, user := range g.mariaDBUser.Spec.Grant.Users {
 		convertedUserName := strings.ReplaceAll(user, "_", "-")
-		grantName := base.GenerateEligibleKubernetesFullName("grant-" + g.mariaDBUser.Name + "-" + convertedUserName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
+		grantName := base.GenerateEligibleKubernetesFullName(grantPrefix + g.mariaDBUser.Name + "-" + convertedUserName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
 		protectionName := base.GenerateEligibleKubernetesFullName("db-protection-" + g.mariaDBUser.Name + "-" + convertedUserName + "-" + g.mariaDBUser.Spec.InstanceRef.Name)
-		replayDeletion := true
-
 		usage := &xpv1beta1.Usage{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Usage",
@@ -265,7 +260,7 @@ func (g *mariaDBUserGenerator) buildDatabaseProtections() map[string]client.Obje
 				Namespace: g.mariaDBUser.Namespace,
 			},
 			Spec: xpv1beta1.UsageSpec{
-				ReplayDeletion: &replayDeletion,
+				ReplayDeletion: new(true),
 				Of: xpv1beta1.Resource{
 					Kind:       "MariaDBDatabase",
 					APIVersion: "database.entigo.com/v1alpha1",
@@ -290,8 +285,6 @@ func (g *mariaDBUserGenerator) buildDatabaseProtections() map[string]client.Obje
 func (g *mariaDBUserGenerator) buildInstanceProtection() map[string]client.Object {
 	instanceUsages := make(map[string]client.Object)
 
-	replayDeletion := true
-
 	usage := &xpv1beta1.Usage{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Usage",
@@ -302,7 +295,7 @@ func (g *mariaDBUserGenerator) buildInstanceProtection() map[string]client.Objec
 			Namespace: g.mariaDBUser.Namespace,
 		},
 		Spec: xpv1beta1.UsageSpec{
-			ReplayDeletion: &replayDeletion,
+			ReplayDeletion: new(true),
 			Of: xpv1beta1.Resource{
 				Kind:       "MariaDBInstance",
 				APIVersion: "database.entigo.com/v1alpha1",

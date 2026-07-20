@@ -164,9 +164,9 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 	case "ReplicationGroup":
 		return service.GetValkeyReplicationGroupReadyStatus(observed)
 	case "Database":
-		return service.GetDatabaseReadyStatus(observed)
+		return service.GetResourceReadyStatus(observed)
 	case "Grant":
-		return service.GetGrantReadyStatus(observed)
+		return service.GetResourceReadyStatus(observed)
 	default:
 		return ""
 	}

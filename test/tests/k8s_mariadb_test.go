@@ -40,10 +40,6 @@ func testMariadb(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Ku
 	t.Run("Lifecycle", func(t *testing.T) { testMariadbLifecycle(t, mdbNs) })
 }
 
-// testMariadbDatabase drives a MariaDBDatabase composite: the composition creates a provider-sql
-// Database plus an instance-protection Usage, and deletionProtection is enforced by the
-// ValidatingAdmissionPolicy. Creation order is instance -> database -> user, so this runs before
-// the user test whose grant is scoped to this database.
 func testMariadbDatabase(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	t.Helper()
 
@@ -172,10 +168,6 @@ func testMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	waitFieldEquals(t, mdbNs, RdsInstanceKind, rdsName, ".spec.forProvider.deletionProtection", "false", 30, 10*time.Second)
 }
 
-// testMariadbLifecycle drives a single MariaDBInstance through every engineVersion/
-// parameterGroupParameters combination worth covering, since each transition is a real (slow) AWS
-// RDS change and provisioning a separate instance per case would multiply e2e cost for no extra
-// coverage.
 func testMariadbLifecycle(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	t.Helper()
 
