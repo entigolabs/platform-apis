@@ -54,10 +54,7 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Objec
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 
-	skipFinalSnapshot := false
-	if !*g.env.MariaDBBackupBeforeDeletion {
-		skipFinalSnapshot = true
-	}
+	skipFinalSnapshot := !*g.env.MariaDBBackupBeforeDeletion
 
 	backupRetentionPeriod := g.mariaDBInstance.Spec.BackupRetentionPeriod
 	if backupRetentionPeriod == nil {

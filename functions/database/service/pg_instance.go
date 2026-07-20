@@ -53,10 +53,7 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 
-	skipFinalSnapshot := false
-	if !*g.env.PostgresBackupBeforeDeletion {
-		skipFinalSnapshot = true
-	}
+	skipFinalSnapshot := !*g.env.PostgresBackupBeforeDeletion
 
 	backupRetentionPeriod := g.pgInstance.Spec.BackupRetentionPeriod
 	if backupRetentionPeriod == nil {
