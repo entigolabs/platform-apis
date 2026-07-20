@@ -219,8 +219,6 @@ func (g *valkeyInstanceGenerator) buildParameterGroup(objects map[string]client.
 	name := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-parameterGroup-%s-%s", g.instance.Name, family, g.hash))
 	g.parameterGroupName = name
 	tags := g.buildTags()
-	description := fmt.Sprintf("Parameter group for Valkey %s", g.instance.Name)
-
 	parameters := make([]elasticachemv1beta1.ParameterParameters, 0)
 
 	for key, value := range g.instance.Spec.ParameterGroupParameters {
@@ -242,7 +240,7 @@ func (g *valkeyInstanceGenerator) buildParameterGroup(objects map[string]client.
 				Name:        &name,
 				Region:      &g.region,
 				Family:      &family,
-				Description: &description,
+				Description: new(fmt.Sprintf("Parameter group for Valkey %s", g.instance.Name)),
 				Parameter:   parameters,
 				Tags:        tags,
 			},
@@ -256,12 +254,6 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 	name := g.instance.GetName()
 	tags := g.buildTags()
 
-	atRestEncryption := "true"
-	autoMinorVersionUpgrade := fmt.Sprintf("%t", g.instance.Spec.AutoMinorVersionUpgrade)
-	engine := "valkey"
-	authTokenUpdateStrategy := "SET"
-	finalSnapshotIdentifier := name + "-final-snapshot"
-
 	rg := &elasticachemv1beta1.ReplicationGroup{
 		TypeMeta:   metav1.TypeMeta{APIVersion: elasticacheApiVersion, Kind: "ReplicationGroup"},
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -272,7 +264,7 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 			},
 			ForProvider: elasticachemv1beta1.ReplicationGroupParameters{
 				Region:                   &g.region,
-				Engine:                   &engine,
+				Engine:                   new("valkey"),
 				Description:              &name,
 				EngineVersion:            g.instance.Spec.EngineVersion,
 				NodeType:                 &g.instance.Spec.InstanceType,
@@ -280,15 +272,15 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 				AutomaticFailoverEnabled: base.BoolPtr(true),
 				MultiAzEnabled:           base.BoolPtr(true),
 				ApplyImmediately:         base.BoolPtr(true),
-				AutoMinorVersionUpgrade:  &autoMinorVersionUpgrade,
-				AtRestEncryptionEnabled:  &atRestEncryption,
+				AutoMinorVersionUpgrade:  new(fmt.Sprintf("%t", g.instance.Spec.AutoMinorVersionUpgrade)),
+				AtRestEncryptionEnabled:  new("true"),
 				TransitEncryptionEnabled: base.BoolPtr(true),
 				AuthTokenSecretRef: &xpv2v1.LocalSecretKeySelector{
 					LocalSecretReference: xpv2v1.LocalSecretReference{Name: name + "-auth-token"},
 					Key:                  "auth-token",
 				},
 				AutoGenerateAuthToken:   base.BoolPtr(true),
-				AuthTokenUpdateStrategy: &authTokenUpdateStrategy,
+				AuthTokenUpdateStrategy: new("SET"),
 				KMSKeyID:                &g.kmsDataKeyArn,
 				MaintenanceWindow:       &g.instance.Spec.MaintenanceWindow,
 				SnapshotWindow:          &g.instance.Spec.SnapshotWindow,
@@ -307,12 +299,11 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 	} else if g.instance.Spec.ParameterGroupName != "" {
 		rg.Spec.ForProvider.ParameterGroupName = &g.instance.Spec.ParameterGroupName
 	} else if family, ok := computeValkeyFamily(g.instance.Spec.EngineVersion, g.engineVersionActual); ok {
-		defaultName := "default." + family
-		rg.Spec.ForProvider.ParameterGroupName = &defaultName
+		rg.Spec.ForProvider.ParameterGroupName = new("default." + family)
 	}
 
 	if *g.env.ValkeyBackupBeforeDeletion {
-		rg.Spec.ForProvider.FinalSnapshotIdentifier = &finalSnapshotIdentifier
+		rg.Spec.ForProvider.FinalSnapshotIdentifier = new(name + "-final-snapshot")
 	}
 
 	objects[rgKey] = rg
@@ -320,7 +311,6 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 
 func (g *valkeyInstanceGenerator) buildSecurityGroup(objects map[string]client.Object) {
 	name := g.instance.GetName()
-	description := fmt.Sprintf("Security group for Valkey %s", name)
 	tags := g.buildTags()
 
 	objects["security-group"] = &ec2mv1beta1.SecurityGroup{
@@ -332,7 +322,7 @@ func (g *valkeyInstanceGenerator) buildSecurityGroup(objects map[string]client.O
 			},
 			ForProvider: ec2mv1beta1.SecurityGroupParameters_2{
 				Region:      &g.region,
-				Description: &description,
+				Description: new(fmt.Sprintf("Security group for Valkey %s", name)),
 				VPCIDRef:    &xpv2v1.NamespacedReference{Name: g.vpc.Name, Namespace: g.vpc.Namespace},
 				Tags:        tags,
 			},
@@ -354,11 +344,7 @@ func (g *valkeyInstanceGenerator) buildSecurityGroupRules(objects map[string]cli
 
 		subnetName := subnet.GetName()
 		ruleName := fmt.Sprintf("%s-ingress-%s", name, subnetName)
-		ingressType := "ingress"
-		protocol := "tcp"
 		port := float64(6379)
-		description := fmt.Sprintf("Allow Valkey access from %s", subnetName)
-
 		objects["sg-ingress-"+subnetName] = &ec2mv1beta1.SecurityGroupRule{
 			TypeMeta:   metav1.TypeMeta{APIVersion: ec2ApiVersion, Kind: "SecurityGroupRule"},
 			ObjectMeta: metav1.ObjectMeta{Name: ruleName},
@@ -368,13 +354,13 @@ func (g *valkeyInstanceGenerator) buildSecurityGroupRules(objects map[string]cli
 				},
 				ForProvider: ec2mv1beta1.SecurityGroupRuleParameters_2{
 					Region:             &g.region,
-					Type:               &ingressType,
+					Type:               new("ingress"),
 					SecurityGroupIDRef: &xpv2v1.NamespacedReference{Name: name},
-					Protocol:           &protocol,
+					Protocol:           new("tcp"),
 					FromPort:           &port,
 					ToPort:             &port,
 					CidrBlocks:         []*string{&cidrBlock},
-					Description:        &description,
+					Description:        new(fmt.Sprintf("Allow Valkey access from %s", subnetName)),
 				},
 			},
 		}
@@ -386,14 +372,11 @@ func (g *valkeyInstanceGenerator) buildSecretsManagerResources(objects map[strin
 	tags := g.buildTags()
 
 	secretName := name + "-credentials"
-	description := fmt.Sprintf("Valkey connection credentials for %s", name)
-	recoveryWindow := float64(0)
-
 	smSecretParams := smv1beta1.SecretParameters{
 		Name:                 &secretName,
 		Region:               &g.region,
-		RecoveryWindowInDays: &recoveryWindow,
-		Description:          &description,
+		RecoveryWindowInDays: new(float64(0)),
+		Description:          new(fmt.Sprintf("Valkey connection credentials for %s", name)),
 		Tags:                 tags,
 	}
 	if g.kmsConfigKeyArn != "" {

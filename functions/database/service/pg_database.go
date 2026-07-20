@@ -202,7 +202,7 @@ func (g *pgDatabaseGenerator) buildGrantUsage() map[string]client.Object {
 	replayDeletion := true
 	grantName := g.pgDatabase.Name + "-grant-owner-to-dbadmin"
 	usage := &xpv1beta1.Usage{
-		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: CrossplaneProtectionApi},
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: crossplaneProtectionApiVersion},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.pgDatabase.Name + "-grant-usage",
 			Namespace: g.pgDatabase.Namespace,
@@ -227,7 +227,7 @@ func (g *pgDatabaseGenerator) buildGrantUsage() map[string]client.Object {
 func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]client.Object {
 	replayDeletion := true
 	usage := &xpv1beta1.Usage{
-		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: CrossplaneProtectionApi},
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: crossplaneProtectionApiVersion},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.pgDatabase.Name + "-owner-protection",
 			Namespace: g.pgDatabase.Namespace,
@@ -252,7 +252,7 @@ func (g *pgDatabaseGenerator) buildOwnerProtection() map[string]client.Object {
 func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]client.Object {
 	replayDeletion := true
 	usage := &xpv1beta1.Usage{
-		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: CrossplaneProtectionApi},
+		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: crossplaneProtectionApiVersion},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.pgDatabase.Name + "-instance-protection",
 			Namespace: g.pgDatabase.Namespace,

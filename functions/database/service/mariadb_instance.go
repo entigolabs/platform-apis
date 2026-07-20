@@ -49,17 +49,12 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Objec
 	region := g.vpc.Spec.ForProvider.Region
 	var availabilityZone *string
 	if !g.mariaDBInstance.Spec.MultiAZ {
-		az := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a"))
-		availabilityZone = &az
+		availabilityZone = new(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a")))
 	}
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 
-	dbName, engine, storageType, masterUsername := "mariadb", "mariadb", "gp3", "dbadmin"
-	manageMasterUserPassword, performanceInsightsEnabled, publiclyAccessible, skipFinalSnapshot, storageEncrypted := true, false, false, false, true
-	if !*g.env.MariaDBBackupBeforeDeletion {
-		skipFinalSnapshot = true
-	}
+	skipFinalSnapshot := !*g.env.MariaDBBackupBeforeDeletion
 
 	backupRetentionPeriod := g.mariaDBInstance.Spec.BackupRetentionPeriod
 	if backupRetentionPeriod == nil {
@@ -88,26 +83,26 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Objec
 				AutoMinorVersionUpgrade:     &g.mariaDBInstance.Spec.AutoMinorVersionUpgrade,
 				AvailabilityZone:            availabilityZone,
 				BackupRetentionPeriod:       backupRetentionPeriod,
-				DBName:                      &dbName,
+				DBName:                      new("mariadb"),
 				DBSubnetGroupNameRef:        &xpv2v1.NamespacedReference{Name: g.subnetGroup.Name, Namespace: g.subnetGroup.Namespace},
 				DeletionProtection:          &g.mariaDBInstance.Spec.DeletionProtection,
-				Engine:                      &engine,
+				Engine:                      new("mariadb"),
 				EngineVersion:               g.mariaDBInstance.Spec.EngineVersion,
 				FinalSnapshotIdentifier:     &finalSnapshotIdentifier,
 				Identifier:                  &rdsInstanceName,
 				InstanceClass:               &g.mariaDBInstance.Spec.InstanceType,
 				KMSKeyIDRef:                 &xpv2v1.NamespacedReference{Name: g.kmsDataKey.Name, Namespace: g.kmsDataKey.Namespace},
-				ManageMasterUserPassword:    &manageMasterUserPassword,
+				ManageMasterUserPassword:    new(true),
 				MasterUserSecretKMSKeyIDRef: &xpv2v1.NamespacedReference{Name: g.kmsConfigKey.Name, Namespace: g.kmsConfigKey.Namespace},
 				MultiAz:                     &g.mariaDBInstance.Spec.MultiAZ,
-				PerformanceInsightsEnabled:  &performanceInsightsEnabled,
-				PubliclyAccessible:          &publiclyAccessible,
+				PerformanceInsightsEnabled:  new(false),
+				PubliclyAccessible:          new(false),
 				Region:                      region,
 				SkipFinalSnapshot:           &skipFinalSnapshot,
-				StorageType:                 &storageType,
-				StorageEncrypted:            &storageEncrypted,
+				StorageType:                 new("gp3"),
+				StorageEncrypted:            new(true),
 				Tags:                        g.env.Tags,
-				Username:                    &masterUsername,
+				Username:                    new("dbadmin"),
 				VPCSecurityGroupIDRefs:      vpcSecurityGroupIDRef,
 			},
 		},
@@ -127,13 +122,11 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() map[string]client.Objec
 	} else if g.mariaDBInstance.Spec.ParameterGroupName != "" {
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.mariaDBInstance.Spec.ParameterGroupName
 	} else if family, ok := computeFamily("mariadb", g.mariaDBInstance.Spec.EngineVersion, g.engineVersionActual); ok {
-		defaultName := "default." + family
-		rdsInstance.Spec.ForProvider.ParameterGroupName = &defaultName
+		rdsInstance.Spec.ForProvider.ParameterGroupName = new("default." + family)
 	}
 
 	if family, ok := computeFamily("mariadb", g.mariaDBInstance.Spec.EngineVersion, g.engineVersionActual); ok {
-		defaultOptionGroupName := "default:mariadb-" + strings.ReplaceAll(strings.TrimPrefix(family, "mariadb"), ".", "-")
-		rdsInstance.Spec.ForProvider.OptionGroupName = &defaultOptionGroupName
+		rdsInstance.Spec.ForProvider.OptionGroupName = new("default:mariadb-" + strings.ReplaceAll(strings.TrimPrefix(family, "mariadb"), ".", "-"))
 	}
 
 	if g.mariaDBInstance.Spec.SnapshotIdentifier != "" {
@@ -150,8 +143,6 @@ func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() map[string]client
 	providerConfigs := make(map[string]client.Object)
 	pcName := string(g.names.pc)
 	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.mariaDBInstance.Name, "dbadmin"))
-	tls := "preferred"
-
 	providerConfig := &mysqlv1alpha1.ProviderConfig{
 		TypeMeta:   metav1.TypeMeta{Kind: "ProviderConfig", APIVersion: mySqlApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: pcName, Namespace: g.mariaDBInstance.Namespace},
@@ -162,7 +153,7 @@ func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() map[string]client
 					Name: secretName,
 				},
 			},
-			TLS: &tls,
+			TLS: new("preferred"),
 		},
 	}
 
@@ -177,12 +168,10 @@ func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() map[string]client
 
 func GetMariaDBStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.MariaDBInstanceStatus {
 	status := v1alpha1.MariaDBInstanceStatus{}
-	dbInstanceName := dbInstance.Name
-
 	base.SetBool(dbInstance.Status.AtProvider.AllowMajorVersionUpgrade, &status.AllowMajorVersionUpgrade)
 	base.SetBool(dbInstance.Status.AtProvider.AutoMinorVersionUpgrade, &status.AutoMinorVersionUpgrade)
 	base.SetString(dbInstance.Status.AtProvider.BackupWindow, &status.BackupWindow)
-	base.SetString(&dbInstanceName, &status.DBInstanceIdentifier)
+	base.SetString(new(dbInstance.Name), &status.DBInstanceIdentifier)
 
 	endpoint := v1alpha1.MariaDBInstanceEndpoint{}
 
@@ -199,8 +188,7 @@ func GetMariaDBStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.Ma
 	if dbInstance.Status.AtProvider.LatestRestorableTime != nil {
 		t, err := time.Parse(time.RFC3339, *dbInstance.Status.AtProvider.LatestRestorableTime)
 		if err == nil {
-			restorableTime := metav1.NewTime(t)
-			status.LatestRestorableTime = &restorableTime
+			status.LatestRestorableTime = new(metav1.NewTime(t))
 		}
 	}
 
