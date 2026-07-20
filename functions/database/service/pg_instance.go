@@ -48,14 +48,12 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 	region := g.vpc.Spec.ForProvider.Region
 	var availabilityZone *string
 	if !g.pgInstance.Spec.MultiAZ {
-		az := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a"))
-		availabilityZone = &az
+		availabilityZone = new(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a")))
 	}
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 
-	dbName, engine, storageType, masterUsername := "postgres", "postgres", "gp3", "dbadmin"
-	manageMasterUserPassword, performanceInsightsEnabled, publiclyAccessible, skipFinalSnapshot, storageEncrypted := true, false, false, false, true
+	skipFinalSnapshot := false
 	if !*g.env.PostgresBackupBeforeDeletion {
 		skipFinalSnapshot = true
 	}
@@ -87,26 +85,26 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 				AutoMinorVersionUpgrade:     &g.pgInstance.Spec.AutoMinorVersionUpgrade,
 				AvailabilityZone:            availabilityZone,
 				BackupRetentionPeriod:       backupRetentionPeriod,
-				DBName:                      &dbName,
+				DBName:                      new("postgres"),
 				DBSubnetGroupNameRef:        &xpv2v1.NamespacedReference{Name: g.subnetGroup.Name, Namespace: g.subnetGroup.Namespace},
 				DeletionProtection:          &g.pgInstance.Spec.DeletionProtection,
-				Engine:                      &engine,
+				Engine:                      new("postgres"),
 				EngineVersion:               g.pgInstance.Spec.EngineVersion,
 				FinalSnapshotIdentifier:     &finalSnapshotIdentifier,
 				Identifier:                  &rdsInstanceName,
 				InstanceClass:               &g.pgInstance.Spec.InstanceType,
 				KMSKeyIDRef:                 &xpv2v1.NamespacedReference{Name: g.kmsDataKey.Name, Namespace: g.kmsDataKey.Namespace},
-				ManageMasterUserPassword:    &manageMasterUserPassword,
+				ManageMasterUserPassword:    new(true),
 				MasterUserSecretKMSKeyIDRef: &xpv2v1.NamespacedReference{Name: g.kmsConfigKey.Name, Namespace: g.kmsConfigKey.Namespace},
 				MultiAz:                     &g.pgInstance.Spec.MultiAZ,
-				PerformanceInsightsEnabled:  &performanceInsightsEnabled,
-				PubliclyAccessible:          &publiclyAccessible,
+				PerformanceInsightsEnabled:  new(false),
+				PubliclyAccessible:          new(false),
 				Region:                      region,
 				SkipFinalSnapshot:           &skipFinalSnapshot,
-				StorageType:                 &storageType,
-				StorageEncrypted:            &storageEncrypted,
+				StorageType:                 new("gp3"),
+				StorageEncrypted:            new(true),
 				Tags:                        g.env.Tags,
-				Username:                    &masterUsername,
+				Username:                    new("dbadmin"),
 				VPCSecurityGroupIDRefs:      vpcSecurityGroupIDRef,
 			},
 		},
@@ -126,13 +124,11 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 	} else if g.pgInstance.Spec.ParameterGroupName != "" {
 		rdsInstance.Spec.ForProvider.ParameterGroupName = &g.pgInstance.Spec.ParameterGroupName
 	} else if family, ok := computeFamily("postgres", g.pgInstance.Spec.EngineVersion, g.engineVersionActual); ok {
-		defaultName := "default." + family
-		rdsInstance.Spec.ForProvider.ParameterGroupName = &defaultName
+		rdsInstance.Spec.ForProvider.ParameterGroupName = new("default." + family)
 	}
 
 	if family, ok := computeFamily("postgres", g.pgInstance.Spec.EngineVersion, g.engineVersionActual); ok {
-		defaultOptionGroupName := "default:postgres-" + strings.TrimPrefix(family, "postgres")
-		rdsInstance.Spec.ForProvider.OptionGroupName = &defaultOptionGroupName
+		rdsInstance.Spec.ForProvider.OptionGroupName = new("default:postgres-" + strings.TrimPrefix(family, "postgres"))
 	}
 
 	if g.pgInstance.Spec.SnapshotIdentifier != "" {
@@ -149,7 +145,6 @@ func (g *rdsInstanceGenerator) buildPgSqlProviderConfig() map[string]client.Obje
 	providerConfigs := make(map[string]client.Object)
 	pcName := string(g.names.pc)
 	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.pgInstance.Name, "dbadmin"))
-	sslMode := "require"
 	providerConfig := &postgresv1alpha1.ProviderConfig{
 		TypeMeta:   metav1.TypeMeta{Kind: "ProviderConfig", APIVersion: pgSqlApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: pcName, Namespace: g.pgInstance.Namespace},
@@ -160,7 +155,7 @@ func (g *rdsInstanceGenerator) buildPgSqlProviderConfig() map[string]client.Obje
 					Name: secretName,
 				},
 			},
-			SSLMode: &sslMode,
+			SSLMode: new("require"),
 		},
 	}
 	providerConfigs[providerConfig.Name] = providerConfig
@@ -169,12 +164,10 @@ func (g *rdsInstanceGenerator) buildPgSqlProviderConfig() map[string]client.Obje
 
 func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.PostgreSQLInstanceStatus {
 	status := v1alpha1.PostgreSQLInstanceStatus{}
-	dbInstanceName := dbInstance.Name
-
 	base.SetBool(dbInstance.Status.AtProvider.AllowMajorVersionUpgrade, &status.AllowMajorVersionUpgrade)
 	base.SetBool(dbInstance.Status.AtProvider.AutoMinorVersionUpgrade, &status.AutoMinorVersionUpgrade)
 	base.SetString(dbInstance.Status.AtProvider.BackupWindow, &status.BackupWindow)
-	base.SetString(&dbInstanceName, &status.DBInstanceIdentifier)
+	base.SetString(new(dbInstance.Name), &status.DBInstanceIdentifier)
 
 	endpoint := v1alpha1.PostgreSQLInstanceEndpoint{}
 
@@ -191,8 +184,7 @@ func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1
 	if dbInstance.Status.AtProvider.LatestRestorableTime != nil {
 		t, err := time.Parse(time.RFC3339, *dbInstance.Status.AtProvider.LatestRestorableTime)
 		if err == nil {
-			restorableTime := metav1.NewTime(t)
-			status.LatestRestorableTime = &restorableTime
+			status.LatestRestorableTime = new(metav1.NewTime(t))
 		}
 	}
 

@@ -28,8 +28,10 @@ import (
 )
 
 const (
-	ec2ApiVersion           = "ec2.aws.m.upbound.io/v1beta1"
-	rdsApiVersion           = "rds.aws.m.upbound.io/v1beta1"
+	ec2ApiVersion                  = "ec2.aws.m.upbound.io/v1beta1"
+	rdsApiVersion                  = "rds.aws.m.upbound.io/v1beta1"
+	crossplaneProtectionApiVersion = "protection.crossplane.io/v1beta1"
+
 	parameterGroupKeyPrefix = "parameter-group-"
 
 	// parameterGroupApplyMethodKey is a reserved key in ParameterGroupParameters: it sets how every
