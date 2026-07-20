@@ -8,9 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// This isn't a custom resource, in the sense that we never install its CRD.
-// It is a KRM-like object, so we generate a CRD to describe its schema.
-
 // MariaDBInstance generates MariaDB database resources.
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion

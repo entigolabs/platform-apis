@@ -42,16 +42,13 @@ func (e *Environment) Validate() error {
 		return errors.New("esClusterSecretStore is required")
 	}
 	if e.PostgresBackupBeforeDeletion == nil {
-		defaultTrue := true
-		e.PostgresBackupBeforeDeletion = &defaultTrue
+		e.PostgresBackupBeforeDeletion = new(true)
 	}
 	if e.MariaDBBackupBeforeDeletion == nil {
-		defaultTrue := true
-		e.MariaDBBackupBeforeDeletion = &defaultTrue
+		e.MariaDBBackupBeforeDeletion = new(true)
 	}
 	if e.ValkeyBackupBeforeDeletion == nil {
-		defaultTrue := true
-		e.ValkeyBackupBeforeDeletion = &defaultTrue
+		e.ValkeyBackupBeforeDeletion = new(true)
 	}
 	if e.BackupRetentionPeriod == nil {
 		return errors.New("backupRetentionPeriod is required")
