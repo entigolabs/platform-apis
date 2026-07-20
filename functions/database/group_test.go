@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/response"
@@ -928,6 +929,34 @@ func TestInstanceGetReadyStatus(t *testing.T) {
 								"port":         float64(0),
 							},
 						},
+					},
+				},
+			},
+			want: resource.ReadyFalse,
+		},
+		"MysqlGrantReady": {
+			observed: &composed.Unstructured{
+				Unstructured: unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "mysql.sql.m.crossplane.io/v1alpha1",
+						"kind":       "Grant",
+						"status": map[string]interface{}{
+							"conditions": []interface{}{
+								map[string]interface{}{"type": "Ready", "status": "True"},
+							},
+						},
+					},
+				},
+			},
+			want: resource.ReadyTrue,
+		},
+		"MysqlGrantNotReady": {
+			observed: &composed.Unstructured{
+				Unstructured: unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "mysql.sql.m.crossplane.io/v1alpha1",
+						"kind":       "Grant",
+						"status":     map[string]interface{}{},
 					},
 				},
 			},
@@ -1957,4 +1986,147 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 		return &GroupImpl{}
 	}
 	test.RunFunctionCases(t, newService, cases, "annotations", "force-sync", "lastTransitionTime")
+}
+
+const mariaDBUserInputJson = `{"apiVersion":"database.entigo.com/v1alpha1","kind":"MariaDBUser","metadata":{"name":"user-example","namespace":"testspace"},"spec":{"name":"user_example","instanceRef":{"name":"mariadb-example"},"databaseRef":{"name":"example-db"},"privileges":["SELECT","INSERT"],"grant":{"users":["example-user"]}}}`
+
+func mariaDBUserRequired(instanceReady, databaseReady bool) map[string][]resource.Required {
+	readyStatus := func(ready bool) map[string]interface{} {
+		status := map[string]interface{}{}
+		if ready {
+			status["conditions"] = []interface{}{
+				map[string]interface{}{"type": "Ready", "status": "True"},
+			}
+		}
+		return status
+	}
+	instance := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "database.entigo.com/v1alpha1",
+			"kind":       "MariaDBInstance",
+			"metadata":   map[string]interface{}{"name": "mariadb-example", "namespace": "testspace"},
+			"status":     readyStatus(instanceReady),
+		},
+	}
+	database := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "database.entigo.com/v1alpha1",
+			"kind":       "MariaDBDatabase",
+			"metadata":   map[string]interface{}{"name": "example-db", "namespace": "testspace"},
+			"status":     readyStatus(databaseReady),
+		},
+	}
+	return map[string][]resource.Required{
+		"MariaDBInstance": {{Resource: instance}},
+		"MariaDBDatabase": {{Resource: database}},
+	}
+}
+
+func objField(t *testing.T, obj interface{}, fields ...string) string {
+	t.Helper()
+	raw, err := json.Marshal(obj)
+	if err != nil {
+		t.Fatalf("marshal object: %v", err)
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatalf("unmarshal object: %v", err)
+	}
+	val, found, err := unstructured.NestedString(m, fields...)
+	if err != nil || !found {
+		t.Fatalf("field %v not found (found=%v, err=%v)", fields, found, err)
+	}
+	return val
+}
+
+func keysOf(m map[string]client.Object) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
+func TestMariaDBUserFunction(t *testing.T) {
+	var user v1alpha1.MariaDBUser
+	if err := json.Unmarshal([]byte(mariaDBUserInputJson), &user); err != nil {
+		t.Fatalf("unmarshal MariaDBUser: %v", err)
+	}
+
+	const (
+		grantName    = "grant-user-example-example-user-mariadb-example"
+		usageName    = "usage-grant-user-example-example-user-mariadb-example"
+		dbProtection = "db-protection-user-example-example-user-mariadb-example"
+	)
+
+	t.Run("InstanceNotReady", func(t *testing.T) {
+		_, err := service.GenerateMariaDBUserObjects(user, mariaDBUserRequired(false, true))
+		if err == nil {
+			t.Fatal("expected error while MariaDBInstance is not ready, got nil")
+		}
+	})
+
+	t.Run("DatabaseNotReady", func(t *testing.T) {
+		_, err := service.GenerateMariaDBUserObjects(user, mariaDBUserRequired(true, false))
+		if err == nil {
+			t.Fatal("expected error while MariaDBDatabase is not ready, got nil")
+		}
+	})
+
+	t.Run("GeneratesUserGrantAndProtection", func(t *testing.T) {
+		objs, err := service.GenerateMariaDBUserObjects(user, mariaDBUserRequired(true, true))
+		if err != nil {
+			t.Fatalf("GenerateMariaDBUserObjects: %v", err)
+		}
+
+		for _, key := range []string{"user", grantName, usageName, dbProtection, "instance-protection"} {
+			if _, ok := objs[key]; !ok {
+				t.Fatalf("expected object %q in generated resources, got keys %v", key, keysOf(objs))
+			}
+		}
+
+		userObj := objs["user"]
+		if got := userObj.GetName(); got != "user-example" {
+			t.Errorf("user name = %q, want user-example", got)
+		}
+		if got := userObj.GetAnnotations()["crossplane.io/external-name"]; got != "user_example" {
+			t.Errorf("user external-name = %q, want user_example", got)
+		}
+		if got := objField(t, userObj, "spec", "providerConfigRef", "name"); got != "mariadb-example-providerconfig" {
+			t.Errorf("user providerConfigRef = %q", got)
+		}
+		if got := objField(t, userObj, "spec", "writeConnectionSecretToRef", "name"); got != "mariadb-example-user-example" {
+			t.Errorf("user writeConnectionSecretToRef = %q", got)
+		}
+
+		grantObj := objs[grantName]
+		if got := objField(t, grantObj, "spec", "forProvider", "user"); got != "user_example" {
+			t.Errorf("grant forProvider.user = %q", got)
+		}
+		if got := objField(t, grantObj, "spec", "forProvider", "databaseRef", "name"); got != "example-db" {
+			t.Errorf("grant forProvider.databaseRef.name = %q, want example-db", got)
+		}
+		if got := objField(t, grantObj, "spec", "forProvider", "table"); got != "*" {
+			t.Errorf("grant forProvider.table = %q, want *", got)
+		}
+
+		protObj := objs["instance-protection"]
+		if got := objField(t, protObj, "spec", "of", "kind"); got != "MariaDBInstance" {
+			t.Errorf("instance-protection of.kind = %q", got)
+		}
+		if got := objField(t, protObj, "spec", "by", "kind"); got != "User" {
+			t.Errorf("instance-protection by.kind = %q", got)
+		}
+
+		dbProtObj := objs[dbProtection]
+		if got := objField(t, dbProtObj, "spec", "of", "kind"); got != "MariaDBDatabase" {
+			t.Errorf("db-protection of.kind = %q, want MariaDBDatabase", got)
+		}
+		if got := objField(t, dbProtObj, "spec", "of", "resourceRef", "name"); got != "example-db" {
+			t.Errorf("db-protection of.resourceRef.name = %q, want example-db", got)
+		}
+		if got := objField(t, dbProtObj, "spec", "by", "kind"); got != "Grant" {
+			t.Errorf("db-protection by.kind = %q, want Grant", got)
+		}
+	})
 }

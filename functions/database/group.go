@@ -22,8 +22,10 @@ import (
 )
 
 const (
-	environmentName = "platform-apis-database"
-	ec2ApiVersion   = "ec2.aws.m.upbound.io/v1beta1"
+	databaseEntigoApi  = "database.entigo.com/v1alpha1"
+	environmentName    = "platform-apis-database"
+	ec2ApiVersion      = "ec2.aws.m.upbound.io/v1beta1"
+	instanceProtection = "instance-protection"
 )
 
 type GroupImpl struct {
@@ -58,9 +60,17 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 			Instantiate: func() client.Object { return &v1alpha1.PostgreSQLUser{} },
 			Generate:    g.generatePostgreSQLUser,
 		},
+		apis.XRKindMariaDBUser: {
+			Instantiate: func() client.Object { return &v1alpha1.MariaDBUser{} },
+			Generate:    g.generateMariaDBUser,
+		},
 		apis.XRKindPostgreSQLDatabase: {
 			Instantiate: func() client.Object { return &v1alpha1.PostgreSQLDatabase{} },
 			Generate:    g.generatePostgreSQLDatabase,
+		},
+		apis.XRKindMariaDBDatabase: {
+			Instantiate: func() client.Object { return &v1alpha1.MariaDBDatabase{} },
+			Generate:    g.generateMariaDBDatabase,
 		},
 	}
 }
@@ -81,8 +91,16 @@ func (g *GroupImpl) generatePostgreSQLUser(obj client.Object, required map[strin
 	return service.GeneratePgUserObjects(*obj.(*v1alpha1.PostgreSQLUser), required)
 }
 
+func (g *GroupImpl) generateMariaDBUser(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
+	return service.GenerateMariaDBUserObjects(*obj.(*v1alpha1.MariaDBUser), required)
+}
+
 func (g *GroupImpl) generatePostgreSQLDatabase(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	return service.GeneratePgDatabaseObjects(*obj.(*v1alpha1.PostgreSQLDatabase), required)
+}
+
+func (g *GroupImpl) generateMariaDBDatabase(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
+	return service.GenerateMariaDBDatabaseObjects(*obj.(*v1alpha1.MariaDBDatabase), required)
 }
 
 func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
@@ -92,7 +110,15 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 			[]string{"role"},
 			[]string{"grant-.*"},
 			[]string{"usage-grant-.*"},
-			[]string{"instance-protection"},
+			[]string{instanceProtection},
+		)
+	case apis.XRKindMariaDBUser:
+		return base.NewSequence(true,
+			[]string{"user"},
+			[]string{"grant-.*"},
+			[]string{"usage-grant-.*"},
+			[]string{"db-protection-.*"},
+			[]string{instanceProtection},
 		)
 	case apis.XRKindPostgreSQLDatabase:
 		return base.NewSequence(true,
@@ -101,7 +127,12 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 			[]string{"extension-.*"},
 			[]string{"grant-usage"},
 			[]string{"owner-protection"},
-			[]string{"instance-protection"},
+			[]string{instanceProtection},
+		)
+	case apis.XRKindMariaDBDatabase:
+		return base.NewSequence(true,
+			[]string{"mariadb-database"},
+			[]string{instanceProtection},
 		)
 	case apis.XRKindPostgreSQL, apis.XRKindMariaDBInstance:
 		name := object.GetName()
@@ -133,9 +164,9 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 	case "ReplicationGroup":
 		return service.GetValkeyReplicationGroupReadyStatus(observed)
 	case "Database":
-		return service.GetPgDatabaseDatabaseReadyStatus(observed)
+		return service.GetResourceReadyStatus(observed)
 	case "Grant":
-		return service.GetPgUserGrantReadyStatus(observed)
+		return service.GetResourceReadyStatus(observed)
 	default:
 		return ""
 	}
@@ -145,8 +176,14 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 	if compositeResource.GetKind() == apis.XRKindPostgreSQLUser {
 		return g.getPostgreSQLUserRequiredResources(compositeResource)
 	}
+	if compositeResource.GetKind() == apis.XRKindMariaDBUser {
+		return g.getMariaDBUserRequiredResources(compositeResource)
+	}
 	if compositeResource.GetKind() == apis.XRKindPostgreSQLDatabase {
 		return g.getPostgreSQLDatabaseRequiredResources(compositeResource)
+	}
+	if compositeResource.GetKind() == apis.XRKindMariaDBDatabase {
+		return g.getMariaDBDatabaseRequiredResources(compositeResource)
 	}
 
 	resources := map[string]*fnv1.ResourceSelector{
@@ -242,7 +279,51 @@ func (g *GroupImpl) getPostgreSQLUserRequiredResources(compositeResource *compos
 	return map[string]*fnv1.ResourceSelector{
 		"PostgreSQLInstance": {
 			Kind:       "PostgreSQLInstance",
-			ApiVersion: "database.entigo.com/v1alpha1",
+			ApiVersion: databaseEntigoApi,
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: instanceName},
+			Namespace:  &namespace,
+		},
+	}, nil
+}
+
+func (g *GroupImpl) getMariaDBUserRequiredResources(compositeResource *composite.Unstructured) (map[string]*fnv1.ResourceSelector, error) {
+	instanceName, found, err := unstructured.NestedString(compositeResource.Object, "spec", "instanceRef", "name")
+	if err != nil || !found || instanceName == "" {
+		return nil, fmt.Errorf("cannot get spec.instanceRef.name from MariaDBUser %s", compositeResource.GetName())
+	}
+	namespace := compositeResource.GetNamespace()
+	resources := map[string]*fnv1.ResourceSelector{
+		"MariaDBInstance": {
+			Kind:       "MariaDBInstance",
+			ApiVersion: databaseEntigoApi,
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: instanceName},
+			Namespace:  &namespace,
+		},
+	}
+
+	databaseName, found, err := unstructured.NestedString(compositeResource.Object, "spec", "databaseRef", "name")
+	if err != nil || !found || databaseName == "" {
+		return nil, fmt.Errorf("cannot get spec.databaseRef.name from MariaDBUser %s", compositeResource.GetName())
+	}
+	resources["MariaDBDatabase"] = &fnv1.ResourceSelector{
+		Kind:       "MariaDBDatabase",
+		ApiVersion: databaseEntigoApi,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: databaseName},
+		Namespace:  &namespace,
+	}
+	return resources, nil
+}
+
+func (g *GroupImpl) getMariaDBDatabaseRequiredResources(compositeResource *composite.Unstructured) (map[string]*fnv1.ResourceSelector, error) {
+	instanceName, found, err := unstructured.NestedString(compositeResource.Object, "spec", "instanceRef", "name")
+	if err != nil || !found || instanceName == "" {
+		return nil, fmt.Errorf("cannot get spec.instanceRef.name from MariaDBDatabase %s", compositeResource.GetName())
+	}
+	namespace := compositeResource.GetNamespace()
+	return map[string]*fnv1.ResourceSelector{
+		"MariaDBInstance": {
+			Kind:       "MariaDBInstance",
+			ApiVersion: databaseEntigoApi,
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: instanceName},
 			Namespace:  &namespace,
 		},

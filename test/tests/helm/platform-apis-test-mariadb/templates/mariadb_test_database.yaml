@@ -1,0 +1,10 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: MariaDBDatabase
+metadata:
+  name: test-user-db
+  namespace: {{ .Release.Namespace }}
+spec:
+  name: test_user_db
+  instanceRef:
+    name: mariadb-instance-test
+  deletionProtection: true

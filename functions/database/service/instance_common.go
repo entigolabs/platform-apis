@@ -31,8 +31,7 @@ const (
 	ec2ApiVersion                  = "ec2.aws.m.upbound.io/v1beta1"
 	rdsApiVersion                  = "rds.aws.m.upbound.io/v1beta1"
 	crossplaneProtectionApiVersion = "protection.crossplane.io/v1beta1"
-
-	parameterGroupKeyPrefix = "parameter-group-"
+	parameterGroupKeyPrefix        = "parameter-group-"
 
 	// parameterGroupApplyMethodKey is a reserved key in ParameterGroupParameters: it sets how every
 	// parameter in the group is applied ("immediate" or "pending-reboot") and is not itself a DB
@@ -93,6 +92,7 @@ func GetEnvironment(required map[string][]resource.Required) (apis.Environment, 
 func newRDSInstanceGenerator(
 	pgInstance *v1alpha1.PostgreSQLInstance,
 	mariaDBInstance *v1alpha1.MariaDBInstance,
+	common instanceCommon,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
 ) (*rdsInstanceGenerator, error) {
@@ -117,44 +117,6 @@ func newRDSInstanceGenerator(
 	}
 	if err := base.ExtractRequiredResource(required, "DBSubnetGroup", &subnetGroup); err != nil {
 		return nil, err
-	}
-
-	var common instanceCommon
-	if pgInstance != nil {
-		common = instanceCommon{
-			name:                     pgInstance.Name,
-			namespace:                pgInstance.Namespace,
-			uid:                      pgInstance.UID,
-			engine:                   "postgres",
-			engineTitle:              "PostgreSQL",
-			engineVersion:            pgInstance.Spec.EngineVersion,
-			parameterGroupName:       pgInstance.Spec.ParameterGroupName,
-			parameterGroupParameters: pgInstance.Spec.ParameterGroupParameters,
-			snapshotIdentifier:       pgInstance.Spec.SnapshotIdentifier,
-			allocatedStorage:         pgInstance.Spec.AllocatedStorage,
-			instanceType:             pgInstance.Spec.InstanceType,
-			iops:                     pgInstance.Spec.Iops,
-			multiAZ:                  pgInstance.Spec.MultiAZ,
-			maintenanceWindow:        pgInstance.Spec.MaintenanceWindow,
-		}
-	}
-	if mariaDBInstance != nil {
-		common = instanceCommon{
-			name:                     mariaDBInstance.Name,
-			namespace:                mariaDBInstance.Namespace,
-			uid:                      mariaDBInstance.UID,
-			engine:                   "mariadb",
-			engineTitle:              "MariaDB",
-			engineVersion:            mariaDBInstance.Spec.EngineVersion,
-			parameterGroupName:       mariaDBInstance.Spec.ParameterGroupName,
-			parameterGroupParameters: mariaDBInstance.Spec.ParameterGroupParameters,
-			snapshotIdentifier:       mariaDBInstance.Spec.SnapshotIdentifier,
-			allocatedStorage:         mariaDBInstance.Spec.AllocatedStorage,
-			instanceType:             mariaDBInstance.Spec.InstanceType,
-			iops:                     mariaDBInstance.Spec.Iops,
-			multiAZ:                  mariaDBInstance.Spec.MultiAZ,
-			maintenanceWindow:        mariaDBInstance.Spec.MaintenanceWindow,
-		}
 	}
 
 	g := &rdsInstanceGenerator{
@@ -252,7 +214,9 @@ func (g *rdsInstanceGenerator) generate() (map[string]client.Object, error) {
 	desired := make(map[string]client.Object)
 
 	maps.Copy(desired, g.buildSecurityGroup())
-	maps.Copy(desired, g.buildProviderConfig())
+
+	pc := g.buildProviderConfig()
+	desired[string(g.names.pc)] = pc
 
 	if err := g.applyParameterGroup(desired); err != nil {
 		return desired, err
@@ -262,24 +226,27 @@ func (g *rdsInstanceGenerator) generate() (map[string]client.Object, error) {
 	recreateRDS := rdsExists && g.common.snapshotIdentifier != getSnapshotIdentifierFromObserved(observedRDSInstance.Resource)
 
 	if !recreateRDS {
-		maps.Copy(desired, g.buildRDSInstance())
+		rdsInstance := g.buildRDSInstance()
+		desired[string(g.names.rdsInstance)] = rdsInstance
 	}
 	if !rdsExists || recreateRDS {
 		return desired, nil
 	}
 
-	maps.Copy(desired, g.buildExternalSecretIfReady(observedRDSInstance.Resource))
+	externalSecret := g.buildExternalSecretIfReady(observedRDSInstance.Resource)
+	desired[string(g.names.es)] = externalSecret
+
 	return desired, nil
 }
 
-func (g *rdsInstanceGenerator) buildProviderConfig() map[string]client.Object {
+func (g *rdsInstanceGenerator) buildProviderConfig() client.Object {
 	if g.mariaDBInstance != nil {
 		return g.buildMariaDBSqlProviderConfig()
 	}
 	return g.buildPgSqlProviderConfig()
 }
 
-func (g *rdsInstanceGenerator) buildRDSInstance() map[string]client.Object {
+func (g *rdsInstanceGenerator) buildRDSInstance() client.Object {
 	if g.mariaDBInstance != nil {
 		return g.buildMariaDBRDSInstance()
 	}
@@ -300,7 +267,7 @@ func (g *rdsInstanceGenerator) applyParameterGroup(desired map[string]client.Obj
 	return nil
 }
 
-func (g *rdsInstanceGenerator) buildExternalSecretIfReady(observed *composed.Unstructured) map[string]client.Object {
+func (g *rdsInstanceGenerator) buildExternalSecretIfReady(observed *composed.Unstructured) client.Object {
 	secretARN, secretStatus, found := getSecretARNFromRDSInstanceStatus(observed)
 	if !found || secretStatus != "active" {
 		return nil
@@ -418,8 +385,6 @@ func (g *rdsInstanceGenerator) buildSecurityGroup() map[string]client.Object {
 
 	ingressName := string(g.names.sgIngress)
 	cidrBlock := "0.0.0.0/0"
-	ingressType := "ingress"
-	ingressProtocol := "tcp"
 	ingressPort := enginePort(g.common.engine)
 	ingressRule := &ec2mv1beta1.SecurityGroupRule{
 		TypeMeta:   metav1.TypeMeta{Kind: "SecurityGroupRule", APIVersion: ec2ApiVersion},
@@ -431,10 +396,10 @@ func (g *rdsInstanceGenerator) buildSecurityGroup() map[string]client.Object {
 			ForProvider: ec2mv1beta1.SecurityGroupRuleParameters_2{
 				Region:             region,
 				SecurityGroupIDRef: &xpv2v1.NamespacedReference{Name: sgName},
-				Type:               &ingressType,
+				Type:               new("ingress"),
 				FromPort:           &ingressPort,
 				ToPort:             &ingressPort,
-				Protocol:           &ingressProtocol,
+				Protocol:           new("tcp"),
 				CidrBlocks:         []*string{&cidrBlock},
 				Description:        &description,
 			},
@@ -443,8 +408,6 @@ func (g *rdsInstanceGenerator) buildSecurityGroup() map[string]client.Object {
 	groups[ingressName] = ingressRule
 
 	egressName := string(g.names.sgEgress)
-	egressType := "egress"
-	egressProtocol := "-1"
 	egressPort := float64(0)
 	egressRule := &ec2mv1beta1.SecurityGroupRule{
 		TypeMeta:   metav1.TypeMeta{Kind: "SecurityGroupRule", APIVersion: ec2ApiVersion},
@@ -456,10 +419,10 @@ func (g *rdsInstanceGenerator) buildSecurityGroup() map[string]client.Object {
 			ForProvider: ec2mv1beta1.SecurityGroupRuleParameters_2{
 				Region:             region,
 				SecurityGroupIDRef: &xpv2v1.NamespacedReference{Name: sgName},
-				Type:               &egressType,
+				Type:               new("egress"),
 				FromPort:           &egressPort,
 				ToPort:             &egressPort,
-				Protocol:           &egressProtocol,
+				Protocol:           new("-1"),
 				CidrBlocks:         []*string{&cidrBlock},
 				Description:        &description,
 			},
@@ -475,8 +438,6 @@ func (g *rdsInstanceGenerator) buildParameterGroup(family string) map[string]cli
 	region := g.vpc.Spec.ForProvider.Region
 	g.parameterGroupName = pgName
 	tags := g.env.Tags
-	description := fmt.Sprintf("Parameter group for %s %s", g.common.engineTitle, g.common.name)
-
 	applyMethod := defaultParameterApplyMethod
 	if v := g.common.parameterGroupParameters[parameterGroupApplyMethodKey]; v != "" {
 		applyMethod = v
@@ -505,7 +466,7 @@ func (g *rdsInstanceGenerator) buildParameterGroup(family string) map[string]cli
 			ForProvider: rdsmv1beta1.ParameterGroupParameters{
 				Region:      region,
 				Family:      &family,
-				Description: &description,
+				Description: new(fmt.Sprintf("Parameter group for %s %s", g.common.engineTitle, g.common.name)),
 				Parameter:   parameters,
 				Tags:        tags,
 			},
@@ -516,8 +477,7 @@ func (g *rdsInstanceGenerator) buildParameterGroup(family string) map[string]cli
 	return groups
 }
 
-func (g *rdsInstanceGenerator) buildExternalSecret(secretARN string, endpoint string, port float64) map[string]client.Object {
-	externalSecrets := make(map[string]client.Object)
+func (g *rdsInstanceGenerator) buildExternalSecret(secretARN string, endpoint string, port float64) client.Object {
 	esName := string(g.names.es)
 	targetName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.common.name, "dbadmin"))
 
@@ -558,8 +518,7 @@ func (g *rdsInstanceGenerator) buildExternalSecret(secretARN string, endpoint st
 		externalSecret.Annotations["force-sync"] = annotation
 	}
 
-	externalSecrets[esName] = externalSecret
-	return externalSecrets
+	return externalSecret
 }
 
 func (g *rdsInstanceGenerator) resolveForceSyncAnnotation() string {
@@ -707,4 +666,11 @@ func rdsNeedsApplyImmediately(observed resource.ObservedComposed, common instanc
 		(atProvider.MultiAz != nil && *atProvider.MultiAz) != common.multiAZ ||
 		(common.maintenanceWindow != "" && paramChanged(atProvider.MaintenanceWindow, common.maintenanceWindow)) ||
 		(common.parameterGroupName != "" && paramChanged(atProvider.ParameterGroupName, common.parameterGroupName))
+}
+
+func GetResourceReadyStatus(observed *composed.Unstructured) resource.Ready {
+	if isResourceReady(observed) {
+		return resource.ReadyTrue
+	}
+	return resource.ReadyFalse
 }

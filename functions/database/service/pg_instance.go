@@ -22,12 +22,31 @@ const (
 	pgSqlApiVersion = "postgresql.sql.m.crossplane.io/v1alpha1"
 )
 
+func newPgInstanceCommon(pgInstance *v1alpha1.PostgreSQLInstance) instanceCommon {
+	return instanceCommon{
+		name:                     pgInstance.Name,
+		namespace:                pgInstance.Namespace,
+		uid:                      pgInstance.UID,
+		engine:                   "postgres",
+		engineTitle:              "PostgreSQL",
+		engineVersion:            pgInstance.Spec.EngineVersion,
+		parameterGroupName:       pgInstance.Spec.ParameterGroupName,
+		parameterGroupParameters: pgInstance.Spec.ParameterGroupParameters,
+		snapshotIdentifier:       pgInstance.Spec.SnapshotIdentifier,
+		allocatedStorage:         pgInstance.Spec.AllocatedStorage,
+		instanceType:             pgInstance.Spec.InstanceType,
+		iops:                     pgInstance.Spec.Iops,
+		multiAZ:                  pgInstance.Spec.MultiAZ,
+		maintenanceWindow:        pgInstance.Spec.MaintenanceWindow,
+	}
+}
+
 func GeneratePgInstanceObjects(
 	pgInstance v1alpha1.PostgreSQLInstance,
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
 ) (map[string]client.Object, error) {
-	g, err := newRDSInstanceGenerator(&pgInstance, nil, required, observed)
+	g, err := newRDSInstanceGenerator(&pgInstance, nil, newPgInstanceCommon(&pgInstance), required, observed)
 	if err != nil {
 		return nil, err
 	}
@@ -41,8 +60,7 @@ func GeneratePgInstanceObjects(
 	return g.generate()
 }
 
-func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
-	rdsInstances := make(map[string]client.Object)
+func (g *rdsInstanceGenerator) buildPgRDSInstance() client.Object {
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
@@ -52,8 +70,6 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 	}
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
-
-	skipFinalSnapshot := !*g.env.PostgresBackupBeforeDeletion
 
 	backupRetentionPeriod := g.pgInstance.Spec.BackupRetentionPeriod
 	if backupRetentionPeriod == nil {
@@ -97,7 +113,7 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 				PerformanceInsightsEnabled:  new(false),
 				PubliclyAccessible:          new(false),
 				Region:                      region,
-				SkipFinalSnapshot:           &skipFinalSnapshot,
+				SkipFinalSnapshot:           new(!*g.env.PostgresBackupBeforeDeletion),
 				StorageType:                 new("gp3"),
 				StorageEncrypted:            new(true),
 				Tags:                        g.env.Tags,
@@ -134,12 +150,10 @@ func (g *rdsInstanceGenerator) buildPgRDSInstance() map[string]client.Object {
 
 	rdsInstance.SetManagementPolicies(xpv2v1.ManagementPolicies{"*"})
 
-	rdsInstances[rdsInstance.Name] = rdsInstance
-	return rdsInstances
+	return rdsInstance
 }
 
-func (g *rdsInstanceGenerator) buildPgSqlProviderConfig() map[string]client.Object {
-	providerConfigs := make(map[string]client.Object)
+func (g *rdsInstanceGenerator) buildPgSqlProviderConfig() client.Object {
 	pcName := string(g.names.pc)
 	secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", g.pgInstance.Name, "dbadmin"))
 	providerConfig := &postgresv1alpha1.ProviderConfig{
@@ -155,8 +169,7 @@ func (g *rdsInstanceGenerator) buildPgSqlProviderConfig() map[string]client.Obje
 			SSLMode: new("require"),
 		},
 	}
-	providerConfigs[providerConfig.Name] = providerConfig
-	return providerConfigs
+	return providerConfig
 }
 
 func GetPostgreSQLStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.PostgreSQLInstanceStatus {

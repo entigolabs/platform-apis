@@ -30,7 +30,80 @@ func testMariadb(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Ku
 		return
 	}
 
+	t.Run("Database", func(t *testing.T) { testMariadbDatabase(t, mdbNs) })
+	if t.Failed() {
+		return
+	}
+
+	t.Run("User", func(t *testing.T) { testMariadbUser(t, mdbNs) })
+
 	t.Run("Lifecycle", func(t *testing.T) { testMariadbLifecycle(t, mdbNs) })
+}
+
+func testMariadbDatabase(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	waitSyncedAndReady(t, mdbNs, MariadbDatabaseKind, MariadbUserDatabaseName, 60, 10*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	sqlDbName, err := getFirstByLabel(t, mdbNs, MysqlDatabaseKind, MariadbUserDatabaseName)
+	require.NoError(t, err)
+	require.NotEmpty(t, sqlDbName)
+
+	// Database external name must match spec.name (snake_case); providerConfig points at the instance.
+	require.Equal(t, MariadbDatabaseSpecName,
+		getField(t, mdbNs, MysqlDatabaseKind, sqlDbName, `.metadata.annotations.crossplane\.io/external-name`))
+	require.Equal(t, MariadbInstanceName+"-providerconfig",
+		getField(t, mdbNs, MysqlDatabaseKind, sqlDbName, ".spec.providerConfigRef.name"))
+
+	// Instance is protected from deletion while this database exists.
+	testUsage(t, mdbNs, MariadbDatabaseInstanceProtectionName, "MariaDBInstance", MariadbInstanceName, "Database", MariadbUserDatabaseName)
+
+	// deletionProtection=true by default; deletion must be rejected by the admission policy.
+	require.Equal(t, "true", getField(t, mdbNs, MariadbDatabaseKind, MariadbUserDatabaseName, ".spec.deletionProtection"))
+	testDeletionRejected(t, mdbNs, MariadbDatabaseKind, MariadbUserDatabaseName)
+}
+
+func testMariadbUser(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	waitSyncedAndReady(t, mdbNs, MariadbUserKind, MariadbUserName, 60, 10*time.Second)
+	waitSyncedAndReadyByLabel(t, mdbNs, MysqlUserKind, MariadbUserName, 60, 10*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	userName, err := getFirstByLabel(t, mdbNs, MysqlUserKind, MariadbUserName)
+	require.NoError(t, err)
+	require.NotEmpty(t, userName)
+
+	// User external name must match spec username (snake_case)
+	require.Equal(t, MariadbUserSpecName,
+		getField(t, mdbNs, MysqlUserKind, userName, `.metadata.annotations.crossplane\.io/external-name`))
+
+	// Grant must become Ready, scoped to the referenced database.
+	waitSyncedAndReady(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, 60, 10*time.Second)
+	require.Equal(t, MariadbUserSpecName,
+		getField(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, ".spec.forProvider.user"))
+	require.Equal(t, MariadbUserDatabaseName,
+		getField(t, mdbNs, MysqlGrantKind, MariadbUserExpectedGrantName, ".spec.forProvider.databaseRef.name"))
+
+	// Grant is protected by User (cannot delete User while Grant references it)
+	testUsage(t, mdbNs, MariadbUserExpectedUsageName, "User", MariadbUserName, "Grant", MariadbUserExpectedGrantName)
+
+	// Database is protected while this user's Grant references it
+	testUsage(t, mdbNs, MariadbUserDbProtectionName, "MariaDBDatabase", MariadbUserDatabaseName, "Grant", MariadbUserExpectedGrantName)
+
+	// Instance is protected from deletion while this user's User exists
+	testUsage(t, mdbNs, MariadbUserInstanceProtectionName, "MariaDBInstance", MariadbInstanceName, "User", MariadbUserName)
+
+	// Connection secret must be created
+	waitResourceExists(t, mdbNs, "secret", MariadbUserExpectedSecretName, 60, 10*time.Second)
+
+	// User cannot be deleted while Grant exists
+	testUsageBlocksDeletion(t, mdbNs, MysqlUserKind, userName)
 }
 
 func testMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
@@ -95,10 +168,6 @@ func testMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	waitFieldEquals(t, mdbNs, RdsInstanceKind, rdsName, ".spec.forProvider.deletionProtection", "false", 30, 10*time.Second)
 }
 
-// testMariadbLifecycle drives a single MariaDBInstance through every engineVersion/
-// parameterGroupParameters combination worth covering, since each transition is a real (slow) AWS
-// RDS change and provisioning a separate instance per case would multiply e2e cost for no extra
-// coverage.
 func testMariadbLifecycle(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	t.Helper()
 
@@ -204,10 +273,19 @@ func cleanupMariadb(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	}
 	mdbNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, MariadbNamespaceName)
 
+	cleanupDeleteParallel(t, mdbNs, MariadbUserKind, 120, MariadbUserName)
+
+	cleanupDisableDeletionProtectionOnMariadbDatabases(t, mdbNs)
+	cleanupDeleteParallel(t, mdbNs, MariadbDatabaseKind, 120, MariadbUserDatabaseName)
+
 	cleanupDisableDeletionProtectionOnMariadbInstance(t, mdbNs)
 	cleanupDeleteParallel(t, mdbNs, MariadbInstanceKind, 180, MariadbInstanceName, MariadbLifecycleName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MariadbApplicationName, "--ignore-not-found")
+}
+
+func cleanupDisableDeletionProtectionOnMariadbDatabases(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
+	patchDeletionProtectionIfEnabled(t, mdbNs, MariadbDatabaseKind, MariadbUserDatabaseName)
 }
 
 func cleanupDisableDeletionProtectionOnMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
