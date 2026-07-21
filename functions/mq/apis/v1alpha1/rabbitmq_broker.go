@@ -51,7 +51,7 @@ type RabbitMQBrokerStatus struct {
 	EncryptionOptions          *RabbitMQBrokerEncryptionOptionsObservation          `json:"encryptionOptions,omitempty"`
 	EngineType                 *string                                              `json:"engineType,omitempty"`
 	EngineVersion              *string                                              `json:"engineVersion,omitempty"`
-	InstanceType               *string                                              `json:"instanceType"`
+	InstanceType               *string                                              `json:"instanceType,omitempty"`
 	AmazonMQBrokerID           *string                                              `json:"amazonMQBrokerID,omitempty"`
 	Instances                  []RabbitMQBrokerInstancesObservation                 `json:"instances,omitempty"`
 	MaintenanceWindowStartTime *RabbitMQBrokerMaintenanceWindowStartTimeObservation `json:"maintenanceWindowStartTime,omitempty"`
