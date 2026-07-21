@@ -288,25 +288,6 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
 
-	configuration := mqv1beta1.ConfigurationParameters{}
-	if g.rabbitMQBroker.Spec.Configuration != nil {
-		configuration = mqv1beta1.ConfigurationParameters{
-			ID:         g.rabbitMQBroker.Spec.Configuration.ID,
-			IDRef:      g.rabbitMQBroker.Spec.Configuration.IDRef,
-			IDSelector: g.rabbitMQBroker.Spec.Configuration.IDSelector,
-			Revision:   g.rabbitMQBroker.Spec.Configuration.Revision,
-		}
-	}
-
-	maintenanceWindowStartTime := mqv1beta1.MaintenanceWindowStartTimeParameters{}
-	if g.rabbitMQBroker.Spec.MaintenanceWindowStartTime != nil {
-		maintenanceWindowStartTime = mqv1beta1.MaintenanceWindowStartTimeParameters{
-			DayOfWeek: g.rabbitMQBroker.Spec.MaintenanceWindowStartTime.DayOfWeek,
-			TimeOfDay: g.rabbitMQBroker.Spec.MaintenanceWindowStartTime.TimeOfDay,
-			TimeZone:  g.rabbitMQBroker.Spec.MaintenanceWindowStartTime.TimeZone,
-		}
-	}
-
 	var subnetIds []*string
 	subnetIds = append(subnetIds, g.subnetGroup.Status.AtProvider.SubnetIds...)
 
@@ -320,18 +301,16 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 				WriteConnectionSecretToReference: &xpv2v1.LocalSecretReference{Name: GetConnectionSecretName(g.rabbitMQBroker.Name)},
 			},
 			ForProvider: mqv1beta1.BrokerParameters{
-				BrokerName:                 &brokerName,
-				ApplyImmediately:           new(true),
-				AutoMinorVersionUpgrade:    &g.rabbitMQBroker.Spec.AutoMinorVersionUpgrade,
-				Configuration:              &configuration,
-				DeploymentMode:             g.rabbitMQBroker.Spec.DeploymentMode,
-				EngineType:                 g.rabbitMQBroker.Spec.EngineType,
-				EngineVersion:              g.rabbitMQBroker.Spec.EngineVersion,
-				HostInstanceType:           &g.rabbitMQBroker.Spec.InstanceType,
-				MaintenanceWindowStartTime: &maintenanceWindowStartTime,
-				PubliclyAccessible:         &g.rabbitMQBroker.Spec.PubliclyAccessible,
-				SecurityGroupRefs:          securityGroupIDRef,
-				Region:                     region,
+				BrokerName:              &brokerName,
+				ApplyImmediately:        new(true),
+				AutoMinorVersionUpgrade: &g.rabbitMQBroker.Spec.AutoMinorVersionUpgrade,
+				DeploymentMode:          g.rabbitMQBroker.Spec.DeploymentMode,
+				EngineType:              g.rabbitMQBroker.Spec.EngineType,
+				EngineVersion:           g.rabbitMQBroker.Spec.EngineVersion,
+				HostInstanceType:        &g.rabbitMQBroker.Spec.InstanceType,
+				PubliclyAccessible:      &g.rabbitMQBroker.Spec.PubliclyAccessible,
+				SecurityGroupRefs:       securityGroupIDRef,
+				Region:                  region,
 				User: []mqv1beta1.UserParameters{{
 					Username:      new(g.username),
 					ConsoleAccess: new(true),
@@ -347,6 +326,22 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 				SubnetIds: subnetIds,
 			},
 		},
+	}
+
+	if g.rabbitMQBroker.Spec.Configuration != nil {
+		broker.Spec.ForProvider.Configuration = &mqv1beta1.ConfigurationParameters{
+			ID:         g.rabbitMQBroker.Spec.Configuration.ID,
+			IDRef:      g.rabbitMQBroker.Spec.Configuration.IDRef,
+			IDSelector: g.rabbitMQBroker.Spec.Configuration.IDSelector,
+			Revision:   g.rabbitMQBroker.Spec.Configuration.Revision,
+		}
+	}
+	if g.rabbitMQBroker.Spec.MaintenanceWindowStartTime != nil {
+		broker.Spec.ForProvider.MaintenanceWindowStartTime = &mqv1beta1.MaintenanceWindowStartTimeParameters{
+			DayOfWeek: g.rabbitMQBroker.Spec.MaintenanceWindowStartTime.DayOfWeek,
+			TimeOfDay: g.rabbitMQBroker.Spec.MaintenanceWindowStartTime.TimeOfDay,
+			TimeZone:  g.rabbitMQBroker.Spec.MaintenanceWindowStartTime.TimeZone,
+		}
 	}
 
 	broker.SetManagementPolicies(xpv2v1.ManagementPolicies{"*"})
