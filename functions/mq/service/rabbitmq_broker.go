@@ -49,7 +49,7 @@ type rabbitMQBrokerGenerator struct {
 }
 
 type resourceNames struct {
-	sg, sgIngress, sgEgress, broker resource.Name
+	sg, sgIngress, sgConsoleIngress, sgEgress, broker resource.Name
 }
 
 func GenerateRabbitMQBrokerObjects(
@@ -196,6 +196,10 @@ func GetSGIngressName(RabbitMQBrokerName string, hash string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-ingress-%s", RabbitMQBrokerName, hash))
 }
 
+func GetSGConsoleIngressName(RabbitMQBrokerName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-console-ingress-%s", RabbitMQBrokerName, hash))
+}
+
 func GetSGEgressName(RabbitMQBrokerName string, hash string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-egress-%s", RabbitMQBrokerName, hash))
 }
@@ -207,6 +211,7 @@ func GetBrokerName(RabbitMQBrokerName string, hash string) string {
 func (g *rabbitMQBrokerGenerator) generateNames() {
 	g.names.sg = resource.Name(GetSGName(g.rabbitMQBroker.Name, g.hash))
 	g.names.sgIngress = resource.Name(GetSGIngressName(g.rabbitMQBroker.Name, g.hash))
+	g.names.sgConsoleIngress = resource.Name(GetSGConsoleIngressName(g.rabbitMQBroker.Name, g.hash))
 	g.names.sgEgress = resource.Name(GetSGEgressName(g.rabbitMQBroker.Name, g.hash))
 	g.names.broker = resource.Name(GetBrokerName(g.rabbitMQBroker.Name, g.hash))
 }
@@ -234,10 +239,12 @@ func (g *rabbitMQBrokerGenerator) buildSecurityGroup() map[string]client.Object 
 	}
 	groups[sgName] = securityGroup
 
-	ingressName := string(g.names.sgIngress)
 	cidrBlock := "0.0.0.0/0"
-	ingressPort := float64(5672)
-	ingressRule := &ec2mv1beta1.SecurityGroupRule{
+	amqpsPort := float64(5671)
+	consolePort := float64(443)
+
+	ingressName := string(g.names.sgIngress)
+	groups[ingressName] = &ec2mv1beta1.SecurityGroupRule{
 		TypeMeta:   metav1.TypeMeta{Kind: "SecurityGroupRule", APIVersion: ec2ApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: ingressName, Namespace: g.rabbitMQBroker.Namespace},
 		Spec: ec2mv1beta1.SecurityGroupRuleSpec{
@@ -248,15 +255,35 @@ func (g *rabbitMQBrokerGenerator) buildSecurityGroup() map[string]client.Object 
 				Region:             region,
 				SecurityGroupIDRef: &xpv2v1.NamespacedReference{Name: sgName},
 				Type:               new("ingress"),
-				FromPort:           &ingressPort,
-				ToPort:             &ingressPort,
+				FromPort:           &amqpsPort,
+				ToPort:             &amqpsPort,
 				Protocol:           new("tcp"),
 				CidrBlocks:         []*string{&cidrBlock},
-				Description:        &description,
+				Description:        new("allow amqps from vpc"),
 			},
 		},
 	}
-	groups[ingressName] = ingressRule
+
+	consoleIngressName := string(g.names.sgConsoleIngress)
+	groups[consoleIngressName] = &ec2mv1beta1.SecurityGroupRule{
+		TypeMeta:   metav1.TypeMeta{Kind: "SecurityGroupRule", APIVersion: ec2ApiVersion},
+		ObjectMeta: metav1.ObjectMeta{Name: consoleIngressName, Namespace: g.rabbitMQBroker.Namespace},
+		Spec: ec2mv1beta1.SecurityGroupRuleSpec{
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
+				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
+			},
+			ForProvider: ec2mv1beta1.SecurityGroupRuleParameters_2{
+				Region:             region,
+				SecurityGroupIDRef: &xpv2v1.NamespacedReference{Name: sgName},
+				Type:               new("ingress"),
+				FromPort:           &consolePort,
+				ToPort:             &consolePort,
+				Protocol:           new("tcp"),
+				CidrBlocks:         []*string{&cidrBlock},
+				Description:        new("allow management console from vpc"),
+			},
+		},
+	}
 
 	egressName := string(g.names.sgEgress)
 	egressPort := float64(0)

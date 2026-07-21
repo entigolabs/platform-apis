@@ -57,10 +57,11 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 		setHash := base.GenerateFNVHash(broker.GetUID())
 		sg := service.GetSGName(broker.GetName(), setHash)
 		sgIngress := service.GetSGIngressName(broker.GetName(), setHash)
+		sgConsoleIngress := service.GetSGConsoleIngressName(broker.GetName(), setHash)
 		sgEgress := service.GetSGEgressName(broker.GetName(), setHash)
 		mqBroker := service.GetBrokerName(broker.GetName(), setHash)
 		return base.NewSequence(true,
-			[]string{sg, sgIngress, sgEgress, "credentials"},
+			[]string{sg, sgIngress, sgConsoleIngress, sgEgress, "credentials"},
 			[]string{mqBroker},
 		)
 	default:

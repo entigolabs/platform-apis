@@ -58,9 +58,10 @@ const (
 
 	rabbitmqInputJson = `{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"configuration":{"id":"c-12345678","revision":1},"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","instanceType":"mq.m7g.medium","maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"publiclyAccessible":false}}`
 
-	sgResJson      = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"description":"allow traffic from vpc","region":"eu-north-1","tags":{"Name":"%s","entigo:zone":"zone-a"},"vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	ingressResJson = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":5672,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":5672,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
-	egressResJson  = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":0,"protocol":"-1","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":0,"type":"egress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	sgResJson             = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"description":"allow traffic from vpc","region":"eu-north-1","tags":{"Name":"%s","entigo:zone":"zone-a"},"vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	ingressResJson        = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow amqps from vpc","fromPort":5671,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":5671,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	consoleIngressResJson = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow management console from vpc","fromPort":443,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":443,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	egressResJson         = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":0,"protocol":"-1","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":0,"type":"egress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 
 	credentialsResJson = `{"apiVersion":"v1","kind":"Secret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"type":"Opaque","stringData":{"password":"%s","username":"mqadmin"}}`
 
@@ -88,6 +89,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 	brokerCRName := "test-mq"
 	sgName := service.GetSGName(brokerCRName, setHash)
 	sgIngressName := service.GetSGIngressName(brokerCRName, setHash)
+	sgConsoleIngressName := service.GetSGConsoleIngressName(brokerCRName, setHash)
 	sgEgressName := service.GetSGEgressName(brokerCRName, setHash)
 	brokerName := service.GetBrokerName(brokerCRName, setHash)
 	credentialsSecretName := service.GetCredentialsSecretName(brokerCRName)
@@ -130,10 +132,11 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
-							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
-							"credentials": {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, "IGNORED"))},
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName))},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, "IGNORED"))},
 						},
 					},
 					Requirements: expectedRequirements(),
@@ -147,10 +150,11 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(rabbitmqInputJson)},
 						Resources: map[string]*fnv1.Resource{
-							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
-							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
-							"credentials": withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
+							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 						},
 					},
 					RequiredResources: requiredResources(),
@@ -161,11 +165,12 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
-							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
-							"credentials": {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
-							brokerName:    {Resource: resource.MustStructJSON(fmt.Sprintf(brokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName))},
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
+							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(brokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName))},
 						},
 					},
 					Requirements: expectedRequirements(),
@@ -179,11 +184,12 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"configuration":{"id":"c-12345678","revision":1},"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","instanceType":"mq.m7g.medium","maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"publiclyAccessible":false},"status":{}}`)},
 						Resources: map[string]*fnv1.Resource{
-							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
-							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
-							"credentials": withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
-							brokerName:    withReadyStatus(fmt.Sprintf(`{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{}},"status":{"atProvider":{"id":"b-1234abcd-5678-90ef","brokerName":"test-mq-broker-811c9dc5","autoMinorVersionUpgrade":true,"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","hostInstanceType":"mq.m7g.medium","pendingDataReplicationMode":"NONE","publiclyAccessible":false,"region":"eu-north-1","storageType":"EBS","configuration":{"id":"c-12345678","revision":1},"encryptionOptions":{"kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-config456","useAwsOwnedKey":false},"maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"instances":[{"consoleUrl":"https://console.example.com","endpoints":["amqps://b-1234.mq.eu-north-1.amazonaws.com:5671"],"ipAddress":"10.0.1.5"}],"securityGroups":["sg-abc123"],"subnetIds":["subnet-aaa111","subnet-bbb222"]}}}`, brokerName)),
+							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
+							brokerName:           withReadyStatus(fmt.Sprintf(`{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{}},"status":{"atProvider":{"id":"b-1234abcd-5678-90ef","brokerName":"test-mq-broker-811c9dc5","autoMinorVersionUpgrade":true,"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","hostInstanceType":"mq.m7g.medium","pendingDataReplicationMode":"NONE","publiclyAccessible":false,"region":"eu-north-1","storageType":"EBS","configuration":{"id":"c-12345678","revision":1},"encryptionOptions":{"kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-config456","useAwsOwnedKey":false},"maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"instances":[{"consoleUrl":"https://console.example.com","endpoints":["amqps://b-1234.mq.eu-north-1.amazonaws.com:5671"],"ipAddress":"10.0.1.5"}],"securityGroups":["sg-abc123"],"subnetIds":["subnet-aaa111","subnet-bbb222"]}}}`, brokerName)),
 						},
 					},
 					RequiredResources: requiredResources(),
@@ -195,11 +201,12 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"configuration":{"id":"c-12345678","revision":1},"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","instanceType":"mq.m7g.medium","maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"publiclyAccessible":false},"status":{"amazonMQBrokerID":"b-1234abcd-5678-90ef","brokerName":"test-mq-broker-811c9dc5","autoMinorVersionUpgrade":true,"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","instanceType":"mq.m7g.medium","pendingDataReplicationMode":"NONE","publiclyAccessible":false,"region":"eu-north-1","storageType":"EBS","configuration":{"id":"c-12345678","revision":1},"encryptionOptions":{"kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-config456","useAwsOwnedKey":false},"maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"instances":[{"consoleUrl":"https://console.example.com","endpoints":["amqps://b-1234.mq.eu-north-1.amazonaws.com:5671"],"ipAddress":"10.0.1.5"}],"securityGroups":["sg-abc123"],"subnetIds":["subnet-aaa111","subnet-bbb222"]}}`)},
 						Resources: map[string]*fnv1.Resource{
-							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
-							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
-							"credentials": {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
-							brokerName:    {Resource: resource.MustStructJSON(fmt.Sprintf(brokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName)), Ready: 1},
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
+							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(brokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName)), Ready: 1},
 						},
 					},
 					Requirements: expectedRequirements(),
@@ -213,10 +220,11 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","instanceType":"mq.m7g.medium","publiclyAccessible":false}}`)},
 						Resources: map[string]*fnv1.Resource{
-							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
-							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
-							"credentials": withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
+							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 						},
 					},
 					RequiredResources: requiredResources(),
@@ -227,11 +235,12 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
-							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
-							"credentials": {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
-							brokerName:    {Resource: resource.MustStructJSON(fmt.Sprintf(minimalBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName))},
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
+							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(minimalBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName))},
 						},
 					},
 					Requirements: expectedRequirements(),
@@ -245,10 +254,11 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"deploymentMode":"ACTIVE_STANDBY_MULTI_AZ","engineType":"RabbitMQ","engineVersion":"4.2","instanceType":"mq.m7g.medium","publiclyAccessible":false}}`)},
 						Resources: map[string]*fnv1.Resource{
-							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
-							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
-							"credentials": withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
+							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 						},
 					},
 					RequiredResources: requiredResources(),
@@ -259,11 +269,12 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
-							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
-							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
-							"credentials": {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
-							brokerName:    {Resource: resource.MustStructJSON(fmt.Sprintf(multiAZBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName))},
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
+							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(multiAZBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName))},
 						},
 					},
 					Requirements: expectedRequirements(),
@@ -277,11 +288,12 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Observed: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","instanceType":"mq.m7g.medium","publiclyAccessible":false},"status":{}}`)},
 						Resources: map[string]*fnv1.Resource{
-							sgName:        withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
-							sgIngressName: withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
-							sgEgressName:  withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
-							"credentials": withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
-							brokerName:    withReadyStatus(fmt.Sprintf(`{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{}},"status":{"atProvider":{"id":"b-1234abcd-5678-90ef","brokerName":"test-mq-broker-811c9dc5","region":"eu-north-1","instances":[{"consoleUrl":"https://console.example.com","endpoints":["amqps://b-1234.mq.eu-north-1.amazonaws.com:5671"],"ipAddress":"10.0.1.5"}],"securityGroups":["sg-abc123"],"subnetIds":["subnet-aaa111"]}}}`, brokerName)),
+							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
+							brokerName:           withReadyStatus(fmt.Sprintf(`{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{}},"status":{"atProvider":{"id":"b-1234abcd-5678-90ef","brokerName":"test-mq-broker-811c9dc5","region":"eu-north-1","instances":[{"consoleUrl":"https://console.example.com","endpoints":["amqps://b-1234.mq.eu-north-1.amazonaws.com:5671"],"ipAddress":"10.0.1.5"}],"securityGroups":["sg-abc123"],"subnetIds":["subnet-aaa111"]}}}`, brokerName)),
 						},
 					},
 					RequiredResources: requiredResources(),
@@ -293,11 +305,12 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.2","instanceType":"mq.m7g.medium","publiclyAccessible":false},"status":{"amazonMQBrokerID":"b-1234abcd-5678-90ef","brokerName":"test-mq-broker-811c9dc5","region":"eu-north-1","instances":[{"consoleUrl":"https://console.example.com","endpoints":["amqps://b-1234.mq.eu-north-1.amazonaws.com:5671"],"ipAddress":"10.0.1.5"}],"securityGroups":["sg-abc123"],"subnetIds":["subnet-aaa111"]}}`)},
 						Resources: map[string]*fnv1.Resource{
-							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
-							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
-							sgEgressName:  {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
-							"credentials": {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
-							brokerName:    {Resource: resource.MustStructJSON(fmt.Sprintf(minimalBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName)), Ready: 1},
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
+							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(minimalBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName)), Ready: 1},
 						},
 					},
 					Requirements: expectedRequirements(),

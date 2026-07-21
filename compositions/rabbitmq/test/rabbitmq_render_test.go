@@ -47,7 +47,7 @@ func testBrokerCrossplaneRender(t *testing.T) {
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "RabbitMQBroker", 1)
 	crossplane.AssertResourceCount(t, resources, "SecurityGroup", 1)
-	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 2)
+	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 3)
 	crossplane.AssertResourceCount(t, resources, "Secret", 1)
 	crossplane.AssertResourceCount(t, resources, "Broker", 0)
 
@@ -84,7 +84,7 @@ func testBrokerCrossplaneRender(t *testing.T) {
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "RabbitMQBroker", 1)
 	crossplane.AssertResourceCount(t, resources, "SecurityGroup", 1)
-	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 2)
+	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 3)
 	crossplane.AssertResourceCount(t, resources, "Secret", 1)
 	crossplane.AssertResourceCount(t, resources, "Broker", 1)
 
