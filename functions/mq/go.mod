@@ -9,7 +9,7 @@ replace github.com/entigolabs/function-base => ../common
 
 require (
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0 // Other dependencies should match versions used in crossplane-runtime
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.35.3
 	k8s.io/apimachinery v0.35.3
 	sigs.k8s.io/controller-runtime v0.23.3
