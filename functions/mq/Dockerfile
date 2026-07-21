@@ -5,7 +5,7 @@ WORKDIR /fn
 COPY common common
 COPY mq mq
 
-WORKDIR /fn/database
+WORKDIR /fn/mq
 
 ENV CGO_ENABLED=0
 
