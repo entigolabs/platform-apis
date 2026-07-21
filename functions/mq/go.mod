@@ -19,7 +19,7 @@ require (
 	github.com/alecthomas/kong v1.16.0
 	github.com/crossplane/function-sdk-go v0.6.2
 	github.com/entigolabs/function-base v0.0.0-00010101000000-000000000000
-	github.com/upbound/provider-aws/v2 v2.6.0
+	github.com/upbound/provider-aws/v2 v2.6.1
 )
 
 require (
