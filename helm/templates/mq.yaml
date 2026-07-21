@@ -1,0 +1,84 @@
+{{- if .Values.rabbitmq.install }}
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-mq
+data:
+  awsProvider: {{ .Values.mq.environmentConfig.awsProvider }}
+  configKMSKey: {{ .Values.mq.environmentConfig.configKMSKey }}
+  vpc: {{ .Values.mq.environmentConfig.vpc }}
+  subnetGroup: {{ .Values.mq.environmentConfig.subnetGroup }}
+  {{- if .Values.mq.environmentConfig.tags }}
+  tags: {{- toYaml .Values.mq.environmentConfig.tags | nindent 4 }}
+  {{- else }}
+  tags: {}
+  {{- end }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"
+  name: platform-apis-mq-fn
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        metadata:
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8080"
+            prometheus.io/path: "/metrics"
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: tools
+                        operator: In
+                        values:
+                          - 'true'
+                  weight: 90
+          containers:
+          - name: package-runtime
+            {{- if .Values.workspace }}
+            env:
+              - name: WORKSPACE
+                value: {{ .Values.workspace }}
+            {{- end }}
+            resources:
+              requests:
+                cpu: 1m
+                memory: 21Mi
+              limits:
+                cpu: 2000m
+                memory: 1024Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+          securityContext:
+            fsGroup: 2000
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          tolerations:
+            - effect: NoSchedule
+              key: tools
+              operator: Equal
+              value: 'true'
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: platform-apis-mq-fn
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  package: {{ .Values.mq.function.image }}:{{ .Values.mq.function.tag }}
+  runtimeConfigRef:
+    name: platform-apis-mq-fn
+{{- end }}

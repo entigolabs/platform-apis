@@ -23,6 +23,7 @@ const (
 	CronjobConfigurationName    = "platform-apis-cronjob"
 	KafkaConfigurationName      = "platform-apis-kafka"
 	PostgresqlConfigurationName = "platform-apis-postgresql"
+	RabbitMQConfigurationName   = "platform-apis-rabbitmq"
 	RepositoryConfigurationName = "platform-apis-repository"
 	S3BucketConfigurationName   = "platform-apis-s3bucket"
 	ValkeyConfigurationName     = "platform-apis-valkey"
@@ -39,6 +40,7 @@ const (
 	TenancyFunctionName    = "platform-apis-tenancy-fn"
 	WorkloadFunctionName   = "platform-apis-workload-fn"
 	QueueFunctionName      = "platform-apis-queue-fn"
+	MqFunctionName         = "platform-apis-mq-fn"
 
 	// ── Zone Kyverno ─────────────────────────────────────────────────────
 
@@ -183,6 +185,18 @@ const (
 	ValkeyInstanceKind         = "valkeyinstances.database.entigo.com"
 	ValkeyReplicationGroupKind = "replicationgroup.elasticache.aws.m.upbound.io"
 	ValkeyParameterGroupKind   = "parametergroup.elasticache.aws.m.upbound.io"
+
+	// ── RabbitMQ ──────────────────────────────────────────────────────────────
+
+	RabbitMQNamespaceName   = "test-rabbitmq"
+	RabbitMQApplicationName = "test-rabbitmq"
+
+	RabbitMQBrokerName    = "test-rabbitmq-broker"
+	RabbitMQBrokerKind    = "rabbitmqbrokers.mq.entigo.com"
+	RabbitMQAwsBrokerKind = "broker.mq.aws.m.upbound.io"
+
+	RabbitMQConnectionSecretName  = RabbitMQBrokerName + "-connection"
+	RabbitMQCredentialsSecretName = RabbitMQBrokerName + "-credentials"
 
 	// ── WebApp ────────────────────────────────────────────────────────────────
 

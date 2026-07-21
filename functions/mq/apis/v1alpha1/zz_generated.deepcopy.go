@@ -278,6 +278,11 @@ func (in *RabbitMQBrokerStatus) DeepCopyInto(out *RabbitMQBrokerStatus) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.AutoMinorVersionUpgrade != nil {
+		in, out := &in.AutoMinorVersionUpgrade, &out.AutoMinorVersionUpgrade
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Configuration != nil {
 		in, out := &in.Configuration, &out.Configuration
 		*out = new(RabbitMQBrokerConfigurationObservation)
@@ -300,6 +305,11 @@ func (in *RabbitMQBrokerStatus) DeepCopyInto(out *RabbitMQBrokerStatus) {
 	}
 	if in.EngineVersion != nil {
 		in, out := &in.EngineVersion, &out.EngineVersion
+		*out = new(string)
+		**out = **in
+	}
+	if in.InstanceType != nil {
+		in, out := &in.InstanceType, &out.InstanceType
 		*out = new(string)
 		**out = **in
 	}

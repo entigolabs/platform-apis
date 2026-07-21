@@ -14,8 +14,7 @@ type SuiteConfig struct {
 	Suites []string `yaml:"suites"`
 }
 
-// TODO: add kafka to array when ready for testing
-var allSuites = []string{"zone", "postgresql", "cronjob", "repository", "s3bucket", "valkey", "webapp", "webaccess"}
+var allSuites = []string{"zone", "postgresql", "cronjob", "repository", "s3bucket", "valkey", "rabbitmq", "webapp", "webaccess"}
 
 func loadSuiteConfig() SuiteConfig {
 	data, err := os.ReadFile(suiteConfigFile)

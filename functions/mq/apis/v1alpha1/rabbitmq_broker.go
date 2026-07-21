@@ -38,18 +38,20 @@ type RabbitMQBrokerSpec struct {
 	InstanceType  string  `json:"instanceType"`
 	// Configuration block for the maintenance window start time.
 	MaintenanceWindowStartTime *RabbitMQBrokerMaintenanceWindowStartTime `json:"maintenanceWindowStartTime,omitempty"`
+	// +kubebuilder:default=false
+	PubliclyAccessible bool `json:"publiclyAccessible,omitempty"`
 }
 
 type RabbitMQBrokerStatus struct {
 	Conditions                 []metav1.Condition                                   `json:"conditions,omitempty"`
 	BrokerName                 *string                                              `json:"brokerName,omitempty"`
-	AutoMinorVersionUpgrade    bool                                                 `json:"autoMinorVersionUpgrade,omitempty"`
+	AutoMinorVersionUpgrade    *bool                                                `json:"autoMinorVersionUpgrade,omitempty"`
 	Configuration              *RabbitMQBrokerConfigurationObservation              `json:"configuration,omitempty"`
 	DeploymentMode             *string                                              `json:"deploymentMode,omitempty"`
 	EncryptionOptions          *RabbitMQBrokerEncryptionOptionsObservation          `json:"encryptionOptions,omitempty"`
 	EngineType                 *string                                              `json:"engineType,omitempty"`
 	EngineVersion              *string                                              `json:"engineVersion,omitempty"`
-	InstanceType               string                                               `json:"instanceType"`
+	InstanceType               *string                                              `json:"instanceType"`
 	AmazonMQBrokerID           *string                                              `json:"amazonMQBrokerID,omitempty"`
 	Instances                  []RabbitMQBrokerInstancesObservation                 `json:"instances,omitempty"`
 	MaintenanceWindowStartTime *RabbitMQBrokerMaintenanceWindowStartTimeObservation `json:"maintenanceWindowStartTime,omitempty"`

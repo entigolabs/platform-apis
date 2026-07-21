@@ -3,7 +3,7 @@ kind: CompositeResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: rabbitmqbroker.mq.entigo.com
+  name: rabbitmqbrokers.mq.entigo.com
 spec:
   defaultCompositeDeletePolicy: Foreground
   group: mq.entigo.com
@@ -106,6 +106,9 @@ spec:
                         UTC offset format, e.g., CET.
                       type: string
                   type: object
+                publiclyAccessible:
+                  default: false
+                  type: boolean
               required:
                 - instanceType
             status:
@@ -195,7 +198,5 @@ spec:
                   items:
                     type: string
                   type: array
-              required:
-                - instanceType
           required:
             - spec

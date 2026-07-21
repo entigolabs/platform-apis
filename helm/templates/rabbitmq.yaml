@@ -1,0 +1,32 @@
+{{- if .Values.rabbitmq.install }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+  name: platform-apis-rabbitmq
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-rabbitmq
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+    - securitygrouprules.ec2.aws.m.upbound.io
+    - securitygroups.ec2.aws.m.upbound.io
+    - brokers.mq.aws.m.upbound.io
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-rabbitmq
+spec:
+  package: {{ .Values.rabbitmq.package.image }}:{{ .Values.rabbitmq.package.tag }}
+  skipDependencyResolution: true
+{{- end }}

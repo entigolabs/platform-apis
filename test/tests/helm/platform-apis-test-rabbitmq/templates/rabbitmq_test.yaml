@@ -1,0 +1,13 @@
+---
+apiVersion: mq.entigo.com/v1alpha1
+kind: RabbitMQBroker
+metadata:
+  name: test-rabbitmq-broker
+  namespace: {{ .Release.Namespace }}
+spec:
+  instanceType: mq.m5.large
+  engineVersion: "4.2"
+  engineType: RabbitMQ
+  deploymentMode: SINGLE_INSTANCE
+  autoMinorVersionUpgrade: true
+  publiclyAccessible: false

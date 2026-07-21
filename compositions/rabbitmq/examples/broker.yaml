@@ -1,0 +1,10 @@
+apiVersion: mq.entigo.com/v1alpha1
+kind: RabbitMQBroker
+metadata:
+  name: rabbitmq-example
+spec:
+  instanceType: mq.m5.large
+  engineVersion: "4.2"
+  engineType: RabbitMQ
+  deploymentMode: SINGLE_INSTANCE
+  publiclyAccessible: false
