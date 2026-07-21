@@ -91,6 +91,7 @@ spec:
                   description: Version of the broker engine.
                   type: string
                 instanceType:
+                  default: mq.m7g.medium
                   type: string
                 maintenanceWindowStartTime:
                   description: Configuration block for the maintenance window start

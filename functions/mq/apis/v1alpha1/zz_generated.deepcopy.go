@@ -246,6 +246,11 @@ func (in *RabbitMQBrokerSpec) DeepCopyInto(out *RabbitMQBrokerSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.InstanceType != nil {
+		in, out := &in.InstanceType, &out.InstanceType
+		*out = new(string)
+		**out = **in
+	}
 	if in.MaintenanceWindowStartTime != nil {
 		in, out := &in.MaintenanceWindowStartTime, &out.MaintenanceWindowStartTime
 		*out = new(RabbitMQBrokerMaintenanceWindowStartTime)

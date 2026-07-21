@@ -345,7 +345,7 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 				DeploymentMode:          g.rabbitMQBroker.Spec.DeploymentMode,
 				EngineType:              g.rabbitMQBroker.Spec.EngineType,
 				EngineVersion:           g.rabbitMQBroker.Spec.EngineVersion,
-				HostInstanceType:        &g.rabbitMQBroker.Spec.InstanceType,
+				HostInstanceType:        g.rabbitMQBroker.Spec.InstanceType,
 				PubliclyAccessible:      &g.rabbitMQBroker.Spec.PubliclyAccessible,
 				SecurityGroupRefs:       securityGroupIDRef,
 				Region:                  region,
