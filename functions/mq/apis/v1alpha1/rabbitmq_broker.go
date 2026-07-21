@@ -36,7 +36,7 @@ type RabbitMQBrokerSpec struct {
 	// +kubebuilder:default="4.2"
 	EngineVersion *string `json:"engineVersion,omitempty"`
 	// +kubebuilder:default="mq.m7g.medium"
-	InstanceType *string `json:"instanceType, omitempty"`
+	InstanceType *string `json:"instanceType,omitempty"`
 	// Configuration block for the maintenance window start time.
 	MaintenanceWindowStartTime *RabbitMQBrokerMaintenanceWindowStartTime `json:"maintenanceWindowStartTime,omitempty"`
 	// +kubebuilder:default=false
