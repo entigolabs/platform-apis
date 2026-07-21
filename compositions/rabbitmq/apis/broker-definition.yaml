@@ -32,6 +32,7 @@ spec:
                   description: Name of the broker.
                 configuration:
                   description: Configuration block for broker configuration.
+                  type: object
                   properties:
                     id:
                       description: Configuration ID.
