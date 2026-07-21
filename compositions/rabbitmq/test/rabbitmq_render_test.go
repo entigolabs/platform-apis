@@ -56,7 +56,7 @@ func testBrokerCrossplaneRender(t *testing.T) {
 		"metadata.name":      "rabbitmq-example",
 		"spec.engineType":    "RabbitMQ",
 		"spec.engineVersion": "4.2",
-		"spec.instanceType":  "mq.m5.large",
+		"spec.instanceType":  "mq.m7g.medium",
 	})
 
 	t.Log("Validating ec2.aws.m.upbound.io SecurityGroup fields")
@@ -95,7 +95,7 @@ func testBrokerCrossplaneRender(t *testing.T) {
 		"metadata.ownerReferences.0.name":       "rabbitmq-example",
 		"spec.forProvider.region":               "eu-north-1",
 		"spec.forProvider.engineType":           "RabbitMQ",
-		"spec.forProvider.hostInstanceType":     "mq.m5.large",
+		"spec.forProvider.hostInstanceType":     "mq.m7g.medium",
 		"spec.forProvider.user.0.username":      "mqadmin",
 		"spec.writeConnectionSecretToRef.name":  "rabbitmq-example-connection",
 	})

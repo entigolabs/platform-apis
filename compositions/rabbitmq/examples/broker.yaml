@@ -3,7 +3,7 @@ kind: RabbitMQBroker
 metadata:
   name: rabbitmq-example
 spec:
-  instanceType: mq.m5.large
+  instanceType: mq.m7g.medium
   engineVersion: "4.2"
   engineType: RabbitMQ
   deploymentMode: SINGLE_INSTANCE

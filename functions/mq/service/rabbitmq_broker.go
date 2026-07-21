@@ -288,8 +288,19 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
 
+	availableSubnets := g.subnetGroup.Status.AtProvider.SubnetIds
+	deploymentMode := ""
+	if g.rabbitMQBroker.Spec.DeploymentMode != nil {
+		deploymentMode = *g.rabbitMQBroker.Spec.DeploymentMode
+	}
 	var subnetIds []*string
-	subnetIds = append(subnetIds, g.subnetGroup.Status.AtProvider.SubnetIds...)
+	if deploymentMode == "SINGLE_INSTANCE" || deploymentMode == "" {
+		if len(availableSubnets) > 0 {
+			subnetIds = availableSubnets[:1]
+		}
+	} else {
+		subnetIds = append(subnetIds, availableSubnets...)
+	}
 
 	securityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 	broker := &mqv1beta1.Broker{

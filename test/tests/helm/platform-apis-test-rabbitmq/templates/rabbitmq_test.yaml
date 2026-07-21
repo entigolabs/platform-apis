@@ -5,7 +5,7 @@ metadata:
   name: test-rabbitmq-broker
   namespace: {{ .Release.Namespace }}
 spec:
-  instanceType: mq.m5.large
+  instanceType: mq.m7g.medium
   engineVersion: "4.2"
   engineType: RabbitMQ
   deploymentMode: SINGLE_INSTANCE
