@@ -206,10 +206,7 @@ extraFunctions: []
 #  - name: function-foo
 #    image: xpkg.upbound.io/crossplane-contrib/function-foo
 #    tag: v0.1.0
-extraProviders:
-  - name: provider-aws-mq
-    image: xpkg.upbound.io/upbound/provider-aws-mq
-    tag: v2.6.0
+extraProviders: []
 #  - name: provider-bar
 #    image: xpkg.upbound.io/upbound/provider-bar
 #    tag: v0.1.0
