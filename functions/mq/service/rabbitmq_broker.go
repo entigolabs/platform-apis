@@ -395,20 +395,26 @@ func GetRabbitMQBrokerStatusFromBroker(broker mqv1beta1.Broker) v1alpha1.RabbitM
 		SubnetIds:                  atProvider.SubnetIds,
 	}
 
-	status.Configuration = &v1alpha1.RabbitMQBrokerConfigurationObservation{
-		ID:       atProvider.Configuration.ID,
-		Revision: atProvider.Configuration.Revision,
+	if atProvider.Configuration != nil {
+		status.Configuration = &v1alpha1.RabbitMQBrokerConfigurationObservation{
+			ID:       atProvider.Configuration.ID,
+			Revision: atProvider.Configuration.Revision,
+		}
 	}
 
-	status.EncryptionOptions = &v1alpha1.RabbitMQBrokerEncryptionOptionsObservation{
-		KMSKeyID:       atProvider.EncryptionOptions.KMSKeyID,
-		UseAwsOwnedKey: atProvider.EncryptionOptions.UseAwsOwnedKey,
+	if atProvider.EncryptionOptions != nil {
+		status.EncryptionOptions = &v1alpha1.RabbitMQBrokerEncryptionOptionsObservation{
+			KMSKeyID:       atProvider.EncryptionOptions.KMSKeyID,
+			UseAwsOwnedKey: atProvider.EncryptionOptions.UseAwsOwnedKey,
+		}
 	}
 
-	status.MaintenanceWindowStartTime = &v1alpha1.RabbitMQBrokerMaintenanceWindowStartTimeObservation{
-		DayOfWeek: atProvider.MaintenanceWindowStartTime.DayOfWeek,
-		TimeOfDay: atProvider.MaintenanceWindowStartTime.TimeOfDay,
-		TimeZone:  atProvider.MaintenanceWindowStartTime.TimeZone,
+	if atProvider.MaintenanceWindowStartTime != nil {
+		status.MaintenanceWindowStartTime = &v1alpha1.RabbitMQBrokerMaintenanceWindowStartTimeObservation{
+			DayOfWeek: atProvider.MaintenanceWindowStartTime.DayOfWeek,
+			TimeOfDay: atProvider.MaintenanceWindowStartTime.TimeOfDay,
+			TimeZone:  atProvider.MaintenanceWindowStartTime.TimeZone,
+		}
 	}
 
 	for _, instanceOb := range atProvider.Instances {
