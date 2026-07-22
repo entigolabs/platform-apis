@@ -471,10 +471,12 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 	}
 
 	if g.rabbitMQBroker.Spec.Configuration != nil {
+		resolveAlways := xpv2v1.ResolvePolicyAlways
 		broker.Spec.ForProvider.Configuration = &mqv1beta1.ConfigurationParameters{
 			IDRef: &xpv2v1.NamespacedReference{
 				Name:      string(g.names.configuration),
 				Namespace: g.rabbitMQBroker.Namespace,
+				Policy:    &xpv2v1.Policy{Resolve: &resolveAlways},
 			},
 			Revision: g.observedConfigurationRevision(),
 		}
