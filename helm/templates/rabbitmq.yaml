@@ -21,6 +21,7 @@ spec:
     - securitygrouprules.ec2.aws.m.upbound.io
     - securitygroups.ec2.aws.m.upbound.io
     - brokers.mq.aws.m.upbound.io
+    - configurations.mq.aws.m.upbound.io
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration

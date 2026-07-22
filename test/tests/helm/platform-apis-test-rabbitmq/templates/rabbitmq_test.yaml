@@ -6,8 +6,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   instanceType: mq.m7g.medium
-  engineVersion: "4.2"
+  engineVersion: "3.13"
   engineType: RabbitMQ
   deploymentMode: SINGLE_INSTANCE
   autoMinorVersionUpgrade: true
   publiclyAccessible: false
+  configuration:
+    data: |
+      consumer_timeout = 1800000

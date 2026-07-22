@@ -5,7 +5,6 @@
 package v1alpha1
 
 import (
-	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,7 +24,8 @@ type RabbitMQBrokerSpec struct {
 	AutoMinorVersionUpgrade bool `json:"autoMinorVersionUpgrade,omitempty"`
 	// Name of the broker.
 	BrokerName *string `json:"brokerName,omitempty"`
-	// Configuration block for broker configuration.
+	// Configuration for the broker. When set, an Amazon MQ Configuration is created from the
+	// provided rabbitmq.conf (Cuttlefish) content and associated with the broker.
 	Configuration *RabbitMQBrokerConfiguration `json:"configuration,omitempty"`
 	// Deployment mode of the broker. Valid values are SINGLE_INSTANCE, ACTIVE_STANDBY_MULTI_AZ, and CLUSTER_MULTI_AZ. Default is SINGLE_INSTANCE.
 	// +kubebuilder:default="SINGLE_INSTANCE"
@@ -65,20 +65,10 @@ type RabbitMQBrokerStatus struct {
 }
 
 type RabbitMQBrokerConfiguration struct {
-	// Configuration ID.
-	// +crossplane:generate:reference:type=github.com/upbound/provider-aws/v2/apis/namespaced/mq/v1beta1.Configuration
-	// +crossplane:generate:reference:extractor=github.com/crossplane/upjet/v2/pkg/resource.ExtractResourceID()
-	// +kubebuilder:validation:Optional
-	ID *string `json:"id,omitempty"`
-	// Reference to a Configuration in mq to populate id.
-	// +kubebuilder:validation:Optional
-	IDRef *v1.NamespacedReference `json:"idRef,omitempty"`
-	// Selector for a Configuration in mq to populate id.
-	// +kubebuilder:validation:Optional
-	IDSelector *v1.NamespacedSelector `json:"idSelector,omitempty"`
-	// Revision of the Configuration.
-	// +kubebuilder:validation:Optional
-	Revision *float64 `json:"revision,omitempty"`
+	// Raw rabbitmq.conf (Cuttlefish) content for the broker configuration.
+	Data string `json:"data"`
+	// Optional description for the configuration.
+	Description *string `json:"description,omitempty"`
 }
 
 type RabbitMQBrokerMaintenanceWindowStartTime struct {

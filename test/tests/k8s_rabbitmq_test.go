@@ -25,6 +25,14 @@ func testRabbitMQ(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.K
 	t.Run("broker", func(t *testing.T) {
 		t.Run("RabbitMQLifecycle", func(t *testing.T) { testRabbitMQLifecycle(t, mqNs) })
 	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("configuration", func(t *testing.T) {
+		t.Run("RabbitMQConfigLifecycle", func(t *testing.T) { testRabbitMQConfigLifecycle(t, mqNs) })
+	})
 }
 
 // testRabbitMQLifecycle drives a single RabbitMQBroker through provisioning and asserts the AWS
@@ -54,7 +62,7 @@ func testRabbitMQLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 
 	// Broker spec must reflect what was specified on the composite.
 	require.Equal(t, "mq.m7g.medium", getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.hostInstanceType"))
-	require.Equal(t, "4.2", getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.engineVersion"))
+	require.Equal(t, RabbitMQStartVersion, getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.engineVersion"))
 	require.Equal(t, "RabbitMQ", getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.engineType"))
 	require.Equal(t, "SINGLE_INSTANCE", getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.deploymentMode"))
 
@@ -66,6 +74,62 @@ func testRabbitMQLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 	// Composite status must be populated once the broker is ready.
 	require.NotEmpty(t, getField(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, ".status.amazonMQBrokerID"),
 		"composite amazonMQBrokerID should be populated")
+}
+
+// testRabbitMQConfigLifecycle exercises the broker Configuration lifecycle: created & wired at the
+// starting engine version, edited in place on a data change (new revision), then on an engine-version
+// bump a new version-scoped Configuration is created, wired to the broker, and the old one removed.
+func testRabbitMQConfigLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	brokerName := waitSyncedAndReadyByLabel(t, mqNs, RabbitMQAwsBrokerKind, RabbitMQBrokerName, 120, 15*time.Second)
+	require.NotEmpty(t, brokerName)
+	if t.Failed() {
+		return
+	}
+
+	// 1-2: Configuration for the starting version is created, Ready, and wired to the broker.
+	oldConfig := waitSyncedAndReadyByLabelWhere(t, mqNs, RabbitMQAwsConfigKind, RabbitMQBrokerName, ".spec.forProvider.engineVersion", RabbitMQStartVersion, 120, 15*time.Second)
+	require.NotEmpty(t, oldConfig)
+	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name", oldConfig, 60, 10*time.Second)
+	waitFieldNonEmpty(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.revision", 120, 15*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	// 3-4: Changing data edits the same Configuration in place (new revision), still wired to the broker.
+	patchResource(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, `{"spec":{"configuration":{"data":"consumer_timeout = 3600000\n"}}}`)
+	waitFieldEquals(t, mqNs, RabbitMQAwsConfigKind, oldConfig, ".status.atProvider.latestRevision", "2", 120, 15*time.Second)
+	require.Equal(t, oldConfig, getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name"),
+		"Configuration must be edited in place, not recreated, on a data change")
+	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.revision", "2", 120, 15*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	// 5-6: Bumping the engine version creates a new version-scoped Configuration (engineVersion immutable).
+	patchResource(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, `{"spec":{"engineVersion":"`+RabbitMQUpgradeVersion+`"}}`)
+	newConfig := waitSyncedAndReadyByLabelWhere(t, mqNs, RabbitMQAwsConfigKind, RabbitMQBrokerName, ".spec.forProvider.engineVersion", RabbitMQUpgradeVersion, 120, 15*time.Second)
+	require.NotEmpty(t, newConfig)
+	require.NotEqual(t, oldConfig, newConfig, "a new Configuration must be created for the new engine version")
+
+	// 7: The broker upgrades to the new version and switches its association to the new Configuration.
+	//    The engine upgrade is slow, so allow a long window.
+	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name", newConfig, 240, 15*time.Second)
+	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.engineVersion", RabbitMQUpgradeVersion, 240, 15*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	// 8: Once the broker has switched, the old-version Configuration is removed.
+	cleanupWaitGone(t, mqNs, RabbitMQAwsConfigKind, oldConfig, 120)
+
+	// Post-upgrade the broker stays healthy: connection secret and composite status still hold.
+	require.NotEmpty(t, getField(t, mqNs, "secret", RabbitMQConnectionSecretName, ".data"),
+		"connection secret should still be populated after the upgrade")
+	require.NotEmpty(t, getField(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, ".status.amazonMQBrokerID"),
+		"composite amazonMQBrokerID should still be populated after the upgrade")
+	waitFieldEquals(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, ".status.engineVersion", RabbitMQUpgradeVersion, 240, 15*time.Second)
 }
 
 func cleanupRabbitMQ(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {

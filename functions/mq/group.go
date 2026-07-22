@@ -60,8 +60,16 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 		sgConsoleIngress := service.GetSGConsoleIngressName(broker.GetName(), setHash)
 		sgEgress := service.GetSGEgressName(broker.GetName(), setHash)
 		mqBroker := service.GetBrokerName(broker.GetName(), setHash)
+		firstGroup := []string{sg, sgIngress, sgConsoleIngress, sgEgress, "credentials"}
+		if broker.Spec.Configuration != nil {
+			engineVersion := ""
+			if broker.Spec.EngineVersion != nil {
+				engineVersion = *broker.Spec.EngineVersion
+			}
+			firstGroup = append(firstGroup, service.GetConfigurationName(broker.GetName(), engineVersion, setHash))
+		}
 		return base.NewSequence(true,
-			[]string{sg, sgIngress, sgConsoleIngress, sgEgress, "credentials"},
+			firstGroup,
 			[]string{mqBroker},
 		)
 	default:

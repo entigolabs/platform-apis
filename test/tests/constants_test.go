@@ -194,6 +194,11 @@ const (
 	RabbitMQBrokerName    = "test-rabbitmq-broker"
 	RabbitMQBrokerKind    = "rabbitmqbrokers.mq.entigo.com"
 	RabbitMQAwsBrokerKind = "broker.mq.aws.m.upbound.io"
+	RabbitMQAwsConfigKind = "configuration.mq.aws.m.upbound.io"
+
+	// Config lifecycle: broker starts on 3.13 (chart) and is upgraded to 4.2; both run on mq.m7g.
+	RabbitMQStartVersion   = "3.13"
+	RabbitMQUpgradeVersion = "4.2"
 
 	RabbitMQConnectionSecretName  = RabbitMQBrokerName + "-connection"
 	RabbitMQCredentialsSecretName = RabbitMQBrokerName + "-credentials"

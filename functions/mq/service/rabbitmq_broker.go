@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"math/big"
+	"strings"
 
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	xpv2v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -49,7 +50,7 @@ type rabbitMQBrokerGenerator struct {
 }
 
 type resourceNames struct {
-	sg, sgIngress, sgConsoleIngress, sgEgress, broker resource.Name
+	sg, sgIngress, sgConsoleIngress, sgEgress, configuration, broker resource.Name
 }
 
 func GenerateRabbitMQBrokerObjects(
@@ -129,9 +130,104 @@ func (g *rabbitMQBrokerGenerator) generate() (map[string]client.Object, error) {
 
 	desired[credentialsKey] = g.buildCredentialsSecret()
 
+	// Amazon MQ cannot disassociate/revert a broker's configuration once set, only switch to another.
+	// The XRD enforces that spec.configuration cannot be removed once set (only edited), so a nil
+	// configuration here means it was never set.
+	if g.rabbitMQBroker.Spec.Configuration != nil {
+		desired[string(g.names.configuration)] = g.buildConfiguration()
+		g.keepStaleConfigurations(desired)
+	}
+
 	desired[string(g.names.broker)] = g.buildBroker()
 
 	return desired, nil
+}
+
+func (g *rabbitMQBrokerGenerator) engineVersion() string {
+	if g.rabbitMQBroker.Spec.EngineVersion != nil {
+		return *g.rabbitMQBroker.Spec.EngineVersion
+	}
+	return ""
+}
+
+// keepStaleConfigurations re-emits previously created Configuration managed resources for other engine
+// versions so they are not garbage-collected while the broker is still switching to the current one.
+// Once the broker reports it has switched to the current Configuration, the stale ones are dropped from
+// desired and get deleted.
+func (g *rabbitMQBrokerGenerator) keepStaleConfigurations(desired map[string]client.Object) {
+	if g.brokerSwitchedToConfiguration(g.names.configuration) {
+		return
+	}
+	for name, observed := range g.observed {
+		if name == g.names.configuration || observed.Resource.GetKind() != "Configuration" {
+			continue
+		}
+		desired[string(name)] = staleConfiguration(observed)
+	}
+}
+
+// brokerSwitchedToConfiguration reports whether the observed broker has the given Configuration applied
+// (its AWS configuration id matches the Configuration's external name).
+func (g *rabbitMQBrokerGenerator) brokerSwitchedToConfiguration(configName resource.Name) bool {
+	brokerObserved, ok := g.observed[g.names.broker]
+	if !ok {
+		return false
+	}
+	appliedID, found, _ := unstructured.NestedString(brokerObserved.Resource.Object, "status", "atProvider", "configuration", "id")
+	if !found || appliedID == "" {
+		return false
+	}
+	configObserved, ok := g.observed[configName]
+	if !ok {
+		return false
+	}
+	return configObserved.Resource.GetAnnotations()["crossplane.io/external-name"] == appliedID
+}
+
+func staleConfiguration(observed resource.ObservedComposed) client.Object {
+	obj := &unstructured.Unstructured{}
+	obj.SetAPIVersion(observed.Resource.GetAPIVersion())
+	obj.SetKind(observed.Resource.GetKind())
+	obj.SetName(observed.Resource.GetName())
+	obj.SetNamespace(observed.Resource.GetNamespace())
+	if spec, found, _ := unstructured.NestedMap(observed.Resource.Object, "spec"); found {
+		_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
+	}
+	return obj
+}
+
+func (g *rabbitMQBrokerGenerator) buildConfiguration() client.Object {
+	configName := string(g.names.configuration)
+	region := g.vpc.Spec.ForProvider.Region
+	return &mqv1beta1.Configuration{
+		TypeMeta:   metav1.TypeMeta{Kind: "Configuration", APIVersion: mqApiVersion},
+		ObjectMeta: metav1.ObjectMeta{Name: configName, Namespace: g.rabbitMQBroker.Namespace},
+		Spec: mqv1beta1.ConfigurationSpec{
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
+				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
+			},
+			ForProvider: mqv1beta1.ConfigurationParameters_2{
+				Name:          &configName,
+				EngineType:    g.rabbitMQBroker.Spec.EngineType,
+				EngineVersion: g.rabbitMQBroker.Spec.EngineVersion,
+				Data:          &g.rabbitMQBroker.Spec.Configuration.Data,
+				Description:   g.rabbitMQBroker.Spec.Configuration.Description,
+				Region:        region,
+			},
+		},
+	}
+}
+
+func (g *rabbitMQBrokerGenerator) observedConfigurationRevision() *float64 {
+	observed, ok := g.observed[g.names.configuration]
+	if !ok {
+		return nil
+	}
+	revision, found, err := unstructured.NestedFloat64(observed.Resource.Object, "status", "atProvider", "latestRevision")
+	if err != nil || !found {
+		return nil
+	}
+	return &revision
 }
 
 func resolvePassword(observed map[resource.Name]resource.ObservedComposed) (string, error) {
@@ -208,11 +304,19 @@ func GetBrokerName(RabbitMQBrokerName string, hash string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-broker-%s", RabbitMQBrokerName, hash))
 }
 
+// GetConfigurationName is version-scoped: Amazon MQ Configuration engineVersion is immutable, so an
+// engine-version bump must create a new Configuration (new name) rather than mutate the existing one.
+func GetConfigurationName(RabbitMQBrokerName string, engineVersion string, hash string) string {
+	version := strings.ReplaceAll(engineVersion, ".", "-")
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-config-%s-%s", RabbitMQBrokerName, version, hash))
+}
+
 func (g *rabbitMQBrokerGenerator) generateNames() {
 	g.names.sg = resource.Name(GetSGName(g.rabbitMQBroker.Name, g.hash))
 	g.names.sgIngress = resource.Name(GetSGIngressName(g.rabbitMQBroker.Name, g.hash))
 	g.names.sgConsoleIngress = resource.Name(GetSGConsoleIngressName(g.rabbitMQBroker.Name, g.hash))
 	g.names.sgEgress = resource.Name(GetSGEgressName(g.rabbitMQBroker.Name, g.hash))
+	g.names.configuration = resource.Name(GetConfigurationName(g.rabbitMQBroker.Name, g.engineVersion(), g.hash))
 	g.names.broker = resource.Name(GetBrokerName(g.rabbitMQBroker.Name, g.hash))
 }
 
@@ -368,10 +472,11 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 
 	if g.rabbitMQBroker.Spec.Configuration != nil {
 		broker.Spec.ForProvider.Configuration = &mqv1beta1.ConfigurationParameters{
-			ID:         g.rabbitMQBroker.Spec.Configuration.ID,
-			IDRef:      g.rabbitMQBroker.Spec.Configuration.IDRef,
-			IDSelector: g.rabbitMQBroker.Spec.Configuration.IDSelector,
-			Revision:   g.rabbitMQBroker.Spec.Configuration.Revision,
+			IDRef: &xpv2v1.NamespacedReference{
+				Name:      string(g.names.configuration),
+				Namespace: g.rabbitMQBroker.Namespace,
+			},
+			Revision: g.observedConfigurationRevision(),
 		}
 	}
 	if g.rabbitMQBroker.Spec.MaintenanceWindowStartTime != nil {
