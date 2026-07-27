@@ -100,6 +100,23 @@ func waitFieldNonEmpty(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, 
 	return val
 }
 
+// waitFieldContains polls until a jsonpath field on a resource contains the expected substring.
+func waitFieldContains(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fieldPath, substr string, retries int, interval time.Duration) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s/%s %s contains %q", kind, name, fieldPath, substr), retries, interval,
+		func() (string, error) {
+			v, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o", fmt.Sprintf("jsonpath={%s}", fieldPath))
+			if err != nil {
+				return "", err
+			}
+			if !strings.Contains(v, substr) {
+				return "", fmt.Errorf("%s/%s: field %s=%q does not contain %q", kind, name, fieldPath, v, substr)
+			}
+			return v, nil
+		})
+	require.NoError(t, err)
+}
+
 // patchResource applies a JSON merge patch to a resource.
 func patchResource(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, patch string) {
 	t.Helper()

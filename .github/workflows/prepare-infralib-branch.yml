@@ -109,6 +109,7 @@ jobs:
               kafka)      cp "$SOURCE/templates/kafka_cluster_application.yaml"  "$TARGET/templates/" ;;
               mariadb)    cp "$SOURCE/templates/mariadb_test_application.yaml"   "$TARGET/templates/" ;;
               postgresql) cp "$SOURCE/templates/postgresql_test_application.yaml" "$TARGET/templates/" ;;
+              rabbitmq)   cp "$SOURCE/templates/rabbitmq_test_application.yaml"   "$TARGET/templates/" ;;
               repository) cp "$SOURCE/templates/repository_test_application.yaml" "$TARGET/templates/" ;;
               s3bucket)   cp "$SOURCE/templates/s3bucket_test_application.yaml"   "$TARGET/templates/" ;;
               valkey)     cp "$SOURCE/templates/valkey_test_application.yaml"     "$TARGET/templates/" ;;
@@ -151,6 +152,7 @@ jobs:
             [platform-apis-test-cronjob]="cronjob_test_application.yaml"
             [platform-apis-test-kafka]="kafka_cluster_application.yaml"
             [platform-apis-test-postgresql]="postgresql_test_application.yaml"
+            [platform-apis-test-rabbitmq]="rabbitmq_test_application.yaml"
             [platform-apis-test-repository]="repository_test_application.yaml"
             [platform-apis-test-s3bucket]="s3bucket_test_application.yaml"
             [platform-apis-test-valkey]="valkey_test_application.yaml"

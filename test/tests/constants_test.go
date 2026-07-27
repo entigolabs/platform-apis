@@ -24,6 +24,7 @@ const (
 	KafkaConfigurationName      = "platform-apis-kafka"
 	MariadbConfigurationName    = "platform-apis-mariadb"
 	PostgresqlConfigurationName = "platform-apis-postgresql"
+	RabbitMQConfigurationName   = "platform-apis-rabbitmq"
 	RepositoryConfigurationName = "platform-apis-repository"
 	S3BucketConfigurationName   = "platform-apis-s3bucket"
 	ValkeyConfigurationName     = "platform-apis-valkey"
@@ -40,6 +41,7 @@ const (
 	TenancyFunctionName    = "platform-apis-tenancy-fn"
 	WorkloadFunctionName   = "platform-apis-workload-fn"
 	QueueFunctionName      = "platform-apis-queue-fn"
+	MqFunctionName         = "platform-apis-mq-fn"
 
 	// ── Zone Kyverno ─────────────────────────────────────────────────────
 
@@ -184,6 +186,23 @@ const (
 	ValkeyInstanceKind         = "valkeyinstances.database.entigo.com"
 	ValkeyReplicationGroupKind = "replicationgroup.elasticache.aws.m.upbound.io"
 	ValkeyParameterGroupKind   = "parametergroup.elasticache.aws.m.upbound.io"
+
+	// ── RabbitMQ ──────────────────────────────────────────────────────────────
+
+	RabbitMQNamespaceName   = "test-rabbitmq"
+	RabbitMQApplicationName = "test-rabbitmq"
+
+	RabbitMQBrokerName    = "test-rabbitmq-broker"
+	RabbitMQBrokerKind    = "rabbitmqbrokers.mq.entigo.com"
+	RabbitMQAwsBrokerKind = "broker.mq.aws.m.upbound.io"
+	RabbitMQAwsConfigKind = "configuration.mq.aws.m.upbound.io"
+
+	// Config lifecycle: broker starts on 3.13 (chart) and is upgraded to 4.2; both run on mq.m7g.
+	RabbitMQStartVersion   = "3.13"
+	RabbitMQUpgradeVersion = "4.2"
+
+	RabbitMQConnectionSecretName  = RabbitMQBrokerName + "-connection"
+	RabbitMQCredentialsSecretName = RabbitMQBrokerName + "-credentials"
 
 	// ── MariaDB ───────────────────────────────────────────────────────────────
 

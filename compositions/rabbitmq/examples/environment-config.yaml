@@ -1,0 +1,11 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-mq
+data:
+  awsProvider: crossplane-aws
+  configKMSKey: config
+  vpc: vpc
+  subnetGroup: mq
+# tags:
+#   environment: dev

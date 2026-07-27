@@ -71,7 +71,7 @@ jobs:
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
           echo "any_changes=true" >> $GITHUB_OUTPUT
-          echo 'affected_suites=["zone","postgresql","cronjob","kafka","repository","s3bucket","valkey","mariadb","webaccess","webapp"]' >> $GITHUB_OUTPUT
+          echo 'affected_suites=["zone","postgresql","cronjob","kafka","rabbitmq","repository","s3bucket","valkey","mariadb","webaccess","webapp"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
         if: github.event_name != 'workflow_dispatch'
@@ -115,6 +115,12 @@ jobs:
               - 'helm/templates/postgresql.yaml'
               - 'helm/templates/database.yaml'
               - 'test/tests/helm/platform-apis-test-postgresql/**'
+            rabbitmq:
+              - 'compositions/rabbitmq/**'
+              - 'functions/mq/**'
+              - 'helm/templates/rabbitmq.yaml'
+              - 'helm/templates/mq.yaml'
+              - 'test/tests/helm/platform-apis-test-rabbitmq/**'
             repository:
               - 'compositions/repository/**'
               - 'functions/artifact/**'
@@ -173,6 +179,7 @@ jobs:
           CRONJOB_CHANGED: ${{ steps.changed-files.outputs.cronjob_any_changed || 'false' }}
           KAFKA_CHANGED: ${{ steps.changed-files.outputs.kafka_any_changed || 'false' }}
           PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_any_changed || 'false' }}
+          RABBITMQ_CHANGED: ${{ steps.changed-files.outputs.rabbitmq_any_changed || 'false' }}
           REPO_CHANGED: ${{ steps.changed-files.outputs.repository_any_changed || 'false' }}
           S3BUCKET_CHANGED: ${{ steps.changed-files.outputs.s3bucket_any_changed || 'false' }}
           VALKEY_CHANGED: ${{ steps.changed-files.outputs.valkey_any_changed || 'false' }}
@@ -198,7 +205,7 @@ jobs:
 
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$KAFKA_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$REPO_CHANGED" == "true" ] || [ "$S3BUCKET_CHANGED" == "true" ] || [ "$VALKEY_CHANGED" == "true" ] || [ "$MARIADB_CHANGED" == "true" ] || [ "$WEBACCESS_CHANGED" == "true" ] || [ "$WEBAPP_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
+          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$KAFKA_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$RABBITMQ_CHANGED" == "true" ] || [ "$REPO_CHANGED" == "true" ] || [ "$S3BUCKET_CHANGED" == "true" ] || [ "$VALKEY_CHANGED" == "true" ] || [ "$MARIADB_CHANGED" == "true" ] || [ "$WEBACCESS_CHANGED" == "true" ] || [ "$WEBAPP_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
             ANY_CHANGES=true
           else
             ANY_CHANGES=false
@@ -208,7 +215,7 @@ jobs:
           # affected_suites: which Go test suites run in infralib.
           # On main push: always run all suites (merges must be fully validated).
           # On PR: zone is always included; other suites added when their code changed.
-          ALL_SUITES='["cronjob","kafka","postgresql","repository","s3bucket","valkey","mariadb","webaccess","webapp","zone"]'
+          ALL_SUITES='["cronjob","kafka","postgresql","repository","rabbitmq","s3bucket","valkey","mariadb","webaccess","webapp","zone"]'
           if [ "$ANY_CHANGES" == "true" ] && ([ "$IS_MAIN_PUSH" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]); then
             echo "affected_suites=${ALL_SUITES}" >> $GITHUB_OUTPUT
           else
@@ -216,6 +223,7 @@ jobs:
             [ "$CRONJOB_CHANGED" == "true" ]    && AFFECTED_LIST="${AFFECTED_LIST}\"cronjob\","
             [ "$KAFKA_CHANGED" == "true" ]      && AFFECTED_LIST="${AFFECTED_LIST}\"kafka\","
             [ "$PG_CHANGED" == "true" ]         && AFFECTED_LIST="${AFFECTED_LIST}\"postgresql\","
+            [ "$RABBITMQ_CHANGED" == "true" ]   && AFFECTED_LIST="${AFFECTED_LIST}\"rabbitmq\","
             [ "$REPO_CHANGED" == "true" ]       && AFFECTED_LIST="${AFFECTED_LIST}\"repository\","
             [ "$S3BUCKET_CHANGED" == "true" ]   && AFFECTED_LIST="${AFFECTED_LIST}\"s3bucket\","
             [ "$VALKEY_CHANGED" == "true" ]     && AFFECTED_LIST="${AFFECTED_LIST}\"valkey\","
@@ -231,7 +239,7 @@ jobs:
           # On main push: always rebuild all charts (merges must be fully validated).
           # On PR with common_lib/helm change: full rebuild.
           # On PR: platform-apis-test-zones always rebuilt; others only when their code changed.
-          ALL_TESTHELM='"platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-kafka","platform-apis-test-postgresql","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-mariadb","platform-apis-test-webaccess","platform-apis-test-webapp"'
+          ALL_TESTHELM='"platform-apis-test-zones","platform-apis-test-app","platform-apis-test-a-apps","platform-apis-test-b-apps","platform-apis-test-cronjob","platform-apis-test-kafka","platform-apis-test-postgresql","platform-apis-test-rabbitmq","platform-apis-test-repository","platform-apis-test-s3bucket","platform-apis-test-valkey","platform-apis-test-mariadb","platform-apis-test-webaccess","platform-apis-test-webapp"'
           if [ "$ANY_CHANGES" == "true" ] && ([ "$IS_MAIN_PUSH" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]); then
             echo "testhelm=[${ALL_TESTHELM}]" >> $GITHUB_OUTPUT
           else
@@ -239,6 +247,7 @@ jobs:
             [ "$CRONJOB_CHANGED" == "true" ]    && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-cronjob\""
             [ "$KAFKA_CHANGED" == "true" ]      && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-kafka\""
             [ "$PG_CHANGED" == "true" ]         && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-postgresql\""
+            [ "$RABBITMQ_CHANGED" == "true" ]   && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-rabbitmq\""
             [ "$REPO_CHANGED" == "true" ]       && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-repository\""
             [ "$S3BUCKET_CHANGED" == "true" ]   && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-s3bucket\""
             [ "$VALKEY_CHANGED" == "true" ]     && TESTHELM_LIST="${TESTHELM_LIST},\"platform-apis-test-valkey\""
