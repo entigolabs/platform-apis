@@ -600,9 +600,20 @@ spec:
   matchConditions:
     - name: "exclude-system-namespaces"
       expression: "!(object.metadata.name in ['kube-system', 'default', 'kube-public', 'kube-node-lease'])"
-    - name: "has-no-zone-label"
-      expression: "!has(object.metadata.labels) || !('tenancy.entigo.com/zone' in object.metadata.labels) || object.metadata.labels['tenancy.entigo.com/zone'] == ''"
+    - name: "has-any-missing-label"
+      expression: >-
+        !has(object.metadata.labels) ||
+        !('tenancy.entigo.com/zone' in object.metadata.labels) ||
+        object.metadata.labels['tenancy.entigo.com/zone'] == '' ||
+        !('pod-security.kubernetes.io/enforce' in object.metadata.labels) ||
+        object.metadata.labels['pod-security.kubernetes.io/enforce'] == '' ||
+        !('pod-security.kubernetes.io/warn' in object.metadata.labels) ||
+        object.metadata.labels['pod-security.kubernetes.io/warn'] == ''
   variables:
+    - name: labels
+      expression: "has(object.metadata.labels) ? object.metadata.labels : {}"
+    - name: podSecurity
+      expression: dyn("{{ .Values.zone.environmentConfig.podSecurity }}")
     - name: existingZones
       expression: |
         resource.List("tenancy.entigo.com/v1alpha1", "zones", "")
@@ -623,49 +634,57 @@ spec:
         variables.defaultZoneName.size() > 0 ? variables.defaultZoneName[0] :
           (variables.fallbackZoneName.size() > 0 ? variables.fallbackZoneName[0] : '')
   mutations:
+    # Must run first: JSONPatch "add" to /metadata/labels/<key> fails if the map is absent.
     - patchType: JSONPatch
       jsonPatch:
         expression: >-
-          variables.selectedZone == '' ? [] :
-          (
-            !has(object.metadata.labels) ?
-            [
-              JSONPatch{
-                op: "add",
-                path: "/metadata/labels",
-                value: {
-                  "tenancy.entigo.com/zone": variables.selectedZone,
-                  "pod-security.kubernetes.io/enforce": dyn("{{ .Values.zone.environmentConfig.podSecurity }}"),
-                  "pod-security.kubernetes.io/warn": dyn("{{ .Values.zone.environmentConfig.podSecurity }}")
-                }
-              }
-            ] :
-            ([
-              JSONPatch{
-                op: "add",
-                path: "/metadata/labels/tenancy.entigo.com~1zone",
-                value: variables.selectedZone
-              }
-            ]) + (
-              !('pod-security.kubernetes.io/enforce' in object.metadata.labels) ?
-              [
-                JSONPatch{
-                  op: "add",
-                  path: "/metadata/labels/pod-security.kubernetes.io~1enforce",
-                  value: "{{ .Values.zone.environmentConfig.podSecurity }}"
-                }
-              ] : []
-            ) + (
-              !('pod-security.kubernetes.io/warn' in object.metadata.labels) ?
-              [
-                JSONPatch{
-                  op: "add",
-                  path: "/metadata/labels/pod-security.kubernetes.io~1warn",
-                  value: "{{ .Values.zone.environmentConfig.podSecurity }}"
-                }
-              ] : []
-            )
-          )
+          has(object.metadata.labels) ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels",
+              value: dyn({})
+            }
+          ]
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.selectedZone == '' ||
+          ('tenancy.entigo.com/zone' in variables.labels &&
+            variables.labels['tenancy.entigo.com/zone'] != '') ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels/tenancy.entigo.com~1zone",
+              value: variables.selectedZone
+            }
+          ]
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.podSecurity == '' ||
+          ('pod-security.kubernetes.io/enforce' in variables.labels &&
+            variables.labels['pod-security.kubernetes.io/enforce'] != '') ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels/pod-security.kubernetes.io~1enforce",
+              value: variables.podSecurity
+            }
+          ]
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.podSecurity == '' ||
+          ('pod-security.kubernetes.io/warn' in variables.labels &&
+            variables.labels['pod-security.kubernetes.io/warn'] != '') ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels/pod-security.kubernetes.io~1warn",
+              value: variables.podSecurity
+            }
+          ]
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
