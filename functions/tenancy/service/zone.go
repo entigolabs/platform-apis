@@ -58,7 +58,20 @@ const (
 	ServiceKey        = "Services"
 )
 
-var supportedIngressClasses = base.NewSet("service", "external", "alb")
+type IngressClass string
+
+const (
+	AlbIngressClass             IngressClass = "alb"
+	ExternalIngressClass        IngressClass = "external"
+	ExternalNoGroupIngressClass IngressClass = "external-nogroup"
+	InternalIngressClass        IngressClass = "internal"
+	InternalNoGroupIngressClass IngressClass = "internal-nogroup"
+	ServiceIngressClass         IngressClass = "service"
+	ServiceNoGroupIngressClass  IngressClass = "service-nogroup"
+)
+
+var supportedIngressClasses = base.NewSet(AlbIngressClass, ExternalIngressClass, ExternalNoGroupIngressClass,
+	InternalIngressClass, InternalNoGroupIngressClass, ServiceIngressClass, ServiceNoGroupIngressClass)
 
 const albActionAnnotationPrefix = "alb.ingress.kubernetes.io/actions."
 
@@ -1381,17 +1394,20 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object
 			return nil, err
 		}
 		for _, ingress := range ingresses {
-			if ingress.Spec.IngressClassName == nil ||
-				!supportedIngressClasses.Contains(*ingress.Spec.IngressClassName) {
+			if ingress.Spec.IngressClassName == nil {
+				continue
+			}
+			className := IngressClass(*ingress.Spec.IngressClassName)
+			if !supportedIngressClasses.Contains(className) {
 				continue
 			}
 			var blocks []networkingv1.NetworkPolicyPeer
-			switch *ingress.Spec.IngressClassName {
-			case "service":
+			switch className {
+			case ServiceIngressClass, ServiceNoGroupIngressClass:
 				blocks = serviceBlocks
-			case "external":
+			case ExternalIngressClass, ExternalNoGroupIngressClass:
 				blocks = publicBlocks
-			case "alb":
+			case AlbIngressClass, InternalIngressClass, InternalNoGroupIngressClass:
 				blocks = controlBlocks
 			}
 			for _, rule := range ingress.Spec.Rules {
@@ -1403,15 +1419,13 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object
 						path.Backend.Service.Port.Name, path.Backend.Service.Port.Number, services, blocks)
 				}
 			}
-			if *ingress.Spec.IngressClassName == "alb" {
-				for _, tg := range g.collectAlbActionTargetGroups(ingress) {
-					portName, portNumber, ok := albServicePortRef(tg.ServicePort)
-					if !ok {
-						continue
-					}
-					addTargetNetworkPolicy(objs, ns, ingress.Name, tg.ServiceName,
-						portName, portNumber, services, blocks)
+			for _, tg := range g.collectAlbActionTargetGroups(ingress) {
+				portName, portNumber, ok := albServicePortRef(tg.ServicePort)
+				if !ok {
+					continue
 				}
+				addTargetNetworkPolicy(objs, ns, ingress.Name, tg.ServiceName,
+					portName, portNumber, services, blocks)
 			}
 		}
 	}
