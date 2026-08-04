@@ -28,13 +28,13 @@ type MariaDBInstanceSpec struct {
 	BackupRetentionPeriod   *float64 `json:"backupRetentionPeriod,omitempty"`
 	BackupWindow            string   `json:"backupWindow,omitempty"`
 	// +kubebuilder:default=true
-	DeletionProtection bool    `json:"deletionProtection"`
+	DeletionProtection bool    `json:"deletionProtection,omitempty"`
 	EngineVersion      *string `json:"engineVersion,omitempty"`
 	InstanceType       string  `json:"instanceType"`
 	Iops               float64 `json:"iops,omitempty"`
 	MaintenanceWindow  string  `json:"maintenanceWindow,omitempty"`
 	// +kubebuilder:default=false
-	MultiAZ            bool   `json:"multiAZ"`
+	MultiAZ            bool   `json:"multiAZ,omitempty"`
 	ParameterGroupName string `json:"parameterGroupName,omitempty"`
 	// Key is the parameter name, value is the parameter value. The reserved key "applyMethod"
 	// ("immediate" or "pending-reboot", defaults to "immediate") controls how every parameter in
@@ -45,8 +45,8 @@ type MariaDBInstanceSpec struct {
 
 type MariaDBInstanceStatus struct {
 	Conditions               []metav1.Condition      `json:"conditions,omitempty"`
-	AllowMajorVersionUpgrade bool                    `json:"allowMajorVersionUpgrade"`
-	AutoMinorVersionUpgrade  bool                    `json:"autoMinorVersionUpgrade"`
+	AllowMajorVersionUpgrade bool                    `json:"allowMajorVersionUpgrade,omitempty"`
+	AutoMinorVersionUpgrade  bool                    `json:"autoMinorVersionUpgrade,omitempty"`
 	BackupWindow             string                  `json:"backupWindow,omitempty"`
 	DBInstanceIdentifier     string                  `json:"dbInstanceIdentifier,omitempty"`
 	Endpoint                 MariaDBInstanceEndpoint `json:"endpoint,omitempty"`
@@ -59,7 +59,7 @@ type MariaDBInstanceStatus struct {
 	ResourceID               string                  `json:"resourceId,omitempty"`
 	SnapshotIdentifier       string                  `json:"snapshotIdentifier,omitempty"`
 	Status                   string                  `json:"status,omitempty"`
-	StorageEncrypted         bool                    `json:"storageEncrypted"`
+	StorageEncrypted         bool                    `json:"storageEncrypted,omitempty"`
 	StorageThroughput        float64                 `json:"storageThroughput,omitempty"`
 	StorageType              string                  `json:"storageType,omitempty"`
 	VpcSecurityGroupIds      []string                `json:"vpcSecurityGroupIds,omitempty"`

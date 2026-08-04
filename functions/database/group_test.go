@@ -1578,7 +1578,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 				Rsp: &fnv1.RunFunctionResponse{
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
-						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"allowMajorVersionUpgrade": false,"autoMinorVersionUpgrade":false,"endpoint":{"address":"test.rds.amazonaws.com","hostedZoneId":"Z12345","port":5432},"storageEncrypted":false,"storageType":"gp3","dbInstanceIdentifier":"%s"}}`, instanceName))},
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"endpoint":{"address":"test.rds.amazonaws.com","hostedZoneId":"Z12345","port":5432},"storageType":"gp3","dbInstanceIdentifier":"%s"}}`, instanceName))},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
@@ -1614,7 +1614,7 @@ func TestMariaDBInstanceFunction(t *testing.T) {
 				Rsp: &fnv1.RunFunctionResponse{
 					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 					Desired: &fnv1.State{
-						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"allowMajorVersionUpgrade": false,"autoMinorVersionUpgrade":false,"endpoint":{"address":"test.rds.amazonaws.com","hostedZoneId":"Z12345","port":5432},"storageEncrypted":false,"dbInstanceIdentifier":"%s"}}`, instanceName))},
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(fmt.Sprintf(`{"apiVersion": "database.entigo.com/v1alpha1", "kind": "MariaDBInstance", "metadata": {"name":"test-db","namespace":"testspace"}, "spec": {"allocatedStorage":20, "engineVersion": "11.4", "instanceType": "db.t3.micro"}, "status": {"endpoint":{"address":"test.rds.amazonaws.com","hostedZoneId":"Z12345","port":5432},"storageEncrypted":false,"dbInstanceIdentifier":"%s"}}`, instanceName))},
 						Resources: map[string]*fnv1.Resource{
 							sgName:        {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(mariadbIngressResJson, sgIngressName, sgName)), Ready: 1},
