@@ -45,8 +45,8 @@ type MariaDBInstanceSpec struct {
 
 type MariaDBInstanceStatus struct {
 	Conditions               []metav1.Condition      `json:"conditions,omitempty"`
-	AllowMajorVersionUpgrade bool                    `json:"allowMajorVersionUpgrade,omitempty"`
-	AutoMinorVersionUpgrade  bool                    `json:"autoMinorVersionUpgrade,omitempty"`
+	AllowMajorVersionUpgrade *bool                   `json:"allowMajorVersionUpgrade,omitempty"`
+	AutoMinorVersionUpgrade  *bool                   `json:"autoMinorVersionUpgrade,omitempty"`
 	BackupWindow             string                  `json:"backupWindow,omitempty"`
 	DBInstanceIdentifier     string                  `json:"dbInstanceIdentifier,omitempty"`
 	Endpoint                 MariaDBInstanceEndpoint `json:"endpoint,omitempty"`
@@ -59,7 +59,7 @@ type MariaDBInstanceStatus struct {
 	ResourceID               string                  `json:"resourceId,omitempty"`
 	SnapshotIdentifier       string                  `json:"snapshotIdentifier,omitempty"`
 	Status                   string                  `json:"status,omitempty"`
-	StorageEncrypted         bool                    `json:"storageEncrypted,omitempty"`
+	StorageEncrypted         *bool                   `json:"storageEncrypted,omitempty"`
 	StorageThroughput        float64                 `json:"storageThroughput,omitempty"`
 	StorageType              string                  `json:"storageType,omitempty"`
 	VpcSecurityGroupIds      []string                `json:"vpcSecurityGroupIds,omitempty"`

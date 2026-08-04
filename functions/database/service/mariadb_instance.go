@@ -182,8 +182,8 @@ func (g *rdsInstanceGenerator) buildMariaDBSqlProviderConfig() client.Object {
 
 func GetMariaDBStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.MariaDBInstanceStatus {
 	status := v1alpha1.MariaDBInstanceStatus{}
-	base.SetBool(dbInstance.Status.AtProvider.AllowMajorVersionUpgrade, &status.AllowMajorVersionUpgrade)
-	base.SetBool(dbInstance.Status.AtProvider.AutoMinorVersionUpgrade, &status.AutoMinorVersionUpgrade)
+	status.AllowMajorVersionUpgrade = dbInstance.Status.AtProvider.AllowMajorVersionUpgrade
+	status.AutoMinorVersionUpgrade = dbInstance.Status.AtProvider.AutoMinorVersionUpgrade
 	base.SetString(dbInstance.Status.AtProvider.BackupWindow, &status.BackupWindow)
 	base.SetString(new(dbInstance.Name), &status.DBInstanceIdentifier)
 
@@ -215,7 +215,7 @@ func GetMariaDBStatusFromDbInstance(dbInstance rdsmv1beta1.Instance) v1alpha1.Ma
 		base.SetString(dbInstance.Status.AtProvider.SnapshotIdentifier, &status.SnapshotIdentifier)
 	}
 
-	base.SetBool(dbInstance.Status.AtProvider.StorageEncrypted, &status.StorageEncrypted)
+	status.StorageEncrypted = dbInstance.Status.AtProvider.StorageEncrypted
 	base.SetFloat64(dbInstance.Status.AtProvider.StorageThroughput, &status.StorageThroughput)
 	base.SetString(dbInstance.Status.AtProvider.StorageType, &status.StorageType)
 

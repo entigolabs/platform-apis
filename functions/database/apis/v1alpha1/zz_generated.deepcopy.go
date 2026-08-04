@@ -203,10 +203,25 @@ func (in *MariaDBInstanceStatus) DeepCopyInto(out *MariaDBInstanceStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.AllowMajorVersionUpgrade != nil {
+		in, out := &in.AllowMajorVersionUpgrade, &out.AllowMajorVersionUpgrade
+		*out = new(bool)
+		**out = **in
+	}
+	if in.AutoMinorVersionUpgrade != nil {
+		in, out := &in.AutoMinorVersionUpgrade, &out.AutoMinorVersionUpgrade
+		*out = new(bool)
+		**out = **in
+	}
 	out.Endpoint = in.Endpoint
 	if in.LatestRestorableTime != nil {
 		in, out := &in.LatestRestorableTime, &out.LatestRestorableTime
 		*out = (*in).DeepCopy()
+	}
+	if in.StorageEncrypted != nil {
+		in, out := &in.StorageEncrypted, &out.StorageEncrypted
+		*out = new(bool)
+		**out = **in
 	}
 	if in.VpcSecurityGroupIds != nil {
 		in, out := &in.VpcSecurityGroupIds, &out.VpcSecurityGroupIds
