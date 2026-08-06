@@ -81,6 +81,9 @@ func (g *mariaDBDatabaseGenerator) buildDatabase() client.Object {
 			Annotations: map[string]string{
 				"crossplane.io/external-name": g.dbDisplayName,
 			},
+			Labels: map[string]string{
+				"database.entigo.com/database-name": g.dbDisplayName,
+			},
 		},
 		Spec: mysqlv1alpha1.DatabaseSpec{
 			ManagedResourceSpec: xpv2.ManagedResourceSpec{
@@ -102,7 +105,7 @@ func (g *mariaDBDatabaseGenerator) buildInstanceProtection() client.Object {
 	usage := &xpv1beta1.Usage{
 		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: crossplaneProtectionApiVersion},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.mariaDBDatabase.Name + "-instance-protection",
+			Name:      "database-" + g.mariaDBDatabase.Name + "-instance-protection",
 			Namespace: g.mariaDBDatabase.Namespace,
 		},
 		Spec: xpv1beta1.UsageSpec{

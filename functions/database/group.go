@@ -306,10 +306,14 @@ func (g *GroupImpl) getMariaDBUserRequiredResources(compositeResource *composite
 		return nil, fmt.Errorf("cannot get spec.databaseRef.name from MariaDBUser %s", compositeResource.GetName())
 	}
 	resources["MariaDBDatabase"] = &fnv1.ResourceSelector{
-		Kind:       "MariaDBDatabase",
-		ApiVersion: databaseEntigoApi,
-		Match:      &fnv1.ResourceSelector_MatchName{MatchName: databaseName},
-		Namespace:  &namespace,
+		Kind:       "Database",
+		ApiVersion: "mysql.sql.m.crossplane.io/v1alpha1",
+		Match: &fnv1.ResourceSelector_MatchLabels{
+			MatchLabels: &fnv1.MatchLabels{
+				Labels: map[string]string{"database.entigo.com/database-name": databaseName},
+			},
+		},
+		Namespace: &namespace,
 	}
 	return resources, nil
 }

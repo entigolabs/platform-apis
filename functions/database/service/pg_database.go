@@ -254,7 +254,7 @@ func (g *pgDatabaseGenerator) buildInstanceProtection() map[string]client.Object
 	usage := &xpv1beta1.Usage{
 		TypeMeta: metav1.TypeMeta{Kind: "Usage", APIVersion: crossplaneProtectionApiVersion},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.pgDatabase.Name + "-instance-protection",
+			Name:      "database-" + g.pgDatabase.Name + "-instance-protection",
 			Namespace: g.pgDatabase.Namespace,
 		},
 		Spec: xpv1beta1.UsageSpec{

@@ -22,7 +22,7 @@ const grantPrefix = "grant-"
 type mariaDBUserGenerator struct {
 	mariaDBUser        v1alpha1.MariaDBUser
 	mariaDBInstance    v1alpha1.MariaDBInstance
-	mariaDBDatabase    v1alpha1.MariaDBDatabase
+	mariaDBDatabase    mysqlv1alpha1.Database
 	providerConfigName string
 	userDisplayName    string
 }
@@ -47,7 +47,7 @@ func newMariaDBUserGenerator(
 		return nil, err
 	}
 
-	var mariaDBDatabase v1alpha1.MariaDBDatabase
+	var mariaDBDatabase mysqlv1alpha1.Database
 	if mariaDBUser.Spec.DatabaseRef != nil {
 		if err := base.ExtractRequiredResource(required, "MariaDBDatabase", &mariaDBDatabase); err != nil {
 			return nil, err
@@ -89,7 +89,7 @@ func (g *mariaDBUserGenerator) generate() (map[string]client.Object, error) {
 	return desired, nil
 }
 
-func isMariaDBDatabaseReady(database v1alpha1.MariaDBDatabase) bool {
+func isMariaDBDatabaseReady(database mysqlv1alpha1.Database) bool {
 	for _, condition := range database.Status.Conditions {
 		if condition.Type == "Ready" && condition.Status == "True" {
 			return true
@@ -181,7 +181,7 @@ func (g *mariaDBUserGenerator) buildGrants() map[string]client.Object {
 		}
 
 		grant.Spec.ForProvider.DatabaseRef = &xpv1.NamespacedReference{
-			Name:      g.mariaDBUser.Spec.DatabaseRef.Name,
+			Name:      g.mariaDBDatabase.Name,
 			Namespace: g.mariaDBUser.Namespace,
 		}
 
@@ -267,7 +267,7 @@ func (g *mariaDBUserGenerator) buildDatabaseProtections() map[string]client.Obje
 					Kind:       "MariaDBDatabase",
 					APIVersion: "database.entigo.com/v1alpha1",
 					ResourceRef: &xpv1beta1.ResourceRef{
-						Name: g.mariaDBUser.Spec.DatabaseRef.Name,
+						Name: g.mariaDBDatabase.Name,
 					},
 				},
 				By: &xpv1beta1.Resource{
@@ -292,7 +292,7 @@ func (g *mariaDBUserGenerator) buildInstanceProtection() client.Object {
 			APIVersion: "protection.crossplane.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.mariaDBUser.Name + "-instance-protection",
+			Name:      "user-" + g.mariaDBUser.Name + "-instance-protection",
 			Namespace: g.mariaDBUser.Namespace,
 		},
 		Spec: xpv1beta1.UsageSpec{

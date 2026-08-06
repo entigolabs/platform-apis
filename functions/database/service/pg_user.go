@@ -205,7 +205,7 @@ func (g *pgUserGenerator) buildInstanceProtection() map[string]client.Object {
 			APIVersion: crossplaneProtectionApiVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.pgUser.Name + "-instance-protection",
+			Name:      "user-" + g.pgUser.Name + "-instance-protection",
 			Namespace: g.pgUser.Namespace,
 		},
 		Spec: xpv1beta1.UsageSpec{
