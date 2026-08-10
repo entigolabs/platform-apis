@@ -341,7 +341,7 @@ func testUserCrossplaneRender(t *testing.T) {
 
 	t.Log("Validating protection.crossplane.io instance-protection Usage fields")
 	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
-		"metadata.name":                         "user-example-instance-protection",
+		"metadata.name":                         "user-user-example-instance-protection",
 		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
 		"metadata.ownerReferences.0.kind":       "MariaDBUser",
 		"metadata.ownerReferences.0.name":       "user-example",
@@ -356,7 +356,7 @@ func testUserCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
-		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "user-example-instance-protection" {
+		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "user-user-example-instance-protection" {
 			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
@@ -413,7 +413,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 
 	t.Log("Validating protection.crossplane.io instance-protection Usage fields")
 	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
-		"metadata.name":                         "example-db-instance-protection",
+		"metadata.name":                         "database-example-db-instance-protection",
 		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
 		"metadata.ownerReferences.0.kind":       "MariaDBDatabase",
 		"metadata.ownerReferences.0.name":       "example-db",
@@ -428,7 +428,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
-		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "example-db-instance-protection" {
+		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "database-example-db-instance-protection" {
 			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
@@ -458,14 +458,18 @@ func mariaDBInstanceExtraResource() *unstructured.Unstructured {
 	}
 }
 
-// mariaDBDatabaseExtraResource creates a mock MariaDBDatabase resource for use as an extra resource.
+// mariaDBDatabaseExtraResource creates a mock mysql.sql.m.crossplane.io Database resource for use as an extra
+// resource. MariaDBUser looks its database up by the database.entigo.com/database-name label, not by kubernetes name.
 func mariaDBDatabaseExtraResource() *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "database.entigo.com/v1alpha1",
-			"kind":       "MariaDBDatabase",
+			"apiVersion": mySqlApiVersion,
+			"kind":       "Database",
 			"metadata": map[string]interface{}{
 				"name": "example-db",
+				"labels": map[string]interface{}{
+					"database.entigo.com/database-name": "example-db",
+				},
 			},
 			"status": map[string]interface{}{
 				"conditions": []interface{}{
