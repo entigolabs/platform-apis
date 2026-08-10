@@ -25,7 +25,7 @@ postgresql:
     tag: v0.0.0
 
 mariadb:
-  install: true
+  install: false
   package:
     image: ghcr.io/entigolabs/platform-apis-mariadb
     tag: v0.0.0
@@ -97,7 +97,7 @@ mq:
     tags: {}
 
 rabbitmq:
-  install: true
+  install: false
   package:
     image: ghcr.io/entigolabs/platform-apis-rabbitmq
     tag: v0.0.0
