@@ -798,14 +798,11 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) client.Object {
 		poolExprList = append(poolExprList, `"`+g.zone.Name+`-`+pool.Name+`"`)
 		poolMsgList = append(poolMsgList, g.zone.Name+`-`+pool.Name)
 	}
-	expression := fmt.Sprintf(`
-has(object.spec.nodeSelector) &&
-(
-"tenancy.entigo.com/zone-pool" in object.spec.nodeSelector &&
-object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [%s]
-) || (
-"tenancy.entigo.com/zone" in object.spec.nodeSelector &&
-object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s"
+	expression := fmt.Sprintf(`has(object.spec.nodeSelector) && (
+  ("tenancy.entigo.com/zone-pool" in object.spec.nodeSelector &&
+   object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [%s]) ||
+  ("tenancy.entigo.com/zone" in object.spec.nodeSelector &&
+   object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s")
 )`, strings.Join(poolExprList, ", "), g.zone.Name)
 	message := fmt.Sprintf("Pod nodeSelector must either use tenancy.entigo.com/zone-pool with a valid value [%s]"+
 		" or tenancy.entigo.com/zone with value %s", strings.Join(poolMsgList, ", "), g.zone.Name)
@@ -840,7 +837,7 @@ object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s"
 							APIVersions: []string{"v1"},
 							Resources:   []string{"pods"},
 						},
-						Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create, admissionregistrationv1.Update},
+						Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create},
 					},
 				}},
 			},
