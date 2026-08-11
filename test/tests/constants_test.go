@@ -124,8 +124,8 @@ const (
 	RegularUserExpectedUsageName  = "usage-" + RegularUserExpectedGrantName
 	RegularUserExpectedSecretName = PostgresqlInstanceName + "-" + PostgresqlRegularUserName
 
-	AdminUserInstanceProtectionName   = PostgresqlAdminUserName + "-instance-protection"
-	RegularUserInstanceProtectionName = PostgresqlRegularUserName + "-instance-protection"
+	AdminUserInstanceProtectionName   = "user-" + PostgresqlAdminUserName + "-instance-protection"
+	RegularUserInstanceProtectionName = "user-" + PostgresqlRegularUserName + "-instance-protection"
 
 	PostgresqlDatabaseKind = "postgresqldatabases.database.entigo.com"
 	SqlDatabaseKind        = "database.postgresql.sql.m.crossplane.io"
@@ -145,9 +145,9 @@ const (
 	DatabaseTwoOwnerProtectionName     = DatabaseTwoName + "-owner-protection"
 	MinimalDatabaseOwnerProtectionName = MinimalDatabaseName + "-owner-protection"
 
-	DatabaseOneInstanceProtectionName     = DatabaseOneName + "-instance-protection"
-	DatabaseTwoInstanceProtectionName     = DatabaseTwoName + "-instance-protection"
-	MinimalDatabaseInstanceProtectionName = MinimalDatabaseName + "-instance-protection"
+	DatabaseOneInstanceProtectionName     = "database-" + DatabaseOneName + "-instance-protection"
+	DatabaseTwoInstanceProtectionName     = "database-" + DatabaseTwoName + "-instance-protection"
+	MinimalDatabaseInstanceProtectionName = "database-" + MinimalDatabaseName + "-instance-protection"
 
 	// ── Repository ────────────────────────────────────────────────────────────
 
@@ -231,8 +231,8 @@ const (
 	MariadbUserExpectedSecretName = MariadbInstanceName + "-" + MariadbUserName
 
 	MariadbUserDbProtectionName           = "db-protection-" + MariadbUserName + "-" + MariadbUserGrantUser + "-" + MariadbInstanceName
-	MariadbUserInstanceProtectionName     = MariadbUserName + "-instance-protection"
-	MariadbDatabaseInstanceProtectionName = MariadbUserDatabaseName + "-instance-protection"
+	MariadbUserInstanceProtectionName     = "user-" + MariadbUserName + "-instance-protection"
+	MariadbDatabaseInstanceProtectionName = "database-" + MariadbUserDatabaseName + "-instance-protection"
 
 	// ── WebApp ────────────────────────────────────────────────────────────────
 
