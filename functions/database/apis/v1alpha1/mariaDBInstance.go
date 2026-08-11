@@ -1,0 +1,72 @@
+// Package v1alpha1 contains the input type for this Function
+// +kubebuilder:object:generate=true
+// +groupName=database.entigo.com
+// +versionName=v1alpha1
+package v1alpha1
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// MariaDBInstance generates MariaDB database resources.
+// +kubebuilder:object:root=true
+// +kubebuilder:storageversion
+type MariaDBInstance struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              MariaDBInstanceSpec   `json:"spec"`
+	Status            MariaDBInstanceStatus `json:"status,omitempty"`
+}
+
+type MariaDBInstanceSpec struct {
+	// +kubebuilder:default=20
+	AllocatedStorage float64 `json:"allocatedStorage"`
+	// +kubebuilder:default=false
+	AllowMajorVersionUpgrade bool `json:"allowMajorVersionUpgrade,omitempty"`
+	// +kubebuilder:default=true
+	AutoMinorVersionUpgrade bool     `json:"autoMinorVersionUpgrade,omitempty"`
+	BackupRetentionPeriod   *float64 `json:"backupRetentionPeriod,omitempty"`
+	BackupWindow            string   `json:"backupWindow,omitempty"`
+	// +kubebuilder:default=true
+	DeletionProtection bool    `json:"deletionProtection,omitempty"`
+	EngineVersion      *string `json:"engineVersion,omitempty"`
+	InstanceType       string  `json:"instanceType"`
+	Iops               float64 `json:"iops,omitempty"`
+	MaintenanceWindow  string  `json:"maintenanceWindow,omitempty"`
+	// +kubebuilder:default=false
+	MultiAZ            bool   `json:"multiAZ,omitempty"`
+	ParameterGroupName string `json:"parameterGroupName,omitempty"`
+	// Key is the parameter name, value is the parameter value. The reserved key "applyMethod"
+	// ("immediate" or "pending-reboot", defaults to "immediate") controls how every parameter in
+	// this group is applied - it is not itself a DB parameter.
+	ParameterGroupParameters map[string]string `json:"parameterGroupParameters,omitempty"`
+	SnapshotIdentifier       string            `json:"snapshotIdentifier,omitempty"`
+}
+
+type MariaDBInstanceStatus struct {
+	Conditions               []metav1.Condition      `json:"conditions,omitempty"`
+	AllowMajorVersionUpgrade *bool                   `json:"allowMajorVersionUpgrade,omitempty"`
+	AutoMinorVersionUpgrade  *bool                   `json:"autoMinorVersionUpgrade,omitempty"`
+	BackupWindow             string                  `json:"backupWindow,omitempty"`
+	DBInstanceIdentifier     string                  `json:"dbInstanceIdentifier,omitempty"`
+	Endpoint                 MariaDBInstanceEndpoint `json:"endpoint,omitempty"`
+	FinalSnapshotIdentifier  string                  `json:"finalSnapshotIdentifier,omitempty"`
+	Iops                     float64                 `json:"iops,omitempty"`
+	KMSKeyID                 string                  `json:"kmsKeyId,omitempty"`
+	LatestRestorableTime     *metav1.Time            `json:"latestRestorableTime,omitempty"`
+	MaintenanceWindow        string                  `json:"maintenanceWindow,omitempty"`
+	ParameterGroupName       string                  `json:"parameterGroupName,omitempty"`
+	ResourceID               string                  `json:"resourceId,omitempty"`
+	SnapshotIdentifier       string                  `json:"snapshotIdentifier,omitempty"`
+	Status                   string                  `json:"status,omitempty"`
+	StorageEncrypted         *bool                   `json:"storageEncrypted,omitempty"`
+	StorageThroughput        float64                 `json:"storageThroughput,omitempty"`
+	StorageType              string                  `json:"storageType,omitempty"`
+	VpcSecurityGroupIds      []string                `json:"vpcSecurityGroupIds,omitempty"`
+}
+
+type MariaDBInstanceEndpoint struct {
+	Address      string  `json:"address"`
+	HostedZoneID string  `json:"hostedZoneId"`
+	Port         float64 `json:"port"`
+}

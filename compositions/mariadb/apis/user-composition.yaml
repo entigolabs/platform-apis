@@ -1,0 +1,16 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: mariadbusers.database.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: database.entigo.com/v1alpha1
+    kind: MariaDBUser
+  mode: Pipeline
+  pipeline:
+    - step: mariadbuser
+      functionRef:
+        name: platform-apis-database-fn
+
+
+

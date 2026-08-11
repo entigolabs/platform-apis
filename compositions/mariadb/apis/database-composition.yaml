@@ -1,0 +1,13 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: mariadbdatabases.database.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: database.entigo.com/v1alpha1
+    kind: MariaDBDatabase
+  mode: Pipeline
+  pipeline:
+    - step: mariadbdatabase
+      functionRef:
+        name: platform-apis-database-fn

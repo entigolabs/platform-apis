@@ -22,7 +22,9 @@ const (
 
 	CronjobConfigurationName    = "platform-apis-cronjob"
 	KafkaConfigurationName      = "platform-apis-kafka"
+	MariadbConfigurationName    = "platform-apis-mariadb"
 	PostgresqlConfigurationName = "platform-apis-postgresql"
+	RabbitMQConfigurationName   = "platform-apis-rabbitmq"
 	RepositoryConfigurationName = "platform-apis-repository"
 	S3BucketConfigurationName   = "platform-apis-s3bucket"
 	ValkeyConfigurationName     = "platform-apis-valkey"
@@ -39,6 +41,7 @@ const (
 	TenancyFunctionName    = "platform-apis-tenancy-fn"
 	WorkloadFunctionName   = "platform-apis-workload-fn"
 	QueueFunctionName      = "platform-apis-queue-fn"
+	MqFunctionName         = "platform-apis-mq-fn"
 
 	// ── Zone Kyverno ─────────────────────────────────────────────────────
 
@@ -121,8 +124,8 @@ const (
 	RegularUserExpectedUsageName  = "usage-" + RegularUserExpectedGrantName
 	RegularUserExpectedSecretName = PostgresqlInstanceName + "-" + PostgresqlRegularUserName
 
-	AdminUserInstanceProtectionName   = PostgresqlAdminUserName + "-instance-protection"
-	RegularUserInstanceProtectionName = PostgresqlRegularUserName + "-instance-protection"
+	AdminUserInstanceProtectionName   = "user-" + PostgresqlAdminUserName + "-instance-protection"
+	RegularUserInstanceProtectionName = "user-" + PostgresqlRegularUserName + "-instance-protection"
 
 	PostgresqlDatabaseKind = "postgresqldatabases.database.entigo.com"
 	SqlDatabaseKind        = "database.postgresql.sql.m.crossplane.io"
@@ -142,9 +145,9 @@ const (
 	DatabaseTwoOwnerProtectionName     = DatabaseTwoName + "-owner-protection"
 	MinimalDatabaseOwnerProtectionName = MinimalDatabaseName + "-owner-protection"
 
-	DatabaseOneInstanceProtectionName     = DatabaseOneName + "-instance-protection"
-	DatabaseTwoInstanceProtectionName     = DatabaseTwoName + "-instance-protection"
-	MinimalDatabaseInstanceProtectionName = MinimalDatabaseName + "-instance-protection"
+	DatabaseOneInstanceProtectionName     = "database-" + DatabaseOneName + "-instance-protection"
+	DatabaseTwoInstanceProtectionName     = "database-" + DatabaseTwoName + "-instance-protection"
+	MinimalDatabaseInstanceProtectionName = "database-" + MinimalDatabaseName + "-instance-protection"
 
 	// ── Repository ────────────────────────────────────────────────────────────
 
@@ -183,6 +186,53 @@ const (
 	ValkeyInstanceKind         = "valkeyinstances.database.entigo.com"
 	ValkeyReplicationGroupKind = "replicationgroup.elasticache.aws.m.upbound.io"
 	ValkeyParameterGroupKind   = "parametergroup.elasticache.aws.m.upbound.io"
+
+	// ── RabbitMQ ──────────────────────────────────────────────────────────────
+
+	RabbitMQNamespaceName   = "test-rabbitmq"
+	RabbitMQApplicationName = "test-rabbitmq"
+
+	RabbitMQBrokerName    = "test-rabbitmq-broker"
+	RabbitMQBrokerKind    = "rabbitmqbrokers.mq.entigo.com"
+	RabbitMQAwsBrokerKind = "broker.mq.aws.m.upbound.io"
+	RabbitMQAwsConfigKind = "configuration.mq.aws.m.upbound.io"
+
+	// Config lifecycle: broker starts on 3.13 (chart) and is upgraded to 4.2; both run on mq.m7g.
+	RabbitMQStartVersion   = "3.13"
+	RabbitMQUpgradeVersion = "4.2"
+
+	RabbitMQConnectionSecretName  = RabbitMQBrokerName + "-connection"
+	RabbitMQCredentialsSecretName = RabbitMQBrokerName + "-credentials"
+
+	// ── MariaDB ───────────────────────────────────────────────────────────────
+
+	MariadbNamespaceName   = "test-mariadb"
+	MariadbApplicationName = "test-mariadb"
+
+	MariadbInstanceName          = "mariadb-instance-test"
+	MariadbInstanceKind          = "mariadbinstances.database.entigo.com"
+	MariadbSqlProviderConfigKind = "providerconfig.mysql.sql.m.crossplane.io"
+
+	MariadbLifecycleName = "mariadb-instance-lifecycle"
+
+	MariadbUserKind         = "mariadbusers.database.entigo.com"
+	MariadbDatabaseKind     = "mariadbdatabases.database.entigo.com"
+	MysqlUserKind           = "user.mysql.sql.m.crossplane.io"
+	MysqlGrantKind          = "grant.mysql.sql.m.crossplane.io"
+	MysqlDatabaseKind       = "database.mysql.sql.m.crossplane.io"
+	MariadbUserName         = "test-user"
+	MariadbUserSpecName     = "test_user"
+	MariadbUserGrantUser    = "test-user"
+	MariadbUserDatabaseName = "test-user-db"
+	MariadbDatabaseSpecName = "test_user_db"
+
+	MariadbUserExpectedGrantName  = "grant-" + MariadbUserName + "-" + MariadbUserGrantUser + "-" + MariadbInstanceName
+	MariadbUserExpectedUsageName  = "usage-grant-" + MariadbUserName + "-" + MariadbUserGrantUser + "-" + MariadbInstanceName
+	MariadbUserExpectedSecretName = MariadbInstanceName + "-" + MariadbUserName
+
+	MariadbUserDbProtectionName           = "db-protection-" + MariadbUserName + "-" + MariadbUserGrantUser + "-" + MariadbInstanceName
+	MariadbUserInstanceProtectionName     = "user-" + MariadbUserName + "-instance-protection"
+	MariadbDatabaseInstanceProtectionName = "database-" + MariadbUserDatabaseName + "-instance-protection"
 
 	// ── WebApp ────────────────────────────────────────────────────────────────
 

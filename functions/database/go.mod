@@ -1,6 +1,6 @@
 module github.com/entigolabs/platform-apis
 
-go 1.25.7
+go 1.26.1
 
 // This is from upbound/provider-aws, to avoid dependency error
 replace github.com/hashicorp/terraform-provider-aws => github.com/upbound/terraform-provider-aws v0.0.0-20251204202605-7049bcc1808e
@@ -9,7 +9,7 @@ replace github.com/entigolabs/function-base => ../common
 
 require (
 	github.com/alecthomas/kong v1.14.0
-	github.com/crossplane-contrib/provider-sql v0.14.0
+	github.com/crossplane-contrib/provider-sql v0.15.0
 	github.com/crossplane/crossplane v1.20.5
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0 // Other dependencies should match versions used in crossplane-runtime
 	github.com/crossplane/function-sdk-go v0.6.2

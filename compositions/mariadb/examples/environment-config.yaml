@@ -1,0 +1,16 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: platform-apis-database
+data:
+  awsProvider: crossplane-aws
+  dataKMSKey: data
+  configKMSKey: config
+  vpc: vpc
+  subnetGroup: database
+  elasticacheSubnetGroup: elasticache
+  esClusterSecretStore: external-secrets
+  backupBeforeDeletion: false
+  backupRetentionPeriod: 14
+# tags:
+#   environment: dev

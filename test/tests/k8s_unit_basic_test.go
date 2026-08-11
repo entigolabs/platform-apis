@@ -66,6 +66,12 @@ func testPlatformApis(t *testing.T, cloudName, envName string) {
 		if cfg.Has("valkey") {
 			runSuite("valkey", func(t *testing.T, ctx context.Context) { testValkey(t, ctx, cluster, argocd) })
 		}
+		if cfg.Has("rabbitmq") {
+			runSuite("rabbitmq", func(t *testing.T, ctx context.Context) { testRabbitMQ(t, ctx, cluster, argocd) })
+		}
+		if cfg.Has("mariadb") {
+			runSuite("mariadb", func(t *testing.T, ctx context.Context) { testMariadb(t, ctx, cluster, argocd) })
+		}
 		if cfg.Has("s3bucket") {
 			runSuite("s3bucket", func(t *testing.T, ctx context.Context) { testS3Bucket(t, ctx, cluster, argocd) })
 		}
@@ -124,6 +130,18 @@ func waitPackagesReady(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlO
 			t.Run("valkey", func(t *testing.T) {
 				t.Parallel()
 				checkPlatformApisHaveRequiredPackages(t, cluster, ValkeyConfigurationName, DatabaseFunctionName)
+			})
+		}
+		if cfg.Has("rabbitmq") {
+			t.Run("rabbitmq", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, RabbitMQConfigurationName, MqFunctionName)
+			})
+		}
+		if cfg.Has("mariadb") {
+			t.Run("mariadb", func(t *testing.T) {
+				t.Parallel()
+				checkPlatformApisHaveRequiredPackages(t, cluster, MariadbConfigurationName, DatabaseFunctionName)
 			})
 		}
 		if cfg.Has("webaccess") {
@@ -194,7 +212,7 @@ func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.Kube
 func preCreateTestNamespaces(t *testing.T, cfg SuiteConfig, cluster *terrak8s.KubectlOptions) {
 	t.Helper()
 
-	suites := []string{"cronjob", "postgresql", "repository", "s3bucket", "valkey", "webapp", "webaccess", "kafka"}
+	suites := []string{"cronjob", "postgresql", "repository", "s3bucket", "valkey", "mariadb", "rabbitmq", "webapp", "webaccess", "kafka"}
 
 	t.Run("pre-create-namespaces", func(t *testing.T) {
 		for _, suite := range suites {

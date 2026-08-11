@@ -374,7 +374,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 
 	t.Log("Validating protection.crossplane.io Usage fields")
 	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
-		"metadata.name":                         "database-example-instance-protection",
+		"metadata.name":                         "database-database-example-instance-protection",
 		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
 		"metadata.ownerReferences.0.kind":       "PostgreSQLDatabase",
 		"metadata.ownerReferences.0.name":       "database-example",
@@ -389,7 +389,7 @@ func testDatabaseCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
-		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "database-example-instance-protection" {
+		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "database-database-example-instance-protection" {
 			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}
@@ -507,7 +507,7 @@ func testUserCrossplaneRender(t *testing.T) {
 
 	t.Log("Validating protection.crossplane.io Usage fields")
 	crossplane.AssertFieldValues(t, resources, "Usage", "protection.crossplane.io/v1beta1", map[string]string{
-		"metadata.name":                         "user-example-instance-protection",
+		"metadata.name":                         "user-user-example-instance-protection",
 		"metadata.ownerReferences.0.apiVersion": "database.entigo.com/v1alpha1",
 		"metadata.ownerReferences.0.kind":       "PostgreSQLUser",
 		"metadata.ownerReferences.0.name":       "user-example",
@@ -522,7 +522,7 @@ func testUserCrossplaneRender(t *testing.T) {
 
 	t.Log("Mocking observed resources")
 	for _, res := range resources {
-		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "user-example-instance-protection" {
+		if res.GetKind() == "Usage" && res.GetAPIVersion() == "protection.crossplane.io/v1beta1" && res.GetName() == "user-user-example-instance-protection" {
 			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
 		}
 	}

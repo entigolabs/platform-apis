@@ -13,6 +13,7 @@ database:
     elasticacheSubnetGroup: elasticache
     esClusterSecretStore: external-secrets
     postgresBackupBeforeDeletion: true
+    mariaDBBackupBeforeDeletion: true
     valkeyBackupBeforeDeletion: true
     backupRetentionPeriod: 14
     tags: {}
@@ -21,6 +22,12 @@ postgresql:
   install: true
   package:
     image: ghcr.io/entigolabs/platform-apis-postgresql
+    tag: v0.0.0
+
+mariadb:
+  install: false
+  package:
+    image: ghcr.io/entigolabs/platform-apis-mariadb
     tag: v0.0.0
 
 valkey:
@@ -76,6 +83,23 @@ kafka:
     tags: {}
   package:
     image: ghcr.io/entigolabs/platform-apis-kafka
+    tag: v0.0.0
+
+mq:
+  function:
+    image: ghcr.io/entigolabs/platform-apis-mq-fn
+    tag: v0.0.0
+  environmentConfig:
+    awsProvider: "crossplane-aws"
+    configKMSKey: config
+    vpc: vpc
+    subnetGroup: database
+    tags: {}
+
+rabbitmq:
+  install: false
+  package:
+    image: ghcr.io/entigolabs/platform-apis-rabbitmq
     tag: v0.0.0
 
 tenancy:

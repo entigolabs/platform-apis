@@ -11,7 +11,6 @@ import (
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	xpv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/function-sdk-go/resource"
-	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -126,7 +125,6 @@ func (g *pgUserGenerator) buildGrants() map[string]client.Object {
 		return grants
 	}
 	for _, role := range g.pgUser.Spec.Grant.Roles {
-		memberOf := role
 		convertedRoleName := strings.ReplaceAll(role, "_", "-")
 		grantName := base.GenerateEligibleKubernetesFullName("grant-" + g.pgUser.Name + "-" + convertedRoleName + "-" + g.pgUser.Spec.InstanceRef.Name)
 		grant := &postgresv1alpha1.Grant{
@@ -147,7 +145,7 @@ func (g *pgUserGenerator) buildGrants() map[string]client.Object {
 				},
 				ForProvider: postgresv1alpha1.GrantParameters{
 					Role:     &g.roleDisplayName,
-					MemberOf: &memberOf,
+					MemberOf: new(role),
 				},
 			},
 		}
@@ -166,19 +164,17 @@ func (g *pgUserGenerator) buildGrantUsages() map[string]client.Object {
 		convertedRoleName := strings.ReplaceAll(role, "_", "-")
 		grantName := base.GenerateEligibleKubernetesFullName("grant-" + g.pgUser.Name + "-" + convertedRoleName + "-" + g.pgUser.Spec.InstanceRef.Name)
 		usageName := base.GenerateEligibleKubernetesFullName("usage-grant-" + g.pgUser.Name + "-" + convertedRoleName + "-" + g.pgUser.Spec.InstanceRef.Name)
-		replayDeletion := true
-
 		usage := &xpv1beta1.Usage{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Usage",
-				APIVersion: "protection.crossplane.io/v1beta1",
+				APIVersion: crossplaneProtectionApiVersion,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      usageName,
 				Namespace: g.pgUser.Namespace,
 			},
 			Spec: xpv1beta1.UsageSpec{
-				ReplayDeletion: &replayDeletion,
+				ReplayDeletion: new(true),
 				Of: xpv1beta1.Resource{
 					Kind:       "Role",
 					APIVersion: pgSqlApiVersion,
@@ -200,29 +196,20 @@ func (g *pgUserGenerator) buildGrantUsages() map[string]client.Object {
 	return usages
 }
 
-func GetPgUserGrantReadyStatus(observed *composed.Unstructured) resource.Ready {
-	if isResourceReady(observed) {
-		return resource.ReadyTrue
-	}
-	return resource.ReadyFalse
-}
-
 func (g *pgUserGenerator) buildInstanceProtection() map[string]client.Object {
 	instanceUsages := make(map[string]client.Object)
-
-	replayDeletion := true
 
 	usage := &xpv1beta1.Usage{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Usage",
-			APIVersion: "protection.crossplane.io/v1beta1",
+			APIVersion: crossplaneProtectionApiVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.pgUser.Name + "-instance-protection",
+			Name:      "user-" + g.pgUser.Name + "-instance-protection",
 			Namespace: g.pgUser.Namespace,
 		},
 		Spec: xpv1beta1.UsageSpec{
-			ReplayDeletion: &replayDeletion,
+			ReplayDeletion: new(true),
 			Of: xpv1beta1.Resource{
 				Kind:       "PostgreSQLInstance",
 				APIVersion: "database.entigo.com/v1alpha1",

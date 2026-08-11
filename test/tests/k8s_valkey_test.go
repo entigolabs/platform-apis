@@ -92,7 +92,9 @@ func testValkeyLifecycle(t *testing.T, vkNs *terrak8s.KubectlOptions) {
 
 	recreatedPgName := waitSyncedAndReadyByLabelWhere(t, vkNs, ValkeyParameterGroupKind, ValkeyLifecycleName, ".spec.forProvider.family", newFamily, 60, 10*time.Second)
 	require.NotEqual(t, pgName, recreatedPgName)
-	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".status.atProvider.parameterGroupName", recreatedPgName, 120, 10*time.Second)
+	// The observed parameterGroupName only flips once AWS finishes the 7.2 -> 8.2 major engine upgrade,
+	// which is a slow ElastiCache operation that routinely exceeds 20 min. Allow up to 45 min.
+	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".status.atProvider.parameterGroupName", recreatedPgName, 270, 10*time.Second)
 	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.parameterGroupName", recreatedPgName, 60, 10*time.Second)
 	waitFieldEquals(t, vkNs, ValkeyReplicationGroupKind, rgName, ".spec.forProvider.engineVersion", newVersion, 60, 10*time.Second)
 

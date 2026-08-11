@@ -1,0 +1,8 @@
+apiVersion: database.entigo.com/v1alpha1
+kind: MariaDBDatabase
+metadata:
+  name: example-db
+spec:
+  instanceRef:
+    name: mariadb-example
+  deletionProtection: true
