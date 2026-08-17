@@ -184,7 +184,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [build-helm, prepare-infralib-branch, run-infralib-tests]
-    if: always() && github.event_name != 'pull_request' && needs.build-helm.result == 'success'
+    if: always() && github.event_name != 'pull_request' && needs.build-helm.result == 'success' && needs.run-infralib-tests.result == 'success'
     uses: ./.github/workflows/create-release.yml
     with:
       version: ${{ needs.build-helm.outputs.version }}
