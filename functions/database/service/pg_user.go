@@ -107,15 +107,25 @@ func (g *pgUserGenerator) buildRole() map[string]client.Object {
 				},
 			},
 			ForProvider: postgresv1alpha1.RoleParameters{
+				// Every field lateInit() checks must be set. Otherwise provider-sql
+				// late-initializes them, and the spec update resets the freshly observed
+				// status.atProvider.privilegesAsClauses, making its privilege comparison
+				// fail during the same reconcile that resets the password of a restored
+				// role - which discards the generated password before it is published.
+				ConnectionLimit: new(int32(-1)),
 				Privileges: postgresv1alpha1.RolePrivilege{
-					Login:      &g.pgUser.Spec.Login,
-					CreateDb:   &g.pgUser.Spec.CreateDb,
-					CreateRole: &g.pgUser.Spec.CreateRole,
-					Inherit:    &g.pgUser.Spec.Inherit,
+					Login:       &g.pgUser.Spec.Login,
+					CreateDb:    &g.pgUser.Spec.CreateDb,
+					CreateRole:  &g.pgUser.Spec.CreateRole,
+					Inherit:     &g.pgUser.Spec.Inherit,
+					SuperUser:   new(false),
+					Replication: new(false),
+					BypassRls:   new(false),
 				},
 			},
 		},
 	}
+
 	return map[string]client.Object{"role": role}
 }
 

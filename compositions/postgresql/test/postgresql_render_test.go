@@ -436,7 +436,12 @@ func testUserCrossplaneRender(t *testing.T) {
 		"spec.forProvider.privileges.createRole": "false",
 		"spec.forProvider.privileges.login":      "true",
 		"spec.forProvider.privileges.inherit":    "true",
-		"spec.writeConnectionSecretToRef.name":   "postgresql-example-user-example",
+		// All lateInit() fields must be set, see buildRole in functions/database/service/pg_user.go
+		"spec.forProvider.privileges.superUser":   "false",
+		"spec.forProvider.privileges.replication": "false",
+		"spec.forProvider.privileges.bypassRls":   "false",
+		"spec.forProvider.connectionLimit":        "-1",
+		"spec.writeConnectionSecretToRef.name":    "postgresql-example-user-example",
 	})
 
 	t.Log("Mocking observed resources")
