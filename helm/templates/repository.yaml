@@ -8,6 +8,7 @@ metadata:
 spec:
   activate:
   - repositories.ecr.aws.m.upbound.io
+  - lifecyclepolicies.ecr.aws.m.upbound.io
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
