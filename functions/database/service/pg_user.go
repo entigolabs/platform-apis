@@ -145,11 +145,16 @@ func (g *pgUserGenerator) passwordRotationTrigger() *metav1.Time {
 		return trigger
 	}
 
-	if getObservedTime(observedRole.Resource, "status", "atProvider", "lastPasswordChange") == nil {
+	if g.pgInstance.Spec.SnapshotIdentifier == "" {
 		return nil
 	}
 
-	return new(metav1.Now())
+	lastPasswordChange := getObservedTime(observedRole.Resource, "status", "atProvider", "lastPasswordChange")
+	if lastPasswordChange == nil {
+		return nil
+	}
+
+	return new(metav1.NewTime(lastPasswordChange.Add(time.Second)))
 }
 
 func getObservedTime(observed *composed.Unstructured, fields ...string) *metav1.Time {

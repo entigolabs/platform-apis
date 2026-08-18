@@ -460,13 +460,23 @@ func testUserCrossplaneRender(t *testing.T) {
 	t.Log("Validating that a Role without lastPasswordChange gets no rotation trigger")
 	assertRoleRotationTrigger(t, resources, false)
 
-	t.Log("Validating that a lost generated password requests one rotation")
+	t.Log("Mocking a Role whose generated password was reset but never published")
 	restoredObserved := filepath.Join(tmpDir, "observed-restored.yaml")
 	restoredRole := crossplane.MockByKind(t, resources, "Role", "postgresql.sql.m.crossplane.io/v1alpha1", true,
 		map[string]interface{}{"status.atProvider.lastPasswordChange": "2026-08-18T17:37:06Z"})
 	crossplane.AppendToResources(t, restoredObserved, restoredRole)
-	restoredResources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(restoredObserved))
-	assertRoleRotationTrigger(t, restoredResources, true)
+
+	t.Log("Validating that an instance not restored from a snapshot requests no rotation")
+	notRestoredResources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(restoredObserved))
+	assertRoleRotationTrigger(t, notRestoredResources, false)
+
+	t.Log("Validating that a restored instance requests one rotation")
+	extraRestored := filepath.Join(tmpDir, "extra-restored.yaml")
+	crossplane.AppendToResources(t, extraRestored, restoredPgInstanceExtraResource())
+	restoredResources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extraRestored), crossplane.Ptr(restoredObserved))
+	crossplane.AssertFieldValues(t, restoredResources, "Role", "postgresql.sql.m.crossplane.io/v1alpha1", map[string]string{
+		"spec.forProvider.passwordRotationTrigger": "2026-08-18T17:37:07Z",
+	})
 
 	t.Log("Validating that an already emitted trigger is re-emitted unchanged")
 	frozenObserved := filepath.Join(tmpDir, "observed-frozen.yaml")
@@ -476,7 +486,7 @@ func testUserCrossplaneRender(t *testing.T) {
 			"spec.forProvider.passwordRotationTrigger": "2026-08-18T18:00:00Z",
 		})
 	crossplane.AppendToResources(t, frozenObserved, frozenRole)
-	frozenResources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(frozenObserved))
+	frozenResources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extraRestored), crossplane.Ptr(frozenObserved))
 	crossplane.AssertFieldValues(t, frozenResources, "Role", "postgresql.sql.m.crossplane.io/v1alpha1", map[string]string{
 		"spec.forProvider.passwordRotationTrigger": "2026-08-18T18:00:00Z",
 	})
@@ -603,6 +613,15 @@ func assertRoleRotationTrigger(t *testing.T, resources []*unstructured.Unstructu
 		return
 	}
 	t.Fatalf("Role for asserting passwordRotationTrigger not found")
+}
+
+// restoredPgInstanceExtraResource creates a mock PostgreSQLInstance restored from a snapshot.
+func restoredPgInstanceExtraResource() *unstructured.Unstructured {
+	instance := pgInstanceExtraResource()
+	instance.Object["spec"] = map[string]interface{}{
+		"snapshotIdentifier": "rds:test-snapshot-id",
+	}
+	return instance
 }
 
 // pgInstanceExtraResource creates a mock PostgreSQLInstance resource for use as an extra resource.
