@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/entigolabs/static-common/crossplane"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -456,6 +457,30 @@ func testUserCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "Role", 1)
 	crossplane.AssertResourceCount(t, resources, "Grant", 1)
 
+	t.Log("Validating that a Role without lastPasswordChange gets no rotation trigger")
+	assertRoleRotationTrigger(t, resources, false)
+
+	t.Log("Validating that a lost generated password requests one rotation")
+	restoredObserved := filepath.Join(tmpDir, "observed-restored.yaml")
+	restoredRole := crossplane.MockByKind(t, resources, "Role", "postgresql.sql.m.crossplane.io/v1alpha1", true,
+		map[string]interface{}{"status.atProvider.lastPasswordChange": "2026-08-18T17:37:06Z"})
+	crossplane.AppendToResources(t, restoredObserved, restoredRole)
+	restoredResources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(restoredObserved))
+	assertRoleRotationTrigger(t, restoredResources, true)
+
+	t.Log("Validating that an already emitted trigger is re-emitted unchanged")
+	frozenObserved := filepath.Join(tmpDir, "observed-frozen.yaml")
+	frozenRole := crossplane.MockByKind(t, restoredResources, "Role", "postgresql.sql.m.crossplane.io/v1alpha1", true,
+		map[string]interface{}{
+			"status.atProvider.lastPasswordChange":     "2026-08-18T17:37:06Z",
+			"spec.forProvider.passwordRotationTrigger": "2026-08-18T18:00:00Z",
+		})
+	crossplane.AppendToResources(t, frozenObserved, frozenRole)
+	frozenResources := crossplane.CrossplaneRender(t, userWithGrantResource, userComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(frozenObserved))
+	crossplane.AssertFieldValues(t, frozenResources, "Role", "postgresql.sql.m.crossplane.io/v1alpha1", map[string]string{
+		"spec.forProvider.passwordRotationTrigger": "2026-08-18T18:00:00Z",
+	})
+
 	t.Log("Validating postgresql.sql.m.crossplane.io Grant fields")
 	crossplane.AssertFieldValues(t, resources, "Grant", "postgresql.sql.m.crossplane.io/v1alpha1", map[string]string{
 		"metadata.name":                         "grant-user-example-example-role-postgresql-example",
@@ -558,6 +583,26 @@ func pgOwnerRoleExtraResource() *unstructured.Unstructured {
 			},
 		},
 	}
+}
+
+// assertRoleRotationTrigger checks whether the rendered Role carries a password rotation
+// trigger. The emitted value is the render time, so only its presence can be asserted.
+func assertRoleRotationTrigger(t *testing.T, resources []*unstructured.Unstructured, want bool) {
+	t.Helper()
+	for _, res := range resources {
+		if res.GetKind() != "Role" || res.GetAPIVersion() != "postgresql.sql.m.crossplane.io/v1alpha1" {
+			continue
+		}
+		trigger, found, err := unstructured.NestedString(res.Object, "spec", "forProvider", "passwordRotationTrigger")
+		require.NoError(t, err, "reading passwordRotationTrigger of Role %s", res.GetName())
+		if want {
+			require.True(t, found && trigger != "", "Role %s must request a password rotation", res.GetName())
+			return
+		}
+		require.False(t, found && trigger != "", "Role %s must not request a password rotation, got %q", res.GetName(), trigger)
+		return
+	}
+	t.Fatalf("Role for asserting passwordRotationTrigger not found")
 }
 
 // pgInstanceExtraResource creates a mock PostgreSQLInstance resource for use as an extra resource.

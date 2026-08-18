@@ -87,8 +87,8 @@ func (g *GroupImpl) generateValkeyInstance(obj client.Object, required map[strin
 	return service.GenerateValkeyInstanceObjects(*obj.(*v1alpha1.ValkeyInstance), required, observed)
 }
 
-func (g *GroupImpl) generatePostgreSQLUser(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
-	return service.GeneratePgUserObjects(*obj.(*v1alpha1.PostgreSQLUser), required)
+func (g *GroupImpl) generatePostgreSQLUser(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
+	return service.GeneratePgUserObjects(*obj.(*v1alpha1.PostgreSQLUser), required, observed)
 }
 
 func (g *GroupImpl) generateMariaDBUser(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
