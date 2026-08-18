@@ -18,8 +18,6 @@ import (
 const (
 	// MaxLifecycleRules is the number of rules AWS allows in a single ECR lifecycle policy.
 	MaxLifecycleRules = 25
-	// MaxExpireAfterDays is the largest age AWS accepts for a sinceImagePushed rule.
-	MaxExpireAfterDays = 365
 )
 
 // Repository generates OCI repository resources
@@ -60,7 +58,6 @@ type LifecycleRule struct {
 	KeepCount *int `json:"keepCount,omitempty"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=365
 	ExpireAfterDays *int `json:"expireAfterDays,omitempty"`
 }
 
@@ -110,8 +107,8 @@ func (r *LifecycleRule) validate() error {
 	if r.KeepCount != nil && *r.KeepCount < 1 {
 		return fmt.Errorf("keepCount must be at least 1, got %d", *r.KeepCount)
 	}
-	if r.ExpireAfterDays != nil && (*r.ExpireAfterDays < 1 || *r.ExpireAfterDays > MaxExpireAfterDays) {
-		return fmt.Errorf("expireAfterDays must be between 1 and %d, got %d", MaxExpireAfterDays, *r.ExpireAfterDays)
+	if r.ExpireAfterDays != nil && *r.ExpireAfterDays < 1 {
+		return fmt.Errorf("expireAfterDays must be at least 1, got %d", *r.ExpireAfterDays)
 	}
 	return nil
 }

@@ -53,7 +53,8 @@ func TestBuildLifecyclePolicyRejectsInvalidRules(t *testing.T) {
 		"AnyRuleNotLast":     {{KeepCount: ptr(100)}, {Untagged: true, ExpireAfterDays: ptr(7)}},
 		"TwoAnyRules":        {{KeepCount: ptr(100)}, {ExpireAfterDays: ptr(7)}},
 		"ZeroKeepCount":      {{Untagged: true, KeepCount: ptr(0)}},
-		"DaysOutOfRange":     {{Untagged: true, ExpireAfterDays: ptr(366)}},
+		"ZeroDays":           {{Untagged: true, ExpireAfterDays: ptr(0)}},
+		"NegativeDays":       {{Untagged: true, ExpireAfterDays: ptr(-1)}},
 		"TooManyRules":       tooManyRules(),
 	}
 	for name, rules := range cases {
