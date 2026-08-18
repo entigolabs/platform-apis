@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"strings"
+	"time"
 
 	postgresv1alpha1 "github.com/crossplane-contrib/provider-sql/apis/namespaced/postgresql/v1alpha1"
 	xpvcommon "github.com/crossplane/crossplane-runtime/v2/apis/common"
@@ -11,15 +12,18 @@ import (
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	xpv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/function-sdk-go/resource"
+	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type pgUserGenerator struct {
 	pgUser             v1alpha1.PostgreSQLUser
 	pgInstance         v1alpha1.PostgreSQLInstance
+	observed           map[resource.Name]resource.ObservedComposed
 	providerConfigName string
 	roleDisplayName    string
 }
@@ -27,8 +31,9 @@ type pgUserGenerator struct {
 func GeneratePgUserObjects(
 	pgUser v1alpha1.PostgreSQLUser,
 	required map[string][]resource.Required,
+	observed map[resource.Name]resource.ObservedComposed,
 ) (map[string]client.Object, error) {
-	g, err := newPgUserGenerator(pgUser, required)
+	g, err := newPgUserGenerator(pgUser, required, observed)
 	if err != nil {
 		return nil, err
 	}
@@ -38,6 +43,7 @@ func GeneratePgUserObjects(
 func newPgUserGenerator(
 	pgUser v1alpha1.PostgreSQLUser,
 	required map[string][]resource.Required,
+	observed map[resource.Name]resource.ObservedComposed,
 ) (*pgUserGenerator, error) {
 	var pgInstance v1alpha1.PostgreSQLInstance
 	if err := base.ExtractRequiredResource(required, "PostgreSQLInstance", &pgInstance); err != nil {
@@ -52,6 +58,7 @@ func newPgUserGenerator(
 	return &pgUserGenerator{
 		pgUser:             pgUser,
 		pgInstance:         pgInstance,
+		observed:           observed,
 		providerConfigName: pgUser.Spec.InstanceRef.Name + "-providerconfig",
 		roleDisplayName:    roleDisplayName,
 	}, nil
@@ -107,16 +114,59 @@ func (g *pgUserGenerator) buildRole() map[string]client.Object {
 				},
 			},
 			ForProvider: postgresv1alpha1.RoleParameters{
+				// Set every field lateInit() checks, so provider-sql does not
+				// late-initialize them and write the spec back on first observation.
+				ConnectionLimit: new(int32(-1)),
 				Privileges: postgresv1alpha1.RolePrivilege{
-					Login:      &g.pgUser.Spec.Login,
-					CreateDb:   &g.pgUser.Spec.CreateDb,
-					CreateRole: &g.pgUser.Spec.CreateRole,
-					Inherit:    &g.pgUser.Spec.Inherit,
+					Login:       &g.pgUser.Spec.Login,
+					CreateDb:    &g.pgUser.Spec.CreateDb,
+					CreateRole:  &g.pgUser.Spec.CreateRole,
+					Inherit:     &g.pgUser.Spec.Inherit,
+					SuperUser:   new(false),
+					Replication: new(false),
+					BypassRls:   new(false),
 				},
 			},
 		},
 	}
+
+	role.Spec.ForProvider.PasswordRotationTrigger = g.passwordRotationTrigger()
+
 	return map[string]client.Object{"role": role}
+}
+
+func (g *pgUserGenerator) passwordRotationTrigger() *metav1.Time {
+	observedRole, found := g.observed["role"]
+	if !found {
+		return nil
+	}
+
+	if trigger := getObservedTime(observedRole.Resource, "spec", "forProvider", "passwordRotationTrigger"); trigger != nil {
+		return trigger
+	}
+
+	if g.pgInstance.Spec.SnapshotIdentifier == "" {
+		return nil
+	}
+
+	lastPasswordChange := getObservedTime(observedRole.Resource, "status", "atProvider", "lastPasswordChange")
+	if lastPasswordChange == nil {
+		return nil
+	}
+
+	return new(metav1.NewTime(lastPasswordChange.Add(time.Second)))
+}
+
+func getObservedTime(observed *composed.Unstructured, fields ...string) *metav1.Time {
+	value, found, err := unstructured.NestedString(observed.Object, fields...)
+	if err != nil || !found || value == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return nil
+	}
+	return new(metav1.NewTime(parsed))
 }
 
 func (g *pgUserGenerator) buildGrants() map[string]client.Object {

@@ -315,9 +315,20 @@ func testPostgresqlRegularUser(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	require.Equal(t, "true", getField(t, pgNs, SqlRoleKind, roleName, ".spec.forProvider.privileges.login"))
 	require.Equal(t, "false", getField(t, pgNs, SqlRoleKind, roleName, ".spec.forProvider.privileges.createRole"))
 	require.Equal(t, "true", getField(t, pgNs, SqlRoleKind, roleName, ".spec.forProvider.privileges.inherit"))
+	// All lateInit() fields must be set, otherwise provider-sql late-initializes them and the
+	// resulting spec update resets the observed privileges its comparison depends on
+	require.Equal(t, "false", getField(t, pgNs, SqlRoleKind, roleName, ".spec.forProvider.privileges.superUser"))
+	require.Equal(t, "false", getField(t, pgNs, SqlRoleKind, roleName, ".spec.forProvider.privileges.replication"))
+	require.Equal(t, "false", getField(t, pgNs, SqlRoleKind, roleName, ".spec.forProvider.privileges.bypassRls"))
+	require.Equal(t, "-1", getField(t, pgNs, SqlRoleKind, roleName, ".spec.forProvider.connectionLimit"))
 
-	// Connection secret must be created
+	// Connection secret must be created and populated. An existing but empty secret means
+	// provider-sql set the role password without publishing the connection details.
 	waitResourceExists(t, pgNs, "secret", RegularUserExpectedSecretName, 60, 10*time.Second)
+	for _, key := range []string{"username", "password", "endpoint", "port"} {
+		require.NotEmpty(t, getField(t, pgNs, "secret", RegularUserExpectedSecretName, ".data."+key),
+			"connection secret %s is missing %s", RegularUserExpectedSecretName, key)
+	}
 
 	// Role cannot be deleted while Grant exists
 	testUsageBlocksDeletion(t, pgNs, SqlRoleKind, roleName)
