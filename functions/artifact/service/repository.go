@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -19,8 +21,10 @@ import (
 )
 
 const (
-	LifecyclePolicyResourceName = "lifecycle-policy"
-	LifecyclePolicyKind         = "LifecyclePolicy"
+	// LifecyclePolicyResourcePrefix prefixes the composed resource name. The policy hash is appended
+	// so a rule change replaces the resource instead of updating it.
+	LifecyclePolicyResourcePrefix = "lifecycle-policy-"
+	LifecyclePolicyKind           = "LifecyclePolicy"
 
 	tagStatusTagged   = "tagged"
 	tagStatusUntagged = "untagged"
@@ -59,7 +63,7 @@ type lifecyclePolicyRuleAction struct {
 	Type string `json:"type"`
 }
 
-func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required) (map[string]client.Object, error) {
+func GenerateRepositoryObject(repository v1alpha1.Repository, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	env, err := GetEnvironment(required)
 	if err != nil {
 		return nil, err
@@ -130,12 +134,40 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		if err != nil {
 			return nil, err
 		}
-		objects[LifecyclePolicyResourceName] = newLifecyclePolicy(repository, env, region, policy)
+		name := lifecyclePolicyResourceName(policy)
+		// The provider cannot update the policy of an existing ECR lifecycle policy, so a rule change
+		// has to replace the resource. Both resources would share one external resource, so the stale
+		// one must be gone before the new one is created, otherwise deleting it drops the new policy.
+		if !hasStaleLifecyclePolicy(observed, name) {
+			objects[name] = newLifecyclePolicy(repository, env, region, policy, name)
+		}
 	}
 	return objects, nil
 }
 
-func newLifecyclePolicy(repository v1alpha1.Repository, env apis.Environment, region *string, policy string) *v1beta1.LifecyclePolicy {
+// lifecyclePolicyResourceName makes the composed resource name depend on the policy, which is what
+// turns a rule change into a replacement.
+func lifecyclePolicyResourceName(policy string) string {
+	sum := sha256.Sum256([]byte(policy))
+	return LifecyclePolicyResourcePrefix + hex.EncodeToString(sum[:])[:8]
+}
+
+// hasStaleLifecyclePolicy reports whether a lifecycle policy for an older set of rules still exists.
+// Leaving it out of the desired resources makes Crossplane delete it.
+func hasStaleLifecyclePolicy(observed map[resource.Name]resource.ObservedComposed, name string) bool {
+	for observedName := range observed {
+		if strings.HasPrefix(string(observedName), LifecyclePolicyResourcePrefix) && string(observedName) != name {
+			return true
+		}
+	}
+	return false
+}
+
+// newLifecyclePolicy names the object after the composed resource, hash included, so a replacement
+// can never collide with the object it replaces. The name carries no external identity: the provider
+// config for aws_ecr_lifecycle_policy is IdentifierFromProvider and the target repository comes from
+// spec.forProvider.repository.
+func newLifecyclePolicy(repository v1alpha1.Repository, env apis.Environment, region *string, policy, name string) *v1beta1.LifecyclePolicy {
 	repoName := getExternalRepoName(repository)
 	return &v1beta1.LifecyclePolicy{
 		TypeMeta: metav1.TypeMeta{
@@ -143,7 +175,7 @@ func newLifecyclePolicy(repository v1alpha1.Repository, env apis.Environment, re
 			Kind:       LifecyclePolicyKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      repository.Name,
+			Name:      fmt.Sprintf("%s-%s", repository.Name, strings.TrimPrefix(name, LifecyclePolicyResourcePrefix)),
 			Namespace: repository.Namespace,
 			Labels: map[string]string{
 				base.ResourceLabel:     repository.Name,

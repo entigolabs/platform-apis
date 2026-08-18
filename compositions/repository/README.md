@@ -45,3 +45,9 @@ either place no lifecycle policy is created and ECR keeps every image.
 
 The policy is created only after the repository itself is ready, because AWS rejects a lifecycle
 policy for a repository that does not exist yet.
+
+The AWS provider cannot update the policy of an existing `LifecyclePolicy`, so the composed resource
+name and the object name carry a hash of the policy (`lifecycle-policy-<hash>`,
+`<repository>-<hash>`) and a rule change replaces the resource instead. Both resources point at the
+same ECR repository, so the stale one is deleted before the new one is created — a rule change therefore takes two reconciles and leaves the repository briefly
+without a policy.

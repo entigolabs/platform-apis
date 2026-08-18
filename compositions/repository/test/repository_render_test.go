@@ -94,7 +94,7 @@ func TestRepositoryLifecyclePolicyCrossplaneRender(t *testing.T) {
 
 	t.Log("Validating ecr.aws.m.upbound.io LifecyclePolicy fields")
 	crossplane.AssertFieldValues(t, resources, "LifecyclePolicy", "ecr.aws.m.upbound.io/v1beta1", map[string]string{
-		"metadata.name":               "repository-lifecycle-example",
+		"metadata.name":               "repository-lifecycle-example-3f4c5d55",
 		"spec.forProvider.region":     "eu-north-1",
 		"spec.forProvider.repository": "repository-lifecycle-example",
 		"spec.forProvider.policy":     lifecyclePolicyDocument,
