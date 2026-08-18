@@ -47,8 +47,8 @@ func (g *GroupImpl) generateRepository(obj client.Object, required map[string][]
 	return service.GenerateRepositoryObject(*obj.(*v1alpha1.Repository), required)
 }
 
-func (g *GroupImpl) GetSequence(_ client.Object) base.Sequence {
-	return base.Sequence{}
+func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
+	return base.NewSequence(false, []string{object.GetName()}, []string{service.LifecyclePolicyResourceName})
 }
 
 func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {

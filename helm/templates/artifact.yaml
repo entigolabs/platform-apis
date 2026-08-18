@@ -13,6 +13,9 @@ data:
   {{- else }}
   tags: {}
   {{- end }}
+  {{- with .Values.artifact.environmentConfig.lifecycleRules }}
+  lifecycleRules: {{- toYaml . | nindent 4 }}
+  {{- end }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: DeploymentRuntimeConfig

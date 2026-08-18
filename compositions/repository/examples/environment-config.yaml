@@ -10,3 +10,9 @@ data:
 #   environment: dev
 # scanOnPush: bool
 # imageTagMutability: string
+# Default ECR lifecycle policy for every repository in this environment. Repositories can override
+# the whole list through spec.lifecycleRules. Omit it entirely to create no lifecycle policy at all.
+# lifecycleRules:
+#   - untagged: true
+#     expireAfterDays: 7
+#   - keepCount: 20

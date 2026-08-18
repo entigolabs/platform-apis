@@ -1,0 +1,17 @@
+apiVersion: artifact.entigo.com/v1alpha1
+kind: Repository
+metadata:
+  name: repository-lifecycle-example
+spec:
+  # Replaces the lifecycleRules default from the platform-apis-artifact environment config.
+  lifecycleRules:
+    - tagPrefixes:
+        - develop
+      keepCount: 10
+    - tagPatterns:
+        - "*-cloud"
+      keepCount: 10
+    - untagged: true
+      expireAfterDays: 7
+    # A rule without a selector matches every image and must be last.
+    - expireAfterDays: 90

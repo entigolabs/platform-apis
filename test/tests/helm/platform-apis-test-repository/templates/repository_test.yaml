@@ -18,3 +18,20 @@ metadata:
 spec:
   name: test-ecr-name
   path: test/path
+---
+apiVersion: artifact.entigo.com/v1alpha1
+kind: Repository
+metadata:
+  name: test-repo-lifecycle
+  namespace: {{ .Release.Namespace }}
+spec:
+  lifecycleRules:
+    - tagPrefixes:
+        - develop
+      keepCount: 10
+    - tagPatterns:
+        - "*-cloud"
+      keepCount: 10
+    - untagged: true
+      expireAfterDays: 7
+    - expireAfterDays: 90
