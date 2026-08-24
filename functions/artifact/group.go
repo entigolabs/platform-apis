@@ -43,12 +43,13 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 	}
 }
 
-func (g *GroupImpl) generateRepository(obj client.Object, required map[string][]resource.Required, _ map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
-	return service.GenerateRepositoryObject(*obj.(*v1alpha1.Repository), required)
+func (g *GroupImpl) generateRepository(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
+	return service.GenerateRepositoryObject(*obj.(*v1alpha1.Repository), required, observed)
 }
 
-func (g *GroupImpl) GetSequence(_ client.Object) base.Sequence {
-	return base.Sequence{}
+func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
+	// The lifecycle policy is rejected by AWS until the repository it points at exists.
+	return base.NewSequence(true, []string{object.GetName()}, []string{service.LifecyclePolicyResourcePrefix + ".*"})
 }
 
 func (g *GroupImpl) GetReadyStatus(_ *composed.Unstructured) resource.Ready {

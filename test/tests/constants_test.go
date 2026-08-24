@@ -160,8 +160,11 @@ const (
 	RepositoryNamedPath         = "test/path"
 	RepositoryNamedExternalName = RepositoryNamedPath + "/" + RepositoryNamedECRName
 
-	RepositoryKind    = "repositories.artifact.entigo.com"
-	ECRRepositoryKind = "repository.ecr.aws.m.upbound.io"
+	RepositoryLifecycleName = "test-repo-lifecycle"
+
+	RepositoryKind         = "repositories.artifact.entigo.com"
+	ECRRepositoryKind      = "repository.ecr.aws.m.upbound.io"
+	ECRLifecyclePolicyKind = "lifecyclepolicy.ecr.aws.m.upbound.io"
 
 	// ── S3 Bucket ─────────────────────────────────────────────────────────────
 

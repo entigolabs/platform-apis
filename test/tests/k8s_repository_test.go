@@ -25,6 +25,7 @@ func testRepository(t *testing.T, ctx context.Context, cluster, argocd *terrak8s
 	t.Run("repositories", func(t *testing.T) {
 		t.Run("MinimalRepository", func(t *testing.T) { t.Parallel(); testMinimalRepository(t, repoNs) })
 		t.Run("NamedRepository", func(t *testing.T) { t.Parallel(); testNamedRepository(t, repoNs) })
+		t.Run("LifecycleRepository", func(t *testing.T) { t.Parallel(); testLifecycleRepository(t, repoNs) })
 	})
 }
 
@@ -58,7 +59,25 @@ func testMinimalRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.zutag`))
 	require.Equal(t, "antest",
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.antag`))
+
+	// No spec.lifecycleRules, so the repository gets the environment config default. AWS rejects a
+	// malformed policy document, so reaching Synced is the real assertion here.
+	policyName := waitSyncedAndReadyByLabel(t, repoNs, ECRLifecyclePolicyKind, RepositoryMinimalName, 30, 10*time.Second)
+	require.Equal(t, RepositoryMinimalName,
+		getField(t, repoNs, ECRLifecyclePolicyKind, policyName, ".spec.forProvider.repository"))
+	require.JSONEq(t, environmentLifecyclePolicy,
+		getField(t, repoNs, ECRLifecyclePolicyKind, policyName, ".spec.forProvider.policy"))
 }
+
+// environmentLifecyclePolicy is the default from artifact.environmentConfig.lifecycleRules in
+// test/tests/config/aws_biz.yaml.
+const environmentLifecyclePolicy = `{"rules":[
+	{"rulePriority":1,"description":"Keep 10 latest images tagged with prefix release, DEPLOYED","selection":{"tagStatus":"tagged","tagPrefixList":["release","DEPLOYED"],"countType":"imageCountMoreThan","countNumber":10},"action":{"type":"expire"}},
+	{"rulePriority":2,"description":"Keep 30 latest images matching tag pattern *.*.*","selection":{"tagStatus":"tagged","tagPatternList":["*.*.*"],"countType":"imageCountMoreThan","countNumber":30},"action":{"type":"expire"}},
+	{"rulePriority":3,"description":"Keep 5 latest images matching tag pattern feature-*, *-cloud","selection":{"tagStatus":"tagged","tagPatternList":["feature-*","*-cloud"],"countType":"imageCountMoreThan","countNumber":5},"action":{"type":"expire"}},
+	{"rulePriority":4,"description":"Expire untagged images older than 7 days","selection":{"tagStatus":"untagged","countType":"sinceImagePushed","countUnit":"days","countNumber":7},"action":{"type":"expire"}},
+	{"rulePriority":5,"description":"Expire images older than 90 days","selection":{"tagStatus":"any","countType":"sinceImagePushed","countUnit":"days","countNumber":90},"action":{"type":"expire"}}
+]}`
 
 func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	t.Helper()
@@ -98,13 +117,42 @@ func testNamedRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	require.Error(t, err, "patching immutable spec.name should be rejected")
 }
 
+func testLifecycleRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	waitSyncedAndReady(t, repoNs, RepositoryKind, RepositoryLifecycleName, 60, 10*time.Second)
+	if t.Failed() {
+		return
+	}
+
+	ecrName, err := getFirstByLabel(t, repoNs, ECRRepositoryKind, RepositoryLifecycleName)
+	require.NoError(t, err)
+	require.NotEmpty(t, ecrName)
+	waitSyncedAndReady(t, repoNs, ECRRepositoryKind, ecrName, 60, 10*time.Second)
+
+	// The lifecycle policy is sequenced after the repository, so it only appears once that is ready.
+	policyName := waitSyncedAndReadyByLabel(t, repoNs, ECRLifecyclePolicyKind, RepositoryLifecycleName, 30, 10*time.Second)
+	require.Equal(t, RepositoryLifecycleName,
+		getField(t, repoNs, ECRLifecyclePolicyKind, policyName, ".spec.forProvider.repository"))
+	// spec.lifecycleRules replaces the environment default entirely.
+	require.JSONEq(t, overrideLifecyclePolicy,
+		getField(t, repoNs, ECRLifecyclePolicyKind, policyName, ".spec.forProvider.policy"))
+}
+
+const overrideLifecyclePolicy = `{"rules":[
+	{"rulePriority":1,"description":"Keep 10 latest images tagged with prefix develop","selection":{"tagStatus":"tagged","tagPrefixList":["develop"],"countType":"imageCountMoreThan","countNumber":10},"action":{"type":"expire"}},
+	{"rulePriority":2,"description":"Keep 10 latest images matching tag pattern *-cloud","selection":{"tagStatus":"tagged","tagPatternList":["*-cloud"],"countType":"imageCountMoreThan","countNumber":10},"action":{"type":"expire"}},
+	{"rulePriority":3,"description":"Expire untagged images older than 7 days","selection":{"tagStatus":"untagged","countType":"sinceImagePushed","countUnit":"days","countNumber":7},"action":{"type":"expire"}},
+	{"rulePriority":4,"description":"Expire images older than 90 days","selection":{"tagStatus":"any","countType":"sinceImagePushed","countUnit":"days","countNumber":90},"action":{"type":"expire"}}
+]}`
+
 func cleanupRepository(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {
 		return
 	}
 	repoNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, RepositoryNamespaceName)
 
-	cleanupDeleteParallel(t, repoNs, RepositoryKind, 30, RepositoryMinimalName, RepositoryNamedName)
+	cleanupDeleteParallel(t, repoNs, RepositoryKind, 30, RepositoryMinimalName, RepositoryNamedName, RepositoryLifecycleName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", RepositoryApplicationName, "--ignore-not-found")
 }

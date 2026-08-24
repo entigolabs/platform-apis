@@ -46,6 +46,15 @@ artifact:
     scanOnPush: true
     imageTagMutability: "MUTABLE"
     tags: {}
+    # Default ECR lifecycle policy for every repository. Repositories can replace the whole list
+    # through spec.lifecycleRules. Leave empty to create no lifecycle policy at all.
+    # Each rule takes one selector (tagPrefixes, tagPatterns or untagged) and one retention bound
+    # (keepCount or expireAfterDays). A rule without a selector matches every image and must be last.
+    lifecycleRules: []
+    # lifecycleRules:
+    #   - untagged: true
+    #     expireAfterDays: 7
+    #   - keepCount: 20
 
 repository:
   install: true

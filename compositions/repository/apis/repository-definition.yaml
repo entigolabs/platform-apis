@@ -31,6 +31,40 @@ spec:
                   x-kubernetes-validations:
                     - message: Value is immutable
                       rule: self == oldSelf
+                lifecycleRules:
+                  type: array
+                  description: >-
+                    ECR lifecycle policy rules, replaces the environment default when set. Each rule
+                    needs one selector (tagPrefixes, tagPatterns or untagged) and one retention bound
+                    (keepCount or expireAfterDays). A rule without a selector matches every image and
+                    must be the last rule.
+                  maxItems: 25
+                  items:
+                    type: object
+                    properties:
+                      tagPrefixes:
+                        type: array
+                        description: "Match images whose tag starts with one of these prefixes"
+                        items:
+                          type: string
+                          minLength: 1
+                      tagPatterns:
+                        type: array
+                        description: "Match images whose tag matches one of these wildcard patterns"
+                        items:
+                          type: string
+                          minLength: 1
+                      untagged:
+                        type: boolean
+                        description: "Match untagged images"
+                      keepCount:
+                        type: integer
+                        description: "Expire all but this many most recently pushed matching images"
+                        minimum: 1
+                      expireAfterDays:
+                        type: integer
+                        description: "Expire matching images this many days after they were pushed"
+                        minimum: 1
             status:
               type: object
               properties:
