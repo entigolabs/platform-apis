@@ -31,6 +31,10 @@ spec:
                   x-kubernetes-validations:
                     - message: Value is immutable
                       rule: self == oldSelf
+                deletionProtection:
+                  default: true
+                  type: boolean
+                  description: Prevents accidental deletion of the Repository resource. The repository cannot be deleted while this is true. The default is true.
                 lifecycleRules:
                   type: array
                   description: >-

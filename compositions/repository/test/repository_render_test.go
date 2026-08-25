@@ -51,6 +51,7 @@ func TestRepositoryCrossplaneRender(t *testing.T) {
 		"metadata.ownerReferences.0.name":                           "repository-example",
 		"spec.forProvider.encryptionConfiguration.0.encryptionType": "KMS",
 		"spec.forProvider.encryptionConfiguration.0.kmsKey":         "arn:aws:kms:eu-north-1:012345678901:key/mrk-0",
+		"spec.forProvider.forceDelete":                              "true",
 		"spec.forProvider.region":                                   "eu-north-1",
 	})
 

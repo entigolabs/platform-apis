@@ -281,6 +281,7 @@ func testKyvernoZoneNamespaceDeletionCheckResources(t *testing.T, cluster *terra
 	})
 
 	tmpNSOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestTmpNSName)
+	patchDeletionProtectionIfEnabled(t, tmpNSOpts, RepositoryKind, KyvernoTestRepositoryName)
 	cleanupDeleteAndWait(t, tmpNSOpts, RepositoryKind, KyvernoTestRepositoryName, 30)
 
 	t.Run("pass: can delete empty namespace", func(t *testing.T) {

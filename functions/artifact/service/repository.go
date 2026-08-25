@@ -77,6 +77,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		return nil, fmt.Errorf("KMS key %s ARN is not available", kms.Name)
 	}
 	encryptionType := "KMS"
+	forceDelete := true
 	var annotations map[string]string
 	if repository.Spec.Path != "" || repository.Spec.Name != "" {
 		annotations = map[string]string{"crossplane.io/external-name": getExternalRepoName(repository)}
@@ -112,6 +113,7 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 					EncryptionType: &encryptionType,
 					KMSKey:         kms.Status.AtProvider.Arn,
 				}},
+				ForceDelete: &forceDelete,
 			},
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference: &xpv2.ProviderConfigReference{Name: env.AWSProvider, Kind: "ClusterProviderConfig"},
