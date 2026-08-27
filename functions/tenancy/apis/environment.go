@@ -13,16 +13,13 @@ type Environment struct {
 	Cluster                        string             `json:"cluster"`
 	CreateAppsNamespace            bool               `json:"createAppsNamespace"`
 	ComputeSubnetType              string             `json:"computeSubnetType"`
-	ControlSubnetType              string             `json:"controlSubnetType"`
 	DataKMSAlias                   string             `json:"dataKMSAlias"`
 	GranularEgress                 bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude          []string           `json:"granularEgressExclude,omitempty"`
 	GranularNamespaceNetworkPolicy bool               `json:"granularNamespaceNetworkPolicy,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
-	PublicSubnetType               string             `json:"publicSubnetType"`
 	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
 	SecurityGroup                  string             `json:"securityGroup"`
-	ServiceSubnetType              string             `json:"serviceSubnetType"`
 	Tags                           map[string]*string `json:"tags,omitempty"`
 	VPC                            string             `json:"vpc"`
 	Workspace                      string             `json:"workspace,omitempty"`
@@ -60,15 +57,6 @@ func (e Environment) Validate() error {
 	}
 	if e.ComputeSubnetType == "" {
 		return errors.New("computeSubnetType is required")
-	}
-	if e.ServiceSubnetType == "" {
-		return errors.New("serviceSubnetType is required")
-	}
-	if e.PublicSubnetType == "" {
-		return errors.New("publicSubnetType is required")
-	}
-	if e.ControlSubnetType == "" {
-		return errors.New("controlSubnetType is required")
 	}
 	if e.PodSecurity == "" {
 		return errors.New("podSecurity is required")

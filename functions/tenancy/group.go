@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	environmentName = "platform-apis-zone"
-	ec2ApiVersion   = "ec2.aws.upbound.io/v1beta1"
-	infralibZone    = "infralib"
+	environmentName              = "platform-apis-zone"
+	ec2ApiVersion                = "ec2.aws.upbound.io/v1beta1"
+	ingressClassParamsApiVersion = "elbv2.k8s.aws/v1beta1"
+	infralibZone                 = "infralib"
 )
 
 type GroupImpl struct {
@@ -111,10 +112,21 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			ApiVersion: "eks.aws.upbound.io/v1beta1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.Cluster},
 		}
-		resources[service.ComputeSubnetsKey] = subnetSelector(env.ComputeSubnetType)
-		resources[service.ServiceSubnetsKey] = subnetSelector(env.ServiceSubnetType)
-		resources[service.PublicSubnetsKey] = subnetSelector(env.PublicSubnetType)
-		resources[service.ControlSubnetsKey] = subnetSelector(env.ControlSubnetType)
+		resources[service.SubnetsKey] = &fnv1.ResourceSelector{
+			Kind:       "Subnet",
+			ApiVersion: ec2ApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		}
+		resources[service.IngressClassKey] = &fnv1.ResourceSelector{
+			Kind:       "IngressClass",
+			ApiVersion: "networking.k8s.io/v1",
+			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		}
+		resources[service.IngressClassParamsKey] = &fnv1.ResourceSelector{
+			Kind:       "IngressClassParams",
+			ApiVersion: ingressClassParamsApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		}
 		for _, ns := range service.GetUniqueNamespaces(zone, namespaces) {
 			if ns == "" {
 				continue
@@ -135,14 +147,6 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		return resources, nil
 	default:
 		return nil, nil
-	}
-}
-
-func subnetSelector(subnetType string) *fnv1.ResourceSelector {
-	return &fnv1.ResourceSelector{
-		Kind:       "Subnet",
-		ApiVersion: ec2ApiVersion,
-		Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": subnetType}}},
 	}
 }
 

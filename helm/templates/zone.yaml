@@ -327,9 +327,6 @@ data:
   securityGroup: {{ .Values.zone.environmentConfig.securityGroup }}
   vpc: {{ .Values.zone.environmentConfig.vpc }}
   computeSubnetType: {{ .Values.zone.environmentConfig.computeSubnetType }}
-  serviceSubnetType: {{ .Values.zone.environmentConfig.serviceSubnetType }}
-  publicSubnetType: {{ .Values.zone.environmentConfig.publicSubnetType }}
-  controlSubnetType: {{ .Values.zone.environmentConfig.controlSubnetType }}
   podSecurity: {{ .Values.zone.environmentConfig.podSecurity }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}

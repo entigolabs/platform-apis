@@ -44,19 +44,59 @@ const (
 	}`
 	requiredSubnetAJson = `{
 		"apiVersion": "ec2.aws.upbound.io/v1beta1", "kind": "Subnet",
-		"metadata": {"name": "subnet-a"},
+		"metadata": {"name": "subnet-a", "labels": {"subnet-type": "compute"}, "annotations": {"crossplane.io/external-name": "subnet-a-id"}},
 		"status": {"atProvider": {"availabilityZone": "eu-north-1a", "id": "subnet-a-id", "cidrBlock": "10.10.10.1"}}
 	}`
 	requiredSubnetBJson = `{
 		"apiVersion": "ec2.aws.upbound.io/v1beta1", "kind": "Subnet",
-		"metadata": {"name": "subnet-b"},
+		"metadata": {"name": "subnet-b", "labels": {"subnet-type": "compute"}, "annotations": {"crossplane.io/external-name": "subnet-b-id"}},
 		"status": {"atProvider": {"availabilityZone": "eu-north-1b", "id": "subnet-b-id", "cidrBlock": "10.10.10.2"}}
 	}`
 	requiredSubnetCJson = `{
 		"apiVersion": "ec2.aws.upbound.io/v1beta1", "kind": "Subnet",
-		"metadata": {"name": "subnet-c"},
+		"metadata": {"name": "subnet-c", "labels": {"subnet-type": "control"}, "annotations": {"crossplane.io/external-name": "subnet-c-id"}},
 		"status": {"atProvider": {"availabilityZone": "eu-north-1c", "id": "subnet-c-id", "cidrBlock": "10.10.10.3"}}
 	}`
+	requiredSubnetDJson = `{
+		"apiVersion": "ec2.aws.upbound.io/v1beta1", "kind": "Subnet",
+		"metadata": {"name": "subnet-d", "labels": {"subnet-type": "service"}, "annotations": {"crossplane.io/external-name": "subnet-d-id"}},
+		"status": {"atProvider": {"availabilityZone": "eu-north-1a", "id": "subnet-d-id", "cidrBlock": "10.10.10.4"}}
+	}`
+	requiredServiceIngressClassJson = `{
+        "apiVersion":"networking.k8s.io/v1","kind":"IngressClass",
+        "metadata":{"name":"service"},
+        "spec":{"controller":"ingress.k8s.aws/alb","parameters":{"apiGroup":"elbv2.k8s.aws","kind":"IngressClassParams","name":"service-params","scope":"Cluster"}}
+    }`
+	requiredAlbIngressClassJson = `{
+        "apiVersion":"networking.k8s.io/v1","kind":"IngressClass",
+        "metadata":{"name":"alb"},
+        "spec":{"controller":"ingress.k8s.aws/alb","parameters":{"apiGroup":"elbv2.k8s.aws","kind":"IngressClassParams","name":"alb-params","scope":"Cluster"}}
+    }`
+	requiredExtIngressClassJson = `{
+        "apiVersion":"networking.k8s.io/v1","kind":"IngressClass",
+        "metadata":{"name":"external"},
+        "spec":{"controller":"ingress.k8s.aws/alb","parameters":{"apiGroup":"elbv2.k8s.aws","kind":"IngressClassParams","name":"external-params","scope":"Cluster"}}
+    }`
+	requiredNginxIngressClassJson = `{
+        "apiVersion":"networking.k8s.io/v1","kind":"IngressClass",
+        "metadata":{"name":"nginx"},
+        "spec":{"controller":"k8s.io/ingress-nginx"}
+    }`
+	requiredServiceIngressClassParamsJson = `{
+        "apiVersion":"elbv2.k8s.aws/v1beta1","kind":"IngressClassParams",
+        "metadata":{"name":"service-params"},
+        "spec":{"scheme":"internal","subnets":{"ids":["subnet-d-id"]}}
+    }`
+	requiredAlbIngressClassParamsJson = `{
+        "apiVersion":"elbv2.k8s.aws/v1beta1","kind":"IngressClassParams",
+        "metadata":{"name":"alb-params"},
+        "spec":{"scheme":"internal","subnets":{"ids":["subnet-c-id"]}}
+    }`
+	requiredExtIngressClassParamsJson = `{
+        "apiVersion":"elbv2.k8s.aws/v1beta1","kind":"IngressClassParams",
+        "metadata":{"name":"external-params"},
+        "spec":{"scheme":"internet-facing","subnets":{"tags":{"subnet-type":["public"]}}}
+    }`
 	requiredIngressJson = `{
         "apiVersion":"networking.k8s.io/v1","kind":"Ingress",
         "metadata":{"name":"test-ingress","namespace":"test-app-ns"},
@@ -81,7 +121,12 @@ const (
 	requiredExtIngressJson = `{
         "apiVersion":"networking.k8s.io/v1","kind":"Ingress",
         "metadata":{"name":"test-ext-ingress","namespace":"test-app-ext-ns"},
-        "spec":{"ingressClassName":"external","rules":[{"host":"example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"test-service","port":{"number":8080}}}}]}}]}
+        "spec":{"ingressClassName":"external","rules":[{"host":"example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"test-ext-service","port":{"number":443}}}}]}}]}
+    }`
+	requiredNginxIngressJson = `{
+        "apiVersion":"networking.k8s.io/v1","kind":"Ingress",
+        "metadata":{"name":"test-nginx-ingress","namespace":"test-app-ns"},
+        "spec":{"ingressClassName":"nginx","rules":[{"host":"example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"test-service","port":{"number":8080}}}}]}}]}
     }`
 	requiredExtServiceJson = `{
         "apiVersion": "v1", "kind": "Service",
@@ -94,7 +139,7 @@ const (
 	appProjectJson              = `{"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-zone","namespace":"argocd"},"spec":{"clusterResourceBlacklist":[{"group":"*","kind":"*"}],"description":"Security zone for isolated team deployment","destinations":[{"namespace":"test-app-ext-ns","server":"https://kubernetes.default.svc"},{"namespace":"test-app-ns","server":"https://kubernetes.default.svc"}],"roles":[{"description":"Maintainer permissions","groups":["group-maintainer"],"name":"maintainer","policies":["p, proj:test-zone:maintainer, applications, *, test-zone/*, allow","p, proj:test-zone:maintainer, repositories, *, test-zone/*, allow","p, proj:test-zone:maintainer, applicationsets, *, test-zone/*, allow","p, proj:test-zone:maintainer, logs, *, test-zone/*, allow","p, proj:test-zone:maintainer, exec, *, test-zone/*, allow"]},{"description":"Observer permissions","groups":["group-observer"],"name":"observer","policies":["p, proj:test-zone:observer, applications, get, test-zone/*, allow","p, proj:test-zone:observer, applicationsets, get, test-zone/*, allow"]},{"description":"Contributor permissions","groups":["group-contributor"],"name":"contributor","policies":["p, proj:test-zone:contributor, applications, *, test-zone/*, allow","p, proj:test-zone:contributor, repositories, *, test-zone/*, allow","p, proj:test-zone:contributor, applicationsets, *, test-zone/*, allow","p, proj:test-zone:contributor, logs, *, test-zone/*, allow","p, proj:test-zone:contributor, exec, *, test-zone/*, allow"]},{"description":"Use this role for your CI/CD pipelines","groups":["group-maintainer"],"name":"cicd","policies":["p, proj:test-zone:cicd, applications, sync, test-zone/*, allow","p, proj:test-zone:cicd, applicationsets, sync, test-zone/*, allow","p, proj:test-zone:cicd, applications, get, test-zone/*, allow","p, proj:test-zone:cicd, applicationsets, get, test-zone/*, allow"]}],"sourceNamespaces":["test-app-ext-ns","test-app-ns"],"sourceRepos":["*"]},"status":{}}`
 	networkPolicyJson           = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-zone","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"tenancy.entigo.com/zone":"test-zone"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}`
 	extNetworkPolicyJson        = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-zone","namespace":"test-app-ext-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"tenancy.entigo.com/zone":"test-zone"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}`
-	targetNetworkPolicyJson     = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.1"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}`
+	targetNetworkPolicyJson     = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.4"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}`
 	targetAlbNetworkPolicyJson  = `{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-alb-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.3"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}`
 	rbMaintainerJson            = `{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns-maintainer","namespace":"test-app-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-maintainer"}]}`
 	extRBMaintainerJson         = `{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-maintainer","namespace":"test-app-ext-ns"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"test-app-ext-ns-all"},"subjects":[{"apiGroup":"rbac.authorization.k8s.io","kind":"Group","name":"group-maintainer"}]}`
@@ -201,9 +246,6 @@ func TestZoneFunction(t *testing.T) {
 		"dataKMSAlias":      "data",
 		"securityGroup":     "eks-node-sg",
 		"computeSubnetType": "compute",
-		"serviceSubnetType": "service",
-		"publicSubnetType":  "public",
-		"controlSubnetType": "control",
 		"vpc":               "test-vpc",
 		"podSecurity":       "baseline",
 	}
@@ -234,17 +276,22 @@ func TestZoneFunction(t *testing.T) {
 	nodeGroupHash := service.GetInstanceTypesHash([]string{"t3.large"}, "ON_DEMAND")
 
 	requiredResources := map[string]*fnv1.Resources{
-		base.EnvironmentKey:            test.EnvironmentConfigResourceWithData(environmentName, environmentData),
-		service.NamespaceKey:           {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(extNamespaceJson)}}},
-		service.VPCKey:                 {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredVPCjson)}}},
-		service.KMSDataAliasKey:        {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSAliasJson)}}},
-		service.SecurityGroupKey:       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSecurityGroupJson)}}},
-		service.ClusterKey:             {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredClusterJson)}}},
-		service.ComputeSubnetsKey:      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetAJson)}, {Resource: resource.MustStructJSON(requiredSubnetBJson)}}},
-		service.ServiceSubnetsKey:      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetAJson)}}},
-		service.PublicSubnetsKey:       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetBJson)}}},
-		service.ControlSubnetsKey:      {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetCJson)}}},
-		nsName + service.IngressKey:    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredIngressJson)}, {Resource: resource.MustStructJSON(requiredAlbIngressJson)}}},
+		base.EnvironmentKey:      test.EnvironmentConfigResourceWithData(environmentName, environmentData),
+		service.NamespaceKey:     {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(extNamespaceJson)}}},
+		service.VPCKey:           {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredVPCjson)}}},
+		service.KMSDataAliasKey:  {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredKMSAliasJson)}}},
+		service.SecurityGroupKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSecurityGroupJson)}}},
+		service.ClusterKey:       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredClusterJson)}}},
+		service.SubnetsKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSubnetAJson)},
+			{Resource: resource.MustStructJSON(requiredSubnetBJson)}, {Resource: resource.MustStructJSON(requiredSubnetCJson)},
+			{Resource: resource.MustStructJSON(requiredSubnetDJson)}}},
+		service.IngressClassKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredServiceIngressClassJson)},
+			{Resource: resource.MustStructJSON(requiredAlbIngressClassJson)}, {Resource: resource.MustStructJSON(requiredExtIngressClassJson)},
+			{Resource: resource.MustStructJSON(requiredNginxIngressClassJson)}}},
+		service.IngressClassParamsKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredServiceIngressClassParamsJson)},
+			{Resource: resource.MustStructJSON(requiredAlbIngressClassParamsJson)}, {Resource: resource.MustStructJSON(requiredExtIngressClassParamsJson)}}},
+		nsName + service.IngressKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredIngressJson)},
+			{Resource: resource.MustStructJSON(requiredAlbIngressJson)}, {Resource: resource.MustStructJSON(requiredNginxIngressJson)}}},
 		nsName + service.ServiceKey:    {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredServiceJson)}}},
 		extNsName + service.IngressKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredExtIngressJson)}}},
 		extNsName + service.ServiceKey: {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredExtServiceJson)}}},
@@ -261,10 +308,9 @@ func TestZoneFunction(t *testing.T) {
 			service.KMSDataAliasKey:        {Kind: "Alias", ApiVersion: "kms.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
 			service.SecurityGroupKey:       {Kind: "SecurityGroup", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "eks-node-sg"}},
 			service.ClusterKey:             {Kind: "Cluster", ApiVersion: "eks.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-cluster"}},
-			service.ComputeSubnetsKey:      {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "compute"}}}},
-			service.ServiceSubnetsKey:      {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "service"}}}},
-			service.PublicSubnetsKey:       {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "public"}}}},
-			service.ControlSubnetsKey:      {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"subnet-type": "control"}}}},
+			service.SubnetsKey:             {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
+			service.IngressClassKey:        {Kind: "IngressClass", ApiVersion: "networking.k8s.io/v1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
+			service.IngressClassParamsKey:  {Kind: "IngressClassParams", ApiVersion: "elbv2.k8s.aws/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
 			nsName + service.IngressKey:    {Kind: "Ingress", ApiVersion: "networking.k8s.io/v1", Namespace: &nsName, Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
 			nsName + service.ServiceKey:    {Kind: "Service", ApiVersion: "v1", Namespace: &nsName, Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
 			extNsName + service.IngressKey: {Kind: "Ingress", ApiVersion: "networking.k8s.io/v1", Namespace: &extNsName, Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
@@ -647,7 +693,7 @@ func TestZoneFunction(t *testing.T) {
 		{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ext-ns-zone","namespace":"test-app-ext-ns"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"tenancy.entigo.com/zone":"test-zone"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}
 									`), Ready: 1},
 							targetNetworkPolicyKey: {Resource: resource.MustStructJSON(`
-		{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.1"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}
+		{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.4"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}
 									`), Ready: 1},
 							targetAlbNetworkPolicyKey: {Resource: resource.MustStructJSON(`
 		{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"labels":{"tags.entigo.com/bar":"foo","tenancy.entigo.com/zone":"test-zone"},"name":"test-alb-ingress-test-service-8081","namespace":"test-app-ns"},"spec":{"ingress":[{"from":[{"ipBlock":{"cidr":"10.10.10.3"}}],"ports":[{"port":8081,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"test-app"}},"policyTypes":["Ingress"]}}

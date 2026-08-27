@@ -45,33 +45,23 @@ const (
 	RoleObserver    = "observer"
 	RoleCICD        = "cicd"
 
-	NamespaceKey      = "Namespaces"
-	VPCKey            = "VPC"
-	KMSDataAliasKey   = "KMSDataAlias"
-	SecurityGroupKey  = "NodeSecurityGroup"
-	ClusterKey        = "Cluster"
-	ComputeSubnetsKey = "ComputeSubnets"
-	ServiceSubnetsKey = "ServiceSubnets"
-	PublicSubnetsKey  = "PublicSubnets"
-	ControlSubnetsKey = "ControlSubnets"
-	IngressKey        = "Ingresses"
-	ServiceKey        = "Services"
+	NamespaceKey          = "Namespaces"
+	VPCKey                = "VPC"
+	KMSDataAliasKey       = "KMSDataAlias"
+	SecurityGroupKey      = "NodeSecurityGroup"
+	ClusterKey            = "Cluster"
+	SubnetsKey            = "Subnets"
+	IngressKey            = "Ingresses"
+	IngressClassKey       = "IngressClasses"
+	IngressClassParamsKey = "IngressClassParams"
+	ServiceKey            = "Services"
+
+	subnetTypeLabel        = "subnet-type"
+	externalNameAnnotation = "crossplane.io/external-name"
+
+	ingressClassParamsGroup = "elbv2.k8s.aws"
+	ingressClassParamsKind  = "IngressClassParams"
 )
-
-type IngressClass string
-
-const (
-	AlbIngressClass             IngressClass = "alb"
-	ExternalIngressClass        IngressClass = "external"
-	ExternalNoGroupIngressClass IngressClass = "external-nogroup"
-	InternalIngressClass        IngressClass = "internal"
-	InternalNoGroupIngressClass IngressClass = "internal-nogroup"
-	ServiceIngressClass         IngressClass = "service"
-	ServiceNoGroupIngressClass  IngressClass = "service-nogroup"
-)
-
-var supportedIngressClasses = base.NewSet(AlbIngressClass, ExternalIngressClass, ExternalNoGroupIngressClass,
-	InternalIngressClass, InternalNoGroupIngressClass, ServiceIngressClass, ServiceNoGroupIngressClass)
 
 const albActionAnnotationPrefix = "alb.ingress.kubernetes.io/actions."
 
@@ -102,10 +92,9 @@ type zoneGenerator struct {
 	kmsDataAlias   kmsv1beta1.Alias
 	securityGroup  ec2v1beta1.SecurityGroup
 	cluster        eksv1beta1.Cluster
+	subnets        []*ec2v1beta1.Subnet
 	computeSubnets []*ec2v1beta1.Subnet
-	serviceSubnets []*ec2v1beta1.Subnet
-	publicSubnets  []*ec2v1beta1.Subnet
-	controlSubnets []*ec2v1beta1.Subnet
+	ingressClasses []*networkingv1.IngressClass
 
 	zoneAnnotations map[string]string
 	zoneTags        map[string]*string
@@ -146,19 +135,11 @@ func GenerateZoneObjects(
 	if err := base.ExtractRequiredResource(required, ClusterKey, &cluster); err != nil {
 		return nil, err
 	}
-	computeSubnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, ComputeSubnetsKey)
+	subnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, SubnetsKey)
 	if err != nil {
 		return nil, err
 	}
-	serviceSubnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, ServiceSubnetsKey)
-	if err != nil {
-		return nil, err
-	}
-	publicSubnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, PublicSubnetsKey)
-	if err != nil {
-		return nil, err
-	}
-	controlSubnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, ControlSubnetsKey)
+	ingressClasses, err := base.ExtractResources[*networkingv1.IngressClass](required, IngressClassKey)
 	if err != nil {
 		return nil, err
 	}
@@ -176,10 +157,9 @@ func GenerateZoneObjects(
 		kmsDataAlias:   kmsDataAlias,
 		securityGroup:  securityGroup,
 		cluster:        cluster,
-		computeSubnets: computeSubnets,
-		serviceSubnets: serviceSubnets,
-		publicSubnets:  publicSubnets,
-		controlSubnets: controlSubnets,
+		subnets:        subnets,
+		computeSubnets: filterSubnetsByType(subnets, env.ComputeSubnetType),
+		ingressClasses: ingressClasses,
 		zoneAnnotations: map[string]string{
 			base.TenancyZoneLabel: zone.Name,
 		},
@@ -1374,9 +1354,7 @@ func (g zoneGenerator) getAppProject() client.Object {
 }
 
 func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object, error) {
-	serviceBlocks := getSubnetsBlocks(g.serviceSubnets)
-	publicBlocks := getSubnetsBlocks(g.publicSubnets)
-	controlBlocks := getSubnetsBlocks(g.controlSubnets)
+	classBlocks := g.getIngressClassBlocks()
 	objs := make(map[string]client.Object)
 	for _, ns := range g.uqNamespaces {
 		if ns == "" {
@@ -1394,18 +1372,9 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object
 			if ingress.Spec.IngressClassName == nil {
 				continue
 			}
-			className := IngressClass(*ingress.Spec.IngressClassName)
-			if !supportedIngressClasses.Contains(className) {
+			blocks := classBlocks[*ingress.Spec.IngressClassName]
+			if len(blocks) == 0 {
 				continue
-			}
-			var blocks []networkingv1.NetworkPolicyPeer
-			switch className {
-			case ServiceIngressClass, ServiceNoGroupIngressClass:
-				blocks = serviceBlocks
-			case ExternalIngressClass, ExternalNoGroupIngressClass:
-				blocks = publicBlocks
-			case AlbIngressClass, InternalIngressClass, InternalNoGroupIngressClass:
-				blocks = controlBlocks
 			}
 			for _, rule := range ingress.Spec.Rules {
 				if rule.HTTP == nil {
@@ -1517,6 +1486,68 @@ func albServicePortRef(p intstr.IntOrString) (name string, number int32, ok bool
 		return "", int32(n), true
 	}
 	return p.StrVal, 0, true
+}
+
+// getIngressClassBlocks resolves ingress class name -> network policy peers by following
+// IngressClass.spec.parameters -> IngressClassParams.spec.subnets.ids -> Subnet external-name.
+// Classes without resolvable subnets are left out of the map.
+func (g zoneGenerator) getIngressClassBlocks() map[string][]networkingv1.NetworkPolicyPeer {
+	paramSubnetIds := g.getIngressClassParamsSubnetIds()
+	subnetsByExternalName := make(map[string]*ec2v1beta1.Subnet, len(g.subnets))
+	for _, subnet := range g.subnets {
+		if externalName := subnet.GetAnnotations()[externalNameAnnotation]; externalName != "" {
+			subnetsByExternalName[externalName] = subnet
+		}
+	}
+	classBlocks := make(map[string][]networkingv1.NetworkPolicyPeer)
+	for _, ingressClass := range g.ingressClasses {
+		params := ingressClass.Spec.Parameters
+		if params == nil || params.Kind != ingressClassParamsKind ||
+			params.APIGroup == nil || *params.APIGroup != ingressClassParamsGroup {
+			continue
+		}
+		var subnets []*ec2v1beta1.Subnet
+		for _, subnetId := range paramSubnetIds[params.Name] {
+			if subnet, found := subnetsByExternalName[subnetId]; found {
+				subnets = append(subnets, subnet)
+			}
+		}
+		blocks := getSubnetsBlocks(subnets)
+		if len(blocks) == 0 {
+			g.log.Debug("No subnets resolved for ingress class", "ingressClass", ingressClass.Name,
+				"ingressClassParams", params.Name)
+			continue
+		}
+		classBlocks[ingressClass.Name] = blocks
+	}
+	return classBlocks
+}
+
+func (g zoneGenerator) getIngressClassParamsSubnetIds() map[string][]string {
+	subnetIds := make(map[string][]string)
+	for _, params := range g.required[IngressClassParamsKey] {
+		ids, found, err := unstructured.NestedStringSlice(params.Resource.Object, "spec", "subnets", "ids")
+		if err != nil {
+			g.log.Debug("Failed to read ingress class params subnet ids", "ingressClassParams",
+				params.Resource.GetName(), "error", err)
+			continue
+		}
+		if !found {
+			continue
+		}
+		subnetIds[params.Resource.GetName()] = ids
+	}
+	return subnetIds
+}
+
+func filterSubnetsByType(subnets []*ec2v1beta1.Subnet, subnetType string) []*ec2v1beta1.Subnet {
+	var filtered []*ec2v1beta1.Subnet
+	for _, subnet := range subnets {
+		if subnet.GetLabels()[subnetTypeLabel] == subnetType {
+			filtered = append(filtered, subnet)
+		}
+	}
+	return filtered
 }
 
 func getSubnetsBlocks(subnets []*ec2v1beta1.Subnet) []networkingv1.NetworkPolicyPeer {

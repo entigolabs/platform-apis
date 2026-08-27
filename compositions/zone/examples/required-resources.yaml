@@ -128,3 +128,193 @@ spec:
     source: IRSA
 status:
   users: 35
+
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  annotations:
+    crossplane.io/external-name: subnet-compute-a
+  labels:
+    subnet-type: compute
+  name: compute-a
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
+status:
+  atProvider:
+    availabilityZone: eu-north-1a
+    cidrBlock: 10.122.10.0/24
+    id: subnet-compute-a
+    vpcId: vpc-aaaaaaaaaaaaaaaaa
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready
+
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  annotations:
+    crossplane.io/external-name: subnet-compute-b
+  labels:
+    subnet-type: compute
+  name: compute-b
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
+status:
+  atProvider:
+    availabilityZone: eu-north-1b
+    cidrBlock: 10.122.11.0/24
+    id: subnet-compute-b
+    vpcId: vpc-aaaaaaaaaaaaaaaaa
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready
+
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  annotations:
+    crossplane.io/external-name: subnet-service-a
+  labels:
+    subnet-type: service
+  name: service-a
+  namespace: crossplane-aws
+spec:
+  forProvider:
+    region: eu-north-1
+  initProvider: {}
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: crossplane-aws
+status:
+  atProvider:
+    availabilityZone: eu-north-1a
+    cidrBlock: 10.122.30.0/24
+    id: subnet-service-a
+    vpcId: vpc-aaaaaaaaaaaaaaaaa
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready
+
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: service
+spec:
+  controller: ingress.k8s.aws/alb
+  parameters:
+    apiGroup: elbv2.k8s.aws
+    kind: IngressClassParams
+    name: service-params
+    scope: Cluster
+
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: nginx
+spec:
+  controller: k8s.io/ingress-nginx
+
+---
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: IngressClassParams
+metadata:
+  name: service-params
+spec:
+  scheme: internal
+  subnets:
+    ids:
+    - subnet-service-a
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: abfe-app
+  namespace: abfe
+spec:
+  ingressClassName: service
+  rules:
+  - host: abfe.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: abfe-svc
+            port:
+              number: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: abfe-nginx
+  namespace: abfe
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: abfe-nginx.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: abfe-svc
+            port:
+              number: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: abfe-svc
+  namespace: abfe
+spec:
+  selector:
+    app: abfe-app
+  ports:
+  - port: 8080
+    targetPort: 8081

@@ -18,9 +18,6 @@ data:
   securityGroup: "eks-node"
   vpc: vpc
   computeSubnetType: compute
-  serviceSubnetType: service
-  publicSubnetType: public
-  controlSubnetType: control
   podSecurity: baseline
   roleMapping:
     - roleRef: maintainer
