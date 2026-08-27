@@ -65,10 +65,7 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() client.Object {
 	rdsInstanceName := string(g.names.rdsInstance)
 	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
-	var availabilityZone *string
-	if !g.mariaDBInstance.Spec.MultiAZ {
-		availabilityZone = new(base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s%s", *region, "a")))
-	}
+	availabilityZone := g.resolveAvailabilityZone()
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 

@@ -25,6 +25,19 @@ func testPostgresql(t *testing.T, ctx context.Context, cluster, argocd *terrak8s
 		return
 	}
 
+	t.Run("Instances", func(t *testing.T) {
+		t.Run("Main", func(t *testing.T) { t.Parallel(); testPostgresqlMainInstance(t, pgNs) })
+		t.Run("Lifecycle", func(t *testing.T) { t.Parallel(); testPostgresqlLifecycle(t, pgNs) })
+		t.Run("AvailabilityZone", func(t *testing.T) { t.Parallel(); testPostgresqlAvailabilityZone(t, pgNs) })
+	})
+}
+
+// testPostgresqlMainInstance walks the main instance and everything composed on top of it: users,
+// databases, grants and the protections between them. The order is sequential because each step
+// depends on the previous one existing.
+func testPostgresqlMainInstance(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
 	t.Run("Instance", func(t *testing.T) { testInstance(t, pgNs) })
 	if t.Failed() {
 		return
@@ -45,11 +58,46 @@ func testPostgresql(t *testing.T, ctx context.Context, cluster, argocd *terrak8s
 	}
 
 	t.Run("MinimalDatabase", func(t *testing.T) { testPostgresqlMinimalDatabase(t, pgNs) })
+}
+
+// testPostgresqlAvailabilityZone covers zone handling across the multiAZ toggle. A single-AZ
+// instance must be pinned to the zone AWS actually placed it in, so turning multiAZ off never
+// demands a zone move AWS cannot perform in place.
+func testPostgresqlAvailabilityZone(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	waitSyncedAndReady(t, pgNs, PostgresqlInstanceKind, PostgresqlAvailabilityZoneName, 120, 10*time.Second)
 	if t.Failed() {
 		return
 	}
 
-	t.Run("Lifecycle", func(t *testing.T) { testPostgresqlLifecycle(t, pgNs) })
+	rdsName, err := getFirstByLabel(t, pgNs, RdsInstanceKind, PostgresqlAvailabilityZoneName)
+	require.NoError(t, err)
+	require.NotEmpty(t, rdsName)
+
+	// multiAZ off (the manifest default): AWS picks the zone on creation and the instance is then
+	// pinned to whichever zone that was.
+	require.Equal(t, "false", getField(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.multiAz"))
+	singleAZZone := waitFieldNonEmpty(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.availabilityZone", 60, 10*time.Second)
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.availabilityZone", singleAZZone, 60, 10*time.Second)
+
+	// multiAZ on: the zone choice belongs to AWS, so no zone is requested.
+	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlAvailabilityZoneName, `{"spec":{"multiAZ":true}}`)
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.availabilityZone", "", 60, 10*time.Second)
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.multiAz", "true", 80, 15*time.Second)
+	waitSyncedAndReady(t, pgNs, RdsInstanceKind, rdsName, 60, 15*time.Second)
+
+	multiAZZone := waitFieldNonEmpty(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.availabilityZone", 60, 10*time.Second)
+
+	// multiAZ off again: pin to the zone the instance currently runs in, which is not necessarily
+	// the zone it was created in and not necessarily the first zone of the region.
+	patchResource(t, pgNs, PostgresqlInstanceKind, PostgresqlAvailabilityZoneName, `{"spec":{"multiAZ":false}}`)
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".spec.forProvider.availabilityZone", multiAZZone, 60, 10*time.Second)
+	waitFieldEquals(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.multiAz", "false", 80, 15*time.Second)
+	waitSyncedAndReady(t, pgNs, RdsInstanceKind, rdsName, 60, 15*time.Second)
+	require.Equal(t, multiAZZone, getField(t, pgNs, RdsInstanceKind, rdsName, ".status.atProvider.availabilityZone"),
+		"turning multiAZ off must not move the instance to another zone")
+	waitSyncedAndReady(t, pgNs, PostgresqlInstanceKind, PostgresqlAvailabilityZoneName, 60, 10*time.Second)
 }
 
 // testPostgresqlLifecycle drives a single PostgreSQLInstance through every engineVersion/
@@ -454,7 +502,7 @@ func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	cleanupDeleteParallel(t, pgNs, PostgresqlUserKind, 30, PostgresqlRegularUserName, PostgresqlAdminUserName)
 
 	cleanupDisableDeletionProtectionOnInstance(t, pgNs)
-	cleanupDeleteParallel(t, pgNs, PostgresqlInstanceKind, 180, PostgresqlInstanceName, PostgresqlLifecycleName)
+	cleanupDeleteParallel(t, pgNs, PostgresqlInstanceKind, 180, PostgresqlInstanceName, PostgresqlLifecycleName, PostgresqlAvailabilityZoneName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
 }
