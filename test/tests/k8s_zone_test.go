@@ -102,6 +102,16 @@ func verifyNetworkPolicies(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			testTargetNetworkPolicy(t, cluster, "b1", "b1-b1-8080", "b1", "8080")
 			testTargetNetworkPolicy(t, cluster, "b1", "b1-b1second-http", "b1second", "http")
 		})
+		t.Run("a1-route-target", func(t *testing.T) {
+			t.Parallel()
+			testTargetNetworkPolicy(t, cluster, "a1", "a1-route-a1-8080", "a1", "8080")
+			testTargetNetworkPolicy(t, cluster, "a1", "a1-route-a1second-http", "a1second", "http")
+		})
+		t.Run("b1-route-target", func(t *testing.T) {
+			t.Parallel()
+			testTargetNetworkPolicy(t, cluster, "b1", "b1-route-b1-8080", "b1", "8080")
+			testTargetNetworkPolicy(t, cluster, "b1", "b1-route-b1second-http", "b1second", "http")
+		})
 	})
 }
 
@@ -121,10 +131,11 @@ func testNetworkPolicyMatchLabels(t *testing.T, cluster *terrak8s.KubectlOptions
 	require.Equal(t, expectedLabels, actualLabels, "NetworkPolicy matchLabels do not match expected values")
 }
 
-// testTargetNetworkPolicy verifies the NetworkPolicy generated for an Ingress path, named
-// <ingress>-<service>-<targetPort>. Its source peers come from the ingress class subnets
-// (IngressClass -> IngressClassParams -> Subnet), which differ per environment, so only the
-// shape of the peers is asserted here.
+// testTargetNetworkPolicy verifies the NetworkPolicy generated for an Ingress path or an HTTPRoute
+// backend, named <ingress|httpRoute>-<service>-<targetPort>. Its source peers come from the load
+// balancer subnets (IngressClass -> IngressClassParams -> Subnet, or Gateway ->
+// LoadBalancerConfiguration -> Subnet), which differ per environment, so only the shape of the peers
+// is asserted here.
 func testTargetNetworkPolicy(t *testing.T, cluster *terrak8s.KubectlOptions, namespace, name, expectedApp, expectedPort string) {
 	t.Helper()
 	nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, namespace)

@@ -186,7 +186,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "LaunchTemplate", 2)
 	crossplane.AssertResourceCount(t, resources, "MutatingPolicy", 4)
 	crossplane.AssertResourceCount(t, resources, "AppProject", 1)
-	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 4) // 2 zone + 2 target
+	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 8) // 2 zone + 2 ingress target + 4 httproute target
 	crossplane.AssertResourceCount(t, resources, "Role", 1)
 	crossplane.AssertResourceCount(t, resources, "ValidatingPolicy", 2)
 
@@ -234,6 +234,33 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"spec.ingress.0.from.0.namespaceSelector.matchLabels.tenancy\\.entigo\\.com/zone": "testzone",
 	})
 
+	t.Log("Validating networking.k8s.io http route target NetworkPolicy fields")
+	crossplane.AssertFieldValues(t, resources, "NetworkPolicy", "networking.k8s.io/v1", map[string]string{
+		"metadata.name":                         "abfe-route-abfe-svc-8081",
+		"metadata.namespace":                    "abfe",
+		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "Zone",
+		"metadata.ownerReferences.0.name":       "testzone",
+		"spec.podSelector.matchLabels.app":      "abfe-app",
+		"spec.policyTypes.0":                    "Ingress",
+		"spec.ingress.0.from.0.ipBlock.cidr":    "10.122.31.0/24",
+		"spec.ingress.0.ports.0.port":           "8081",
+		"spec.ingress.0.ports.0.protocol":       "TCP",
+	})
+
+	crossplane.AssertFieldValues(t, resources, "NetworkPolicy", "networking.k8s.io/v1", map[string]string{
+		"metadata.name":                         "abfe-route-abfe-svc2-9091",
+		"metadata.namespace":                    "abfe",
+		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "Zone",
+		"metadata.ownerReferences.0.name":       "testzone",
+		"spec.podSelector.matchLabels.app":      "abfe-app2",
+		"spec.policyTypes.0":                    "Ingress",
+		"spec.ingress.0.from.0.ipBlock.cidr":    "10.122.31.0/24",
+		"spec.ingress.0.ports.0.port":           "9091",
+		"spec.ingress.0.ports.0.protocol":       "TCP",
+	})
+
 	t.Log("Validating networking.k8s.io target NetworkPolicy fields")
 	crossplane.AssertFieldValues(t, resources, "NetworkPolicy", "networking.k8s.io/v1", map[string]string{
 		"metadata.name":                         "abfe-app-abfe-svc-8081",
@@ -274,7 +301,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "LaunchTemplate", 2)
 	crossplane.AssertResourceCount(t, resources, "MutatingPolicy", 4)
 	crossplane.AssertResourceCount(t, resources, "AppProject", 1)
-	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 4) // 2 zone + 2 target
+	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 8) // 2 zone + 2 ingress target + 4 httproute target
 	crossplane.AssertResourceCount(t, resources, "ValidatingPolicy", 2)
 	crossplane.AssertResourceCount(t, resources, "AccessEntry", 1)
 	crossplane.AssertResourceCount(t, resources, "Role", 7)
@@ -423,7 +450,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "LaunchTemplate", 2)
 	crossplane.AssertResourceCount(t, resources, "MutatingPolicy", 4)
 	crossplane.AssertResourceCount(t, resources, "AppProject", 1)
-	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 4) // 2 zone + 2 target
+	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 8) // 2 zone + 2 ingress target + 4 httproute target
 	crossplane.AssertResourceCount(t, resources, "ValidatingPolicy", 2)
 	crossplane.AssertResourceCount(t, resources, "AccessEntry", 1)
 	crossplane.AssertResourceCount(t, resources, "Role", 7)

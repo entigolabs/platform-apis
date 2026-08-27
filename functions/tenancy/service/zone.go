@@ -56,11 +56,21 @@ const (
 	IngressClassParamsKey = "IngressClassParams"
 	ServiceKey            = "Services"
 
+	HTTPRouteKey                 = "HTTPRoutes"
+	GatewayKey                   = "Gateways"
+	LoadBalancerConfigurationKey = "LoadBalancerConfigurations"
+
 	subnetTypeLabel        = "subnet-type"
 	externalNameAnnotation = "crossplane.io/external-name"
 
 	ingressClassParamsGroup = "elbv2.k8s.aws"
 	ingressClassParamsKind  = "IngressClassParams"
+
+	gatewayGroup       = "gateway.networking.k8s.io"
+	gatewayKind        = "Gateway"
+	lbConfigGroup      = "gateway.k8s.aws"
+	lbConfigKind       = "LoadBalancerConfiguration"
+	serviceBackendKind = "Service"
 )
 
 const albActionAnnotationPrefix = "alb.ingress.kubernetes.io/actions."
@@ -77,6 +87,11 @@ type albForwardConfig struct {
 type albTargetGroup struct {
 	ServiceName string             `json:"serviceName"`
 	ServicePort intstr.IntOrString `json:"servicePort"`
+}
+
+type httpRouteBackend struct {
+	name string
+	port int32
 }
 
 type zoneGenerator struct {
@@ -1355,6 +1370,7 @@ func (g zoneGenerator) getAppProject() client.Object {
 
 func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object, error) {
 	classBlocks := g.getIngressClassBlocks()
+	gatewayBlocks := g.getGatewayBlocks()
 	objs := make(map[string]client.Object)
 	for _, ns := range g.uqNamespaces {
 		if ns == "" {
@@ -1392,6 +1408,16 @@ func (g zoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object
 				}
 				addTargetNetworkPolicy(objs, ns, ingress.Name, tg.ServiceName,
 					portName, portNumber, services, blocks)
+			}
+		}
+		for _, route := range g.required[ns+HTTPRouteKey] {
+			blocks := g.getRouteBlocks(route.Resource, gatewayBlocks, ns)
+			if len(blocks) == 0 {
+				continue
+			}
+			for _, backend := range g.getHTTPRouteBackends(route.Resource, ns) {
+				addTargetNetworkPolicy(objs, ns, route.Resource.GetName(), backend.name,
+					"", backend.port, services, blocks)
 			}
 		}
 	}
@@ -1493,12 +1519,7 @@ func albServicePortRef(p intstr.IntOrString) (name string, number int32, ok bool
 // Classes without resolvable subnets are left out of the map.
 func (g zoneGenerator) getIngressClassBlocks() map[string][]networkingv1.NetworkPolicyPeer {
 	paramSubnetIds := g.getIngressClassParamsSubnetIds()
-	subnetsByExternalName := make(map[string]*ec2v1beta1.Subnet, len(g.subnets))
-	for _, subnet := range g.subnets {
-		if externalName := subnet.GetAnnotations()[externalNameAnnotation]; externalName != "" {
-			subnetsByExternalName[externalName] = subnet
-		}
-	}
+	subnetsByExternalName := g.subnetsByExternalName()
 	classBlocks := make(map[string][]networkingv1.NetworkPolicyPeer)
 	for _, ingressClass := range g.ingressClasses {
 		params := ingressClass.Spec.Parameters
@@ -1506,13 +1527,7 @@ func (g zoneGenerator) getIngressClassBlocks() map[string][]networkingv1.Network
 			params.APIGroup == nil || *params.APIGroup != ingressClassParamsGroup {
 			continue
 		}
-		var subnets []*ec2v1beta1.Subnet
-		for _, subnetId := range paramSubnetIds[params.Name] {
-			if subnet, found := subnetsByExternalName[subnetId]; found {
-				subnets = append(subnets, subnet)
-			}
-		}
-		blocks := getSubnetsBlocks(subnets)
+		blocks := getSubnetsBlocks(resolveSubnets(subnetsByExternalName, paramSubnetIds[params.Name]))
 		if len(blocks) == 0 {
 			g.log.Debug("No subnets resolved for ingress class", "ingressClass", ingressClass.Name,
 				"ingressClassParams", params.Name)
@@ -1538,6 +1553,191 @@ func (g zoneGenerator) getIngressClassParamsSubnetIds() map[string][]string {
 		subnetIds[params.Resource.GetName()] = ids
 	}
 	return subnetIds
+}
+
+// getGatewayBlocks resolves gateway namespace/name -> network policy peers by following
+// Gateway.spec.infrastructure.parametersRef -> LoadBalancerConfiguration.spec.loadBalancerSubnets
+// -> Subnet external-name. Gateways without resolvable subnets are left out of the map.
+func (g zoneGenerator) getGatewayBlocks() map[string][]networkingv1.NetworkPolicyPeer {
+	configSubnetIds := g.getLoadBalancerConfigurationSubnetIds()
+	subnetsByExternalName := g.subnetsByExternalName()
+	gatewayBlocks := make(map[string][]networkingv1.NetworkPolicyPeer)
+	for _, gateway := range g.required[GatewayKey] {
+		obj := gateway.Resource.Object
+		group, _, _ := unstructured.NestedString(obj, "spec", "infrastructure", "parametersRef", "group")
+		kind, _, _ := unstructured.NestedString(obj, "spec", "infrastructure", "parametersRef", "kind")
+		name, _, _ := unstructured.NestedString(obj, "spec", "infrastructure", "parametersRef", "name")
+		if group != lbConfigGroup || kind != lbConfigKind || name == "" {
+			continue
+		}
+		// parametersRef has no namespace, it always points inside the gateway namespace
+		namespace := gateway.Resource.GetNamespace()
+		subnetIds := configSubnetIds[getNamespacedName(namespace, name)]
+		blocks := getSubnetsBlocks(resolveSubnets(subnetsByExternalName, subnetIds))
+		if len(blocks) == 0 {
+			g.log.Debug("No subnets resolved for gateway", "gateway", gateway.Resource.GetName(),
+				"loadBalancerConfiguration", name)
+			continue
+		}
+		gatewayBlocks[getNamespacedName(namespace, gateway.Resource.GetName())] = blocks
+	}
+	return gatewayBlocks
+}
+
+func (g zoneGenerator) getLoadBalancerConfigurationSubnetIds() map[string][]string {
+	subnetIds := make(map[string][]string)
+	for _, config := range g.required[LoadBalancerConfigurationKey] {
+		subnets, found, err := unstructured.NestedSlice(config.Resource.Object, "spec", "loadBalancerSubnets")
+		if err != nil {
+			g.log.Debug("Failed to read load balancer configuration subnets", "loadBalancerConfiguration",
+				config.Resource.GetName(), "error", err)
+			continue
+		}
+		if !found {
+			continue
+		}
+		var ids []string
+		for _, subnet := range subnets {
+			subnetMap, ok := subnet.(map[string]any)
+			if !ok {
+				continue
+			}
+			if id, ok := subnetMap["identifier"].(string); ok && id != "" {
+				ids = append(ids, id)
+			}
+		}
+		subnetIds[getNamespacedName(config.Resource.GetNamespace(), config.Resource.GetName())] = ids
+	}
+	return subnetIds
+}
+
+// getRouteBlocks unions the peers of every gateway the route lists as a parent, parents that aren't
+// gateways or whose subnets couldn't be resolved contribute nothing.
+func (g zoneGenerator) getRouteBlocks(route *unstructured.Unstructured,
+	gatewayBlocks map[string][]networkingv1.NetworkPolicyPeer, namespace string) []networkingv1.NetworkPolicyPeer {
+	parents, found, err := unstructured.NestedSlice(route.Object, "spec", "parentRefs")
+	if err != nil {
+		g.log.Debug("Failed to read http route parent refs", "httpRoute", route.GetName(), "error", err)
+		return nil
+	}
+	if !found {
+		return nil
+	}
+	var blocks []networkingv1.NetworkPolicyPeer
+	cidrs := base.NewSet[string]()
+	for _, parent := range parents {
+		parentMap, ok := parent.(map[string]any)
+		if !ok {
+			continue
+		}
+		name := getOptionalString(parentMap, "name", "")
+		if name == "" || getOptionalString(parentMap, "kind", gatewayKind) != gatewayKind ||
+			getOptionalString(parentMap, "group", gatewayGroup) != gatewayGroup {
+			continue
+		}
+		parentNamespace := getOptionalString(parentMap, "namespace", namespace)
+		for _, block := range gatewayBlocks[getNamespacedName(parentNamespace, name)] {
+			if block.IPBlock == nil || cidrs.Contains(block.IPBlock.CIDR) {
+				continue
+			}
+			cidrs.Add(block.IPBlock.CIDR)
+			blocks = append(blocks, block)
+		}
+	}
+	return blocks
+}
+
+// getHTTPRouteBackends returns the service backends of every route rule. Backends in another
+// namespace are skipped, their policy would have to be created in that namespace instead.
+func (g zoneGenerator) getHTTPRouteBackends(route *unstructured.Unstructured, namespace string) []httpRouteBackend {
+	rules, found, err := unstructured.NestedSlice(route.Object, "spec", "rules")
+	if err != nil {
+		g.log.Debug("Failed to read http route rules", "httpRoute", route.GetName(), "error", err)
+		return nil
+	}
+	if !found {
+		return nil
+	}
+	var backends []httpRouteBackend
+	for _, rule := range rules {
+		ruleMap, ok := rule.(map[string]any)
+		if !ok {
+			continue
+		}
+		refs, ok := ruleMap["backendRefs"].([]any)
+		if !ok {
+			continue
+		}
+		for _, ref := range refs {
+			refMap, ok := ref.(map[string]any)
+			if !ok {
+				continue
+			}
+			name := getOptionalString(refMap, "name", "")
+			if name == "" || getOptionalString(refMap, "kind", serviceBackendKind) != serviceBackendKind ||
+				getOptionalString(refMap, "group", "") != "" {
+				continue
+			}
+			if refNamespace := getOptionalString(refMap, "namespace", namespace); refNamespace != namespace {
+				g.log.Debug("Skipping cross namespace http route backend", "httpRoute", route.GetName(),
+					"service", name, "namespace", refNamespace)
+				continue
+			}
+			port, ok := getNumber(refMap["port"])
+			if !ok {
+				g.log.Debug("Skipping http route backend without a port", "httpRoute", route.GetName(),
+					"service", name)
+				continue
+			}
+			backends = append(backends, httpRouteBackend{name: name, port: port})
+		}
+	}
+	return backends
+}
+
+func getOptionalString(obj map[string]any, key, defaultValue string) string {
+	value, ok := obj[key].(string)
+	if !ok {
+		return defaultValue
+	}
+	return value
+}
+
+// getNumber handles both representations, unstructured objects coming from crossplane are decoded
+// from protobuf structs where every number is a float
+func getNumber(value any) (int32, bool) {
+	switch number := value.(type) {
+	case int64:
+		return int32(number), true
+	case float64:
+		return int32(number), true
+	default:
+		return 0, false
+	}
+}
+
+func getNamespacedName(namespace, name string) string {
+	return namespace + "/" + name
+}
+
+func (g zoneGenerator) subnetsByExternalName() map[string]*ec2v1beta1.Subnet {
+	subnets := make(map[string]*ec2v1beta1.Subnet, len(g.subnets))
+	for _, subnet := range g.subnets {
+		if externalName := subnet.GetAnnotations()[externalNameAnnotation]; externalName != "" {
+			subnets[externalName] = subnet
+		}
+	}
+	return subnets
+}
+
+func resolveSubnets(subnetsByExternalName map[string]*ec2v1beta1.Subnet, subnetIds []string) []*ec2v1beta1.Subnet {
+	var subnets []*ec2v1beta1.Subnet
+	for _, subnetId := range subnetIds {
+		if subnet, found := subnetsByExternalName[subnetId]; found {
+			subnets = append(subnets, subnet)
+		}
+	}
+	return subnets
 }
 
 func filterSubnetsByType(subnets []*ec2v1beta1.Subnet, subnetType string) []*ec2v1beta1.Subnet {

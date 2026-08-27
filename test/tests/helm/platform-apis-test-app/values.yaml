@@ -1,1 +1,4 @@
 ingressClassName: "internal"
+gateway:
+  name: "service"
+  namespace: "aws-alb-biz"

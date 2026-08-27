@@ -19,6 +19,8 @@ const (
 	environmentName              = "platform-apis-zone"
 	ec2ApiVersion                = "ec2.aws.upbound.io/v1beta1"
 	ingressClassParamsApiVersion = "elbv2.k8s.aws/v1beta1"
+	gatewayApiVersion            = "gateway.networking.k8s.io/v1"
+	lbConfigApiVersion           = "gateway.k8s.aws/v1beta1"
 	infralibZone                 = "infralib"
 )
 
@@ -127,6 +129,16 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			ApiVersion: ingressClassParamsApiVersion,
 			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 		}
+		resources[service.GatewayKey] = &fnv1.ResourceSelector{
+			Kind:       "Gateway",
+			ApiVersion: gatewayApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		}
+		resources[service.LoadBalancerConfigurationKey] = &fnv1.ResourceSelector{
+			Kind:       "LoadBalancerConfiguration",
+			ApiVersion: lbConfigApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		}
 		for _, ns := range service.GetUniqueNamespaces(zone, namespaces) {
 			if ns == "" {
 				continue
@@ -140,6 +152,12 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			resources[ns+service.ServiceKey] = &fnv1.ResourceSelector{
 				Kind:       "Service",
 				ApiVersion: "v1",
+				Namespace:  &ns,
+				Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+			}
+			resources[ns+service.HTTPRouteKey] = &fnv1.ResourceSelector{
+				Kind:       "HTTPRoute",
+				ApiVersion: gatewayApiVersion,
 				Namespace:  &ns,
 				Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 			}
