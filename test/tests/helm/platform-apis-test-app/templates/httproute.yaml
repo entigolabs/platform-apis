@@ -1,0 +1,18 @@
+{{- if .Values.gateway.name }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-route
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace }}
+  hostnames:
+    - {{ .Release.Name }}-route.biz-net-route53.infralib.entigo.io
+  rules:
+    - backendRefs:
+        - name: {{ .Release.Name }}
+          port: 8080
+        - name: {{ .Release.Name }}second
+          port: 8082
+{{- end }}
