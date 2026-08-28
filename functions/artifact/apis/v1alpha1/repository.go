@@ -38,6 +38,8 @@ type RepositorySpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Path string `json:"path,omitempty"`
+	// +kubebuilder:default=true
+	DeletionProtection bool `json:"deletionProtection"`
 	// LifecycleRules replaces the default rules from the environment config when set.
 	// +kubebuilder:validation:Optional
 	LifecycleRules []LifecycleRule `json:"lifecycleRules,omitempty"`

@@ -60,6 +60,14 @@ func testMinimalRepository(t *testing.T, repoNs *terrak8s.KubectlOptions) {
 	require.Equal(t, "antest",
 		getField(t, repoNs, ECRRepositoryKind, ecrName, `.spec.forProvider.tags.antag`))
 
+	// forceDelete is always on so a non-empty repository can never get stuck in deleting.
+	require.Equal(t, "true",
+		getField(t, repoNs, ECRRepositoryKind, ecrName, ".spec.forProvider.forceDelete"))
+
+	// deletionProtection=true by default; deletion must be rejected by the admission policy.
+	require.Equal(t, "true", getField(t, repoNs, RepositoryKind, RepositoryMinimalName, ".spec.deletionProtection"))
+	testDeletionRejected(t, repoNs, RepositoryKind, RepositoryMinimalName)
+
 	// No spec.lifecycleRules, so the repository gets the environment config default. AWS rejects a
 	// malformed policy document, so reaching Synced is the real assertion here.
 	policyName := waitSyncedAndReadyByLabel(t, repoNs, ECRLifecyclePolicyKind, RepositoryMinimalName, 30, 10*time.Second)
@@ -151,6 +159,10 @@ func cleanupRepository(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 		return
 	}
 	repoNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, RepositoryNamespaceName)
+
+	for _, name := range []string{RepositoryMinimalName, RepositoryNamedName, RepositoryLifecycleName} {
+		patchDeletionProtectionIfEnabled(t, repoNs, RepositoryKind, name)
+	}
 
 	cleanupDeleteParallel(t, repoNs, RepositoryKind, 30, RepositoryMinimalName, RepositoryNamedName, RepositoryLifecycleName)
 
