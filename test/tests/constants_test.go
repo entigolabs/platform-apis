@@ -114,6 +114,10 @@ const (
 	PostgresqlLifecycleName = "postgresql-instance-lifecycle"
 	RdsParameterGroupKind   = "parametergroup.rds.aws.m.upbound.io"
 
+	// PostgresqlAvailabilityZoneName is a standalone instance with nothing composed on top of it,
+	// so its slow multiAZ conversions run in parallel with the rest of the suite.
+	PostgresqlAvailabilityZoneName = "postgresql-instance-az"
+
 	PostgresqlAdminUserName     = "test-owner"
 	PostgresqlUserKind          = "postgresqlusers.database.entigo.com"
 	PostgresqlAdminUserSpecName = "test_owner"

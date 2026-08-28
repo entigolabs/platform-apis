@@ -246,6 +246,21 @@ func (g *rdsInstanceGenerator) buildProviderConfig() client.Object {
 	return g.buildPgSqlProviderConfig()
 }
 
+func (g *rdsInstanceGenerator) resolveAvailabilityZone() *string {
+	if g.common.multiAZ {
+		return nil
+	}
+	observed, ok := g.observed[g.names.rdsInstance]
+	if !ok {
+		return nil
+	}
+	az, found, err := unstructured.NestedString(observed.Resource.Object, "status", "atProvider", "availabilityZone")
+	if err != nil || !found || az == "" {
+		return nil
+	}
+	return &az
+}
+
 func (g *rdsInstanceGenerator) buildRDSInstance() client.Object {
 	if g.mariaDBInstance != nil {
 		return g.buildMariaDBRDSInstance()
