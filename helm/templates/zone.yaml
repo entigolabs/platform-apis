@@ -250,6 +250,12 @@ rules:
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies", "ingresses"]
     verbs: ["*"]
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["gateways", "httproutes"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["gateway.k8s.aws"]
+    resources: ["loadbalancerconfigurations"]
+    verbs: ["get", "watch", "list"]
   - apiGroups: ["policies.kyverno.io"]
     resources: ["mutatingpolicies", "validatingpolicies","mutatingpolicies/status", "validatingpolicies/status"]
     verbs: ["*"]
@@ -327,9 +333,6 @@ data:
   securityGroup: {{ .Values.zone.environmentConfig.securityGroup }}
   vpc: {{ .Values.zone.environmentConfig.vpc }}
   computeSubnetType: {{ .Values.zone.environmentConfig.computeSubnetType }}
-  serviceSubnetType: {{ .Values.zone.environmentConfig.serviceSubnetType }}
-  publicSubnetType: {{ .Values.zone.environmentConfig.publicSubnetType }}
-  controlSubnetType: {{ .Values.zone.environmentConfig.controlSubnetType }}
   podSecurity: {{ .Values.zone.environmentConfig.podSecurity }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}
