@@ -376,6 +376,14 @@ func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlO
 		_, _ = terrak8s.RunKubectlAndGetOutputE(t, kyvernoNSOpts, "delete", "application", appName, "--ignore-not-found", "--wait=false")
 		_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", generatedNS, "--ignore-not-found", "--wait=false")
 	})
+
+	// The metadata is applied from the Application's CREATE event, so leftovers from an interrupted
+	// run have to go first. Applying over an existing Application is an update, which is picked up
+	// by the periodic refresh instead and would not land inside the window this test waits.
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, kyvernoNSOpts, "delete", "application", appName, "--ignore-not-found")
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", generatedNS, "--ignore-not-found")
+	waitResourceGone(t, cluster, "namespace", generatedNS, 24, 5*time.Second)
+
 	applyFile(t, cluster, writeTempYAML(t, argoAppYAML(t, kyvernoArgoAppData{
 		Name: appName, Namespace: KyvernoTestNSName, DestNamespace: generatedNS, Project: ZoneAName,
 		NamespaceLabels: map[string]string{
