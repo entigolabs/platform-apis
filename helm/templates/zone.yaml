@@ -1138,10 +1138,30 @@ spec:
       expression: >-
         dyn(["tenancy.entigo.com/", "kubernetes.io/metadata.name",
              "app.kubernetes.io/managed-by", "generate.kyverno.io/"])
+    # Pod Security levels the Zone allows, the same set platform-apis-zone-namespace-pod-security
+    # accepts on a Namespace.
+    - name: allowedPodSecurity
+      expression: >-
+        {{- if eq .Values.zone.environmentConfig.podSecurity "restricted" }}
+        dyn(["restricted"])
+        {{- else if eq .Values.zone.environmentConfig.podSecurity "baseline" }}
+        dyn(["baseline", "restricted"])
+        {{- else }}
+        dyn(["baseline", "restricted", "privileged"])
+        {{- end }}
+    - name: podSecurityKeys
+      expression: >-
+        dyn(["pod-security.kubernetes.io/enforce", "pod-security.kubernetes.io/warn"])
+    # A looser Pod Security level is dropped instead of written, because the Namespace validation
+    # would reject the patched Namespace and with it every other label of this Application.
+    # platform-apis-application-namespace-metadata denies such an Application up front, this only
+    # covers Applications that already carried the value.
     - name: labelKeys
       expression: >-
         dyn(variables.labels).filter(key,
-          !variables.blockedPrefixes.exists(prefix, key.startsWith(prefix)))
+          !variables.blockedPrefixes.exists(prefix, key.startsWith(prefix)) &&
+          (!(key in variables.podSecurityKeys) ||
+           variables.labels[key] in variables.allowedPodSecurity))
     - name: annotationKeys
       expression: >-
         dyn(variables.annotations).filter(key,
@@ -1193,5 +1213,69 @@ spec:
               value: dyn(variables.annotations[key])
             }
           )
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-application-namespace-metadata
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    policies.kyverno.io/title: Namespace Metadata of an ArgoCD Application
+    policies.kyverno.io/category: ArgoCD
+    policies.kyverno.io/description: >-
+      Rejects an ArgoCD Application whose spec.syncPolicy.managedNamespaceMetadata asks for a Pod
+      Security level looser than the Zone allows. The same check runs on the Namespace itself, but
+      there it would reject the whole patch in the background, where the person who wrote the
+      Application never sees it.
+spec:
+  validationActions:
+    - Deny
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["argoproj.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["applications"]
+  matchConditions:
+    # Plain Kubernetes CEL on purpose: valid expressions are copied into the webhook configuration,
+    # so the API server drops ArgoCD's constant status writes before Kyverno is called.
+    - name: has-namespace-metadata-labels
+      expression: >-
+        has(object.spec.syncPolicy) && has(object.spec.syncPolicy.managedNamespaceMetadata) &&
+        has(object.spec.syncPolicy.managedNamespaceMetadata.labels)
+    # Guarded one level at a time: on CREATE oldObject carries no spec, and has() on a nested path
+    # errors when the parent is missing.
+    - name: only-when-the-sync-policy-changed
+      expression: >-
+        !has(oldObject.spec) || !has(oldObject.spec.syncPolicy) ||
+        object.spec.syncPolicy != oldObject.spec.syncPolicy
+    # Namespaces of these projects are not described through this mechanism.
+    - name: exclude-platform-projects
+      expression: "object.spec.project != 'default' && object.spec.project != 'infralib'"
+  variables:
+    - name: labels
+      expression: object.spec.syncPolicy.managedNamespaceMetadata.labels
+    - name: allowedPodSecurity
+      expression: >-
+        {{- if eq .Values.zone.environmentConfig.podSecurity "restricted" }}
+        dyn(["restricted"])
+        {{- else if eq .Values.zone.environmentConfig.podSecurity "baseline" }}
+        dyn(["baseline", "restricted"])
+        {{- else }}
+        dyn(["baseline", "restricted", "privileged"])
+        {{- end }}
+  validations:
+    - expression: >-
+        !('pod-security.kubernetes.io/enforce' in variables.labels) ||
+        variables.labels['pod-security.kubernetes.io/enforce'] in variables.allowedPodSecurity
+      message: "The 'pod-security.kubernetes.io/enforce' label in spec.syncPolicy.managedNamespaceMetadata must be set to '{{ .Values.zone.environmentConfig.podSecurity }}' (or stricter)."
+    - expression: >-
+        !('pod-security.kubernetes.io/warn' in variables.labels) ||
+        variables.labels['pod-security.kubernetes.io/warn'] in variables.allowedPodSecurity
+      message: "The 'pod-security.kubernetes.io/warn' label in spec.syncPolicy.managedNamespaceMetadata must be set to '{{ .Values.zone.environmentConfig.podSecurity }}' (or stricter)."
 {{- end }}
 {{- end }}

@@ -18,6 +18,7 @@ func TestKyvernoPolicies(t *testing.T) {
 	t.Run("GenerateNamespaceFromArgoApp", testGenerateNamespaceFromArgoApp)
 	t.Run("AppsNamespaceRestriction", testAppsNamespaceRestriction)
 	t.Run("NamespaceArgoCDMetadata", testNamespaceArgoCDMetadata)
+	t.Run("ApplicationNamespaceMetadata", testApplicationNamespaceMetadata)
 }
 
 // testNamespacePodSecurity covers platform-apis-zone-namespace-pod-security (ValidatingPolicy)
@@ -504,6 +505,71 @@ func testNamespaceArgoCDMetadata(t *testing.T) {
 					"my-app", "infralib", "infra-namespace", userLabels, userAnnotations),
 				TargetResourceYAML:         kyverno.GenerateNamespace("infra-namespace", "infralib", "baseline", "baseline"),
 				ExpectedNotInPatchedTarget: "team: platform",
+			},
+		},
+	}
+	runCases(t, cases)
+}
+
+// testApplicationNamespaceMetadata covers platform-apis-application-namespace-metadata
+// (ValidatingPolicy). A Pod Security level looser than the zone floor is rejected on the
+// Application, where the person who wrote it sees the error.
+func testApplicationNamespaceMetadata(t *testing.T) {
+	t.Parallel()
+	const zone = "my-zone"
+	app := func(labels map[string]string) string {
+		return kyverno.GenerateArgoAppWithNamespaceMetadata("my-app", zone, "my-namespace", labels, nil)
+	}
+	cases := []struct {
+		name     string
+		scenario kyverno.TestScenario
+	}{
+		{
+			name: "fail: a privileged enforce label is denied",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "fail",
+				ResourceYAML:   app(map[string]string{"pod-security.kubernetes.io/enforce": "privileged"}),
+			},
+		},
+		{
+			name: "fail: a privileged warn label is denied",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "fail",
+				ResourceYAML:   app(map[string]string{"pod-security.kubernetes.io/warn": "privileged"}),
+			},
+		},
+		{
+			name: "pass: a restricted enforce label is allowed",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML:   app(map[string]string{"pod-security.kubernetes.io/enforce": "restricted"}),
+			},
+		},
+		{
+			name: "pass: labels without a pod security level are allowed",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML:   app(map[string]string{"team": "platform"}),
+			},
+		},
+		{
+			name: "fail: a baseline enforce label is denied when the setting is restricted",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "fail",
+				HelmValues: map[string]string{
+					"zone.install":                       "true",
+					"zone.environmentConfig.podSecurity": "restricted",
+				},
+				ResourceYAML: app(map[string]string{"pod-security.kubernetes.io/enforce": "baseline"}),
+			},
+		},
+		{
+			name: "pass: an application of the infralib project is not checked",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", "infralib", "infra-namespace",
+					map[string]string{"pod-security.kubernetes.io/enforce": "privileged"}, nil),
 			},
 		},
 	}

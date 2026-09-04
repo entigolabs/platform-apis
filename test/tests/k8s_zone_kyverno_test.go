@@ -398,6 +398,15 @@ func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlO
 
 	waitFieldEquals(t, cluster, "namespace", generatedNS,
 		`.metadata.labels['pod-security\.kubernetes\.io/enforce']`, "restricted", 24, 5*time.Second)
+
+	t.Run("fail: a looser pod security label is denied on the application", func(t *testing.T) {
+		out, err := kyvernoApply(t, cluster, argoAppYAML(t, kyvernoArgoAppData{
+			Name: "kyverno-metadata-loose", Namespace: KyvernoTestNSName, DestNamespace: generatedNS,
+			Project:         ZoneAName,
+			NamespaceLabels: map[string]string{"pod-security.kubernetes.io/enforce": "privileged"},
+		}))
+		assertKyvernoDenied(t, out, err)
+	})
 }
 
 // testKyvernoGenerateNamespaceFromArgoApp covers generate-namespace-from-argocd-app (GeneratingPolicy).
