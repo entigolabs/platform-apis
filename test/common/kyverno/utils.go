@@ -9,10 +9,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
@@ -60,6 +64,10 @@ clusterRoles: []
 // RunPolicyCheck renders the Helm chart, applies offline mocks, runs kyverno CLI, and asserts the result.
 func RunPolicyCheck(t *testing.T, chartDir string, scenario TestScenario) {
 	t.Helper()
+
+	if scenario.TargetResourceYAML != "" {
+		requireMutateExistingSupport(t)
+	}
 
 	output := applyPolicies(t, chartDir, scenario)
 	passed := strings.Contains(output, "fail: 0") && strings.Contains(output, "error: 0")
@@ -426,6 +434,43 @@ func assertOutputContains(t *testing.T, expected string, output string) {
 	t.Helper()
 	if expected != "" && !strings.Contains(output, expected) {
 		t.Errorf("expected %q in output\n%s", expected, output)
+	}
+}
+
+// mutateExistingCLIVersion is the first kyverno CLI version that resolves the targets of a
+// MutatingPolicy from targetMatchConstraints, which mutate existing test scenarios depend on.
+var mutateExistingCLIVersion = [2]int{1, 18}
+
+var (
+	cliVersionOnce sync.Once
+	cliVersion     [2]int
+	cliVersionErr  error
+)
+
+// requireMutateExistingSupport skips the test when the kyverno CLI on PATH is too old to resolve
+// the targets of a mutate existing policy, which would make the scenario silently patch nothing.
+func requireMutateExistingSupport(t *testing.T) {
+	t.Helper()
+	cliVersionOnce.Do(func() {
+		out, err := exec.Command("kyverno", "version").CombinedOutput()
+		if err != nil {
+			cliVersionErr = fmt.Errorf("kyverno version: %w: %s", err, out)
+			return
+		}
+		match := regexp.MustCompile(`Version:\s*v?(\d+)\.(\d+)`).FindStringSubmatch(string(out))
+		if match == nil {
+			cliVersionErr = fmt.Errorf("no version in kyverno output: %s", out)
+			return
+		}
+		major, _ := strconv.Atoi(match[1])
+		minor, _ := strconv.Atoi(match[2])
+		cliVersion = [2]int{major, minor}
+	})
+	require.NoError(t, cliVersionErr, "failed to read the kyverno CLI version")
+	if cliVersion[0] < mutateExistingCLIVersion[0] ||
+		(cliVersion[0] == mutateExistingCLIVersion[0] && cliVersion[1] < mutateExistingCLIVersion[1]) {
+		t.Skipf("kyverno CLI %d.%d cannot resolve mutate existing targets, %d.%d or newer is needed",
+			cliVersion[0], cliVersion[1], mutateExistingCLIVersion[0], mutateExistingCLIVersion[1])
 	}
 }
 
