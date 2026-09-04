@@ -29,7 +29,9 @@ RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
     curl -fsSL "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-${ARCH}.tar.gz" | tar xz -C /usr/bin/ kubeconform && \
     chmod +x /usr/bin/kubeconform && \
     # kyverno
-    curl -fsSL "https://github.com/kyverno/kyverno/releases/download/v1.17.1/kyverno-cli_v1.17.1_linux_${KYVERNO_ARCH}.tar.gz" | tar xz -C /usr/bin/ kyverno && \
+    # Keep in step with the Kyverno running in the clusters (chart 3.8.2), the CLI only understands
+    # the policy features of its own version.
+    curl -fsSL "https://github.com/kyverno/kyverno/releases/download/v1.18.2/kyverno-cli_v1.18.2_linux_${KYVERNO_ARCH}.tar.gz" | tar xz -C /usr/bin/ kyverno && \
     chmod +x /usr/bin/kyverno
 
 COPY functions/ functions/
