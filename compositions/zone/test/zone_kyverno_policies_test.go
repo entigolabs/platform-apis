@@ -457,14 +457,14 @@ func testNamespaceArgoCDMetadata(t *testing.T) {
 			},
 		},
 		{
-			name: "pass: the pod security label of the application is ignored",
+			name: "pass: a stricter pod security label is copied",
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",
 				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
 					"my-app", zone, "my-namespace",
-					map[string]string{"pod-security.kubernetes.io/enforce": "privileged"}, nil),
-				TargetResourceYAML:         namespace,
-				ExpectedNotInPatchedTarget: "privileged",
+					map[string]string{"pod-security.kubernetes.io/enforce": "restricted"}, nil),
+				TargetResourceYAML:      namespace,
+				ExpectedInPatchedTarget: "pod-security.kubernetes.io/enforce: restricted",
 			},
 		},
 		{

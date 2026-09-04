@@ -1043,9 +1043,11 @@ metadata:
     policies.kyverno.io/description: >-
       Copies the labels and annotations an ArgoCD Application declares under
       spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
-      Keys that decide tenancy or Pod Security are dropped, those stay under the Namespace's own
-      policies and can still be set with kubectl. Runs when an Application is created and on every
-      refresh of the platform-apis-namespace-metadata-sync GlobalContextEntry.
+      Keys that decide tenancy are dropped, those stay under the Namespace's own policies and can
+      still be set with kubectl. Pod Security labels are copied, so an Application can tighten them
+      and the Namespace validation rejects anything looser than the floor. Runs when an Application
+      is created and on every refresh of the platform-apis-namespace-metadata-sync
+      GlobalContextEntry.
 spec:
   # The heartbeat write comes from Kyverno itself, it must never be blocked by this policy.
   failurePolicy: Ignore
@@ -1128,11 +1130,13 @@ spec:
       expression: "'labels' in variables.metadata ? dyn(variables.metadata.labels) : dyn({})"
     - name: annotations
       expression: "'annotations' in variables.metadata ? dyn(variables.metadata.annotations) : dyn({})"
-    # Keys an Application may not decide. Tenancy and Pod Security stay with the Namespace
-    # policies, the rest is Kyverno's own bookkeeping on generated Namespaces.
+    # Keys an Application may not decide: tenancy stays with the Namespace policies and the rest is
+    # Kyverno's own bookkeeping on generated Namespaces. Pod Security labels are deliberately not
+    # here, an Application may tighten them and platform-apis-zone-namespace-pod-security rejects
+    # anything looser than the floor.
     - name: blockedPrefixes
       expression: >-
-        dyn(["tenancy.entigo.com/", "pod-security.kubernetes.io/", "kubernetes.io/metadata.name",
+        dyn(["tenancy.entigo.com/", "kubernetes.io/metadata.name",
              "app.kubernetes.io/managed-by", "generate.kyverno.io/"])
     - name: labelKeys
       expression: >-

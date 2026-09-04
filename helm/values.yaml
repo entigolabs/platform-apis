@@ -155,8 +155,9 @@ zone:
     tags: {}
   # Copies the labels and annotations an ArgoCD Application declares under
   # spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
-  # Keys that decide tenancy or Pod Security are ignored, those stay under the Namespace's own
-  # rules and can still be changed with kubectl.
+  # Labels that decide which Zone a Namespace belongs to are ignored, those can only be changed
+  # with kubectl. A Pod Security label is applied, but only when it is stricter than the Zone's
+  # podSecurity level.
   namespaceMetadata:
     enabled: true
     # How often every Namespace is refreshed from the Application specs. Metadata of a newly

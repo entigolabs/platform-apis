@@ -381,9 +381,10 @@ func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlO
 		NamespaceLabels: map[string]string{
 			"team":            "platform",
 			"istio-injection": "enabled",
-			// Owned by the namespace policies, an Application may not decide these.
-			"tenancy.entigo.com/zone":            "infralib",
-			"pod-security.kubernetes.io/enforce": "privileged",
+			// Owned by the namespace policies, an Application may not decide it.
+			"tenancy.entigo.com/zone": "infralib",
+			// Allowed, because it is stricter than the zone's podSecurity level.
+			"pod-security.kubernetes.io/enforce": "restricted",
 		},
 		NamespaceAnnotations: map[string]string{"owner": "ops"},
 	})))
@@ -395,11 +396,8 @@ func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlO
 	waitFieldEquals(t, cluster, "namespace", generatedNS,
 		`.metadata.labels['tenancy\.entigo\.com/zone']`, ZoneAName, 24, 5*time.Second)
 
-	enforce, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "get", "namespace", generatedNS,
-		"-o", `jsonpath={.metadata.labels['pod-security\.kubernetes\.io/enforce']}`)
-	require.NoError(t, err)
-	require.NotEqual(t, "privileged", strings.TrimSpace(enforce),
-		"pod security label of namespace %q must not come from the Application", generatedNS)
+	waitFieldEquals(t, cluster, "namespace", generatedNS,
+		`.metadata.labels['pod-security\.kubernetes\.io/enforce']`, "restricted", 24, 5*time.Second)
 }
 
 // testKyvernoGenerateNamespaceFromArgoApp covers generate-namespace-from-argocd-app (GeneratingPolicy).
