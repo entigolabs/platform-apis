@@ -1247,10 +1247,12 @@ spec:
       expression: >-
         has(object.spec.syncPolicy) && has(object.spec.syncPolicy.managedNamespaceMetadata) &&
         has(object.spec.syncPolicy.managedNamespaceMetadata.labels)
-    # Guarded one level at a time: on CREATE oldObject carries no spec, and has() on a nested path
-    # errors when the parent is missing.
+    # A create is always checked, which also keeps oldObject out of the expression when there is
+    # none. On an update oldObject is guarded one level at a time, has() on a nested path errors
+    # when the parent is missing.
     - name: only-when-the-sync-policy-changed
       expression: >-
+        request.operation == 'CREATE' ||
         !has(oldObject.spec) || !has(oldObject.spec.syncPolicy) ||
         object.spec.syncPolicy != oldObject.spec.syncPolicy
     # Namespaces of these projects are not described through this mechanism.
