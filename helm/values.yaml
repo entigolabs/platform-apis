@@ -186,9 +186,6 @@ zone:
     securityGroup: "eks-node"
     vpc: vpc
     computeSubnetType: compute
-    serviceSubnetType: service
-    publicSubnetType: public
-    controlSubnetType: control
     # Lowest Pod Security Admission level a Namespace in a Zone is allowed to run at. Every
     # Namespace is labelled with this and can only be changed to a stricter level.
     # baseline: blocks the well-known dangerous options, a team may opt into restricted.
