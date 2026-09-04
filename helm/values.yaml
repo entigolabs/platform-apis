@@ -12,10 +12,16 @@ database:
     subnetGroup: database
     elasticacheSubnetGroup: elasticache
     esClusterSecretStore: external-secrets
+    # Take a final snapshot before an instance is deleted, so the data can still be recovered.
+    # Set to false only where the data does not matter, a deleted instance is then gone for good.
     postgresBackupBeforeDeletion: true
     mariaDBBackupBeforeDeletion: true
     valkeyBackupBeforeDeletion: true
+    # Days of automatic daily backups AWS keeps, and therefore how far back an instance can be
+    # restored. Applies to PostgreSQL and MariaDB. An instance can override it with
+    # spec.backupRetentionPeriod. Valkey uses spec.snapshotRetentionLimit instead.
     backupRetentionPeriod: 14
+    # Cloud tags added to every database resource.
     tags: {}
 
 postgresql:
@@ -43,8 +49,16 @@ artifact:
   environmentConfig:
     awsProvider: "crossplane-aws"
     dataKMSKey: data
+    # Scan every pushed image for known vulnerabilities.
     scanOnPush: true
+    # Whether an existing image tag can be overwritten by a new push.
+    # MUTABLE: pushing the same tag again replaces the image.
+    # IMMUTABLE: a tag can only be pushed once, which guarantees a deployed tag always refers to
+    # the same image. Pipelines that re-push the same tag will start failing.
+    # IMMUTABLE_WITH_EXCLUSION and MUTABLE_WITH_EXCLUSION apply the same rule with an AWS-side
+    # exception list.
     imageTagMutability: "MUTABLE"
+    # Cloud tags added to every repository.
     tags: {}
     # Default ECR lifecycle policy for every repository. Repositories can replace the whole list
     # through spec.lifecycleRules. Leave empty to create no lifecycle policy at all.
@@ -70,6 +84,7 @@ storage:
     awsProvider: "crossplane-aws"
     dataKMSKey: data
     configKMSKey: config
+    # Cloud tags added to every bucket and its IAM resources.
     tags: {}
 
 s3bucket:
@@ -89,6 +104,7 @@ kafka:
     awsProvider: "crossplane-aws"
     configKMSKey: config
     kafkaNamespace: crossplane-kafka
+    # Cloud tags added to the cloud resources created for Kafka users and topics.
     tags: {}
   package:
     image: ghcr.io/entigolabs/platform-apis-kafka
@@ -103,6 +119,7 @@ mq:
     configKMSKey: config
     vpc: vpc
     subnetGroup: database
+    # Cloud tags added to every broker.
     tags: {}
 
 rabbitmq:
@@ -122,12 +139,31 @@ zone:
     image: ghcr.io/entigolabs/platform-apis-zone
     tag: v0.0.0
   environmentConfig:
+    # Create the "<zone-name>-apps" Namespace that holds a Zone's ArgoCD Application and
+    # ApplicationSet objects, for the app-of-apps pattern.
     createAppsNamespace: true
+    # Whether outgoing rules are shared by the whole cluster or kept per Zone. This does not
+    # decide whether the cluster can reach the internet, that is normally handled by a firewall
+    # in front of the cluster either way.
+    # false: outgoing rules are cluster-wide, an address opened by one Zone is reachable from
+    # every other Zone.
+    # true: each Zone has its own outgoing rules, an address opened for Zone A stays closed for
+    # Zone B. Adds a proxy container to every pod in the Zone's Namespaces, so applications must
+    # be restarted and every external service a Zone uses has to be listed for that Zone.
+    # External hosts are opened with Istio ServiceEntry objects. With granularEgress enabled a
+    # ServiceEntry only applies to the Zone whose Namespace it was created in.
     granularEgress: false
+    # Zone names that keep the shared, unrestricted behaviour while granularEgress is enabled.
     granularEgressExclude: []
+    # false: all Namespaces in the same Zone can reach each other.
+    # true: every Namespace is isolated and needs a NetworkPolicy to accept traffic, even from
+    # another Namespace in the same Zone. A Zone can override this with
+    # spec.granularNamespaceNetworkPolicy.
     granularNamespaceNetworkPolicy: false
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
+    # User groups that get a role in every Zone. A Zone can add its own groups with
+    # spec.roleMapping, which applies only to that Zone's Namespaces.
     roleMapping:
       - roleRef: maintainer
         groups: ["maintainer"]
@@ -135,6 +171,8 @@ zone:
         groups: ["observer"]
       - roleRef: contributor
         groups: ["contributor"]
+    # Controls what ArgoCD is allowed to deploy into a Zone's Namespaces through the Zone's
+    # AppProject.
     appProject:
       maintainerGroups: []
       observerGroups: []
@@ -148,10 +186,14 @@ zone:
     securityGroup: "eks-node"
     vpc: vpc
     computeSubnetType: compute
-    serviceSubnetType: service
-    publicSubnetType: public
-    controlSubnetType: control
+    # Lowest Pod Security Admission level a Namespace in a Zone is allowed to run at. Every
+    # Namespace is labelled with this and can only be changed to a stricter level.
+    # baseline: blocks the well-known dangerous options, a team may opt into restricted.
+    # restricted: containers must also run as non-root without extra privileges. Recommended for
+    # production, but workloads that need root will stop starting.
+    # privileged: no floor at all, not recommended.
     podSecurity: baseline
+    # Cloud tags added to Zone resources such as NodeGroups.
     tags: {}
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
