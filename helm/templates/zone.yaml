@@ -1012,4 +1012,182 @@ spec:
         " is restricted to ArgoCD Applications/ApplicationSets, ConfigMaps and Secrets. " +
         "Resource of kind '" + object.kind + "' is not permitted."
 {{- end }}
+{{- if .Values.zone.namespaceMetadata.enabled }}
+---
+apiVersion: kyverno.io/v2beta1
+kind: GlobalContextEntry
+metadata:
+  name: platform-apis-namespace-metadata-sync
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    policies.kyverno.io/description: >-
+      Heartbeat for platform-apis-namespace-argocd-metadata. Kyverno polls this entry every
+      spec.apiCall.refreshInterval and writes status.lastRefreshTime on each refresh, and that write
+      is what starts the periodic Namespace metadata sync. The fetched object itself is not used,
+      it is only the cheapest cluster-local call available.
+spec:
+  apiCall:
+    urlPath: "/api/v1/namespaces/{{ .Values.zone.kyvernoNamespace }}"
+    refreshInterval: {{ .Values.zone.namespaceMetadata.syncInterval }}
+---
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: platform-apis-namespace-argocd-metadata
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    policies.kyverno.io/title: Namespace Metadata from ArgoCD Application
+    policies.kyverno.io/category: ArgoCD
+    policies.kyverno.io/description: >-
+      Copies the labels and annotations an ArgoCD Application declares under
+      spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
+      Keys that decide tenancy or Pod Security are dropped, those stay under the Namespace's own
+      policies and can still be set with kubectl. Runs when an Application is created and on every
+      refresh of the platform-apis-namespace-metadata-sync GlobalContextEntry.
+spec:
+  # The heartbeat write comes from Kyverno itself, it must never be blocked by this policy.
+  failurePolicy: Ignore
+  evaluation:
+    # Required: the admission webhook is what creates the UpdateRequest that mutates the target.
+    admission:
+      enabled: true
+    mutateExisting:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["argoproj.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE"]
+        resources: ["applications"]
+      # ArgoCD rewrites Application status constantly, so edits are picked up from this heartbeat
+      # instead of from Application UPDATE events.
+      - apiGroups: ["kyverno.io"]
+        apiVersions: ["*"]
+        operations: ["UPDATE"]
+        resources: ["globalcontextentries/status"]
+  matchConditions:
+    # Deliberately free of Kyverno-only CEL functions: conditions that compile against the plain
+    # Kubernetes environment are copied into the webhook configuration, so the API server filters
+    # them before Kyverno is called. These are also evaluated against the target Namespace, hence
+    # the kind guards.
+    - name: only-our-heartbeat
+      expression: >-
+        !has(object.kind) || object.kind != 'GlobalContextEntry' ||
+        object.metadata.name == 'platform-apis-namespace-metadata-sync'
+    - name: only-applications-with-namespace-metadata
+      expression: >-
+        !has(object.kind) || object.kind != 'Application' ||
+        (object.spec.project != 'default' && object.spec.project != 'infralib' &&
+         has(object.spec.destination) && has(object.spec.destination.namespace) &&
+         object.spec.destination.namespace != '' &&
+         has(object.spec.syncPolicy) && has(object.spec.syncPolicy.managedNamespaceMetadata))
+  targetMatchConstraints:
+    # object is the trigger here. An Application names a single Namespace, the heartbeat refreshes
+    # every Namespace in the cluster.
+    expression: >-
+      has(object.kind) && object.kind == 'Application' ?
+        resource.Get("v1", "namespaces", "", object.spec.destination.namespace) :
+        resource.List("v1", "namespaces", "")
+  variables:
+    # Every expression below is evaluated against the target, which is a Namespace. The same
+    # policy is also evaluated against its own trigger at admission time, so nothing may be
+    # patched unless the object really is a Namespace.
+    - name: isNamespace
+      expression: has(object.kind) && object.kind == 'Namespace'
+    - name: zone
+      expression: >-
+        variables.isNamespace && has(object.metadata.labels) &&
+        'tenancy.entigo.com/zone' in object.metadata.labels ?
+          object.metadata.labels['tenancy.entigo.com/zone'] : ''
+    # Namespaces of the infralib Zone belong to the platform and the "<zone>-apps" Namespace is
+    # managed by the Zone composition, neither is a deployment target users may describe.
+    - name: skip
+      expression: >-
+        !variables.isNamespace || variables.zone == '' || variables.zone == 'infralib' ||
+        object.metadata.name == variables.zone + '-apps'
+    - name: applications
+      expression: |
+        resource.List("argoproj.io/v1alpha1", "applications", "")
+    # An Application may only describe a Namespace of its own Zone. A Namespace moved to another
+    # Zone with kubectl therefore stops taking metadata from the Applications of the old Zone.
+    - name: matched
+      expression: >-
+        dyn(variables.applications.items).filter(app,
+          has(app.spec.destination) && has(app.spec.destination.namespace) &&
+          app.spec.destination.namespace == object.metadata.name &&
+          has(app.spec.project) && app.spec.project == variables.zone &&
+          has(app.spec.syncPolicy) && has(app.spec.syncPolicy.managedNamespaceMetadata))
+    # With several Applications deploying to one Namespace the first one wins.
+    - name: metadata
+      expression: >-
+        variables.matched.size() > 0 ?
+          dyn(variables.matched[0].spec.syncPolicy.managedNamespaceMetadata) : dyn({})
+    - name: labels
+      expression: "'labels' in variables.metadata ? dyn(variables.metadata.labels) : dyn({})"
+    - name: annotations
+      expression: "'annotations' in variables.metadata ? dyn(variables.metadata.annotations) : dyn({})"
+    # Keys an Application may not decide. Tenancy and Pod Security stay with the Namespace
+    # policies, the rest is Kyverno's own bookkeeping on generated Namespaces.
+    - name: blockedPrefixes
+      expression: >-
+        dyn(["tenancy.entigo.com/", "pod-security.kubernetes.io/", "kubernetes.io/metadata.name",
+             "app.kubernetes.io/managed-by", "generate.kyverno.io/"])
+    - name: labelKeys
+      expression: >-
+        dyn(variables.labels).filter(key,
+          !variables.blockedPrefixes.exists(prefix, key.startsWith(prefix)))
+    - name: annotationKeys
+      expression: >-
+        dyn(variables.annotations).filter(key,
+          !variables.blockedPrefixes.exists(prefix, key.startsWith(prefix)))
+  mutations:
+    # Must run first: JSONPatch "add" to /metadata/labels/<key> fails if the map is absent.
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.skip || variables.labelKeys.size() == 0 || has(object.metadata.labels) ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels",
+              value: dyn({})
+            }
+          ]
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.skip ? [] :
+          variables.labelKeys.map(key,
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels/" + jsonpatch.escapeKey(string(key)),
+              value: dyn(variables.labels[key])
+            }
+          )
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.skip || variables.annotationKeys.size() == 0 ||
+          has(object.metadata.annotations) ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/annotations",
+              value: dyn({})
+            }
+          ]
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.skip ? [] :
+          variables.annotationKeys.map(key,
+            JSONPatch{
+              op: "add",
+              path: "/metadata/annotations/" + jsonpatch.escapeKey(string(key)),
+              value: dyn(variables.annotations[key])
+            }
+          )
+{{- end }}
 {{- end }}

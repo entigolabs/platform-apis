@@ -3,6 +3,7 @@ package kyverno
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,13 +17,21 @@ import (
 )
 
 // TestScenario describes a single Kyverno policy test case.
+// ResourceYAML is the resource the policy is evaluated against, which is the trigger for mutate
+// existing policies. TargetResourceYAML holds the resources such a policy is expected to patch,
+// they are also served by the fake cluster so target selector expressions can resolve them.
+// The ExpectedInPatchedTarget and ExpectedNotInPatchedTarget assertions look only at the patched
+// targets, so they are not satisfied by text that appears in the trigger.
 type TestScenario struct {
-	HelmValues       map[string]string
-	ResourceYAML     string
-	VariablesYAML    string
-	UserInfoYAML     string
-	ExpectedAction   string
-	ExpectedInOutput string
+	HelmValues                 map[string]string
+	ResourceYAML               string
+	TargetResourceYAML         string
+	VariablesYAML              string
+	UserInfoYAML               string
+	ExpectedAction             string
+	ExpectedInOutput           string
+	ExpectedInPatchedTarget    string
+	ExpectedNotInPatchedTarget string
 }
 
 // K8sResource holds the fields parsed from a resource YAML needed for policy routing.
@@ -57,6 +66,7 @@ func RunPolicyCheck(t *testing.T, chartDir string, scenario TestScenario) {
 
 	assertAction(t, scenario.ExpectedAction, passed, output)
 	assertOutputContains(t, scenario.ExpectedInOutput, output)
+	assertPatchedTarget(t, scenario, output)
 }
 
 // applyPolicies renders policies, writes temp files, runs kyverno, and returns the combined output.
@@ -89,8 +99,13 @@ func buildKyvernoCommand(t *testing.T, tmpDir, policyFile, userInfoFile string, 
 		args = append(args, "--resource", resourcePath)
 		env = append(env, "KUBECONFIG=/dev/null")
 	} else {
-		kubeconfigFile := startFakeCluster(t, tmpDir, res)
+		kubeconfigFile := startFakeCluster(t, tmpDir, res, parseObjects(t, s.TargetResourceYAML))
 		args = append(args, "--cluster", "--kubeconfig", kubeconfigFile)
+	}
+
+	if s.TargetResourceYAML != "" {
+		targetPath := writeTempFile(t, tmpDir, "target.yaml", s.TargetResourceYAML)
+		args = append(args, "--target-resource", targetPath)
 	}
 
 	if s.VariablesYAML != "" {
@@ -205,13 +220,13 @@ func renderHelm(t *testing.T, chartPath string, values map[string]string) string
 // startFakeCluster launches an in-process HTTP server that mimics the Kubernetes API for the
 // given CRD resource, returning a path to a kubeconfig that points at it.
 // The server is stopped when the test ends via t.Cleanup.
-func startFakeCluster(t *testing.T, tmpDir string, res K8sResource) string {
+func startFakeCluster(t *testing.T, tmpDir string, res K8sResource, targets []map[string]interface{}) string {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	registerDiscoveryRoutes(mux, res)
 	registerResourceRoutes(mux, res)
-	registerStaticNamespaceRoutes(mux)
+	registerStaticNamespaceRoutes(mux, targets)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -290,7 +305,9 @@ func registerResourceRoutes(mux *http.ServeMux, res K8sResource) {
 }
 
 // registerStaticNamespaceRoutes adds /api/v1 discovery and /api/v1/namespaces endpoints.
-func registerStaticNamespaceRoutes(mux *http.ServeMux) {
+// Namespaces from extra are added to the list and served individually, so target selector
+// expressions such as resource.Get("v1", "namespaces", "", name) can resolve them.
+func registerStaticNamespaceRoutes(mux *http.ServeMux, extra []map[string]interface{}) {
 	mux.HandleFunc("/api/v1", func(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, map[string]interface{}{
 			"kind": "APIResourceList", "apiVersion": "v1", "groupVersion": "v1",
@@ -323,7 +340,46 @@ func registerStaticNamespaceRoutes(mux *http.ServeMux) {
 			},
 		},
 	}
+	for _, obj := range extra {
+		if obj["kind"] != "Namespace" {
+			continue
+		}
+		namespaceList["items"] = append(namespaceList["items"].([]interface{}), obj)
+
+		metadata, _ := obj["metadata"].(map[string]interface{})
+		name, _ := metadata["name"].(string)
+		if name == "" {
+			continue
+		}
+		mux.HandleFunc("/api/v1/namespaces/"+name, func(w http.ResponseWriter, r *http.Request) { sendJSON(w, obj) })
+	}
+
 	mux.HandleFunc("/api/v1/namespaces", func(w http.ResponseWriter, r *http.Request) { sendJSON(w, namespaceList) })
+}
+
+// parseObjects unmarshals a multi document YAML string into generic objects, keeping every field.
+// An empty string yields no objects.
+func parseObjects(t *testing.T, yamlStr string) []map[string]interface{} {
+	t.Helper()
+	if strings.TrimSpace(yamlStr) == "" {
+		return nil
+	}
+	var objects []map[string]interface{}
+	decoder := yaml.NewDecoder(strings.NewReader(yamlStr))
+	for {
+		var obj map[string]interface{}
+		err := decoder.Decode(&obj)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("failed to parse target resource YAML: %v", err)
+		}
+		if obj != nil {
+			objects = append(objects, obj)
+		}
+	}
+	return objects
 }
 
 // writeKubeconfig writes a minimal kubeconfig pointing at serverURL and returns its path.
@@ -370,6 +426,19 @@ func assertOutputContains(t *testing.T, expected string, output string) {
 	t.Helper()
 	if expected != "" && !strings.Contains(output, expected) {
 		t.Errorf("expected %q in output\n%s", expected, output)
+	}
+}
+
+// assertPatchedTarget checks the patched target expectations against the section of the kyverno
+// output that holds the patched targets of a mutate existing policy.
+func assertPatchedTarget(t *testing.T, scenario TestScenario, output string) {
+	t.Helper()
+	_, patched, _ := strings.Cut(output, "patched targets:")
+	if scenario.ExpectedInPatchedTarget != "" && !strings.Contains(patched, scenario.ExpectedInPatchedTarget) {
+		t.Errorf("expected %q in the patched target\n%s", scenario.ExpectedInPatchedTarget, output)
+	}
+	if scenario.ExpectedNotInPatchedTarget != "" && strings.Contains(patched, scenario.ExpectedNotInPatchedTarget) {
+		t.Errorf("did not expect %q in the patched target\n%s", scenario.ExpectedNotInPatchedTarget, output)
 	}
 }
 
@@ -482,6 +551,43 @@ spec:
   destination:
     namespace: %s
 `, name, nsLine, project, destNamespace)
+}
+
+// GenerateArgoAppWithNamespaceMetadata returns an ArgoCD Application resource YAML that declares
+// spec.syncPolicy.managedNamespaceMetadata with the given labels and annotations.
+func GenerateArgoAppWithNamespaceMetadata(name, project, destNamespace string, labels, annotations map[string]string) string {
+	return fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: %s
+spec:
+  project: %s
+  destination:
+    namespace: %s
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels:%s
+      annotations:%s
+`, name, project, destNamespace, mapLines(labels, 8), mapLines(annotations, 8))
+}
+
+// mapLines renders a string map as YAML lines indented by indent spaces, sorted by key.
+// An empty map renders as an inline empty map.
+func mapLines(values map[string]string, indent int) string {
+	if len(values) == 0 {
+		return " {}"
+	}
+	keys := make([]string, 0, len(values))
+	for k := range values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var lines string
+	for _, k := range keys {
+		lines += fmt.Sprintf("\n%s%q: %q", strings.Repeat(" ", indent), k, values[k])
+	}
+	return lines
 }
 
 // GenerateNamespaceLabelsValues returns a kyverno Values YAML that assigns the given labels

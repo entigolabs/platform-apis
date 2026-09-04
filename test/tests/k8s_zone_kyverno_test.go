@@ -53,6 +53,10 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			t.Parallel()
 			testKyvernoAppsNamespaceRestriction(t, cluster)
 		})
+		t.Run("NamespaceArgoCDMetadata", func(t *testing.T) {
+			t.Parallel()
+			testKyvernoNamespaceArgoCDMetadata(t, cluster)
+		})
 		if contributorKeyID != "" && contributorSecret != "" {
 			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 			t.Run("ContributorDeny", func(t *testing.T) {
@@ -355,6 +359,47 @@ func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.Kubectl
 		}))
 		assertKyvernoAllowed(t, err)
 	})
+}
+
+// testKyvernoNamespaceArgoCDMetadata covers platform-apis-namespace-argocd-metadata (MutatingPolicy).
+// The labels and annotations an Application declares under managedNamespaceMetadata have to reach
+// the destination namespace, while the keys the namespace policies own are ignored. The patch is
+// applied in the background, so every check polls.
+func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	kyvernoNSOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestNSName)
+
+	const (
+		appName     = "kyverno-metadata-test"
+		generatedNS = "kyverno-metadata-ns"
+	)
+	t.Cleanup(func() {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, kyvernoNSOpts, "delete", "application", appName, "--ignore-not-found", "--wait=false")
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", generatedNS, "--ignore-not-found", "--wait=false")
+	})
+	applyFile(t, cluster, writeTempYAML(t, argoAppYAML(t, kyvernoArgoAppData{
+		Name: appName, Namespace: KyvernoTestNSName, DestNamespace: generatedNS, Project: ZoneAName,
+		NamespaceLabels: map[string]string{
+			"team":            "platform",
+			"istio-injection": "enabled",
+			// Owned by the namespace policies, an Application may not decide these.
+			"tenancy.entigo.com/zone":            "infralib",
+			"pod-security.kubernetes.io/enforce": "privileged",
+		},
+		NamespaceAnnotations: map[string]string{"owner": "ops"},
+	})))
+
+	waitResourceExists(t, cluster, "namespace", generatedNS, 12, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.labels.team", "platform", 24, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS, `.metadata.labels['istio-injection']`, "enabled", 24, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.annotations.owner", "ops", 24, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS,
+		`.metadata.labels['tenancy\.entigo\.com/zone']`, ZoneAName, 24, 5*time.Second)
+
+	enforce, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "get", "namespace", generatedNS,
+		"-o", `jsonpath={.metadata.labels['pod-security\.kubernetes\.io/enforce']}`)
+	require.NoError(t, err)
+	require.NotEqual(t, "privileged", strings.TrimSpace(enforce),
+		"pod security label of namespace %q must not come from the Application", generatedNS)
 }
 
 // testKyvernoGenerateNamespaceFromArgoApp covers generate-namespace-from-argocd-app (GeneratingPolicy).

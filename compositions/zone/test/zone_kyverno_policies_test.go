@@ -17,6 +17,7 @@ func TestKyvernoPolicies(t *testing.T) {
 	t.Run("MaintainerInfralibZoneDeny", testMaintainerInfralibZoneDeny)
 	t.Run("GenerateNamespaceFromArgoApp", testGenerateNamespaceFromArgoApp)
 	t.Run("AppsNamespaceRestriction", testAppsNamespaceRestriction)
+	t.Run("NamespaceArgoCDMetadata", testNamespaceArgoCDMetadata)
 }
 
 // testNamespacePodSecurity covers platform-apis-zone-namespace-pod-security (ValidatingPolicy)
@@ -405,6 +406,104 @@ subjects:
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",
 				ResourceYAML:   kyverno.GenerateConfigMap("my-cm", "normal-ns"),
+			},
+		},
+	}
+	runCases(t, cases)
+}
+
+// testNamespaceArgoCDMetadata covers platform-apis-namespace-argocd-metadata (MutatingPolicy).
+// The ArgoCD Application is the trigger and the Namespace it deploys to is the target that gets
+// patched, so the assertions look at the patched target instead of the whole output.
+func testNamespaceArgoCDMetadata(t *testing.T) {
+	t.Parallel()
+	const zone = "my-zone"
+	userLabels := map[string]string{"team": "platform", "istio-injection": "enabled"}
+	userAnnotations := map[string]string{"owner": "ops"}
+	namespace := kyverno.GenerateNamespace("my-namespace", zone, "baseline", "baseline")
+	cases := []struct {
+		name     string
+		scenario kyverno.TestScenario
+	}{
+		{
+			name: "pass: labels are copied to the namespace",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", zone, "my-namespace", userLabels, userAnnotations),
+				TargetResourceYAML:      namespace,
+				ExpectedInPatchedTarget: "istio-injection: enabled",
+			},
+		},
+		{
+			name: "pass: annotations are copied to the namespace",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", zone, "my-namespace", userLabels, userAnnotations),
+				TargetResourceYAML:      namespace,
+				ExpectedInPatchedTarget: "owner: ops",
+			},
+		},
+		{
+			name: "pass: the zone label of the application is ignored",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", zone, "my-namespace",
+					map[string]string{"tenancy.entigo.com/zone": "other-zone"}, nil),
+				TargetResourceYAML:         namespace,
+				ExpectedNotInPatchedTarget: "other-zone",
+			},
+		},
+		{
+			name: "pass: the pod security label of the application is ignored",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", zone, "my-namespace",
+					map[string]string{"pod-security.kubernetes.io/enforce": "privileged"}, nil),
+				TargetResourceYAML:         namespace,
+				ExpectedNotInPatchedTarget: "privileged",
+			},
+		},
+		{
+			name: "pass: an application of another project is ignored",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", "other-zone", "my-namespace", userLabels, userAnnotations),
+				TargetResourceYAML:         namespace,
+				ExpectedNotInPatchedTarget: "team: platform",
+			},
+		},
+		{
+			name: "pass: the apps namespace of the zone is left alone",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", zone, zone+"-apps", userLabels, userAnnotations),
+				TargetResourceYAML:         kyverno.GenerateNamespace(zone+"-apps", zone, "baseline", "baseline"),
+				ExpectedNotInPatchedTarget: "team: platform",
+			},
+		},
+		{
+			name: "pass: an application without namespace metadata patches nothing",
+			scenario: kyverno.TestScenario{
+				ExpectedAction:             "pass",
+				ResourceYAML:               kyverno.GenerateArgoApp("my-app", "", zone, "my-namespace"),
+				TargetResourceYAML:         namespace,
+				ExpectedNotInPatchedTarget: "team: platform",
+			},
+		},
+		{
+			name: "pass: namespaces of the infralib zone are left alone",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", "infralib", "infra-namespace", userLabels, userAnnotations),
+				TargetResourceYAML:         kyverno.GenerateNamespace("infra-namespace", "infralib", "baseline", "baseline"),
+				ExpectedNotInPatchedTarget: "team: platform",
 			},
 		},
 	}

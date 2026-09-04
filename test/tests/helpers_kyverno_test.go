@@ -31,6 +31,8 @@ type kyvernoZoneData struct {
 
 type kyvernoArgoAppData struct {
 	Name, Namespace, DestNamespace, Project string
+	NamespaceLabels                         map[string]string
+	NamespaceAnnotations                    map[string]string
 }
 
 type kyvernoKubeconfigData struct {

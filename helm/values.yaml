@@ -153,6 +153,16 @@ zone:
     controlSubnetType: control
     podSecurity: baseline
     tags: {}
+  # Copies the labels and annotations an ArgoCD Application declares under
+  # spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
+  # Keys that decide tenancy or Pod Security are ignored, those stay under the Namespace's own
+  # rules and can still be changed with kubectl.
+  namespaceMetadata:
+    enabled: true
+    # How often every Namespace is refreshed from the Application specs. Metadata of a newly
+    # created Application is applied immediately, later edits to an existing Application are
+    # picked up by this refresh.
+    syncInterval: 10m
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com
