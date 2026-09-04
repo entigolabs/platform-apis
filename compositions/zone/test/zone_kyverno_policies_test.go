@@ -309,7 +309,8 @@ func testGenerateNamespaceFromArgoApp(t *testing.T) {
 // and rbac Role/RoleBinding resources may be created or updated; everything else is denied.
 func testAppsNamespaceRestriction(t *testing.T) {
 	t.Parallel()
-	const restrictedNs = "apps-ns"
+	// The label belongs to a Zone's own apps namespace, so the simulated namespace is named like one.
+	const restrictedNs = "my-zone-apps"
 	restrictedLabels := kyverno.GenerateNamespaceLabelsValues(restrictedNs, map[string]string{
 		"tenancy.entigo.com/only-argocd-apps": "true",
 	})
@@ -334,7 +335,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: my-svc
-  namespace: apps-ns
+  namespace: my-zone-apps
 spec:
   ports:
   - port: 80`,
@@ -350,7 +351,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: my-role
-  namespace: apps-ns
+  namespace: my-zone-apps
 rules:
 - apiGroups: [""]
   resources: ["pods"]
@@ -367,7 +368,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: default
-  namespace: apps-ns`,
+  namespace: my-zone-apps`,
 				VariablesYAML: restrictedLabels,
 			},
 		},
@@ -380,7 +381,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: my-rb
-  namespace: apps-ns
+  namespace: my-zone-apps
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
