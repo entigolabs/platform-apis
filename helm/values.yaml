@@ -142,12 +142,16 @@ zone:
     # Create the "<zone-name>-apps" Namespace that holds a Zone's ArgoCD Application and
     # ApplicationSet objects, for the app-of-apps pattern.
     createAppsNamespace: true
-    # Filter outgoing traffic from the Zone's pods. Pods can still reach services inside the
-    # cluster, but calls to external addresses are blocked unless the address is registered in
-    # the cluster. Adds a proxy container to every pod in the Zone's Namespaces, so applications
-    # must be restarted and every external dependency has to be allowed explicitly.
+    # Whether outgoing rules are shared by the whole cluster or kept per Zone. This does not
+    # decide whether the cluster can reach the internet, that is normally handled by a firewall
+    # in front of the cluster either way.
+    # false: outgoing rules are cluster-wide, an address opened by one Zone is reachable from
+    # every other Zone.
+    # true: each Zone has its own outgoing rules, an address opened for Zone A stays closed for
+    # Zone B. Adds a proxy container to every pod in the Zone's Namespaces, so applications must
+    # be restarted and every external service a Zone uses has to be listed for that Zone.
     granularEgress: false
-    # Zone names that keep unrestricted outgoing traffic while granularEgress is enabled.
+    # Zone names that keep the shared, unrestricted behaviour while granularEgress is enabled.
     granularEgressExclude: []
     # false: all Namespaces in the same Zone can reach each other.
     # true: every Namespace is isolated and needs a NetworkPolicy to accept traffic, even from
