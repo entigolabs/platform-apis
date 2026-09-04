@@ -150,6 +150,8 @@ zone:
     # true: each Zone has its own outgoing rules, an address opened for Zone A stays closed for
     # Zone B. Adds a proxy container to every pod in the Zone's Namespaces, so applications must
     # be restarted and every external service a Zone uses has to be listed for that Zone.
+    # External hosts are opened with Istio ServiceEntry objects. With granularEgress enabled a
+    # ServiceEntry only applies to the Zone whose Namespace it was created in.
     granularEgress: false
     # Zone names that keep the shared, unrestricted behaviour while granularEgress is enabled.
     granularEgressExclude: []
