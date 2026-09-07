@@ -52,7 +52,6 @@ const (
 
 	KyvernoTestNSName         = "kyverno-test"
 	KyvernoTestTmpNSName      = "kyverno-test-tmp"
-	KyvernoTestAppsNSName     = "kyverno-apps-test"
 	KyvernoTestRepositoryName = "kyverno-test-repo"
 
 	// ── Zone ─────────────────────────────────────────────────────────────────
