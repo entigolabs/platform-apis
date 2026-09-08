@@ -415,36 +415,34 @@ subjects:
 }
 
 // testNamespaceArgoCDMetadata covers platform-apis-namespace-argocd-metadata (MutatingPolicy).
-// The ArgoCD Application is the trigger and the Namespace it deploys to is the target that gets
-// patched, so the assertions look at the patched target instead of the whole output.
+// The ArgoCD Application is the trigger and the Namespace it deploys to is the target, so every
+// scenario states the Namespace it expects after the patch and the CLI compares the two in full.
 func testNamespaceArgoCDMetadata(t *testing.T) {
 	t.Parallel()
 	const zone = "my-zone"
+	const policy = "platform-apis-namespace-argocd-metadata"
 	userLabels := map[string]string{"team": "platform", "istio-injection": "enabled"}
 	userAnnotations := map[string]string{"owner": "ops"}
 	namespace := kyverno.GenerateNamespace("my-namespace", zone, "baseline", "baseline")
+	// patchedNamespace returns "my-namespace" with the given extra labels and annotations, which is
+	// what the policy is expected to leave behind. No extras means the Namespace is untouched.
+	patchedNamespace := func(labels, annotations map[string]string) string {
+		return kyverno.GenerateNamespaceWithMetadata(
+			"my-namespace", zone, "baseline", "baseline", labels, annotations)
+	}
 	cases := []struct {
 		name     string
 		scenario kyverno.TestScenario
 	}{
 		{
-			name: "pass: labels are copied to the namespace",
+			name: "pass: labels and annotations are copied to the namespace",
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",
 				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
 					"my-app", zone, "my-namespace", userLabels, userAnnotations),
-				TargetResourceYAML:      namespace,
-				ExpectedInPatchedTarget: "istio-injection: enabled",
-			},
-		},
-		{
-			name: "pass: annotations are copied to the namespace",
-			scenario: kyverno.TestScenario{
-				ExpectedAction: "pass",
-				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
-					"my-app", zone, "my-namespace", userLabels, userAnnotations),
-				TargetResourceYAML:      namespace,
-				ExpectedInPatchedTarget: "owner: ops",
+				TargetResourceYAML:        namespace,
+				MutatingPolicyName:        policy,
+				ExpectedPatchedTargetYAML: patchedNamespace(userLabels, userAnnotations),
 			},
 		},
 		{
@@ -454,8 +452,9 @@ func testNamespaceArgoCDMetadata(t *testing.T) {
 				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
 					"my-app", zone, "my-namespace",
 					map[string]string{"tenancy.entigo.com/zone": "other-zone"}, nil),
-				TargetResourceYAML:         namespace,
-				ExpectedNotInPatchedTarget: "other-zone",
+				TargetResourceYAML:        namespace,
+				MutatingPolicyName:        policy,
+				ExpectedPatchedTargetYAML: patchedNamespace(nil, nil),
 			},
 		},
 		{
@@ -465,8 +464,10 @@ func testNamespaceArgoCDMetadata(t *testing.T) {
 				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
 					"my-app", zone, "my-namespace",
 					map[string]string{"pod-security.kubernetes.io/enforce": "restricted"}, nil),
-				TargetResourceYAML:      namespace,
-				ExpectedInPatchedTarget: "pod-security.kubernetes.io/enforce: restricted",
+				TargetResourceYAML: namespace,
+				MutatingPolicyName: policy,
+				ExpectedPatchedTargetYAML: patchedNamespace(
+					map[string]string{"pod-security.kubernetes.io/enforce": "restricted"}, nil),
 			},
 		},
 		{
@@ -475,8 +476,9 @@ func testNamespaceArgoCDMetadata(t *testing.T) {
 				ExpectedAction: "pass",
 				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
 					"my-app", "other-zone", "my-namespace", userLabels, userAnnotations),
-				TargetResourceYAML:         namespace,
-				ExpectedNotInPatchedTarget: "team: platform",
+				TargetResourceYAML:        namespace,
+				MutatingPolicyName:        policy,
+				ExpectedPatchedTargetYAML: patchedNamespace(nil, nil),
 			},
 		},
 		{
@@ -485,17 +487,19 @@ func testNamespaceArgoCDMetadata(t *testing.T) {
 				ExpectedAction: "pass",
 				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
 					"my-app", zone, zone+"-apps", userLabels, userAnnotations),
-				TargetResourceYAML:         kyverno.GenerateNamespace(zone+"-apps", zone, "baseline", "baseline"),
-				ExpectedNotInPatchedTarget: "team: platform",
+				TargetResourceYAML:        kyverno.GenerateNamespace(zone+"-apps", zone, "baseline", "baseline"),
+				MutatingPolicyName:        policy,
+				ExpectedPatchedTargetYAML: kyverno.GenerateNamespace(zone+"-apps", zone, "baseline", "baseline"),
 			},
 		},
 		{
 			name: "pass: an application without namespace metadata patches nothing",
 			scenario: kyverno.TestScenario{
-				ExpectedAction:             "pass",
-				ResourceYAML:               kyverno.GenerateArgoApp("my-app", "", zone, "my-namespace"),
-				TargetResourceYAML:         namespace,
-				ExpectedNotInPatchedTarget: "team: platform",
+				ExpectedAction:            "pass",
+				ResourceYAML:              kyverno.GenerateArgoApp("my-app", "", zone, "my-namespace"),
+				TargetResourceYAML:        namespace,
+				MutatingPolicyName:        policy,
+				ExpectedPatchedTargetYAML: patchedNamespace(nil, nil),
 			},
 		},
 		{
@@ -504,8 +508,9 @@ func testNamespaceArgoCDMetadata(t *testing.T) {
 				ExpectedAction: "pass",
 				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
 					"my-app", "infralib", "infra-namespace", userLabels, userAnnotations),
-				TargetResourceYAML:         kyverno.GenerateNamespace("infra-namespace", "infralib", "baseline", "baseline"),
-				ExpectedNotInPatchedTarget: "team: platform",
+				TargetResourceYAML:        kyverno.GenerateNamespace("infra-namespace", "infralib", "baseline", "baseline"),
+				MutatingPolicyName:        policy,
+				ExpectedPatchedTargetYAML: kyverno.GenerateNamespace("infra-namespace", "infralib", "baseline", "baseline"),
 			},
 		},
 	}
