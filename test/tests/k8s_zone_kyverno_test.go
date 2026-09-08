@@ -416,6 +416,27 @@ func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlO
 		}))
 		assertKyvernoDenied(t, out, err)
 	})
+
+	// Everything above rode in on the Application's CREATE event. An edit to an existing
+	// Application has no CREATE to ride on and can only arrive through the periodic refresh, so
+	// this is the one check that covers the GlobalContextEntry heartbeat and the sweep its status
+	// write starts. Without it a broken sweep is invisible, the create path keeps working.
+	t.Run("pass: an edit to an existing application is picked up by the refresh", func(t *testing.T) {
+		refresh := getField(t, cluster, "globalcontextentry", MetadataSyncEntryName, ".spec.apiCall.refreshInterval")
+		if refresh != MetadataSyncTestInterval {
+			t.Skipf("metadata sync refreshInterval is %q, this test only waits out the %q the test environments configure",
+				refresh, MetadataSyncTestInterval)
+		}
+
+		patchResource(t, kyvernoNSOpts, "application", appName,
+			`{"spec":{"syncPolicy":{"managedNamespaceMetadata":{"labels":{"sweep":"applied"},"annotations":{"owner":"sre"}}}}}`)
+
+		// A key that is new and a value that changed, the refresh has to carry both. Three minutes
+		// against a one minute interval: the edit can land just after a refresh, and the
+		// UpdateRequest that refresh creates is then processed asynchronously.
+		waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.labels.sweep", "applied", 36, 5*time.Second)
+		waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.annotations.owner", "sre", 36, 5*time.Second)
+	})
 }
 
 // testKyvernoGenerateNamespaceFromArgoApp covers generate-namespace-from-argocd-app (GeneratingPolicy).
