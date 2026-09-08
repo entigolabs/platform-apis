@@ -396,9 +396,12 @@ func assertOutputContains(t *testing.T, expected string, output string) {
 	}
 }
 
-// mutateExistingCLIVersion is the first kyverno CLI version that resolves the targets of a
-// MutatingPolicy from targetMatchConstraints, which mutate existing test scenarios depend on.
-var mutateExistingCLIVersion = [2]int{1, 18}
+// mutateExistingCLIVersion is the first kyverno CLI version these scenarios can run under.
+// 1.18 resolves the targets of a MutatingPolicy from targetMatchConstraints, but "kyverno test"
+// panics there whenever a MutatingPolicy meets clusterResources: it treats those as a real
+// cluster and asks the fake discovery client for an OpenAPI v3 document it does not implement.
+// 1.19 recovers from that and falls back to the built-in schemas.
+var mutateExistingCLIVersion = [2]int{1, 19}
 
 var (
 	cliVersionOnce sync.Once
@@ -406,8 +409,8 @@ var (
 	cliVersionErr  error
 )
 
-// requireMutateExistingSupport skips the test when the kyverno CLI on PATH is too old to resolve
-// the targets of a mutate existing policy, which would make the scenario silently patch nothing.
+// requireMutateExistingSupport skips the test when the kyverno CLI on PATH is too old to run a
+// mutate existing scenario, rather than letting it patch nothing silently or panic.
 func requireMutateExistingSupport(t *testing.T) {
 	t.Helper()
 	cliVersionOnce.Do(func() {
@@ -428,7 +431,7 @@ func requireMutateExistingSupport(t *testing.T) {
 	require.NoError(t, cliVersionErr, "failed to read the kyverno CLI version")
 	if cliVersion[0] < mutateExistingCLIVersion[0] ||
 		(cliVersion[0] == mutateExistingCLIVersion[0] && cliVersion[1] < mutateExistingCLIVersion[1]) {
-		t.Skipf("kyverno CLI %d.%d cannot resolve mutate existing targets, %d.%d or newer is needed",
+		t.Skipf("kyverno CLI %d.%d cannot run mutate existing scenarios, %d.%d or newer is needed",
 			cliVersion[0], cliVersion[1], mutateExistingCLIVersion[0], mutateExistingCLIVersion[1])
 	}
 }
