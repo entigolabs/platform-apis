@@ -13,7 +13,6 @@ import (
 
 type kyvernoNsData struct {
 	Name, Zone, Enforce, Warn string
-	OnlyArgoCDApps            bool
 }
 
 type kyvernoConfigMapData struct {

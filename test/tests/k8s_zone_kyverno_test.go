@@ -297,27 +297,28 @@ func testKyvernoZoneNamespaceDeletionCheckResources(t *testing.T, cluster *terra
 // testKyvernoAppsNamespaceRestriction covers platform-apis-zone-apps-namespace-restriction (ValidatingPolicy).
 // In a namespace labeled tenancy.entigo.com/only-argocd-apps=true, only ArgoCD Application/ApplicationSet
 // and rbac Role/RoleBinding may be created or updated; everything else is denied.
+//
+// The zone's own apps namespace is used, because tenancy.entigo.com/only-argocd-apps belongs to that
+// namespace alone. A test namespace carrying the label is a namespace the Zone composition still
+// composes NetworkPolicies into, which its own policy then denies, leaving the Zone unable to sync.
 func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.KubectlOptions) {
-	applyFile(t, cluster, writeTempYAML(t, nsYAML(t, kyvernoNsData{
-		Name: KyvernoTestAppsNSName, Zone: ZoneAName, Enforce: "baseline", Warn: "baseline",
-		OnlyArgoCDApps: true,
-	})))
-	t.Cleanup(func() {
-		_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", KyvernoTestAppsNSName, "--ignore-not-found", "--wait=false")
-	})
-	appsNS := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestAppsNSName)
+	appsNS := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, AAppsNamespace)
 
 	t.Run("fail: Repository denied in apps namespace", func(t *testing.T) {
 		t.Parallel()
 		out, err := kyvernoApply(t, cluster, repositoryYAML(t, kyvernoRepositoryData{
-			Name: "kyverno-repo-deny", Namespace: KyvernoTestAppsNSName,
+			Name: "kyverno-repo-deny", Namespace: AAppsNamespace,
 		}))
 		assertKyvernoDenied(t, out, err)
 	})
 	t.Run("pass: ConfigMap allowed in apps namespace", func(t *testing.T) {
 		t.Parallel()
+		const name = "kyverno-apps-cm-allow"
+		t.Cleanup(func() {
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, appsNS, "delete", "configmap", name, "--ignore-not-found", "--wait=false")
+		})
 		_, err := kyvernoApply(t, cluster, configMapYAML(t, kyvernoConfigMapData{
-			Name: "kyverno-apps-cm-allow", Namespace: KyvernoTestAppsNSName,
+			Name: name, Namespace: AAppsNamespace,
 		}))
 		assertKyvernoAllowed(t, err)
 	})
@@ -328,7 +329,7 @@ func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.Kubectl
 			_, _ = terrak8s.RunKubectlAndGetOutputE(t, appsNS, "delete", "role", name, "--ignore-not-found", "--wait=false")
 		})
 		_, err := kyvernoApply(t, cluster, roleYAML(t, kyvernoRoleData{
-			Name: name, Namespace: KyvernoTestAppsNSName,
+			Name: name, Namespace: AAppsNamespace,
 		}))
 		assertKyvernoAllowed(t, err)
 	})
@@ -343,7 +344,7 @@ func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.Kubectl
 			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", destNS, "--ignore-not-found", "--wait=false")
 		})
 		_, err := kyvernoApply(t, cluster, argoAppYAML(t, kyvernoArgoAppData{
-			Name: appName, Namespace: KyvernoTestAppsNSName, DestNamespace: destNS, Project: ZoneAName,
+			Name: appName, Namespace: AAppsNamespace, DestNamespace: destNS, Project: ZoneAName,
 		}))
 		assertKyvernoAllowed(t, err)
 	})
