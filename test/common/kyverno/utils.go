@@ -46,7 +46,8 @@ type K8sResource struct {
 	APIVersion string `yaml:"apiVersion"`
 	Kind       string `yaml:"kind"`
 	Metadata   struct {
-		Name string `yaml:"name"`
+		Name      string `yaml:"name"`
+		Namespace string `yaml:"namespace"`
 	} `yaml:"metadata"`
 	Spec map[string]interface{} `yaml:"spec"`
 }
@@ -451,7 +452,8 @@ func runMutateExistingCheck(t *testing.T, chartDir string, scenario TestScenario
 	crd := triggerCRD(t, scenario.ResourceYAML)
 	if crd != "" {
 		writeTempFile(t, tmpDir, "crds.yaml", crd)
-		writeTempFile(t, tmpDir, "clusterresources.yaml", clusterResources)
+		writeTempFile(t, tmpDir, "clusterresources.yaml",
+			clusterResourcesDoc(triggerNamespace(t, scenario.ResourceYAML)))
 	}
 	writeTempFile(t, tmpDir, "kyverno-test.yaml", testManifest(t, scenario, crd != ""))
 
@@ -465,9 +467,12 @@ func runMutateExistingCheck(t *testing.T, chartDir string, scenario TestScenario
 	}
 }
 
-// clusterResources makes the CLI build a RESTMapper and a client that know the trigger CRD, which
-// also puts the trigger and the target in the context the policy's CEL expressions read.
-const clusterResources = `
+// clusterResourcesDoc makes the CLI build a RESTMapper and a client that know the trigger CRD,
+// which also puts the trigger and the target in the context the policy's CEL expressions read.
+// The Namespace the trigger lives in is seeded too, the CLI reads it to evaluate namespaceSelector
+// and fails the whole run when it is missing.
+func clusterResourcesDoc(namespace string) string {
+	return fmt.Sprintf(`
 apiVersion: cli.kyverno.io/v1alpha1
 kind: ClusterResource
 metadata:
@@ -475,7 +480,23 @@ metadata:
 spec:
   crds:
   - crds.yaml
-`
+  resources:
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: %s
+`, namespace)
+}
+
+// triggerNamespace returns the Namespace the trigger lives in, which the API server defaults to
+// "default" when a namespaced resource does not name one.
+func triggerNamespace(t *testing.T, resourceYAML string) string {
+	t.Helper()
+	if ns := parseK8sYAML(t, resourceYAML).Metadata.Namespace; ns != "" {
+		return ns
+	}
+	return "default"
+}
 
 // testManifest renders the cli.kyverno.io Test that drives "kyverno test".
 func testManifest(t *testing.T, scenario TestScenario, withCRD bool) string {
