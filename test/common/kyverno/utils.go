@@ -397,10 +397,19 @@ func assertOutputContains(t *testing.T, expected string, output string) {
 }
 
 // mutateExistingCLIVersion is the first kyverno CLI version these scenarios can run under.
-// 1.18 resolves the targets of a MutatingPolicy from targetMatchConstraints, but "kyverno test"
-// panics there whenever a MutatingPolicy meets clusterResources: it treats those as a real
-// cluster and asks the fake discovery client for an OpenAPI v3 document it does not implement.
-// 1.19 recovers from that and falls back to the built-in schemas.
+//
+// A CRD trigger has to be registered through clusterResources, "kyverno test" has no --crds flag.
+// Under 1.18.2 that combination is a dead end in both directions:
+//
+//   - with clusterResources, the CLI builds a fake discovery client and asks it for an OpenAPI v3
+//     document while applying the policy, and client-go's FakeDiscovery.OpenAPIV3 is a
+//     panic("unimplemented") stub, so the whole run dies before any result is reported
+//   - without them, the trigger cannot be mapped at all: no matches for kind "Application" in
+//     version "argoproj.io/v1alpha1"
+//
+// 1.19 falls back to the built-in schemas instead of panicking. Until the clusters run it these
+// scenarios skip, because the CLI has to stay in step with the Kyverno deployed by infralib
+// (kyverno chart 3.8.2, appVersion v1.18.2) or it would accept policies the engine cannot run.
 var mutateExistingCLIVersion = [2]int{1, 19}
 
 var (
