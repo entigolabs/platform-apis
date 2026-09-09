@@ -142,6 +142,18 @@ zone:
     # Create the "<zone-name>-apps" Namespace that holds a Zone's ArgoCD Application and
     # ApplicationSet objects, for the app-of-apps pattern.
     createAppsNamespace: true
+    # Copies the labels and annotations an ArgoCD Application declares under
+    # spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
+    # Labels that decide which Zone a Namespace belongs to are ignored, those can only be changed
+    # with kubectl. The tenancy.entigo.com/pool label is applied, it picks one of the Zone's own
+    # NodeGroups. A Pod Security label is applied, but only when it is stricter than the Zone's
+    # podSecurity level.
+    namespaceMetadata:
+      enabled: true
+      # How often every Namespace is refreshed from the Application specs. Metadata of a newly
+      # created Application is applied immediately, later edits to an existing Application are
+      # picked up by this refresh.
+      syncInterval: 10m
     # Whether outgoing rules are shared by the whole cluster or kept per Zone. This does not
     # decide whether the cluster can reach the internet, that is normally handled by a firewall
     # in front of the cluster either way.
@@ -195,18 +207,6 @@ zone:
     podSecurity: baseline
     # Cloud tags added to Zone resources such as NodeGroups.
     tags: {}
-  # Copies the labels and annotations an ArgoCD Application declares under
-  # spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
-  # Labels that decide which Zone a Namespace belongs to are ignored, those can only be changed
-  # with kubectl. The tenancy.entigo.com/pool label is applied, it picks one of the Zone's own
-  # NodeGroups. A Pod Security label is applied, but only when it is stricter than the Zone's
-  # podSecurity level.
-  namespaceMetadata:
-    enabled: true
-    # How often every Namespace is refreshed from the Application specs. Metadata of a newly
-    # created Application is applied immediately, later edits to an existing Application are
-    # picked up by this refresh.
-    syncInterval: 10m
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com
