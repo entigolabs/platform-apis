@@ -24,9 +24,6 @@ func (e Environment) Validate() error {
 	if e.AWSProvider == "" {
 		return errors.New("awsProvider is required")
 	}
-	if e.DataKMSKey == "" {
-		return errors.New("dataKMSKey is required")
-	}
 	if e.ImageTagMutability != nil && !validImageTagMutability.Contains(*e.ImageTagMutability) {
 		return fmt.Errorf("imageTagMutability must be either null or %s", validImageTagMutability.String())
 	}

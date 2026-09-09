@@ -6,7 +6,9 @@ metadata:
   name: platform-apis-queue
 data:
   awsProvider: {{ .Values.kafka.environmentConfig.awsProvider }}
+{{- if .Values.global.kms.configKeyArn }}
   configKMSKey: {{ .Values.kafka.environmentConfig.configKMSKey }}
+{{- end }}
   kafkaNamespace: {{ .Values.kafka.environmentConfig.kafkaNamespace }}
   {{- if .Values.kafka.environmentConfig.tags }}
   tags: {{- toYaml .Values.kafka.environmentConfig.tags | nindent 4 }}
