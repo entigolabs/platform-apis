@@ -65,23 +65,18 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if _, envPresent := required[base.EnvironmentKey]; !envPresent {
 			return resources, nil
 		}
-		kms, err := getRequiredKMS(required)
+		env, err := service.GetEnvironment(required)
 		if err != nil {
 			return nil, err
 		}
-		resources[apis.KMSDataKey] = kms
+		resources[apis.VPCKey] = base.RequiredVPC(env.VPC, env.AWSProvider)
+		if env.DataKMSKey != "" {
+			resources[apis.KMSDataKey] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
+		}
 		return resources, nil
 	default:
 		return nil, nil
 	}
-}
-
-func getRequiredKMS(required map[string][]resource.Required) (*fnv1.ResourceSelector, error) {
-	env, err := service.GetEnvironment(required)
-	if err != nil {
-		return nil, err
-	}
-	return base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider), nil
 }
 
 func (g *GroupImpl) GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error) {

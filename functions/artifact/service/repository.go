@@ -14,6 +14,7 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
+	ec2mv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/ec2/v1beta1"
 	"github.com/upbound/provider-aws/v2/apis/namespaced/ecr/v1beta1"
 	kmsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/kms/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,27 +70,41 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		return nil, err
 	}
 
-	var kms kmsmv1beta1.Key
-	if err = base.ExtractRequiredResource(required, apis.KMSDataKey, &kms); err != nil {
+	var vpc ec2mv1beta1.VPC
+	if err = base.ExtractRequiredResource(required, apis.VPCKey, &vpc); err != nil {
 		return nil, err
 	}
-	if kms.Status.AtProvider.Arn == nil {
-		return nil, fmt.Errorf("KMS key %s ARN is not available", kms.Name)
+	region := vpc.Spec.ForProvider.Region
+	if region == nil {
+		region = vpc.Status.AtProvider.Region
 	}
-	encryptionType := "KMS"
+	if region == nil {
+		return nil, fmt.Errorf("VPC %s must have a region", vpc.Name)
+	}
+
+	// Without a KMS module the repository is still encrypted, under the ECR-managed
+	// AES256 key rather than one of ours.
+	encryption := v1beta1.EncryptionConfigurationParameters{EncryptionType: base.StringPtr("AES256")}
+	var kms kmsmv1beta1.Key
+	kmsPresent, err := base.ExtractOptionalResource(required, apis.KMSDataKey, &kms)
+	if err != nil {
+		return nil, err
+	}
+	if kmsPresent {
+		if kms.Status.AtProvider.Arn == nil {
+			return nil, fmt.Errorf("KMS key %s ARN is not available", kms.Name)
+		}
+		encryption = v1beta1.EncryptionConfigurationParameters{
+			EncryptionType: base.StringPtr("KMS"),
+			KMSKey:         kms.Status.AtProvider.Arn,
+		}
+	}
 	forceDelete := true
 	var annotations map[string]string
 	if repository.Spec.Path != "" || repository.Spec.Name != "" {
 		annotations = map[string]string{"crossplane.io/external-name": getExternalRepoName(repository)}
 	}
 	objects := make(map[string]client.Object)
-	region := kms.Status.AtProvider.Region
-	if region == nil {
-		region = kms.Spec.ForProvider.Region
-	}
-	if region == nil {
-		return nil, fmt.Errorf("KMS key %s must have a region", kms.Name)
-	}
 	repo := &v1beta1.Repository{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: apis.RepositoryApiVersion,
@@ -106,14 +121,11 @@ func GenerateRepositoryObject(repository v1alpha1.Repository, required map[strin
 		},
 		Spec: v1beta1.RepositorySpec{
 			ForProvider: v1beta1.RepositoryParameters{
-				Region:             region,
-				ImageTagMutability: env.ImageTagMutability,
-				Tags:               env.Tags,
-				EncryptionConfiguration: []v1beta1.EncryptionConfigurationParameters{{
-					EncryptionType: &encryptionType,
-					KMSKey:         kms.Status.AtProvider.Arn,
-				}},
-				ForceDelete: &forceDelete,
+				Region:                  region,
+				ImageTagMutability:      env.ImageTagMutability,
+				Tags:                    env.Tags,
+				EncryptionConfiguration: []v1beta1.EncryptionConfigurationParameters{encryption},
+				ForceDelete:             &forceDelete,
 			},
 			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
 				ProviderConfigReference: &xpv2.ProviderConfigReference{Name: env.AWSProvider, Kind: "ClusterProviderConfig"},
