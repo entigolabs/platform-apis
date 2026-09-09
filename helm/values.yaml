@@ -198,7 +198,8 @@ zone:
   # Copies the labels and annotations an ArgoCD Application declares under
   # spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
   # Labels that decide which Zone a Namespace belongs to are ignored, those can only be changed
-  # with kubectl. A Pod Security label is applied, but only when it is stricter than the Zone's
+  # with kubectl. The tenancy.entigo.com/pool label is applied, it picks one of the Zone's own
+  # NodeGroups. A Pod Security label is applied, but only when it is stricter than the Zone's
   # podSecurity level.
   namespaceMetadata:
     enabled: true

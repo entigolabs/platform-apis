@@ -458,6 +458,31 @@ func testNamespaceArgoCDMetadata(t *testing.T) {
 			},
 		},
 		{
+			name: "pass: the pool label of the application is copied",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", zone, "my-namespace",
+					map[string]string{"tenancy.entigo.com/pool": "myspot"}, nil),
+				TargetResourceYAML: namespace,
+				MutatingPolicyName: policy,
+				ExpectedPatchedTargetYAML: patchedNamespace(
+					map[string]string{"tenancy.entigo.com/pool": "myspot"}, nil),
+			},
+		},
+		{
+			name: "pass: the pool key is exempt as a label only, not as an annotation",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
+					"my-app", zone, "my-namespace", nil,
+					map[string]string{"tenancy.entigo.com/pool": "myspot"}),
+				TargetResourceYAML:        namespace,
+				MutatingPolicyName:        policy,
+				ExpectedPatchedTargetYAML: patchedNamespace(nil, nil),
+			},
+		},
+		{
 			name: "pass: a stricter pod security label is copied",
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",

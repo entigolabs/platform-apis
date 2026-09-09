@@ -1044,8 +1044,9 @@ metadata:
       Copies the labels and annotations an ArgoCD Application declares under
       spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
       Keys that decide tenancy are dropped, those stay under the Namespace's own policies and can
-      still be set with kubectl. Pod Security labels are copied, so an Application can tighten them
-      and the Namespace validation rejects anything looser than the floor. Runs when an Application
+      still be set with kubectl, except the tenancy.entigo.com/pool label, which picks one of the
+      Zone's own NodeGroups. Pod Security labels are copied, so an Application can tighten them and
+      the Namespace validation rejects anything looser than the floor. Runs when an Application
       is created and on every refresh of the platform-apis-namespace-metadata-sync
       GlobalContextEntry.
 spec:
@@ -1138,6 +1139,13 @@ spec:
       expression: >-
         dyn(["tenancy.entigo.com/", "kubernetes.io/metadata.name",
              "app.kubernetes.io/managed-by", "generate.kyverno.io/"])
+    # Exempt from blockedPrefixes, as a label only. The Pool of a Namespace picks one of the Zone's
+    # own NodeGroups, which is the Zone's decision to make and not a tenancy boundary, so an
+    # Application may set it just as kubectl can. tenancy.entigo.com/zone stays blocked, it decides
+    # which Zone the Namespace belongs to.
+    - name: allowedLabels
+      expression: >-
+        dyn(["tenancy.entigo.com/pool"])
     # Pod Security levels the Zone allows, the same set platform-apis-zone-namespace-pod-security
     # accepts on a Namespace.
     - name: allowedPodSecurity
@@ -1159,7 +1167,8 @@ spec:
     - name: labelKeys
       expression: >-
         dyn(variables.labels).filter(key,
-          !variables.blockedPrefixes.exists(prefix, key.startsWith(prefix)) &&
+          (key in variables.allowedLabels ||
+           !variables.blockedPrefixes.exists(prefix, key.startsWith(prefix))) &&
           (!(key in variables.podSecurityKeys) ||
            variables.labels[key] in variables.allowedPodSecurity))
     - name: annotationKeys

@@ -392,6 +392,9 @@ func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlO
 			"istio-injection": "enabled",
 			// Owned by the namespace policies, an Application may not decide it.
 			"tenancy.entigo.com/zone": "infralib",
+			// Allowed, the Pool picks one of the zone's own NodeGroups. "default" is a pool of
+			// zone "a", so the nodeSelector the zone generates from it stays valid.
+			"tenancy.entigo.com/pool": "default",
 			// Allowed, because it is stricter than the zone's podSecurity level.
 			"pod-security.kubernetes.io/enforce": "restricted",
 		},
@@ -404,6 +407,8 @@ func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlO
 	waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.annotations.owner", "ops", 24, 5*time.Second)
 	waitFieldEquals(t, cluster, "namespace", generatedNS,
 		`.metadata.labels['tenancy\.entigo\.com/zone']`, ZoneAName, 24, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS,
+		`.metadata.labels['tenancy\.entigo\.com/pool']`, "default", 24, 5*time.Second)
 
 	waitFieldEquals(t, cluster, "namespace", generatedNS,
 		`.metadata.labels['pod-security\.kubernetes\.io/enforce']`, "restricted", 24, 5*time.Second)
