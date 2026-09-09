@@ -91,12 +91,12 @@ func newValkeyInstanceGenerator(
 	}
 
 	var kmsDataKey kmsmv1beta1.Key
-	if err := base.ExtractRequiredResource(required, "KMSDataKey", &kmsDataKey); err != nil {
+	if _, err := base.ExtractOptionalResource(required, "KMSDataKey", &kmsDataKey); err != nil {
 		return nil, err
 	}
 
 	var kmsConfigKey kmsmv1beta1.Key
-	if err := base.ExtractRequiredResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
+	if _, err := base.ExtractOptionalResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
 		return nil, err
 	}
 
@@ -281,7 +281,7 @@ func (g *valkeyInstanceGenerator) buildReplicationGroup(objects map[string]clien
 				},
 				AutoGenerateAuthToken:   base.BoolPtr(true),
 				AuthTokenUpdateStrategy: new("SET"),
-				KMSKeyID:                &g.kmsDataKeyArn,
+				KMSKeyID:                g.kmsDataKeyIDRef(),
 				MaintenanceWindow:       &g.instance.Spec.MaintenanceWindow,
 				SnapshotWindow:          &g.instance.Spec.SnapshotWindow,
 				SnapshotRetentionLimit:  &g.instance.Spec.SnapshotRetentionLimit,
@@ -550,4 +550,14 @@ func mustJSONString(s string) string {
 		return ""
 	}
 	return string(b)
+}
+
+// kmsDataKeyIDRef returns the data KMS key ARN, or nil where the environment has no KMS
+// module. AtRestEncryptionEnabled stays true either way; a nil key leaves ElastiCache to
+// encrypt under the default aws/elasticache key.
+func (g *valkeyInstanceGenerator) kmsDataKeyIDRef() *string {
+	if g.kmsDataKeyArn == "" {
+		return nil
+	}
+	return &g.kmsDataKeyArn
 }

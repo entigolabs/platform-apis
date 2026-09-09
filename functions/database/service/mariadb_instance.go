@@ -66,6 +66,7 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() client.Object {
 	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
 	availabilityZone := g.resolveAvailabilityZone()
+	kmsDataKeyRef, kmsConfigKeyRef := g.kmsRefs()
 
 	vpcSecurityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 
@@ -104,9 +105,9 @@ func (g *rdsInstanceGenerator) buildMariaDBRDSInstance() client.Object {
 				FinalSnapshotIdentifier:     &finalSnapshotIdentifier,
 				Identifier:                  &rdsInstanceName,
 				InstanceClass:               &g.mariaDBInstance.Spec.InstanceType,
-				KMSKeyIDRef:                 &xpv2v1.NamespacedReference{Name: g.kmsDataKey.Name, Namespace: g.kmsDataKey.Namespace},
+				KMSKeyIDRef:                 kmsDataKeyRef,
 				ManageMasterUserPassword:    new(true),
-				MasterUserSecretKMSKeyIDRef: &xpv2v1.NamespacedReference{Name: g.kmsConfigKey.Name, Namespace: g.kmsConfigKey.Namespace},
+				MasterUserSecretKMSKeyIDRef: kmsConfigKeyRef,
 				MultiAz:                     &g.mariaDBInstance.Spec.MultiAZ,
 				PerformanceInsightsEnabled:  new(false),
 				PubliclyAccessible:          new(false),

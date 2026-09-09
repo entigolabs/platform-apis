@@ -83,12 +83,12 @@ func newS3BucketGenerator(
 	}
 
 	var kmsDataKey kmsmv1beta1.Key
-	if err := base.ExtractRequiredResource(required, KMSDataKey, &kmsDataKey); err != nil {
+	if _, err := base.ExtractOptionalResource(required, KMSDataKey, &kmsDataKey); err != nil {
 		return nil, err
 	}
 
 	var kmsConfigKey kmsmv1beta1.Key
-	if err := base.ExtractRequiredResource(required, KMSConfigKey, &kmsConfigKey); err != nil {
+	if _, err := base.ExtractOptionalResource(required, KMSConfigKey, &kmsConfigKey); err != nil {
 		return nil, err
 	}
 
