@@ -1012,7 +1012,7 @@ spec:
         " is restricted to ArgoCD Applications/ApplicationSets, ConfigMaps and Secrets. " +
         "Resource of kind '" + object.kind + "' is not permitted."
 {{- end }}
-{{- if .Values.zone.environmentConfig.namespaceMetadata.enabled }}
+{{- if .Values.zone.namespaceMetadata.enabled }}
 ---
 apiVersion: kyverno.io/v2beta1
 kind: GlobalContextEntry
@@ -1029,7 +1029,7 @@ metadata:
 spec:
   apiCall:
     urlPath: "/api/v1/namespaces/{{ .Values.zone.kyvernoNamespace }}"
-    refreshInterval: {{ .Values.zone.environmentConfig.namespaceMetadata.syncInterval }}
+    refreshInterval: {{ .Values.zone.namespaceMetadata.syncInterval }}
 ---
 apiVersion: policies.kyverno.io/v1
 kind: MutatingPolicy
