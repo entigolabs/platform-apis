@@ -109,10 +109,10 @@ func newRDSInstanceGenerator(
 	if err := base.ExtractRequiredResource(required, "VPC", &vpc); err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, "KMSDataKey", &kmsDataKey); err != nil {
+	if _, err := base.ExtractOptionalResource(required, "KMSDataKey", &kmsDataKey); err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
+	if _, err := base.ExtractOptionalResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
 		return nil, err
 	}
 	if err := base.ExtractRequiredResource(required, "DBSubnetGroup", &subnetGroup); err != nil {
@@ -688,4 +688,17 @@ func GetResourceReadyStatus(observed *composed.Unstructured) resource.Ready {
 		return resource.ReadyTrue
 	}
 	return resource.ReadyFalse
+}
+
+// kmsRefs returns references to the environment's KMS keys, or nil where the environment
+// has no KMS module. A nil reference omits the field, leaving RDS to encrypt the instance
+// under aws/rds and its master-user secret under aws/secretsmanager.
+func (g *rdsInstanceGenerator) kmsRefs() (dataRef, configRef *xpv2v1.NamespacedReference) {
+	if g.kmsDataKey.Name != "" {
+		dataRef = &xpv2v1.NamespacedReference{Name: g.kmsDataKey.Name, Namespace: g.kmsDataKey.Namespace}
+	}
+	if g.kmsConfigKey.Name != "" {
+		configRef = &xpv2v1.NamespacedReference{Name: g.kmsConfigKey.Name, Namespace: g.kmsConfigKey.Namespace}
+	}
+	return dataRef, configRef
 }
