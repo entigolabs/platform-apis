@@ -6,6 +6,7 @@ data:
   awsProvider: crossplane-aws
   awsRegion: eu-north-1
   dataKMSKey: data
+  vpc: vpc
 # tags:
 #   environment: dev
 # scanOnPush: bool

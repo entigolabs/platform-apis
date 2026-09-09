@@ -58,6 +58,7 @@ artifact:
   environmentConfig:
     awsProvider: "crossplane-aws"
     dataKMSKey: data
+    vpc: vpc
     # Scan every pushed image for known vulnerabilities.
     scanOnPush: true
     # Whether an existing image tag can be overwritten by a new push.

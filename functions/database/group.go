@@ -201,12 +201,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 	case apis.XRKindPostgreSQL, apis.XRKindMariaDBInstance:
 		secretName := base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-%s", compositeResource.GetName(), "dbadmin"))
 		secretNamespace := compositeResource.GetNamespace()
-		resources["VPC"] = &fnv1.ResourceSelector{
-			Kind:       "VPC",
-			ApiVersion: ec2ApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
-			Namespace:  &env.AWSProvider,
-		}
+		resources["VPC"] = base.RequiredVPC(env.VPC, env.AWSProvider)
 		if env.DataKMSKey != "" {
 			resources["KMSDataKey"] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
 		}
@@ -226,12 +221,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			Namespace:  &secretNamespace,
 		}
 	case apis.XRKindValkey:
-		resources[service.VPCKey] = &fnv1.ResourceSelector{
-			Kind:       "VPC",
-			ApiVersion: ec2ApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
-			Namespace:  &env.AWSProvider,
-		}
+		resources[service.VPCKey] = base.RequiredVPC(env.VPC, env.AWSProvider)
 		resources[service.ElasticacheSubnetGroupKey] = &fnv1.ResourceSelector{
 			Kind:       "SubnetGroup",
 			ApiVersion: "elasticache.aws.m.upbound.io/v1beta1",

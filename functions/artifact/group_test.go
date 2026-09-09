@@ -66,6 +66,7 @@ func TestArtifactFunction(t *testing.T) {
 	environmentData := map[string]interface{}{
 		"awsProvider": "aws-provider",
 		"dataKMSKey":  "data",
+		"vpc":         "test-net-vpc",
 	}
 	optEnvironmentData := map[string]interface{}{
 		"scanOnPush":         true,
@@ -87,6 +88,7 @@ func TestArtifactFunction(t *testing.T) {
 	}
 	maps.Copy(lifecycleEnvironmentData, environmentData)
 	kmsKeyResource := test.KMSKeyResource(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string), "mrk-6c709a49a34940a48025f3bbc412827e")
+	vpcResource := test.VPCResource(environmentData["vpc"].(string), environmentData["awsProvider"].(string))
 	zone := "zone-a"
 
 	cases := map[string]test.Case{
@@ -101,6 +103,7 @@ func TestArtifactFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						apis.KMSDataKey: kmsKeyResource,
+						apis.VPCKey:     vpcResource,
 						base.ZoneKey:    test.ZoneWithMetadata(zone, map[string]interface{}{base.TagsPrefix + "foo": "bar"}, map[string]interface{}{base.TagsPrefix + "bar": "foo"}),
 						base.ZoneEnvKey: test.EnvironmentConfigResourceWithData(base.ZoneEnvName, map[string]interface{}{"tags": map[string]interface{}{"custom-tag": "custom-value"}}),
 					},
@@ -119,6 +122,7 @@ func TestArtifactFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							apis.VPCKey:     base.RequiredVPC(environmentData["vpc"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -135,6 +139,7 @@ func TestArtifactFunction(t *testing.T) {
 					},
 					RequiredResources: map[string]*fnv1.Resources{
 						apis.KMSDataKey: kmsKeyResource,
+						apis.VPCKey:     vpcResource,
 					},
 				},
 			},
@@ -151,6 +156,7 @@ func TestArtifactFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							apis.VPCKey:     base.RequiredVPC(environmentData["vpc"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -168,6 +174,7 @@ func TestArtifactFunction(t *testing.T) {
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, optEnvironmentData),
 						apis.KMSDataKey:     kmsKeyResource,
+						apis.VPCKey:         vpcResource,
 					},
 				},
 			},
@@ -184,6 +191,7 @@ func TestArtifactFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							apis.VPCKey:     base.RequiredVPC(environmentData["vpc"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -204,6 +212,7 @@ func TestArtifactFunction(t *testing.T) {
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, lifecycleEnvironmentData),
 						apis.KMSDataKey:     kmsKeyResource,
+						apis.VPCKey:         vpcResource,
 					},
 				},
 			},
@@ -219,6 +228,7 @@ func TestArtifactFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							apis.VPCKey:     base.RequiredVPC(environmentData["vpc"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -239,6 +249,7 @@ func TestArtifactFunction(t *testing.T) {
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, lifecycleEnvironmentData),
 						apis.KMSDataKey:     kmsKeyResource,
+						apis.VPCKey:         vpcResource,
 					},
 				},
 			},
@@ -254,6 +265,7 @@ func TestArtifactFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							apis.VPCKey:     base.RequiredVPC(environmentData["vpc"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -276,6 +288,7 @@ func TestArtifactFunction(t *testing.T) {
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, lifecycleEnvironmentData),
 						apis.KMSDataKey:     kmsKeyResource,
+						apis.VPCKey:         vpcResource,
 					},
 				},
 			},
@@ -290,6 +303,7 @@ func TestArtifactFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							apis.VPCKey:     base.RequiredVPC(environmentData["vpc"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},
@@ -307,6 +321,7 @@ func TestArtifactFunction(t *testing.T) {
 					RequiredResources: map[string]*fnv1.Resources{
 						base.EnvironmentKey: test.EnvironmentConfigResourceWithData(environmentName, lifecycleEnvironmentData),
 						apis.KMSDataKey:     kmsKeyResource,
+						apis.VPCKey:         vpcResource,
 					},
 				},
 			},
@@ -321,6 +336,7 @@ func TestArtifactFunction(t *testing.T) {
 					Requirements: &fnv1.Requirements{
 						Resources: map[string]*fnv1.ResourceSelector{
 							apis.KMSDataKey: base.RequiredKMSKey(environmentData["dataKMSKey"].(string), environmentData["awsProvider"].(string)),
+							apis.VPCKey:     base.RequiredVPC(environmentData["vpc"].(string), environmentData["awsProvider"].(string)),
 						},
 					},
 				},

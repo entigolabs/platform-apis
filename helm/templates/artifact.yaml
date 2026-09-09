@@ -5,6 +5,7 @@ metadata:
   name: platform-apis-artifact
 data:
   awsProvider: {{ .Values.artifact.environmentConfig.awsProvider }}
+  vpc: {{ .Values.artifact.environmentConfig.vpc }}
 {{- if .Values.global.kms.dataKeyArn }}
   dataKMSKey: {{ .Values.artifact.environmentConfig.dataKMSKey }}
 {{- end }}

@@ -12,6 +12,7 @@ var validImageTagMutability = base.NewSet("MUTABLE", "IMMUTABLE", "IMMUTABLE_WIT
 
 type Environment struct {
 	AWSProvider        string             `json:"awsProvider"`
+	VPC                string             `json:"vpc"`
 	DataKMSKey         string             `json:"dataKMSKey"`
 	ScanOnPush         *bool              `json:"scanOnPush,omitempty"`
 	ImageTagMutability *string            `json:"imageTagMutability,omitempty"`
@@ -23,6 +24,9 @@ type Environment struct {
 func (e Environment) Validate() error {
 	if e.AWSProvider == "" {
 		return errors.New("awsProvider is required")
+	}
+	if e.VPC == "" {
+		return errors.New("vpc is required")
 	}
 	if e.ImageTagMutability != nil && !validImageTagMutability.Contains(*e.ImageTagMutability) {
 		return fmt.Errorf("imageTagMutability must be either null or %s", validImageTagMutability.String())

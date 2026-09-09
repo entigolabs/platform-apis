@@ -87,6 +87,38 @@ func KMSKeyResource(name, namespace, arnSuffix string) *fnv1.Resources {
 	}
 }
 
+func VPCResource(name, namespace string) *fnv1.Resources {
+	resourceStruct, err := structpb.NewStruct(map[string]interface{}{
+		"apiVersion": base.VPCApiVersion,
+		"kind":       base.VPCKind,
+		"metadata": map[string]interface{}{
+			"name":      name,
+			"namespace": namespace,
+		},
+		"spec": map[string]interface{}{
+			"forProvider": map[string]interface{}{
+				"region": "eu-north-1",
+			},
+		},
+		"status": map[string]interface{}{
+			"atProvider": map[string]interface{}{
+				"id":     "vpc-0123456789abcdef0",
+				"region": "eu-north-1",
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &fnv1.Resources{
+		Items: []*fnv1.Resource{
+			{
+				Resource: resourceStruct,
+			},
+		},
+	}
+}
+
 func Namespace(name, zone string) *fnv1.Resources {
 	resourceStruct, err := structpb.NewStruct(map[string]interface{}{
 		"apiVersion": "v1",
