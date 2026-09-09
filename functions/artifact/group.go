@@ -69,7 +69,9 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		resources[apis.KMSDataKey] = kms
+		if kms != nil {
+			resources[apis.KMSDataKey] = kms
+		}
 		return resources, nil
 	default:
 		return nil, nil
@@ -80,6 +82,9 @@ func getRequiredKMS(required map[string][]resource.Required) (*fnv1.ResourceSele
 	env, err := service.GetEnvironment(required)
 	if err != nil {
 		return nil, err
+	}
+	if env.DataKMSKey == "" {
+		return nil, nil
 	}
 	return base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider), nil
 }
