@@ -100,12 +100,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 
 	switch compositeResource.GetKind() {
 	case apis.XRKindRabbitMQBroker:
-		resources["VPC"] = &fnv1.ResourceSelector{
-			Kind:       "VPC",
-			ApiVersion: ec2ApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
-			Namespace:  &env.AWSProvider,
-		}
+		resources["VPC"] = base.RequiredVPC(env.VPC, env.AWSProvider)
 		if env.ConfigKMSKey != "" {
 			resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
 		}

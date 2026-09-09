@@ -58,6 +58,27 @@ func RequiredKMSKey(name, namespace string) *fnv1.ResourceSelector {
 	}
 }
 
+// RequiredVPC selects the environment's VPC from the namespaced provider APIs, which is
+// what every group except tenancy uses.
+func RequiredVPC(name, namespace string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       VPCKind,
+		ApiVersion: VPCApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+		Namespace:  &namespace,
+	}
+}
+
+// RequiredClusterVPC selects the environment's VPC from the cluster-scoped provider APIs.
+// tenancy works against those, so it takes no namespace.
+func RequiredClusterVPC(name string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       VPCKind,
+		ApiVersion: VPCClusterApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+	}
+}
+
 func RequiredNamespace(name string) *fnv1.ResourceSelector {
 	return &fnv1.ResourceSelector{
 		Kind:       "Namespace",
