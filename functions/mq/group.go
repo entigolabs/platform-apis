@@ -106,7 +106,9 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
 			Namespace:  &env.AWSProvider,
 		}
-		resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		if env.ConfigKMSKey != "" {
+			resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		}
 		resources["MQSubnetGroup"] = &fnv1.ResourceSelector{
 			Kind:       "SubnetGroup",
 			ApiVersion: "rds.aws.m.upbound.io/v1beta1",

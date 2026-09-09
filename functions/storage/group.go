@@ -76,8 +76,12 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		resources[service.KMSDataKey] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
-		resources[service.KMSConfigKey] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		if env.DataKMSKey != "" {
+			resources[service.KMSDataKey] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
+		}
+		if env.ConfigKMSKey != "" {
+			resources[service.KMSConfigKey] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		}
 		resources[service.EKSKey] = &fnv1.ResourceSelector{
 			Kind:       "Cluster",
 			ApiVersion: "eks.aws.m.upbound.io/v1beta1",

@@ -99,10 +99,12 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			ApiVersion: ec2ApiVersion,
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
 		}
-		resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
-			Kind:       "Alias",
-			ApiVersion: "kms.aws.upbound.io/v1beta1",
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSAlias},
+		if env.DataKMSAlias != "" {
+			resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
+				Kind:       "Alias",
+				ApiVersion: "kms.aws.upbound.io/v1beta1",
+				Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSAlias},
+			}
 		}
 		resources[service.SecurityGroupKey] = &fnv1.ResourceSelector{
 			Kind:       "SecurityGroup",
