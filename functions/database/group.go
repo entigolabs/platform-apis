@@ -207,8 +207,12 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
 			Namespace:  &env.AWSProvider,
 		}
-		resources["KMSDataKey"] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
-		resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		if env.DataKMSKey != "" {
+			resources["KMSDataKey"] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
+		}
+		if env.ConfigKMSKey != "" {
+			resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		}
 		resources["DBSubnetGroup"] = &fnv1.ResourceSelector{
 			Kind:       "SubnetGroup",
 			ApiVersion: "rds.aws.m.upbound.io/v1beta1",
@@ -234,8 +238,12 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.ElasticacheSubnetGroup},
 			Namespace:  &env.AWSProvider,
 		}
-		resources["KMSDataKey"] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
-		resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		if env.DataKMSKey != "" {
+			resources["KMSDataKey"] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
+		}
+		if env.ConfigKMSKey != "" {
+			resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		}
 		resources[service.ComputeSubnetsKey] = &fnv1.ResourceSelector{
 			Kind:       "Subnet",
 			ApiVersion: ec2ApiVersion,

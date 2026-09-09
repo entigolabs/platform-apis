@@ -130,7 +130,9 @@ func (g *GroupImpl) getKafkaUserRequiredResources(compositeResource *composite.U
 		ApiVersion: "queue.entigo.com/v1alpha1",
 		Match:      &fnv1.ResourceSelector_MatchName{MatchName: clusterName + "-observed"},
 	}
-	resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+	if env.ConfigKMSKey != "" {
+		resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+	}
 	return resources, nil
 }
 
