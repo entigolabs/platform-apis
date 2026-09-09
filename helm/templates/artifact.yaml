@@ -5,7 +5,9 @@ metadata:
   name: platform-apis-artifact
 data:
   awsProvider: {{ .Values.artifact.environmentConfig.awsProvider }}
+{{- if .Values.global.kms.dataKeyArn }}
   dataKMSKey: {{ .Values.artifact.environmentConfig.dataKMSKey }}
+{{- end }}
   scanOnPush: {{ .Values.artifact.environmentConfig.scanOnPush }}
   imageTagMutability: {{ .Values.artifact.environmentConfig.imageTagMutability }}
   {{- if .Values.artifact.environmentConfig.tags }}

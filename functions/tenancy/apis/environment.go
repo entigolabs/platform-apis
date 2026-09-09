@@ -46,9 +46,6 @@ func (e Environment) Validate() error {
 	if e.VPC == "" {
 		return errors.New("vpc is required")
 	}
-	if e.DataKMSAlias == "" {
-		return errors.New("dataKMSAlias is required")
-	}
 	if e.SecurityGroup == "" {
 		return errors.New("securityGroup is required")
 	}

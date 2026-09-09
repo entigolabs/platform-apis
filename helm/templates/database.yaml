@@ -5,8 +5,12 @@ metadata:
   name: platform-apis-database
 data:
   awsProvider: {{ .Values.database.environmentConfig.awsProvider }}
+{{- if .Values.global.kms.dataKeyArn }}
   dataKMSKey: {{ .Values.database.environmentConfig.dataKMSKey }}
+{{- end }}
+{{- if .Values.global.kms.configKeyArn }}
   configKMSKey: {{ .Values.database.environmentConfig.configKMSKey }}
+{{- end }}
   vpc: {{ .Values.database.environmentConfig.vpc }}
   subnetGroup: {{ .Values.database.environmentConfig.subnetGroup }}
   elasticacheSubnetGroup: {{ .Values.database.environmentConfig.elasticacheSubnetGroup }}

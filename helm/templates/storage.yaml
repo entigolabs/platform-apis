@@ -6,8 +6,12 @@ metadata:
   name: platform-apis-storage
 data:
   awsProvider: {{ .Values.storage.environmentConfig.awsProvider }}
+{{- if .Values.global.kms.dataKeyArn }}
   dataKMSKey: {{ .Values.storage.environmentConfig.dataKMSKey }}
+{{- end }}
+{{- if .Values.global.kms.configKeyArn }}
   configKMSKey: {{ .Values.storage.environmentConfig.configKMSKey }}
+{{- end }}
   {{- if .Values.storage.environmentConfig.tags }}
   tags: {{- toYaml .Values.storage.environmentConfig.tags | nindent 4 }}
   {{- else }}
