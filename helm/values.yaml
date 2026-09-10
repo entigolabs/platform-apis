@@ -126,7 +126,9 @@ mq:
     tag: v0.0.0
   environmentConfig:
     awsProvider: "crossplane-aws"
-    configKMSKey: config
+    # Amazon MQ's encryptionOptions key encrypts the broker's message storage, which is
+    # application data - so this is the data key, not the config key.
+    dataKMSKey: data
     vpc: vpc
     subnetGroup: database
     # Cloud tags added to every broker.

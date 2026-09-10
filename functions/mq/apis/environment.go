@@ -5,11 +5,11 @@ import (
 )
 
 type Environment struct {
-	AWSProvider  string             `json:"awsProvider"`
-	ConfigKMSKey string             `json:"configKMSKey"`
-	VPC          string             `json:"vpc"`
-	SubnetGroup  string             `json:"subnetGroup"`
-	Tags         map[string]*string `json:"tags,omitempty"`
+	AWSProvider string             `json:"awsProvider"`
+	DataKMSKey  string             `json:"dataKMSKey"`
+	VPC         string             `json:"vpc"`
+	SubnetGroup string             `json:"subnetGroup"`
+	Tags        map[string]*string `json:"tags,omitempty"`
 }
 
 func (e *Environment) Validate() error {

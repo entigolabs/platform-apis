@@ -71,6 +71,7 @@ func KMSKeyResource(name, namespace, arnSuffix string) *fnv1.Resources {
 		"status": map[string]interface{}{
 			"atProvider": map[string]interface{}{
 				"arn":    "arn:aws:kms:eu-north-1:111111111111:key/" + arnSuffix,
+				"id":     "arn:aws:kms:eu-north-1:111111111111:key/" + arnSuffix,
 				"region": "eu-north-1",
 			},
 		},
