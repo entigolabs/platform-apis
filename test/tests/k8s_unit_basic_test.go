@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -194,12 +195,14 @@ func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.Kube
 			t.Parallel()
 			waitSyncedAndReady(t, cluster, ZoneKind, ZoneAName, 30, 10*time.Second)
 			waitZoneNodegroupReady(t, cluster, ZoneAName)
+			waitZoneNodesReady(t, cluster, ZoneAName)
 			preCreateTestNamespaces(t, cfg, cluster)
 		})
 		t.Run("zone-b", func(t *testing.T) {
 			t.Parallel()
 			waitSyncedAndReady(t, cluster, ZoneKind, ZoneBName, 30, 10*time.Second)
 			waitZoneNodegroupReady(t, cluster, ZoneBName)
+			waitZoneNodesReady(t, cluster, ZoneBName)
 		})
 	})
 	if t.Failed() {
@@ -259,4 +262,44 @@ func waitZoneNodegroupReady(t *testing.T, cluster *terrak8s.KubectlOptions, zone
 			return status, nil
 		})
 	require.NoError(t, err, "zone %q NodeGroup never became Ready", zone)
+}
+
+// waitZoneNodesReady waits until every Pool of the zone has a node that is Ready.
+//
+// A NodeGroup that reports Ready only means AWS finished creating it. The instances still have to
+// join the cluster and pick up their tenancy labels before a Pod pinned to that Pool can be
+// scheduled at all. On the first run of a day none of it exists yet: infralib's stable and release
+// cycles do not run this module's tests, so a platform-apis PR is what creates the Zones and their
+// NodeGroups from scratch. Waiting for capacity here keeps that provisioning time out of the
+// per-Pod waits, which would otherwise have to absorb it and time out instead.
+//
+// Every Pool is checked, not just the first one. Zone "b" has two, and its test Namespace pins
+// Pods to one of them, so a Ready node in the other Pool does not help it.
+func waitZoneNodesReady(t *testing.T, cluster *terrak8s.KubectlOptions, zone string) {
+	t.Helper()
+
+	pools, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "get", ZoneKind, zone,
+		"-o", "jsonpath={.spec.pools[*].name}")
+	require.NoError(t, err, "could not read the Pools of zone %q", zone)
+	require.NotEmpty(t, pools, "zone %q has no Pools", zone)
+
+	for _, pool := range strings.Fields(pools) {
+		zonePool := fmt.Sprintf("%s-%s", zone, pool)
+		_, err := retry.DoWithRetryE(t, fmt.Sprintf("zone %q pool %q Ready node", zone, pool),
+			30, 10*time.Second, func() (string, error) {
+				statuses, err := terrak8s.RunKubectlAndGetOutputE(t, cluster, "get", "nodes",
+					"-l", "tenancy.entigo.com/zone-pool="+zonePool,
+					"-o", `jsonpath={range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}`)
+				if err != nil {
+					return "", err
+				}
+				for _, status := range strings.Fields(statuses) {
+					if status == "True" {
+						return zonePool, nil
+					}
+				}
+				return "", fmt.Errorf("no Ready node carries tenancy.entigo.com/zone-pool=%s yet", zonePool)
+			})
+		require.NoError(t, err, "zone %q pool %q never got a Ready node", zone, pool)
+	}
 }

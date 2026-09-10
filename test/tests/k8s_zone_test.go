@@ -36,7 +36,10 @@ func testZoneApps(t *testing.T, cluster *terrak8s.KubectlOptions) {
 
 func testPodsRunning(t *testing.T, nsOpts *terrak8s.KubectlOptions, podName string) {
 	t.Helper()
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("pod %s/%s Running", nsOpts.Namespace, podName), 10, 10*time.Second,
+	// 30 attempts, like the other waits in this suite. The Pod still has to be created by its own
+	// child Application, pull the app and istio-proxy images onto a node that may have just joined,
+	// and get its sidecar through the startup probe.
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("pod %s/%s Running", nsOpts.Namespace, podName), 30, 10*time.Second,
 		func() (string, error) {
 			phase, err := terrak8s.RunKubectlAndGetOutputE(t, nsOpts, "get", "pod", podName, "-o", "jsonpath={.status.phase}")
 			if err != nil {
