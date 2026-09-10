@@ -53,6 +53,10 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			t.Parallel()
 			testKyvernoAppsNamespaceRestriction(t, cluster)
 		})
+		t.Run("NamespaceArgoCDMetadata", func(t *testing.T) {
+			t.Parallel()
+			testKyvernoNamespaceArgoCDMetadata(t, cluster)
+		})
 		if contributorKeyID != "" && contributorSecret != "" {
 			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 			t.Run("ContributorDeny", func(t *testing.T) {
@@ -355,6 +359,88 @@ func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.Kubectl
 			Name: name, Namespace: KyvernoTestNSName,
 		}))
 		assertKyvernoAllowed(t, err)
+	})
+}
+
+// testKyvernoNamespaceArgoCDMetadata covers platform-apis-namespace-argocd-metadata (MutatingPolicy).
+// The labels and annotations an Application declares under managedNamespaceMetadata have to reach
+// the destination namespace, while the keys the namespace policies own are ignored. The patch is
+// applied in the background, so every check polls.
+func testKyvernoNamespaceArgoCDMetadata(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	kyvernoNSOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, KyvernoTestNSName)
+
+	const (
+		appName     = "kyverno-metadata-test"
+		generatedNS = "kyverno-metadata-ns"
+	)
+	t.Cleanup(func() {
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, kyvernoNSOpts, "delete", "application", appName, "--ignore-not-found", "--wait=false")
+		_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", generatedNS, "--ignore-not-found", "--wait=false")
+	})
+
+	// The metadata is applied from the Application's CREATE event, so leftovers from an interrupted
+	// run have to go first. Applying over an existing Application is an update, which is picked up
+	// by the periodic refresh instead and would not land inside the window this test waits.
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, kyvernoNSOpts, "delete", "application", appName, "--ignore-not-found")
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", generatedNS, "--ignore-not-found")
+	waitResourceGone(t, cluster, "namespace", generatedNS, 24, 5*time.Second)
+
+	applyFile(t, cluster, writeTempYAML(t, argoAppYAML(t, kyvernoArgoAppData{
+		Name: appName, Namespace: KyvernoTestNSName, DestNamespace: generatedNS, Project: ZoneAName,
+		NamespaceLabels: map[string]string{
+			"team":            "platform",
+			"istio-injection": "enabled",
+			// Owned by the namespace policies, an Application may not decide it.
+			"tenancy.entigo.com/zone": "infralib",
+			// Allowed, the Pool picks one of the zone's own NodeGroups. "default" is a pool of
+			// zone "a", so the nodeSelector the zone generates from it stays valid.
+			"tenancy.entigo.com/pool": "default",
+			// Allowed, because it is stricter than the zone's podSecurity level.
+			"pod-security.kubernetes.io/enforce": "restricted",
+		},
+		NamespaceAnnotations: map[string]string{"owner": "ops"},
+	})))
+
+	waitResourceExists(t, cluster, "namespace", generatedNS, 12, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.labels.team", "platform", 24, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS, `.metadata.labels['istio-injection']`, "enabled", 24, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.annotations.owner", "ops", 24, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS,
+		`.metadata.labels['tenancy\.entigo\.com/zone']`, ZoneAName, 24, 5*time.Second)
+	waitFieldEquals(t, cluster, "namespace", generatedNS,
+		`.metadata.labels['tenancy\.entigo\.com/pool']`, "default", 24, 5*time.Second)
+
+	waitFieldEquals(t, cluster, "namespace", generatedNS,
+		`.metadata.labels['pod-security\.kubernetes\.io/enforce']`, "restricted", 24, 5*time.Second)
+
+	t.Run("fail: a looser pod security label is denied on the application", func(t *testing.T) {
+		out, err := kyvernoApply(t, cluster, argoAppYAML(t, kyvernoArgoAppData{
+			Name: "kyverno-metadata-loose", Namespace: KyvernoTestNSName, DestNamespace: generatedNS,
+			Project:         ZoneAName,
+			NamespaceLabels: map[string]string{"pod-security.kubernetes.io/enforce": "privileged"},
+		}))
+		assertKyvernoDenied(t, out, err)
+	})
+
+	// Everything above rode in on the Application's CREATE event. An edit to an existing
+	// Application has no CREATE to ride on and can only arrive through the periodic refresh, so
+	// this is the one check that covers the GlobalContextEntry heartbeat and the sweep its status
+	// write starts. Without it a broken sweep is invisible, the create path keeps working.
+	t.Run("pass: an edit to an existing application is picked up by the refresh", func(t *testing.T) {
+		refresh := getField(t, cluster, "globalcontextentry", MetadataSyncEntryName, ".spec.apiCall.refreshInterval")
+		if refresh != MetadataSyncTestInterval {
+			t.Skipf("metadata sync refreshInterval is %q, this test only waits out the %q the test environments configure",
+				refresh, MetadataSyncTestInterval)
+		}
+
+		patchResource(t, kyvernoNSOpts, "application", appName,
+			`{"spec":{"syncPolicy":{"managedNamespaceMetadata":{"labels":{"sweep":"applied"},"annotations":{"owner":"sre"}}}}}`)
+
+		// A key that is new and a value that changed, the refresh has to carry both. Three minutes
+		// against a one minute interval: the edit can land just after a refresh, and the
+		// UpdateRequest that refresh creates is then processed asynchronously.
+		waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.labels.sweep", "applied", 36, 5*time.Second)
+		waitFieldEquals(t, cluster, "namespace", generatedNS, ".metadata.annotations.owner", "sre", 36, 5*time.Second)
 	})
 }
 

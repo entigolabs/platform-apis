@@ -8,21 +8,37 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
 // TestScenario describes a single Kyverno policy test case.
+// ResourceYAML is the resource the policy is evaluated against, which is the trigger for mutate
+// existing policies.
+//
+// Scenarios without TargetResourceYAML run under "kyverno apply" and assert on its output.
+// Setting TargetResourceYAML switches the scenario to "kyverno test", the only CLI command that
+// evaluates a MutatingPolicy against its targets: "kyverno apply" loads --target-resource but
+// never hands it to the policy processor, so the mutate existing rules are silently skipped.
+// Such a scenario asserts by comparing the patched target against ExpectedPatchedTargetYAML in
+// full, and needs MutatingPolicyName to say which policy is expected to produce it.
 type TestScenario struct {
-	HelmValues       map[string]string
-	ResourceYAML     string
-	VariablesYAML    string
-	UserInfoYAML     string
-	ExpectedAction   string
-	ExpectedInOutput string
+	HelmValues                map[string]string
+	ResourceYAML              string
+	TargetResourceYAML        string
+	ExpectedPatchedTargetYAML string
+	MutatingPolicyName        string
+	VariablesYAML             string
+	UserInfoYAML              string
+	ExpectedAction            string
+	ExpectedInOutput          string
 }
 
 // K8sResource holds the fields parsed from a resource YAML needed for policy routing.
@@ -30,7 +46,8 @@ type K8sResource struct {
 	APIVersion string `yaml:"apiVersion"`
 	Kind       string `yaml:"kind"`
 	Metadata   struct {
-		Name string `yaml:"name"`
+		Name      string `yaml:"name"`
+		Namespace string `yaml:"namespace"`
 	} `yaml:"metadata"`
 	Spec map[string]interface{} `yaml:"spec"`
 }
@@ -51,6 +68,12 @@ clusterRoles: []
 // RunPolicyCheck renders the Helm chart, applies offline mocks, runs kyverno CLI, and asserts the result.
 func RunPolicyCheck(t *testing.T, chartDir string, scenario TestScenario) {
 	t.Helper()
+
+	if scenario.TargetResourceYAML != "" {
+		requireMutateExistingSupport(t)
+		runMutateExistingCheck(t, chartDir, scenario)
+		return
+	}
 
 	output := applyPolicies(t, chartDir, scenario)
 	passed := strings.Contains(output, "fail: 0") && strings.Contains(output, "error: 0")
@@ -373,6 +396,188 @@ func assertOutputContains(t *testing.T, expected string, output string) {
 	}
 }
 
+// mutateExistingCLIVersion is the first kyverno CLI version these scenarios can run under.
+//
+// A CRD trigger has to be registered through clusterResources, "kyverno test" has no --crds flag.
+// Under 1.18.2 that combination is a dead end in both directions:
+//
+//   - with clusterResources, the CLI builds a fake discovery client and asks it for an OpenAPI v3
+//     document while applying the policy, and client-go's FakeDiscovery.OpenAPIV3 is a
+//     panic("unimplemented") stub, so the whole run dies before any result is reported
+//   - without them, the trigger cannot be mapped at all: no matches for kind "Application" in
+//     version "argoproj.io/v1alpha1"
+//
+// 1.19 falls back to the built-in schemas instead of panicking. Until the clusters run it these
+// scenarios skip, because the CLI has to stay in step with the Kyverno deployed by infralib
+// (kyverno chart 3.8.2, appVersion v1.18.2) or it would accept policies the engine cannot run.
+var mutateExistingCLIVersion = [2]int{1, 19}
+
+var (
+	cliVersionOnce sync.Once
+	cliVersion     [2]int
+	cliVersionErr  error
+)
+
+// requireMutateExistingSupport skips the test when the kyverno CLI on PATH is too old to run a
+// mutate existing scenario, rather than letting it patch nothing silently or panic.
+func requireMutateExistingSupport(t *testing.T) {
+	t.Helper()
+	cliVersionOnce.Do(func() {
+		out, err := exec.Command("kyverno", "version").CombinedOutput()
+		if err != nil {
+			cliVersionErr = fmt.Errorf("kyverno version: %w: %s", err, out)
+			return
+		}
+		match := regexp.MustCompile(`Version:\s*v?(\d+)\.(\d+)`).FindStringSubmatch(string(out))
+		if match == nil {
+			cliVersionErr = fmt.Errorf("no version in kyverno output: %s", out)
+			return
+		}
+		major, _ := strconv.Atoi(match[1])
+		minor, _ := strconv.Atoi(match[2])
+		cliVersion = [2]int{major, minor}
+	})
+	require.NoError(t, cliVersionErr, "failed to read the kyverno CLI version")
+	if cliVersion[0] < mutateExistingCLIVersion[0] ||
+		(cliVersion[0] == mutateExistingCLIVersion[0] && cliVersion[1] < mutateExistingCLIVersion[1]) {
+		t.Skipf("kyverno CLI %d.%d cannot run mutate existing scenarios, %d.%d or newer is needed",
+			cliVersion[0], cliVersion[1], mutateExistingCLIVersion[0], mutateExistingCLIVersion[1])
+	}
+}
+
+// runMutateExistingCheck asserts a mutate existing MutatingPolicy with "kyverno test", which
+// compares the patched target against the expected one and reports a summary of the comparison.
+func runMutateExistingCheck(t *testing.T, chartDir string, scenario TestScenario) {
+	t.Helper()
+	require.NotEmpty(t, scenario.MutatingPolicyName, "MutatingPolicyName is required with a target resource")
+	require.NotEmpty(t, scenario.ExpectedPatchedTargetYAML, "ExpectedPatchedTargetYAML is required with a target resource")
+
+	tmpDir := t.TempDir()
+	preparePolicies(t, chartDir, tmpDir, scenario)
+	prepareUserInfo(t, tmpDir, scenario.UserInfoYAML)
+	writeTempFile(t, tmpDir, "resource.yaml", scenario.ResourceYAML)
+	writeTempFile(t, tmpDir, "target.yaml", scenario.TargetResourceYAML)
+	writeTempFile(t, tmpDir, "patched.yaml", scenario.ExpectedPatchedTargetYAML)
+	if scenario.VariablesYAML != "" {
+		writeTempFile(t, tmpDir, "values.yaml", scenario.VariablesYAML)
+	}
+	crd := triggerCRD(t, scenario.ResourceYAML)
+	if crd != "" {
+		writeTempFile(t, tmpDir, "crds.yaml", crd)
+		writeTempFile(t, tmpDir, "clusterresources.yaml",
+			clusterResourcesDoc(triggerNamespace(t, scenario.ResourceYAML)))
+	}
+	writeTempFile(t, tmpDir, "kyverno-test.yaml", testManifest(t, scenario, crd != ""))
+
+	output := runCommand(t, os.Environ(), "kyverno", "test", tmpDir, "--remove-color", "--detailed-results")
+
+	if !strings.Contains(output, "Test Summary:") {
+		t.Fatalf("kyverno test did not produce a summary\n%s", output)
+	}
+	if !strings.Contains(output, "0 tests failed") {
+		t.Errorf("the patched target does not match the expected one\n%s", output)
+	}
+}
+
+// clusterResourcesDoc makes the CLI build a RESTMapper and a client that know the trigger CRD,
+// which also puts the trigger and the target in the context the policy's CEL expressions read.
+// The Namespace the trigger lives in is seeded too, the CLI reads it to evaluate namespaceSelector
+// and fails the whole run when it is missing.
+func clusterResourcesDoc(namespace string) string {
+	return fmt.Sprintf(`
+apiVersion: cli.kyverno.io/v1alpha1
+kind: ClusterResource
+metadata:
+  name: cluster-resources
+spec:
+  crds:
+  - crds.yaml
+  resources:
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: %s
+`, namespace)
+}
+
+// triggerNamespace returns the Namespace the trigger lives in, which the API server defaults to
+// "default" when a namespaced resource does not name one.
+func triggerNamespace(t *testing.T, resourceYAML string) string {
+	t.Helper()
+	if ns := parseK8sYAML(t, resourceYAML).Metadata.Namespace; ns != "" {
+		return ns
+	}
+	return "default"
+}
+
+// testManifest renders the cli.kyverno.io Test that drives "kyverno test".
+func testManifest(t *testing.T, scenario TestScenario, withCRD bool) string {
+	t.Helper()
+	target := parseK8sYAML(t, scenario.TargetResourceYAML)
+	extra := ""
+	if scenario.VariablesYAML != "" {
+		extra = "\nvariables: values.yaml"
+	}
+	if withCRD {
+		extra += "\nclusterResources:\n- clusterresources.yaml"
+	}
+	return fmt.Sprintf(`
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: mutate-existing
+policies:
+- policy.yaml
+resources:
+- resource.yaml
+targetResources:
+- target.yaml
+userinfo: userinfo.yaml%s
+results:
+- policy: %s
+  isMutatingPolicy: true
+  kind: %s
+  result: pass
+  patchedResources: patched.yaml
+  resources:
+  - %s
+`, extra, scenario.MutatingPolicyName, target.Kind, target.Metadata.Name)
+}
+
+// triggerCRD returns a CustomResourceDefinition for the trigger, which the CLI needs to map its
+// kind offline. Built-in kinds need none and yield an empty document.
+func triggerCRD(t *testing.T, resourceYAML string) string {
+	t.Helper()
+	res := parseK8sYAML(t, resourceYAML)
+	if isBuiltinResource(res.APIVersion) {
+		return ""
+	}
+	group, version, _ := strings.Cut(res.APIVersion, "/")
+	plural := strings.ToLower(res.Kind) + "s"
+	return fmt.Sprintf(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: %s.%s
+spec:
+  group: %s
+  scope: Namespaced
+  names:
+    kind: %s
+    listKind: %sList
+    plural: %s
+    singular: %s
+  versions:
+  - name: %s
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+`, plural, group, group, res.Kind, res.Kind, plural, strings.ToLower(res.Kind), version)
+}
+
 // runCommand executes the named command with args and returns its combined stdout+stderr.
 func runCommand(t *testing.T, env []string, name string, args ...string) string {
 	t.Helper()
@@ -433,6 +638,30 @@ metadata:
 `, name, zone, enforce, warn)
 }
 
+// GenerateNamespaceWithMetadata returns the same Namespace as GenerateNamespace with extra labels
+// and annotations merged in, which is how a mutate existing scenario states the Namespace it
+// expects after the patch. An extra label overrides the pod-security label of the same key.
+func GenerateNamespaceWithMetadata(name, zone, enforce, warn string, labels, annotations map[string]string) string {
+	all := map[string]string{
+		"tenancy.entigo.com/zone":            zone,
+		"pod-security.kubernetes.io/enforce": enforce,
+		"pod-security.kubernetes.io/warn":    warn,
+	}
+	for k, v := range labels {
+		all[k] = v
+	}
+	out := fmt.Sprintf(`
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: %s
+  labels:%s`, name, mapLines(all, 4))
+	if len(annotations) > 0 {
+		out += "\n  annotations:" + mapLines(annotations, 4)
+	}
+	return out + "\n"
+}
+
 // GenerateConfigMap returns a ConfigMap resource YAML with a single placeholder data entry in the given namespace.
 func GenerateConfigMap(name, namespace string) string {
 	return fmt.Sprintf(`
@@ -482,6 +711,43 @@ spec:
   destination:
     namespace: %s
 `, name, nsLine, project, destNamespace)
+}
+
+// GenerateArgoAppWithNamespaceMetadata returns an ArgoCD Application resource YAML that declares
+// spec.syncPolicy.managedNamespaceMetadata with the given labels and annotations.
+func GenerateArgoAppWithNamespaceMetadata(name, project, destNamespace string, labels, annotations map[string]string) string {
+	return fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: %s
+spec:
+  project: %s
+  destination:
+    namespace: %s
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels:%s
+      annotations:%s
+`, name, project, destNamespace, mapLines(labels, 8), mapLines(annotations, 8))
+}
+
+// mapLines renders a string map as YAML lines indented by indent spaces, sorted by key.
+// An empty map renders as an inline empty map.
+func mapLines(values map[string]string, indent int) string {
+	if len(values) == 0 {
+		return " {}"
+	}
+	keys := make([]string, 0, len(values))
+	for k := range values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var lines string
+	for _, k := range keys {
+		lines += fmt.Sprintf("\n%s%q: %q", strings.Repeat(" ", indent), k, values[k])
+	}
+	return lines
 }
 
 // GenerateNamespaceLabelsValues returns a kyverno Values YAML that assigns the given labels

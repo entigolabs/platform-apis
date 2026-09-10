@@ -63,6 +63,23 @@ func waitResourceExists(t *testing.T, opts *terrak8s.KubectlOptions, kind, name 
 	require.NoError(t, err)
 }
 
+// waitResourceGone polls until a resource no longer exists.
+func waitResourceGone(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, retries int, interval time.Duration) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s/%s gone", kind, name), retries, interval,
+		func() (string, error) {
+			out, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "--ignore-not-found", "-o", "jsonpath={.metadata.name}")
+			if err != nil {
+				return "", err
+			}
+			if strings.TrimSpace(out) != "" {
+				return "", fmt.Errorf("%s/%s still exists", kind, name)
+			}
+			return "", nil
+		})
+	require.NoError(t, err, "%s/%s was not removed", kind, name)
+}
+
 // waitFieldEquals polls until a jsonpath field on a resource equals the expected value.
 func waitFieldEquals(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fieldPath, expected string, retries int, interval time.Duration) {
 	t.Helper()

@@ -54,6 +54,11 @@ const (
 	KyvernoTestTmpNSName      = "kyverno-test-tmp"
 	KyvernoTestRepositoryName = "kyverno-test-repo"
 
+	// The heartbeat behind the namespace metadata sweep, and the refreshInterval the test
+	// environments set it to in test/tests/config. The shipped default is far longer.
+	MetadataSyncEntryName    = "platform-apis-namespace-metadata-sync"
+	MetadataSyncTestInterval = "1m"
+
 	// ── Zone ─────────────────────────────────────────────────────────────────
 
 	ZoneApplicationName  = "app-of-zones"
