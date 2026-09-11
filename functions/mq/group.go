@@ -101,8 +101,8 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 	switch compositeResource.GetKind() {
 	case apis.XRKindRabbitMQBroker:
 		resources["VPC"] = base.RequiredVPC(env.VPC, env.AWSProvider)
-		if env.ConfigKMSKey != "" {
-			resources["KMSConfigKey"] = base.RequiredKMSKey(env.ConfigKMSKey, env.AWSProvider)
+		if env.DataKMSKey != "" {
+			resources["KMSDataKey"] = base.RequiredKMSKey(env.DataKMSKey, env.AWSProvider)
 		}
 		resources["MQSubnetGroup"] = &fnv1.ResourceSelector{
 			Kind:       "SubnetGroup",
