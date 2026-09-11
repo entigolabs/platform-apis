@@ -1,3 +1,12 @@
+global:
+  # ARNs of the environment's KMS keys, supplied by the infralib agent from optional
+  # outputs. Empty means the environment has no KMS module, and every KMS reference in
+  # the EnvironmentConfigs below drops out. Resources then fall back to AWS-managed keys.
+  kms:
+    dataKeyArn: ""
+    configKeyArn: ""
+    dataAliasArn: ""
+
 workspace: ""
 
 database:
@@ -49,6 +58,7 @@ artifact:
   environmentConfig:
     awsProvider: "crossplane-aws"
     dataKMSKey: data
+    vpc: vpc
     # Scan every pushed image for known vulnerabilities.
     scanOnPush: true
     # Whether an existing image tag can be overwritten by a new push.

@@ -58,6 +58,27 @@ func RequiredKMSKey(name, namespace string) *fnv1.ResourceSelector {
 	}
 }
 
+// RequiredVPC selects the environment's VPC from the namespaced provider APIs, which is
+// what every group except tenancy uses.
+func RequiredVPC(name, namespace string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       VPCKind,
+		ApiVersion: VPCApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+		Namespace:  &namespace,
+	}
+}
+
+// RequiredClusterVPC selects the environment's VPC from the cluster-scoped provider APIs.
+// tenancy works against those, so it takes no namespace.
+func RequiredClusterVPC(name string) *fnv1.ResourceSelector {
+	return &fnv1.ResourceSelector{
+		Kind:       VPCKind,
+		ApiVersion: VPCClusterApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+	}
+}
+
 func RequiredNamespace(name string) *fnv1.ResourceSelector {
 	return &fnv1.ResourceSelector{
 		Kind:       "Namespace",
@@ -204,6 +225,19 @@ func ExtractRequiredResource(requiredResources map[string][]resource.Required, k
 		return fmt.Errorf("cannot convert required resource %s: %w", key, err)
 	}
 	return nil
+}
+
+// ExtractOptionalResource behaves like ExtractRequiredResource except that a resource
+// which was never fetched is not an error: it reports whether the resource was present.
+// Use it for resources an environment may legitimately not have, such as KMS keys.
+func ExtractOptionalResource(requiredResources map[string][]resource.Required, key string, target client.Object) (bool, error) {
+	if requiredResources == nil || len(requiredResources[key]) == 0 {
+		return false, nil
+	}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(requiredResources[key][0].Resource.Object, target); err != nil {
+		return false, fmt.Errorf("cannot convert required resource %s: %w", key, err)
+	}
+	return true, nil
 }
 
 func ExtractResources[T client.Object](requiredResources map[string][]resource.Required, key string) ([]T, error) {

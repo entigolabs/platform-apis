@@ -16,9 +16,6 @@ func (e *Environment) Validate() error {
 	if e.AWSProvider == "" {
 		return errors.New("awsProvider is required")
 	}
-	if e.ConfigKMSKey == "" {
-		return errors.New("configKMSKey is required")
-	}
 	if e.VPC == "" {
 		return errors.New("vpc is required")
 	}

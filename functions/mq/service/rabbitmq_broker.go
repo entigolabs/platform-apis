@@ -89,7 +89,7 @@ func newRabbitMQBrokerGenerator(
 	if err := base.ExtractRequiredResource(required, "VPC", &vpc); err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
+	if _, err := base.ExtractOptionalResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
 		return nil, err
 	}
 	if err := base.ExtractRequiredResource(required, "MQSubnetGroup", &subnetGroup); err != nil {
@@ -462,7 +462,7 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 					},
 				}},
 				EncryptionOptions: &mqv1beta1.EncryptionOptionsParameters{
-					KMSKeyID:       new(g.kmsConfigKey.GetID()),
+					KMSKeyID:       g.kmsConfigKeyIDRef(),
 					UseAwsOwnedKey: new(false),
 				},
 				SubnetIds: subnetIds,
@@ -567,4 +567,15 @@ func GetRabbitMQBrokerReadyStatus(observed *composed.Unstructured) resource.Read
 		return resource.ReadyTrue
 	}
 	return resource.ReadyFalse
+}
+
+// kmsConfigKeyIDRef returns the config KMS key id, or nil where the environment has no KMS
+// module. UseAwsOwnedKey stays false either way, so Amazon MQ creates an AWS-managed CMK
+// aliased to aws/mq in the account rather than using an AWS-owned key outside it.
+func (g *rabbitMQBrokerGenerator) kmsConfigKeyIDRef() *string {
+	id := g.kmsConfigKey.GetID()
+	if id == "" {
+		return nil
+	}
+	return new(id)
 }

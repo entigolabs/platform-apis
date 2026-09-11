@@ -41,3 +41,44 @@ status:
       reason: Available
       status: "True"
       type: Ready
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPC
+metadata:
+  annotations:
+    crossplane.io/external-name: vpc
+  name: vpc
+  namespace: crossplane-aws
+spec:
+  deletionPolicy: Orphan
+  forProvider:
+    cidrBlock: 10.138.0.0/16
+    enableDnsHostNames: true
+    enableDnsSupport: true
+    enableNetworkAddressUsageMetrics: false
+    instanceTenancy: default
+    region: eu-north-1
+  managementPolicies:
+    - Observe
+  providerConfigRef:
+    name: crossplane-aws
+status:
+  atProvider:
+    cidrBlockAssociationSet:
+      - associationId: vpc-cidr-assoc-test
+        cidrBlock: 10.138.0.0/16
+        cidrBlockState:
+          state: associated
+    dhcpOptionsId: dopt-test
+    ownerId: "012345678901"
+    vpcId: vpc-test
+    vpcState: available
+  conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      reason: Available
+      status: "True"
+      type: Ready

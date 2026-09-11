@@ -5,7 +5,9 @@ metadata:
   name: platform-apis-mq
 data:
   awsProvider: {{ .Values.mq.environmentConfig.awsProvider }}
+{{- if .Values.global.kms.configKeyArn }}
   configKMSKey: {{ .Values.mq.environmentConfig.configKMSKey }}
+{{- end }}
   vpc: {{ .Values.mq.environmentConfig.vpc }}
   subnetGroup: {{ .Values.mq.environmentConfig.subnetGroup }}
   {{- if .Values.mq.environmentConfig.tags }}

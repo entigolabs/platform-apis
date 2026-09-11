@@ -141,7 +141,7 @@ func GenerateZoneObjects(
 	if err := base.ExtractRequiredResource(required, VPCKey, &vpc); err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, KMSDataAliasKey, &kmsDataAlias); err != nil {
+	if _, err := base.ExtractOptionalResource(required, KMSDataAliasKey, &kmsDataAlias); err != nil {
 		return nil, err
 	}
 	if err := base.ExtractRequiredResource(required, SecurityGroupKey, &securityGroup); err != nil {

@@ -329,7 +329,9 @@ data:
       []
     {{- end }}
   cluster: {{ .Values.zone.environmentConfig.cluster }}
+{{- if .Values.global.kms.dataAliasArn }}
   dataKMSAlias: {{ .Values.zone.environmentConfig.dataKMSAlias }}
+{{- end }}
   securityGroup: {{ .Values.zone.environmentConfig.securityGroup }}
   vpc: {{ .Values.zone.environmentConfig.vpc }}
   computeSubnetType: {{ .Values.zone.environmentConfig.computeSubnetType }}

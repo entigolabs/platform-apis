@@ -63,10 +63,8 @@ func newKafkaUserGenerator(
 	}
 
 	var kmsConfigKey kmsmv1beta1.Key
-	if kmsResources, ok := required["KMSConfigKey"]; ok && len(kmsResources) > 0 {
-		if err := base.ExtractRequiredResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
-			return nil, err
-		}
+	if _, err := base.ExtractOptionalResource(required, "KMSConfigKey", &kmsConfigKey); err != nil {
+		return nil, err
 	}
 
 	password, err := resolvePassword(user.Name, observed)

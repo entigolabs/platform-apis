@@ -94,15 +94,13 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		resources[service.VPCKey] = &fnv1.ResourceSelector{
-			Kind:       "VPC",
-			ApiVersion: ec2ApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.VPC},
-		}
-		resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
-			Kind:       "Alias",
-			ApiVersion: "kms.aws.upbound.io/v1beta1",
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSAlias},
+		resources[service.VPCKey] = base.RequiredClusterVPC(env.VPC)
+		if env.DataKMSAlias != "" {
+			resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
+				Kind:       "Alias",
+				ApiVersion: "kms.aws.upbound.io/v1beta1",
+				Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSAlias},
+			}
 		}
 		resources[service.SecurityGroupKey] = &fnv1.ResourceSelector{
 			Kind:       "SecurityGroup",
