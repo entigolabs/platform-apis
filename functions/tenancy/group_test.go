@@ -654,7 +654,7 @@ func TestZoneFunction(t *testing.T) {
 					Desired: &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							service.GetNamespaceKey(nsName): {Resource: resource.MustStructJSON(`
-{"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"istio-injection":"enabled","pod-security.kubernetes.io/enforce":"baseline","pod-security.kubernetes.io/warn":"baseline","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns"},"spec":{},"status":{}}
+{"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{"tenancy.entigo.com/zone":"test-zone"},"labels":{"pod-security.kubernetes.io/enforce":"baseline","pod-security.kubernetes.io/warn":"baseline","tenancy.entigo.com/zone":"test-zone"},"name":"test-app-ns"},"spec":{},"status":{}}
 							`), Ready: 1},
 							service.GetNamespaceKey(appsNsName): {Resource: resource.MustStructJSON(appsNamespaceJson), Ready: 1},
 							service.GetLaunchTemplateKey(zoneName, poolName): {Resource: resource.MustStructJSON(`

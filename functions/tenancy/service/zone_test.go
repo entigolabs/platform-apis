@@ -3,9 +3,11 @@ package service
 import (
 	"testing"
 
+	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/google/go-cmp/cmp"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestMergeRoleMappings(t *testing.T) {
@@ -144,6 +146,64 @@ func TestMergeRoleMappings(t *testing.T) {
 			got := mergeRoleMappings(tc.zone, tc.env)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("mergeRoleMappings() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetNamespaceIstioInjection(t *testing.T) {
+	tests := map[string]struct {
+		granularEgress bool
+		exclude        []string
+		wantLabel      bool
+	}{
+		"granularEgress off": {
+			granularEgress: false,
+			wantLabel:      false,
+		},
+		"granularEgress on": {
+			granularEgress: true,
+			wantLabel:      true,
+		},
+		"granularEgress on, another zone excluded": {
+			granularEgress: true,
+			exclude:        []string{"other-zone"},
+			wantLabel:      true,
+		},
+		// An excluded Zone keeps the shared, unrestricted behaviour, so it gets no proxy at all
+		// rather than a proxy whose Sidecar is set to ALLOW_ANY.
+		"granularEgress on, this zone excluded": {
+			granularEgress: true,
+			exclude:        []string{"test-zone"},
+			wantLabel:      false,
+		},
+		"granularEgress off, this zone excluded": {
+			granularEgress: false,
+			exclude:        []string{"test-zone"},
+			wantLabel:      false,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			g := zoneGenerator{
+				zone: v1alpha1.Zone{ObjectMeta: metav1.ObjectMeta{Name: "test-zone"}},
+				env: apis.Environment{
+					GranularEgress:        tc.granularEgress,
+					GranularEgressExclude: tc.exclude,
+					PodSecurity:           "baseline",
+				},
+				egressExclude: base.NewSet(tc.exclude...),
+			}
+
+			ns := g.getNamespace(v1alpha1.Namespace{Name: "test-app-ns"})
+			value, found := ns.Labels["istio-injection"]
+
+			if found != tc.wantLabel {
+				t.Fatalf("istio-injection label present = %v, want %v", found, tc.wantLabel)
+			}
+			if tc.wantLabel && value != "enabled" {
+				t.Fatalf("istio-injection = %q, want %q", value, "enabled")
 			}
 		})
 	}
