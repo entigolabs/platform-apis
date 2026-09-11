@@ -448,7 +448,7 @@ func (g zoneGenerator) getNamespace(ns v1alpha1.Namespace) *corev1.Namespace {
 	if ns.Pool != "" {
 		labels[PoolLabel] = ns.Pool
 	}
-	if g.env.GranularEgress {
+	if g.injectSidecar() {
 		labels["istio-injection"] = "enabled"
 	}
 	return &corev1.Namespace{
@@ -462,6 +462,15 @@ func (g zoneGenerator) getNamespace(ns v1alpha1.Namespace) *corev1.Namespace {
 			Annotations: g.zoneAnnotations,
 		},
 	}
+}
+
+// injectSidecar reports whether the Zone's Namespaces should carry the istio-injection label.
+// A Zone listed in granularEgressExclude keeps the shared, unrestricted behaviour, so it gets no
+// proxy at all rather than a proxy whose Sidecar is set to ALLOW_ANY.
+// Namespaces this composition does not own are labelled by the
+// platform-apis-zone-namespace-istio-injection Kyverno policies, which apply the same rule.
+func (g zoneGenerator) injectSidecar() bool {
+	return g.env.GranularEgress && !g.egressExclude.Contains(g.zone.Name)
 }
 
 func (g zoneGenerator) getSidecar(name string) (client.Object, error) {

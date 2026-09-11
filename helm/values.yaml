@@ -219,6 +219,14 @@ zone:
     # created Application is applied immediately, later edits to an existing Application are
     # picked up by this refresh.
     syncInterval: 10m
+  # Labels every Namespace of a Zone with istio-injection=enabled while granularEgress is enabled,
+  # so the Sidecar the Zone creates is actually enforced. Zones in granularEgressExclude, the
+  # infralib Zone and the "<zone>-apps" Namespaces are skipped. Only used when granularEgress is on;
+  # while it is off the label is left entirely to the user, who may enable injection themselves.
+  istioInjection:
+    # How often Namespaces that already existed when granularEgress was turned on are re-checked.
+    # A newly created Namespace is labelled immediately and does not wait for this refresh.
+    syncInterval: 10m
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com

@@ -19,6 +19,7 @@ func TestKyvernoPolicies(t *testing.T) {
 	t.Run("AppsNamespaceRestriction", testAppsNamespaceRestriction)
 	t.Run("NamespaceArgoCDMetadata", testNamespaceArgoCDMetadata)
 	t.Run("ApplicationNamespaceMetadata", testApplicationNamespaceMetadata)
+	t.Run("ZoneNamespaceIstioInjection", testZoneNamespaceIstioInjection)
 }
 
 // testNamespacePodSecurity covers platform-apis-zone-namespace-pod-security (ValidatingPolicy)
@@ -601,6 +602,85 @@ func testApplicationNamespaceMetadata(t *testing.T) {
 				ResourceYAML: kyverno.GenerateArgoAppWithNamespaceMetadata(
 					"my-app", "infralib", "infra-namespace",
 					map[string]string{"pod-security.kubernetes.io/enforce": "privileged"}, nil),
+			},
+		},
+	}
+	runCases(t, cases)
+}
+
+// testZoneNamespaceIstioInjection covers platform-apis-zone-namespace-istio-injection
+// (MutatingPolicy). The label is what makes the Zone's Sidecar take effect, so it has to land on
+// every Namespace of a Zone, not only on the ones the Zone composition owns.
+// Labels are printed in alphabetical order, so "istio-injection" would appear between "labels:"
+// and "tenancy.entigo.com/zone". A case that expects no patch asserts that pairing to show the
+// label was not added.
+func testZoneNamespaceIstioInjection(t *testing.T) {
+	t.Parallel()
+	const zone = "my-zone"
+	const policy = "platform-apis-zone-namespace-istio-injection"
+	granular := map[string]string{"zone.environmentConfig.granularEgress": "true"}
+	withExclude := map[string]string{
+		"zone.environmentConfig.granularEgress":           "true",
+		"zone.environmentConfig.granularEgressExclude[0]": "default-zone-name",
+	}
+	// "istio-injection" sorts before "pod-security...", so a namespace whose labels start with
+	// the pod-security pair did not get the label.
+	const unpatched = "labels:\n    pod-security.kubernetes.io/enforce: baseline"
+	cases := []struct {
+		name     string
+		scenario kyverno.TestScenario
+	}{
+		{
+			name: "pass: a namespace of a zone gets the label",
+			scenario: kyverno.TestScenario{
+				ExpectedAction:     "pass",
+				HelmValues:         granular,
+				ResourceYAML:       kyverno.GenerateNamespace("my-namespace", zone, "baseline", "baseline"),
+				MutatingPolicyName: policy,
+				ExpectedInOutput:   "istio-injection: enabled",
+			},
+		},
+		{
+			// The label is enforced while granularEgress is on, so opting out is corrected.
+			name: "pass: istio-injection disabled is corrected to enabled",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				HelmValues:     granular,
+				ResourceYAML: kyverno.GenerateNamespaceWithMetadata("opted-out", zone, "baseline", "baseline",
+					map[string]string{"istio-injection": "disabled"}, nil),
+				MutatingPolicyName: policy,
+				ExpectedInOutput:   "istio-injection: enabled",
+			},
+		},
+		{
+			name: "pass: a namespace of an excluded zone is left alone",
+			scenario: kyverno.TestScenario{
+				ExpectedAction:     "pass",
+				HelmValues:         withExclude,
+				ResourceYAML:       kyverno.GenerateNamespace("legacy-ns", "default-zone-name", "baseline", "baseline"),
+				MutatingPolicyName: policy,
+				ExpectedInOutput:   unpatched,
+			},
+		},
+		{
+			// istio-system and kyverno live here, a proxy in front of them would break the cluster.
+			name: "pass: namespaces of the infralib zone are left alone",
+			scenario: kyverno.TestScenario{
+				ExpectedAction:     "pass",
+				HelmValues:         granular,
+				ResourceYAML:       kyverno.GenerateNamespace("infra-ns", "infralib", "baseline", "baseline"),
+				MutatingPolicyName: policy,
+				ExpectedInOutput:   unpatched,
+			},
+		},
+		{
+			name: "pass: the apps namespace of the zone is left alone",
+			scenario: kyverno.TestScenario{
+				ExpectedAction:     "pass",
+				HelmValues:         granular,
+				ResourceYAML:       kyverno.GenerateNamespace(zone+"-apps", zone, "baseline", "baseline"),
+				MutatingPolicyName: policy,
+				ExpectedInOutput:   unpatched,
 			},
 		},
 	}

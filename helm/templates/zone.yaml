@@ -1292,3 +1292,186 @@ spec:
       message: "The 'pod-security.kubernetes.io/warn' label in spec.syncPolicy.managedNamespaceMetadata must be set to '{{ .Values.zone.environmentConfig.podSecurity }}' (or stricter)."
 {{- end }}
 {{- end }}
+{{- if .Values.zone.environmentConfig.granularEgress }}
+---
+apiVersion: kyverno.io/v2beta1
+kind: GlobalContextEntry
+metadata:
+  name: platform-apis-istio-injection-sync
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    policies.kyverno.io/description: >-
+      Heartbeat for platform-apis-zone-namespace-istio-injection-existing. Kyverno polls this entry
+      every spec.apiCall.refreshInterval and writes status.lastRefreshTime on each refresh, and that
+      write is what re-applies the istio-injection label to Namespaces that already existed when
+      granularEgress was turned on. The fetched object itself is not used, it is only the cheapest
+      cluster-local call available.
+spec:
+  apiCall:
+    urlPath: "/api/v1/namespaces/{{ .Values.zone.kyvernoNamespace }}"
+    refreshInterval: {{ .Values.zone.istioInjection.syncInterval }}
+---
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: platform-apis-zone-namespace-istio-injection
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    policies.kyverno.io/title: Istio Injection for Zone Namespaces
+    policies.kyverno.io/category: Zone
+    policies.kyverno.io/description: >-
+      Labels every Namespace of a Zone with istio-injection=enabled while granularEgress is on, so
+      the Sidecar the Zone composition creates is actually enforced. The Zone composition can only
+      set this label on Namespaces it owns, which today means Namespaces declared under the
+      deprecated spec.namespaces. Without this policy a Namespace created with kubectl or by an
+      ArgoCD Application gets a Sidecar but no proxy, and granularEgress silently does nothing.
+      Zones listed in granularEgressExclude keep the shared, unrestricted behaviour and are skipped,
+      as is the platform's own infralib Zone and every "<zone>-apps" Namespace. The label is only
+      enforced while granularEgress is on; with it off these policies do not exist and a user is
+      free to enable injection for their own Namespace.
+spec:
+  # A Namespace must never fail to be created because this policy is unavailable.
+  failurePolicy: Ignore
+  evaluation:
+    admission:
+      enabled: true
+    mutateExisting:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["namespaces"]
+  variables:
+    - name: zone
+      expression: >-
+        has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels ?
+          object.metadata.labels['tenancy.entigo.com/zone'] : ''
+    # Zones that keep the shared, unrestricted behaviour get no proxy at all.
+    - name: excludedZones
+      expression: >-
+        dyn([{{- range $i, $z := .Values.zone.environmentConfig.granularEgressExclude }}{{ if $i }}, {{ end }}"{{ $z }}"{{- end }}])
+    # infralib holds the platform's own Namespaces, istio-system and kyverno among them, and the
+    # "<zone>-apps" Namespace takes only ArgoCD Applications. Neither runs tenant workloads.
+    - name: skip
+      expression: >-
+        variables.zone == '' || variables.zone == 'infralib' ||
+        object.metadata.name == variables.zone + '-apps' ||
+        variables.zone in variables.excludedZones ||
+        (has(object.metadata.labels) && 'istio-injection' in object.metadata.labels &&
+         object.metadata.labels['istio-injection'] == 'enabled')
+  mutations:
+    # Must run first: JSONPatch "add" to /metadata/labels/<key> fails if the map is absent.
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.skip || has(object.metadata.labels) ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels",
+              value: dyn({})
+            }
+          ]
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.skip ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels/" + jsonpatch.escapeKey("istio-injection"),
+              value: "enabled"
+            }
+          ]
+---
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: platform-apis-zone-namespace-istio-injection-existing
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    policies.kyverno.io/title: Istio Injection for Existing Zone Namespaces
+    policies.kyverno.io/category: Zone
+    policies.kyverno.io/description: >-
+      Applies the same rule as platform-apis-zone-namespace-istio-injection to Namespaces that
+      already existed. Turning granularEgress on would otherwise leave every Namespace created
+      before the change without a proxy, because nothing updates those Namespaces. Runs on every
+      refresh of the platform-apis-istio-injection-sync GlobalContextEntry.
+spec:
+  # The heartbeat write comes from Kyverno itself, it must never be blocked by this policy.
+  failurePolicy: Ignore
+  evaluation:
+    # Required: the admission webhook is what creates the UpdateRequest that mutates the target.
+    admission:
+      enabled: true
+    mutateExisting:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["kyverno.io"]
+        apiVersions: ["*"]
+        operations: ["UPDATE"]
+        resources: ["globalcontextentries/status"]
+  matchConditions:
+    # Deliberately free of Kyverno-only CEL functions: conditions that compile against the plain
+    # Kubernetes environment are copied into the webhook configuration, so the API server filters
+    # them before Kyverno is called. These are also evaluated against the target Namespace, hence
+    # the kind guard.
+    - name: only-our-heartbeat
+      expression: >-
+        !has(object.kind) || object.kind != 'GlobalContextEntry' ||
+        object.metadata.name == 'platform-apis-istio-injection-sync'
+  targetMatchConstraints:
+    expression: >-
+      resource.List("v1", "namespaces", "")
+  variables:
+    # Every expression below is evaluated against the target, which is a Namespace. The same policy
+    # is also evaluated against its own trigger at admission time, so nothing may be patched unless
+    # the object really is a Namespace.
+    - name: isNamespace
+      expression: has(object.kind) && object.kind == 'Namespace'
+    - name: zone
+      expression: >-
+        variables.isNamespace && has(object.metadata.labels) &&
+        'tenancy.entigo.com/zone' in object.metadata.labels ?
+          object.metadata.labels['tenancy.entigo.com/zone'] : ''
+    - name: excludedZones
+      expression: >-
+        dyn([{{- range $i, $z := .Values.zone.environmentConfig.granularEgressExclude }}{{ if $i }}, {{ end }}"{{ $z }}"{{- end }}])
+    - name: skip
+      expression: >-
+        !variables.isNamespace || variables.zone == '' || variables.zone == 'infralib' ||
+        object.metadata.name == variables.zone + '-apps' ||
+        variables.zone in variables.excludedZones ||
+        (has(object.metadata.labels) && 'istio-injection' in object.metadata.labels &&
+         object.metadata.labels['istio-injection'] == 'enabled')
+  mutations:
+    # Must run first: JSONPatch "add" to /metadata/labels/<key> fails if the map is absent.
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.skip || has(object.metadata.labels) ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels",
+              value: dyn({})
+            }
+          ]
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          variables.skip ? [] :
+          [
+            JSONPatch{
+              op: "add",
+              path: "/metadata/labels/" + jsonpatch.escapeKey("istio-injection"),
+              value: "enabled"
+            }
+          ]
+{{- end }}
