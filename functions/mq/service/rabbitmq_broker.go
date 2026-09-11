@@ -569,13 +569,11 @@ func GetRabbitMQBrokerReadyStatus(observed *composed.Unstructured) resource.Read
 	return resource.ReadyFalse
 }
 
-// kmsDataKeyIDRef returns the data KMS key id, or nil where the environment has no KMS
-// module. UseAwsOwnedKey stays false either way, so Amazon MQ creates an AWS-managed CMK
-// aliased to aws/mq in the account rather than using an AWS-owned key outside it.
+// kmsDataKeyIDRef returns the data KMS key ARN, or nil where the environment has no KMS
+// module. EncryptionOptionsParameters has no KMSKeyIDRef/Selector, so the ARN has to be
+// resolved here rather than left to the provider. UseAwsOwnedKey stays false either way,
+// so Amazon MQ creates an AWS-managed CMK aliased to aws/mq in the account rather than
+// using an AWS-owned key outside it.
 func (g *rabbitMQBrokerGenerator) kmsDataKeyIDRef() *string {
-	id := g.kmsDataKey.GetID()
-	if id == "" {
-		return nil
-	}
-	return new(id)
+	return g.kmsDataKey.Status.AtProvider.Arn
 }
