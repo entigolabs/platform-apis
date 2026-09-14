@@ -192,7 +192,7 @@ func extractKyvernoPolicies(fullYAML, kind string) string {
 func injectOfflineMocks(policies string, includeNamespaceMock bool) string {
 	policies = strings.ReplaceAll(policies,
 		`resource.List("tenancy.entigo.com/v1alpha1", "zones", "")`,
-		`{"items": [{"metadata": {"name": "my-zone"}}, {"metadata": {"name": "default-zone-name"}}]}`)
+		`{"items": [{"metadata": {"name": "my-zone"}}, {"metadata": {"name": "default-zone-name"}}, {"metadata": {"name": "infralib"}}]}`)
 
 	policies = strings.ReplaceAll(policies,
 		"  - name: exclude-infralib\n    expression: \"!((has(object.metadata) && object.metadata.name == 'infralib') || (has(oldObject.metadata) && oldObject.metadata.name == 'infralib'))\"\n",
