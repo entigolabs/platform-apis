@@ -9,9 +9,23 @@ spec.hosts is required by the schema but matches nothing on a plain TCP connecti
 no SNI or Host header, so it is a fixed placeholder and must not be read as a boundary.
 exportTo "*" is required: the entry has to be visible outside the Istio namespace. It does not
 widen access across Zones, each Zone's Sidecar only lists its own Namespaces plus the Istio one.
+
+cidrs accepts either a YAML list or a comma separated string, because infralib passes a subnet
+output through as one comma separated value and two of them are joined with a comma. Empty
+segments are dropped, so a value like "10.0.0.0/22," or an unset elasticache output is harmless.
 */}}
 {{- define "platform-apis.zoneServiceEntry" -}}
-{{- if and .cidrs .ports }}
+{{- $cidrs := .cidrs }}
+{{- if kindIs "string" $cidrs }}
+{{- $cidrs = splitList "," $cidrs }}
+{{- end }}
+{{- $clean := list }}
+{{- range $cidrs }}
+{{- if trim . }}
+{{- $clean = append $clean (trim .) }}
+{{- end }}
+{{- end }}
+{{- if and $clean .ports }}
 ---
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
@@ -25,7 +39,7 @@ spec:
   hosts:
     - {{ .name }}-subnets.platform-apis.invalid
   addresses:
-    {{- range .cidrs }}
+    {{- range $clean }}
     - {{ . | quote }}
     {{- end }}
   exportTo:

@@ -103,6 +103,42 @@ func TestZoneServiceEntries(t *testing.T) {
 		}
 	})
 
+	// infralib passes a subnet output through as one comma separated value, and joins two of them
+	// with a comma, so the string form has to work as well as a YAML list.
+	t.Run("cidrs accept a comma separated string", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular,
+			`zone.istioServiceEntries.data.cidrs=10.0.16.0/22\,10.0.20.0/22\,10.0.0.0/26`)
+		for _, want := range []string{`- "10.0.16.0/22"`, `- "10.0.20.0/22"`, `- "10.0.0.0/26"`} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendered output is missing %q", want)
+			}
+		}
+	})
+
+	// An environment with no elasticache subnets yields a trailing comma once the two outputs are
+	// joined. The empty segment must be dropped, not rendered as an address.
+	t.Run("empty segments in the string are dropped", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, `zone.istioServiceEntries.data.cidrs=10.0.16.0/22\,`)
+		if !strings.Contains(out, `- "10.0.16.0/22"`) {
+			t.Error("the populated cidr was dropped")
+		}
+		if strings.Contains(out, `- ""`) {
+			t.Error("an empty segment was rendered as an address")
+		}
+	})
+
+	// Both outputs empty joins to a bare ",". That must skip the group, not render an entry with
+	// no addresses, which would match every destination on its ports.
+	t.Run("a string of only separators is skipped", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, `zone.istioServiceEntries.data.cidrs=\,`)
+		if strings.Contains(out, "kind: ServiceEntry") {
+			t.Fatal("a ServiceEntry rendered from an empty cidr string, which would open every destination")
+		}
+	})
+
 	// Ports have to be listed one by one: ServiceEntry has no port range syntax, and omitting
 	// ports opens nothing rather than everything.
 	t.Run("an extraSubnets entry without ports is skipped", func(t *testing.T) {

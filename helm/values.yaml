@@ -247,9 +247,13 @@ zone:
     # Managed data services: RDS, ElastiCache and MSK. Deliberately one group rather than separate
     # database and elasticache groups, so a Valkey launched into the database subnet works the same
     # as one in the elasticache subnet.
-    # cidrs: {{ .toutput.vpc.database_subnets_cidr_blocks }} + {{ .toutput.vpc.elasticache_subnets_cidr_blocks }}
+    #
+    # cidrs takes a YAML list or a comma separated string. infralib passes a subnet output through
+    # as one comma separated value, and two of them are joined with a comma:
+    #   cidrs: "{{ .toutput.vpc.database_subnets_cidr_blocks }},{{ .toutput.vpc.elasticache_subnets_cidr_blocks }}"
+    # Empty segments are dropped, so an environment with no elasticache subnets is harmless.
     data:
-      cidrs: []
+      cidrs: ""
       ports:
         - {number: 3306, name: tcp-mysql, protocol: TCP}       # MySQL, MariaDB, Aurora MySQL
         - {number: 5432, name: tcp-postgres, protocol: TCP}    # PostgreSQL, Aurora PostgreSQL
@@ -267,9 +271,12 @@ zone:
         - {number: 2181, name: tcp-zookeeper, protocol: TCP}
         - {number: 2182, name: tcp-zookeeper-tls, protocol: TCP}
     # Internal services reachable inside the VPC.
-    # cidrs: {{ .toutput.vpc.service_subnets_cidr_blocks }}
+    #   cidrs: "{{ .toutput.vpc.service_subnets_cidr_blocks }}"
+    # Note that with the default subnet_split_mode the service subnets share their CIDR with the
+    # compute subnets, which is where Pod IPs come from, so this group also opens these ports to
+    # every Pod. Leave cidrs empty to skip the group.
     service:
-      cidrs: []
+      cidrs: ""
       ports:
         - {number: 80, name: tcp-http, protocol: TCP}
         - {number: 443, name: tcp-https, protocol: TCP}
