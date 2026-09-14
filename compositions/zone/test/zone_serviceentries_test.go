@@ -139,6 +139,55 @@ func TestZoneServiceEntries(t *testing.T) {
 		}
 	})
 
+	// With subnet_split_mode "default" the VPC returns the same private subnet CIDRs for the
+	// service and compute subnets, and Pod IPs come from the compute subnets, so the service group
+	// would open its ports to every Pod. podCidrs makes that case skip itself.
+	t.Run("service is skipped when its cidrs overlap podCidrs", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, dataCIDR,
+			`zone.istioServiceEntries.service.cidrs=10.1.0.0/21\,10.1.8.0/21`,
+			`zone.istioServiceEntries.podCidrs=10.1.0.0/21\,10.1.8.0/21`)
+		if strings.Contains(out, "platform-apis-service-subnets") {
+			t.Fatal("the service group rendered even though its cidrs are the Pod cidrs")
+		}
+		if !strings.Contains(out, "platform-apis-data-subnets") {
+			t.Error("the guard wrongly dropped the data group")
+		}
+	})
+
+	// With "spoke" the two are disjoint, which is when the group is worth having.
+	t.Run("service renders when disjoint from podCidrs", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, dataCIDR,
+			"zone.istioServiceEntries.service.cidrs=10.1.8.0/21",
+			"zone.istioServiceEntries.podCidrs=10.1.16.0/21")
+		if !strings.Contains(out, "platform-apis-service-subnets") {
+			t.Fatal("the service group was dropped even though it does not overlap the Pod cidrs")
+		}
+	})
+
+	t.Run("a partial overlap with podCidrs also skips", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, dataCIDR,
+			`zone.istioServiceEntries.service.cidrs=10.1.8.0/21\,10.1.16.0/21`,
+			"zone.istioServiceEntries.podCidrs=10.1.16.0/21")
+		if strings.Contains(out, "platform-apis-service-subnets") {
+			t.Fatal("the service group rendered despite overlapping the Pod cidrs")
+		}
+	})
+
+	// The guard is deliberately not applied to the data group: silently dropping it would break
+	// database access rather than over-open it.
+	t.Run("the data group ignores podCidrs", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular,
+			"zone.istioServiceEntries.data.cidrs=10.1.0.0/21",
+			"zone.istioServiceEntries.podCidrs=10.1.0.0/21")
+		if !strings.Contains(out, "platform-apis-data-subnets") {
+			t.Fatal("the data group was dropped by the podCidrs guard")
+		}
+	})
+
 	// Ports have to be listed one by one: ServiceEntry has no port range syntax, and omitting
 	// ports opens nothing rather than everything.
 	t.Run("an extraSubnets entry without ports is skipped", func(t *testing.T) {

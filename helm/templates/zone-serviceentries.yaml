@@ -13,19 +13,37 @@ widen access across Zones, each Zone's Sidecar only lists its own Namespaces plu
 cidrs accepts either a YAML list or a comma separated string, because infralib passes a subnet
 output through as one comma separated value and two of them are joined with a comma. Empty
 segments are dropped, so a value like "10.0.0.0/22," or an unset elasticache output is harmless.
+
+skipIfOverlaps is optional. A group naming it is dropped when any of its CIDRs also appears in
+that list. It exists for the service subnets: with subnet_split_mode "default" the VPC returns
+the same private subnet CIDRs for the service and compute subnets, and the compute subnets are
+where Pod IPs come from, so the group would open its ports to every Pod. With "spoke" the two are
+disjoint and the group is created. It is deliberately not applied to the data group, where
+silently dropping the entry would break database access instead of over-opening it.
 */}}
-{{- define "platform-apis.zoneServiceEntry" -}}
-{{- $cidrs := .cidrs }}
-{{- if kindIs "string" $cidrs }}
-{{- $cidrs = splitList "," $cidrs }}
+{{- define "platform-apis.normalizeCidrs" -}}
+{{- $in := . }}
+{{- if kindIs "string" $in }}
+{{- $in = splitList "," $in }}
 {{- end }}
-{{- $clean := list }}
-{{- range $cidrs }}
+{{- $out := list }}
+{{- range $in }}
 {{- if trim . }}
-{{- $clean = append $clean (trim .) }}
+{{- $out = append $out (trim .) }}
 {{- end }}
 {{- end }}
-{{- if and $clean .ports }}
+{{- toJson $out }}
+{{- end }}
+{{- define "platform-apis.zoneServiceEntry" -}}
+{{- $clean := include "platform-apis.normalizeCidrs" .cidrs | fromJsonArray }}
+{{- $guard := include "platform-apis.normalizeCidrs" .skipIfOverlaps | fromJsonArray }}
+{{- $overlaps := false }}
+{{- range $clean }}
+{{- if has . $guard }}
+{{- $overlaps = true }}
+{{- end }}
+{{- end }}
+{{- if and $clean .ports (not $overlaps) }}
 ---
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
@@ -57,7 +75,7 @@ spec:
 {{- if .Values.zone.environmentConfig.granularEgress }}
 {{- $istioNs := .Values.zone.istioServiceEntries.istioNamespace }}
 {{- include "platform-apis.zoneServiceEntry" (dict "name" "data" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.data.cidrs "ports" .Values.zone.istioServiceEntries.data.ports) }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.service.cidrs "ports" .Values.zone.istioServiceEntries.service.ports) }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.service.cidrs "ports" .Values.zone.istioServiceEntries.service.ports "skipIfOverlaps" .Values.zone.istioServiceEntries.podCidrs) }}
 {{- range .Values.zone.istioServiceEntries.extraSubnets }}
 {{- include "platform-apis.zoneServiceEntry" (dict "name" .name "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
 {{- end }}

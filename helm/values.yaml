@@ -270,11 +270,16 @@ zone:
         - {number: 9098, name: tcp-kafka-iam, protocol: TCP}
         - {number: 2181, name: tcp-zookeeper, protocol: TCP}
         - {number: 2182, name: tcp-zookeeper-tls, protocol: TCP}
+    # CIDRs Pod IPs come from, used only as a guard. The service group is skipped when its CIDRs
+    # overlap these, see below. Leave empty to disable the guard.
+    #   podCidrs: "{{ .toutput.vpc.compute_subnets_cidr_blocks }}"
+    podCidrs: ""
     # Internal services reachable inside the VPC.
     #   cidrs: "{{ .toutput.vpc.service_subnets_cidr_blocks }}"
-    # Note that with the default subnet_split_mode the service subnets share their CIDR with the
-    # compute subnets, which is where Pod IPs come from, so this group also opens these ports to
-    # every Pod. Leave cidrs empty to skip the group.
+    # With subnet_split_mode "default" the VPC returns the same private subnet CIDRs for the
+    # service and the compute subnets, so this group would open its ports to every Pod. Setting
+    # podCidrs makes that case skip itself. With "spoke" the two are disjoint and the group is
+    # created as written.
     service:
       cidrs: ""
       ports:
