@@ -653,13 +653,15 @@ func testZoneNamespaceIstioInjection(t *testing.T) {
 			},
 		},
 		{
-			name: "pass: a namespace of an excluded zone is left alone",
+			// granularEgressExclude only relaxes the Zone's Sidecar to ALLOW_ANY. The Zone stays in
+			// the mesh and its workloads still want mTLS, so the label is applied there too.
+			name: "pass: a namespace of an excluded zone still gets the label",
 			scenario: kyverno.TestScenario{
 				ExpectedAction:     "pass",
 				HelmValues:         withExclude,
 				ResourceYAML:       kyverno.GenerateNamespace("legacy-ns", "default-zone-name", "baseline", "baseline"),
 				MutatingPolicyName: policy,
-				ExpectedInOutput:   unpatched,
+				ExpectedInOutput:   "istio-injection: enabled",
 			},
 		},
 		{

@@ -1327,10 +1327,11 @@ metadata:
       set this label on Namespaces it owns, which today means Namespaces declared under the
       deprecated spec.namespaces. Without this policy a Namespace created with kubectl or by an
       ArgoCD Application gets a Sidecar but no proxy, and granularEgress silently does nothing.
-      Zones listed in granularEgressExclude keep the shared, unrestricted behaviour and are skipped,
-      as is the platform's own infralib Zone and every "<zone>-apps" Namespace. The label is only
-      enforced while granularEgress is on; with it off these policies do not exist and a user is
-      free to enable injection for their own Namespace.
+      A Zone listed in granularEgressExclude is labelled too: that setting only relaxes the Zone's
+      egress rules to ALLOW_ANY, it does not opt the Zone out of the mesh, and its workloads still
+      want mTLS. Skipped are the platform's own infralib Zone and every "<zone>-apps" Namespace.
+      The label is only enforced while granularEgress is on; with it off these policies do not
+      exist and a user is free to enable injection for their own Namespace.
 spec:
   # A Namespace must never fail to be created because this policy is unavailable.
   failurePolicy: Ignore
@@ -1350,17 +1351,12 @@ spec:
       expression: >-
         has(object.metadata.labels) && 'tenancy.entigo.com/zone' in object.metadata.labels ?
           object.metadata.labels['tenancy.entigo.com/zone'] : ''
-    # Zones that keep the shared, unrestricted behaviour get no proxy at all.
-    - name: excludedZones
-      expression: >-
-        dyn([{{- range $i, $z := .Values.zone.environmentConfig.granularEgressExclude }}{{ if $i }}, {{ end }}"{{ $z }}"{{- end }}])
     # infralib holds the platform's own Namespaces, istio-system and kyverno among them, and the
     # "<zone>-apps" Namespace takes only ArgoCD Applications. Neither runs tenant workloads.
     - name: skip
       expression: >-
         variables.zone == '' || variables.zone == 'infralib' ||
         object.metadata.name == variables.zone + '-apps' ||
-        variables.zone in variables.excludedZones ||
         (has(object.metadata.labels) && 'istio-injection' in object.metadata.labels &&
          object.metadata.labels['istio-injection'] == 'enabled')
   mutations:
@@ -1440,14 +1436,10 @@ spec:
         variables.isNamespace && has(object.metadata.labels) &&
         'tenancy.entigo.com/zone' in object.metadata.labels ?
           object.metadata.labels['tenancy.entigo.com/zone'] : ''
-    - name: excludedZones
-      expression: >-
-        dyn([{{- range $i, $z := .Values.zone.environmentConfig.granularEgressExclude }}{{ if $i }}, {{ end }}"{{ $z }}"{{- end }}])
     - name: skip
       expression: >-
         !variables.isNamespace || variables.zone == '' || variables.zone == 'infralib' ||
         object.metadata.name == variables.zone + '-apps' ||
-        variables.zone in variables.excludedZones ||
         (has(object.metadata.labels) && 'istio-injection' in object.metadata.labels &&
          object.metadata.labels['istio-injection'] == 'enabled')
   mutations:

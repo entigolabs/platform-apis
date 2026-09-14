@@ -170,12 +170,12 @@ func TestGetNamespaceIstioInjection(t *testing.T) {
 			exclude:        []string{"other-zone"},
 			wantLabel:      true,
 		},
-		// An excluded Zone keeps the shared, unrestricted behaviour, so it gets no proxy at all
-		// rather than a proxy whose Sidecar is set to ALLOW_ANY.
+		// granularEgressExclude only relaxes the Zone's Sidecar to ALLOW_ANY. The Zone stays in
+		// the mesh and its workloads still want mTLS, so it is still labelled.
 		"granularEgress on, this zone excluded": {
 			granularEgress: true,
 			exclude:        []string{"test-zone"},
-			wantLabel:      false,
+			wantLabel:      true,
 		},
 		"granularEgress off, this zone excluded": {
 			granularEgress: false,
