@@ -1,0 +1,50 @@
+{{/*
+Renders one ServiceEntry opening a set of CIDRs on a set of ports.
+
+resolution: NONE makes Envoy pass the connection through to the destination the client was
+already dialling, so no instance addresses are tracked and an RDS failover cannot invalidate the
+entry. spec.addresses is what scopes it - with addresses unset the entry matches every
+destination on its ports - and a CIDR is only allowed there for NONE/STATIC resolution.
+spec.hosts is required by the schema but matches nothing on a plain TCP connection, which carries
+no SNI or Host header, so it is a fixed placeholder and must not be read as a boundary.
+exportTo "*" is required: the entry has to be visible outside the Istio namespace. It does not
+widen access across Zones, each Zone's Sidecar only lists its own Namespaces plus the Istio one.
+*/}}
+{{- define "platform-apis.zoneServiceEntry" -}}
+{{- if and .cidrs .ports }}
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: platform-apis-{{ .name }}-subnets
+  namespace: {{ .istioNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  hosts:
+    - {{ .name }}-subnets.platform-apis.invalid
+  addresses:
+    {{- range .cidrs }}
+    - {{ . | quote }}
+    {{- end }}
+  exportTo:
+    - "*"
+  location: MESH_EXTERNAL
+  resolution: NONE
+  ports:
+    {{- range .ports }}
+    - number: {{ .number }}
+      name: {{ .name }}
+      protocol: {{ .protocol }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- if .Values.zone.environmentConfig.granularEgress }}
+{{- $istioNs := .Values.zone.istioServiceEntries.istioNamespace }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" "data" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.data.cidrs "ports" .Values.zone.istioServiceEntries.data.ports) }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.service.cidrs "ports" .Values.zone.istioServiceEntries.service.ports) }}
+{{- range .Values.zone.istioServiceEntries.extraSubnets }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" .name "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
+{{- end }}
+{{- end }}

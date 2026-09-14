@@ -229,6 +229,60 @@ zone:
     # How often Namespaces that already existed when granularEgress was turned on are re-checked.
     # A newly created Namespace is labelled immediately and does not wait for this refresh.
     syncInterval: 10m
+  # ServiceEntries created once in the Istio namespace so every Zone can reach the shared
+  # infrastructure subnets while granularEgress is on. Every Zone's Sidecar egress list contains
+  # "<istioNamespace>/*", so a single entry per subnet group serves the whole cluster and the Zone
+  # composition does not have to generate one per Namespace.
+  #
+  # Only rendered while zone.environmentConfig.granularEgress is enabled. A group whose cidrs list
+  # is empty is skipped entirely, because a ServiceEntry with addresses unset matches every
+  # destination on its ports instead of none.
+  #
+  # Ports must be listed one by one: a ServiceEntry has no port range syntax, and omitting ports
+  # opens nothing rather than everything.
+  istioServiceEntries:
+    # Namespace the entries are created in. Must be the Namespace the Zone Sidecars allow, which is
+    # istio-system unless Istio was installed elsewhere.
+    istioNamespace: istio-system
+    # Managed data services: RDS, ElastiCache and MSK. Deliberately one group rather than separate
+    # database and elasticache groups, so a Valkey launched into the database subnet works the same
+    # as one in the elasticache subnet.
+    # cidrs: {{ .toutput.vpc.database_subnets_cidr_blocks }} + {{ .toutput.vpc.elasticache_subnets_cidr_blocks }}
+    data:
+      cidrs: []
+      ports:
+        - {number: 3306, name: tcp-mysql, protocol: TCP}       # MySQL, MariaDB, Aurora MySQL
+        - {number: 5432, name: tcp-postgres, protocol: TCP}    # PostgreSQL, Aurora PostgreSQL
+        - {number: 1521, name: tcp-oracle, protocol: TCP}
+        - {number: 1433, name: tcp-sqlserver, protocol: TCP}
+        - {number: 50000, name: tcp-db2, protocol: TCP}
+        - {number: 6379, name: tcp-valkey, protocol: TCP}      # Valkey / Redis OSS
+        - {number: 6380, name: tcp-valkey-serverless, protocol: TCP}
+        - {number: 11211, name: tcp-memcached, protocol: TCP}
+        - {number: 11212, name: tcp-memcached-serverless, protocol: TCP}
+        - {number: 9092, name: tcp-kafka-plaintext, protocol: TCP}
+        - {number: 9094, name: tcp-kafka-tls, protocol: TCP}
+        - {number: 9096, name: tcp-kafka-sasl, protocol: TCP}
+        - {number: 9098, name: tcp-kafka-iam, protocol: TCP}
+        - {number: 2181, name: tcp-zookeeper, protocol: TCP}
+        - {number: 2182, name: tcp-zookeeper-tls, protocol: TCP}
+    # Internal services reachable inside the VPC.
+    # cidrs: {{ .toutput.vpc.service_subnets_cidr_blocks }}
+    service:
+      cidrs: []
+      ports:
+        - {number: 80, name: tcp-http, protocol: TCP}
+        - {number: 443, name: tcp-https, protocol: TCP}
+        - {number: 8080, name: tcp-http-alt, protocol: TCP}
+        - {number: 8443, name: tcp-https-alt, protocol: TCP}
+    # Additional subnets a cluster needs to reach, each with its own ports. One ServiceEntry is
+    # created per entry, named "<name>-subnets".
+    # extraSubnets:
+    #   - name: partner-database
+    #     cidrs: ["10.90.0.0/24"]
+    #     ports:
+    #       - {number: 5432, name: tcp-postgres, protocol: TCP}
+    extraSubnets: []
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com
