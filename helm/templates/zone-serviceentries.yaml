@@ -1,0 +1,85 @@
+{{/*
+Renders one ServiceEntry opening a set of CIDRs on a set of ports.
+
+resolution: NONE makes Envoy pass the connection through to the destination the client was
+already dialling, so no instance addresses are tracked and an RDS failover cannot invalidate the
+entry. spec.addresses is what scopes it - with addresses unset the entry matches every
+destination on its ports - and a CIDR is only allowed there for NONE/STATIC resolution.
+spec.hosts is required by the schema but matches nothing on a plain TCP connection, which carries
+no SNI or Host header, so it is a fixed placeholder and must not be read as a boundary.
+exportTo "*" is required: the entry has to be visible outside the Istio namespace. It does not
+widen access across Zones, each Zone's Sidecar only lists its own Namespaces plus the Istio one.
+
+cidrs accepts either a YAML list or a comma separated string, because infralib passes a subnet
+output through as one comma separated value and two of them are joined with a comma. The agent
+renders a Terraform list with every element quoted, so a real value arrives looking like
+'"10.0.16.0/22","10.0.20.0/22"' and each segment is unquoted here, the same way aws-alb does it.
+Empty segments are dropped, so a trailing comma from an unset elasticache output is harmless.
+
+skipIfOverlaps is optional. A group naming it is dropped when any of its CIDRs also appears in
+that list. It exists for the service subnets: with subnet_split_mode "default" the VPC returns
+the same private subnet CIDRs for the service and compute subnets, and the compute subnets are
+where Pod IPs come from, so the group would open its ports to every Pod. With "spoke" the two are
+disjoint and the group is created. It is deliberately not applied to the data group, where
+silently dropping the entry would break database access instead of over-opening it.
+*/}}
+{{- define "platform-apis.normalizeCidrs" -}}
+{{- $in := . }}
+{{- if kindIs "string" $in }}
+{{- $in = splitList "," $in }}
+{{- end }}
+{{- $out := list }}
+{{- range $in }}
+{{- $v := . | trim | trimAll "\"" | trim }}
+{{- if $v }}
+{{- $out = append $out $v }}
+{{- end }}
+{{- end }}
+{{- toJson $out }}
+{{- end }}
+{{- define "platform-apis.zoneServiceEntry" -}}
+{{- $clean := include "platform-apis.normalizeCidrs" .cidrs | fromJsonArray }}
+{{- $guard := include "platform-apis.normalizeCidrs" .skipIfOverlaps | fromJsonArray }}
+{{- $overlaps := false }}
+{{- range $clean }}
+{{- if has . $guard }}
+{{- $overlaps = true }}
+{{- end }}
+{{- end }}
+{{- if and $clean .ports (not $overlaps) }}
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: platform-apis-{{ .name }}-subnets
+  namespace: {{ .istioNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  hosts:
+    - {{ .name }}-subnets.platform-apis.invalid
+  addresses:
+    {{- range $clean }}
+    - {{ . | quote }}
+    {{- end }}
+  exportTo:
+    - "*"
+  location: MESH_EXTERNAL
+  resolution: NONE
+  ports:
+    {{- range .ports }}
+    - number: {{ .number }}
+      name: {{ .name }}
+      protocol: {{ .protocol }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- if .Values.zone.environmentConfig.granularEgress }}
+{{- $istioNs := .Values.zone.istioServiceEntries.istioNamespace }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" "data" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.data.cidrs "ports" .Values.zone.istioServiceEntries.data.ports) }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.service.cidrs "ports" .Values.zone.istioServiceEntries.service.ports "skipIfOverlaps" .Values.zone.istioServiceEntries.podCidrs) }}
+{{- range .Values.zone.istioServiceEntries.extraSubnets }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" .name "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
+{{- end }}
+{{- end }}
