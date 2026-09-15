@@ -103,6 +103,30 @@ func TestZoneServiceEntries(t *testing.T) {
 		}
 	})
 
+	// The agent renders a Terraform list with every element quoted, so a real value arrives looking
+	// like '"10.0.16.0/22","10.0.20.0/22"'. Taken verbatim from a rendered biz values file.
+	t.Run("quoted cidrs from the agent are unquoted", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular,
+			`zone.istioServiceEntries.data.cidrs="10.146.16.0/22"\,"10.146.20.0/22"\,"10.146.0.0/26"`,
+			`zone.istioServiceEntries.podCidrs="10.146.32.0/21"\,"10.146.40.0/21"`,
+			`zone.istioServiceEntries.service.cidrs="10.146.32.0/21"\,"10.146.40.0/21"`)
+		for _, want := range []string{`- "10.146.16.0/22"`, `- "10.146.20.0/22"`, `- "10.146.0.0/26"`} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendered output is missing %q", want)
+			}
+		}
+		// Without unquoting, the address keeps the agent's quotes and is not a valid CIDR. Scoped
+		// to our own values, since unrelated CEL elsewhere in the chart contains escaped quotes.
+		if strings.Contains(out, `\"10.146.`) {
+			t.Error("an address kept the quotes the agent added")
+		}
+		// service and podCidrs are the same value here, which is the default subnet_split_mode.
+		if strings.Contains(out, "platform-apis-service-subnets") {
+			t.Error("the service group rendered despite matching the quoted podCidrs")
+		}
+	})
+
 	// infralib passes a subnet output through as one comma separated value, and joins two of them
 	// with a comma, so the string form has to work as well as a YAML list.
 	t.Run("cidrs accept a comma separated string", func(t *testing.T) {
