@@ -51,14 +51,14 @@ silently dropping the entry would break database access instead of over-opening 
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  name: platform-apis-{{ .name }}-subnets
+  name: {{ .objectName }}
   namespace: {{ .istioNamespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   hosts:
-    - {{ .name }}-subnets.platform-apis.invalid
+    - {{ .objectName }}.invalid
   addresses:
     {{- range $clean }}
     - {{ . | quote }}
@@ -75,11 +75,92 @@ spec:
     {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Renders one ServiceEntry opening a set of endpoints by hostname.
+
+These are scoped by hostname rather than by address, for destinations that resolve to addresses
+that change and that the cluster cannot know in advance. resolution: DNS is what makes that safe:
+Envoy resolves the hosts and routes the connection on the TLS SNI, so a connection to a host that
+is not listed finds no filter chain and is still blackholed. The subnet groups above cannot work
+this way - a plain database connection carries no SNI - which is also why they must set addresses,
+since a hostname-only entry with resolution NONE opens its ports to every destination.
+
+{region} in a host is replaced with the region passed in. A host without it is used as written, for
+the endpoints AWS does not regionalise. A host that needs a region while none is set is dropped
+rather than rendered with the placeholder still in it, which would match nothing, and a service
+with no hosts left is skipped, the same way a subnet group with no cidrs is.
+
+Every host has to be a name Istio can resolve. Under resolution DNS with no endpoints, Istio's
+validating webhook rejects anything else, wildcards included, and it rejects it at apply time
+against the whole chart rather than the one entry - a single "*.s3.<region>.amazonaws.com" fails
+the entire platform-apis sync. Failing the render says which host and why, before any of that.
+*/}}
+{{- define "platform-apis.zoneHostServiceEntry" -}}
+{{- $region := .region }}
+{{- $objectName := .objectName }}
+{{- $hosts := list }}
+{{- range .hosts }}
+{{- if contains "*" . }}
+{{- fail (printf "zone.istioServiceEntries: %s host %q is a wildcard. These entries resolve by DNS, where Istio requires a name it can resolve and rejects the whole chart, so list the names in use instead" $objectName .) }}
+{{- end }}
+{{- $host := . | trim }}
+{{- if and $host (or $region (not (contains "{region}" $host))) }}
+{{- $hosts = append $hosts (replace "{region}" $region $host) }}
+{{- end }}
+{{- end }}
+{{- if and $hosts .ports }}
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: {{ .objectName }}
+  namespace: {{ .istioNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  hosts:
+    {{- range $hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  exportTo:
+    - "*"
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    {{- range .ports }}
+    - number: {{ .number }}
+      name: {{ .name }}
+      protocol: {{ .protocol }}
+    {{- end }}
+{{- end }}
+{{- end }}
 {{- if .Values.zone.environmentConfig.granularEgress }}
-{{- $istioNs := .Values.zone.istioServiceEntries.istioNamespace }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" "data" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.data.cidrs "ports" .Values.zone.istioServiceEntries.data.ports) }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.service.cidrs "ports" .Values.zone.istioServiceEntries.service.ports "skipIfOverlaps" .Values.zone.istioServiceEntries.podCidrs) }}
-{{- range .Values.zone.istioServiceEntries.extraSubnets }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" .name "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
+{{- $se := .Values.zone.istioServiceEntries }}
+{{- $istioNs := $se.istioNamespace }}
+{{/* Every entry below lands in one Namespace, where two objects cannot share a name. The name
+     each list renders carries a prefix no other list can produce - subnet-, extra-subnet-, aws-
+     and extra-host- are pairwise distinct right after platform-apis- - so a name chosen in one
+     list can never collide with a name from another, whatever it is called. An extraSubnets entry
+     named "data" renders platform-apis-extra-subnet-data and sits next to the built-in
+     platform-apis-subnet-data rather than replacing it. A name repeated within one list still
+     collides, and is left to show up as the duplicate it plainly is. */}}
+{{- include "platform-apis.zoneServiceEntry" (dict "objectName" "platform-apis-subnet-data" "istioNamespace" $istioNs "cidrs" $se.data.cidrs "ports" $se.data.ports) }}
+{{- include "platform-apis.zoneServiceEntry" (dict "objectName" "platform-apis-subnet-service" "istioNamespace" $istioNs "cidrs" $se.service.cidrs "ports" $se.service.ports "skipIfOverlaps" $se.podCidrs) }}
+{{- range $se.extraSubnets }}
+{{- include "platform-apis.zoneServiceEntry" (dict "objectName" (printf "platform-apis-extra-subnet-%s" .name) "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
+{{- end }}
+{{/* The AWS defaults are a set of regional endpoints, so without a region none of them can be
+     rendered. extraServices are whatever this environment needs and may not be regional at all,
+     so they are not held back by that. */}}
+{{- $region := $se.region }}
+{{- if $region }}
+{{- range $se.awsApis.services | default list }}
+{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-aws-%s" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
+{{- end }}
+{{- end }}
+{{- range $se.extraServices | default list }}
+{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-extra-host-%s" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
 {{- end }}
 {{- end }}

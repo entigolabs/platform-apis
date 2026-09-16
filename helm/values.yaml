@@ -241,12 +241,20 @@ zone:
   # Ports must be listed one by one: a ServiceEntry has no port range syntax, and omitting ports
   # opens nothing rather than everything.
   istioServiceEntries:
+    # Destinations a Zone may reach while granularEgress is on, as Istio ServiceEntries. Each list
+    # below renders under a prefix of its own - platform-apis-subnet-, -extra-subnet-, -aws- and
+    # -extra-host- - so a name chosen in one list can never collide with a name from another, and
+    # the prefix says which list an entry came from when reading them back out of the cluster.
+    #
     # Namespace the entries are created in. Must be the Namespace the Zone Sidecars allow, which is
     # istio-system unless Istio was installed elsewhere.
     istioNamespace: istio-system
-    # Managed data services: RDS, ElastiCache and MSK. Deliberately one group rather than separate
-    # database and elasticache groups, so a Valkey launched into the database subnet works the same
-    # as one in the elasticache subnet.
+    # The cluster's region, substituted into {region} in any host below.
+    #   region: "{{ .toutput.eks.region }}"
+    region: ""
+    # Managed data services: RDS, ElastiCache and MSK, as platform-apis-subnet-data. Deliberately
+    # one group rather than separate database and elasticache groups, so a Valkey launched into the
+    # database subnet works the same as one in the elasticache subnet.
     #
     # cidrs takes a YAML list or a comma separated string. infralib passes a subnet output through
     # as one comma separated value, and two of them are joined with a comma:
@@ -274,7 +282,7 @@ zone:
     # overlap these, see below. Leave empty to disable the guard.
     #   podCidrs: "{{ .toutput.vpc.compute_subnets_cidr_blocks }}"
     podCidrs: ""
-    # Internal services reachable inside the VPC.
+    # Internal services reachable inside the VPC, as platform-apis-subnet-service.
     #   cidrs: "{{ .toutput.vpc.service_subnets_cidr_blocks }}"
     # With subnet_split_mode "default" the VPC returns the same private subnet CIDRs for the
     # service and the compute subnets, so this group would open its ports to every Pod. Setting
@@ -288,13 +296,99 @@ zone:
         - {number: 8080, name: tcp-http-alt, protocol: TCP}
         - {number: 8443, name: tcp-https-alt, protocol: TCP}
     # Additional subnets a cluster needs to reach, each with its own ports. One ServiceEntry is
-    # created per entry, named "<name>-subnets".
+    # created per entry, named platform-apis-extra-subnet-<name>. That prefix is the entry's own,
+    # so a name reused from the groups above adds an entry rather than replacing one.
     # extraSubnets:
     #   - name: partner-database
     #     cidrs: ["10.90.0.0/24"]
     #     ports:
     #       - {number: 5432, name: tcp-postgres, protocol: TCP}
     extraSubnets: []
+    # Ports for a hostname entry that does not set its own. These endpoints are HTTPS, and TLS is
+    # what lets Envoy route on the SNI.
+    defaultPorts:
+      - {number: 443, name: tls-https, protocol: TLS}
+    # Endpoints this environment needs, reached by hostname. One ServiceEntry per entry, named
+    # platform-apis-extra-host-<name>, alongside the AWS ones below rather than replacing them, so
+    # opening one more endpoint does not mean restating every default host. That prefix is the
+    # entry's own, so a name reused from the AWS list adds an entry rather than replacing one.
+    #   extraServices:
+    #     - name: bedrock
+    #       hosts: ["bedrock-runtime.{region}.amazonaws.com"]
+    #     - name: partner
+    #       hosts: ["api.partner.example.com"]
+    #       ports:
+    #         - {number: 8443, name: tls-https-alt, protocol: TLS}
+    # Unlike the AWS defaults these render even when region is empty, since an endpoint here may
+    # not be regional. A host that does use {region} is dropped while no region is set.
+    extraServices: []
+    # AWS service APIs every Zone can reach. One ServiceEntry per service, named
+    # platform-apis-aws-<name>, scoped by hostname rather than by address because an AWS endpoint
+    # resolves to addresses that change and that the cluster cannot know in advance.
+    #
+    # sts is not optional: a tenant ServiceAccount carries eks.amazonaws.com/role-arn and the Pod
+    # itself calls STS to exchange it for credentials, so with granularEgress on and STS closed
+    # every IRSA Pod fails with "no credentials". The rest are the services an application that
+    # uses AWS data services normally calls. All of them authenticate with IAM, so listing them
+    # here grants nothing the Zone's own IAM role does not already allow - the entry decides what
+    # a Pod may connect to, not what it may do once connected.
+    #
+    # {region} is replaced with the region above, and a host without it is used as written. The
+    # whole group is skipped while region is empty, since every default host needs it. To add an
+    # endpoint use extraServices, overriding this list replaces it the way Helm treats any list.
+    awsApis:
+      # Drop an entry to close that service for every Zone. Hosts are the regional endpoints; an
+      # SDK pinned to a global endpoint (s3.amazonaws.com, for instance) needs that host added.
+      #
+      # Every host must be a fixed name. These entries resolve by DNS, and Istio rejects a host it
+      # cannot resolve, wildcards included - the whole chart then fails to apply, not just the one
+      # entry, so the chart refuses a wildcard at render instead.
+      services:
+        # Credentials. Both hosts: EKS sets AWS_STS_REGIONAL_ENDPOINTS=regional, older SDKs still
+        # use the global endpoint.
+        - name: sts
+          hosts: ["sts.{region}.amazonaws.com", "sts.amazonaws.com"]
+        # Managed data services this platform provisions. The data path to an instance is opened
+        # by the data subnet group above, these are the control plane APIs.
+        - name: rds
+          hosts: ["rds.{region}.amazonaws.com"]
+        - name: elasticache
+          hosts: ["elasticache.{region}.amazonaws.com"]
+        - name: kafka
+          hosts: ["kafka.{region}.amazonaws.com"]
+        - name: mq
+          hosts: ["mq.{region}.amazonaws.com"]
+        # Storage and images. Only the endpoints that are a fixed name: the virtual-hosted bucket
+        # form (<bucket>.s3.{region}.amazonaws.com) and the registry form
+        # (<account>.dkr.ecr.{region}.amazonaws.com) vary per bucket and per account, and a
+        # wildcard cannot stand in for them here - see the note on hosts above. An environment
+        # whose SDKs use virtual-hosted addressing, which is the S3 default, adds the buckets it
+        # uses through extraServices. Image pulls do not need the registry host: those are made by
+        # the kubelet on the node, not by the Pod, so they never pass through its sidecar.
+        - name: s3
+          hosts: ["s3.{region}.amazonaws.com"]
+        - name: ecr
+          hosts: ["api.ecr.{region}.amazonaws.com"]
+        # Secrets and configuration.
+        - name: kms
+          hosts: ["kms.{region}.amazonaws.com"]
+        - name: secretsmanager
+          hosts: ["secretsmanager.{region}.amazonaws.com"]
+        - name: ssm
+          hosts: ["ssm.{region}.amazonaws.com"]
+        # Commonly used by applications alongside the above.
+        - name: ec2
+          hosts: ["ec2.{region}.amazonaws.com"]
+        - name: dynamodb
+          hosts: ["dynamodb.{region}.amazonaws.com"]
+        - name: sqs
+          hosts: ["sqs.{region}.amazonaws.com"]
+        - name: sns
+          hosts: ["sns.{region}.amazonaws.com"]
+        - name: logs
+          hosts: ["logs.{region}.amazonaws.com"]
+        - name: monitoring
+          hosts: ["monitoring.{region}.amazonaws.com"]
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com
