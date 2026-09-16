@@ -224,3 +224,150 @@ func TestZoneServiceEntries(t *testing.T) {
 		}
 	})
 }
+
+// TestZoneAWSAPIServiceEntries covers the AWS service entries in
+// helm/templates/zone-serviceentries.yaml. They open the AWS APIs a tenant application calls,
+// which under granularEgress are otherwise closed - including STS, without which IRSA cannot
+// work at all.
+func TestZoneAWSAPIServiceEntries(t *testing.T) {
+	t.Parallel()
+	const (
+		granular = "zone.environmentConfig.granularEgress=true"
+		region   = "zone.istioServiceEntries.awsApis.region=eu-north-1"
+	)
+
+	t.Run("not rendered while granularEgress is off", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, region)
+		if strings.Contains(out, "platform-apis-aws-") {
+			t.Fatal("an AWS ServiceEntry was rendered with granularEgress disabled")
+		}
+	})
+
+	// Every default host is regional, so without a region there is nothing to render. Skipping
+	// beats rendering a host with the placeholder still in it, which would silently match nothing.
+	t.Run("the group is skipped when no region is set", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular)
+		if strings.Contains(out, "platform-apis-aws-") {
+			t.Fatal("an AWS ServiceEntry was rendered without a region")
+		}
+	})
+
+	t.Run("each service renders its own entry", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region)
+		for _, want := range []string{
+			"name: platform-apis-aws-sts",
+			"name: platform-apis-aws-s3",
+			"name: platform-apis-aws-ecr",
+			"name: platform-apis-aws-rds",
+			"name: platform-apis-aws-elasticache",
+			"name: platform-apis-aws-kms",
+			"name: platform-apis-aws-secretsmanager",
+			"name: platform-apis-aws-ec2",
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendered output is missing %q", want)
+			}
+		}
+	})
+
+	t.Run("hosts carry the region, the protocol and the resolution Envoy needs", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region)
+		for _, want := range []string{
+			`- "sts.eu-north-1.amazonaws.com"`,
+			`- "kms.eu-north-1.amazonaws.com"`,
+			"resolution: DNS",
+			"number: 443",
+			"protocol: TLS",
+			`- "*"`,
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendered output is missing %q", want)
+			}
+		}
+	})
+
+	// A host that AWS does not regionalise is used as written. Older SDKs still call global STS,
+	// and losing it would break them while the regional host kept working.
+	t.Run("a host without the placeholder is kept as written", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region)
+		if !strings.Contains(out, `- "sts.amazonaws.com"`) {
+			t.Error("the global STS host was dropped")
+		}
+	})
+
+	// Istio accepts a wildcard only as the leading label, so the virtual-hosted bucket and registry
+	// forms have to survive substitution intact. sts.*.amazonaws.com would be rejected instead.
+	t.Run("wildcard hosts keep their leading label", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region)
+		for _, want := range []string{
+			`- "*.s3.eu-north-1.amazonaws.com"`,
+			`- "*.dkr.ecr.eu-north-1.amazonaws.com"`,
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendered output is missing %q", want)
+			}
+		}
+	})
+
+	// A leftover placeholder is not a rendering error, it is a host that matches nothing, so the
+	// Pod gets a blackhole instead of the API. Scoped to our own hosts.
+	t.Run("no host keeps an unsubstituted placeholder", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region)
+		if strings.Contains(out, "{region}") {
+			t.Error("a host kept the {region} placeholder")
+		}
+	})
+
+	// Overriding services replaces the default list rather than merging into it, which is how Helm
+	// treats every list, so each of these passes a complete list.
+	t.Run("a service with no hosts is skipped", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region,
+			"zone.istioServiceEntries.awsApis.services[0].name=empty",
+			"zone.istioServiceEntries.awsApis.services[1].name=present",
+			"zone.istioServiceEntries.awsApis.services[1].hosts[0]=present.{region}.amazonaws.com")
+		if strings.Contains(out, "platform-apis-aws-empty") {
+			t.Fatal("a service with no hosts rendered a ServiceEntry, which opens nothing")
+		}
+		if !strings.Contains(out, "platform-apis-aws-present") {
+			t.Error("skipping the empty service dropped the one next to it")
+		}
+	})
+
+	t.Run("a custom service brings its own name, hosts and ports", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region,
+			"zone.istioServiceEntries.awsApis.services[0].name=renamed",
+			"zone.istioServiceEntries.awsApis.services[0].hosts[0]=example.{region}.amazonaws.com",
+			"zone.istioServiceEntries.awsApis.services[0].ports[0].number=8443",
+			"zone.istioServiceEntries.awsApis.services[0].ports[0].name=tls-alt",
+			"zone.istioServiceEntries.awsApis.services[0].ports[0].protocol=TLS")
+		for _, want := range []string{
+			"name: platform-apis-aws-renamed",
+			`- "example.eu-north-1.amazonaws.com"`,
+			"number: 8443",
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendered custom service is missing %q", want)
+			}
+		}
+		if strings.Contains(out, "number: 443") {
+			t.Error("the per-service ports were ignored in favour of the group default")
+		}
+	})
+
+	t.Run("istioNamespace applies to the AWS entries too", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region, "zone.istioServiceEntries.istioNamespace=mesh")
+		if strings.Contains(out, "namespace: istio-system") {
+			t.Error("an AWS entry stayed in istio-system after the override")
+		}
+	})
+}

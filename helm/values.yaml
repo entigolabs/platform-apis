@@ -295,6 +295,70 @@ zone:
     #     ports:
     #       - {number: 5432, name: tcp-postgres, protocol: TCP}
     extraSubnets: []
+    # AWS service APIs every Zone can reach. One ServiceEntry per service, named
+    # platform-apis-aws-<name>, scoped by hostname rather than by address because an AWS endpoint
+    # resolves to addresses that change and that the cluster cannot know in advance.
+    #
+    # sts is not optional: a tenant ServiceAccount carries eks.amazonaws.com/role-arn and the Pod
+    # itself calls STS to exchange it for credentials, so with granularEgress on and STS closed
+    # every IRSA Pod fails with "no credentials". The rest are the services an application that
+    # uses AWS data services normally calls. All of them authenticate with IAM, so listing them
+    # here grants nothing the Zone's own IAM role does not already allow - the entry decides what
+    # a Pod may connect to, not what it may do once connected.
+    #
+    # {region} is replaced with the region below, and a host without it is used as written. The
+    # whole group is skipped while region is empty, since every default host needs it.
+    #   region: "{{ .toutput.eks.region }}"
+    awsApis:
+      region: ""
+      # Applied to every service that does not set its own ports. AWS APIs are HTTPS only, and TLS
+      # is what lets Envoy route on the SNI.
+      ports:
+        - {number: 443, name: tls-https, protocol: TLS}
+      # Drop an entry to close that service for every Zone. Hosts are the regional endpoints; an
+      # SDK pinned to a global endpoint (s3.amazonaws.com, for instance) needs that host added.
+      # An environment that overrides this replaces the whole list, the way Helm treats any list.
+      services:
+        # Credentials. Both hosts: EKS sets AWS_STS_REGIONAL_ENDPOINTS=regional, older SDKs still
+        # use the global endpoint.
+        - name: sts
+          hosts: ["sts.{region}.amazonaws.com", "sts.amazonaws.com"]
+        # Managed data services this platform provisions. The data path to an instance is opened
+        # by the data subnet group above, these are the control plane APIs.
+        - name: rds
+          hosts: ["rds.{region}.amazonaws.com"]
+        - name: elasticache
+          hosts: ["elasticache.{region}.amazonaws.com"]
+        - name: kafka
+          hosts: ["kafka.{region}.amazonaws.com"]
+        - name: mq
+          hosts: ["mq.{region}.amazonaws.com"]
+        # Storage and images. The wildcard hosts are the virtual-hosted bucket and registry forms;
+        # Istio allows a wildcard only as the leading label.
+        - name: s3
+          hosts: ["s3.{region}.amazonaws.com", "*.s3.{region}.amazonaws.com"]
+        - name: ecr
+          hosts: ["api.ecr.{region}.amazonaws.com", "*.dkr.ecr.{region}.amazonaws.com"]
+        # Secrets and configuration.
+        - name: kms
+          hosts: ["kms.{region}.amazonaws.com"]
+        - name: secretsmanager
+          hosts: ["secretsmanager.{region}.amazonaws.com"]
+        - name: ssm
+          hosts: ["ssm.{region}.amazonaws.com"]
+        # Commonly used by applications alongside the above.
+        - name: ec2
+          hosts: ["ec2.{region}.amazonaws.com"]
+        - name: dynamodb
+          hosts: ["dynamodb.{region}.amazonaws.com"]
+        - name: sqs
+          hosts: ["sqs.{region}.amazonaws.com"]
+        - name: sns
+          hosts: ["sns.{region}.amazonaws.com"]
+        - name: logs
+          hosts: ["logs.{region}.amazonaws.com"]
+        - name: monitoring
+          hosts: ["monitoring.{region}.amazonaws.com"]
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com

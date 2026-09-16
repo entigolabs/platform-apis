@@ -75,11 +75,68 @@ spec:
     {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Renders one ServiceEntry opening a set of AWS service endpoints by hostname.
+
+These are scoped by hostname rather than by address, because an AWS endpoint resolves to addresses
+that change and that the cluster cannot know in advance. resolution: DNS is what makes that safe:
+Envoy resolves the hosts and routes the connection on the TLS SNI, so a connection to a host that
+is not listed finds no filter chain and is still blackholed. The subnet groups above cannot work
+this way - a plain database connection carries no SNI - which is also why they must set addresses,
+since a hostname-only entry with resolution NONE opens its ports to every destination.
+
+{region} in a host is replaced with the region passed in. A host without it is used as written, for
+the endpoints AWS does not regionalise. A service with no hosts left is skipped, the same way a
+subnet group with no cidrs is.
+*/}}
+{{- define "platform-apis.zoneAWSServiceEntry" -}}
+{{- $region := .region }}
+{{- $hosts := list }}
+{{- range .hosts }}
+{{- $host := . | trim }}
+{{- if $host }}
+{{- $hosts = append $hosts (replace "{region}" $region $host) }}
+{{- end }}
+{{- end }}
+{{- if and $hosts .ports }}
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: platform-apis-aws-{{ .name }}
+  namespace: {{ .istioNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  hosts:
+    {{- range $hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  exportTo:
+    - "*"
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    {{- range .ports }}
+    - number: {{ .number }}
+      name: {{ .name }}
+      protocol: {{ .protocol }}
+    {{- end }}
+{{- end }}
+{{- end }}
 {{- if .Values.zone.environmentConfig.granularEgress }}
 {{- $istioNs := .Values.zone.istioServiceEntries.istioNamespace }}
 {{- include "platform-apis.zoneServiceEntry" (dict "name" "data" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.data.cidrs "ports" .Values.zone.istioServiceEntries.data.ports) }}
 {{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.service.cidrs "ports" .Values.zone.istioServiceEntries.service.ports "skipIfOverlaps" .Values.zone.istioServiceEntries.podCidrs) }}
 {{- range .Values.zone.istioServiceEntries.extraSubnets }}
 {{- include "platform-apis.zoneServiceEntry" (dict "name" .name "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
+{{- end }}
+{{- $aws := .Values.zone.istioServiceEntries.awsApis }}
+{{- if $aws.region }}
+{{- range $aws.services }}
+{{- include "platform-apis.zoneAWSServiceEntry" (dict "name" .name "istioNamespace" $istioNs "region" $aws.region "hosts" .hosts "ports" (.ports | default $aws.ports)) }}
+{{- end }}
 {{- end }}
 {{- end }}
