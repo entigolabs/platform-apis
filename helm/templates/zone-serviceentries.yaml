@@ -90,11 +90,20 @@ since a hostname-only entry with resolution NONE opens its ports to every destin
 the endpoints AWS does not regionalise. A host that needs a region while none is set is dropped
 rather than rendered with the placeholder still in it, which would match nothing, and a service
 with no hosts left is skipped, the same way a subnet group with no cidrs is.
+
+Every host has to be a name Istio can resolve. Under resolution DNS with no endpoints, Istio's
+validating webhook rejects anything else, wildcards included, and it rejects it at apply time
+against the whole chart rather than the one entry - a single "*.s3.<region>.amazonaws.com" fails
+the entire platform-apis sync. Failing the render says which host and why, before any of that.
 */}}
 {{- define "platform-apis.zoneHostServiceEntry" -}}
 {{- $region := .region }}
+{{- $objectName := .objectName }}
 {{- $hosts := list }}
 {{- range .hosts }}
+{{- if contains "*" . }}
+{{- fail (printf "zone.istioServiceEntries: %s host %q is a wildcard. These entries resolve by DNS, where Istio requires a name it can resolve and rejects the whole chart, so list the names in use instead" $objectName .) }}
+{{- end }}
 {{- $host := . | trim }}
 {{- if and $host (or $region (not (contains "{region}" $host))) }}
 {{- $hosts = append $hosts (replace "{region}" $region $host) }}

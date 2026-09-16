@@ -339,6 +339,10 @@ zone:
     awsApis:
       # Drop an entry to close that service for every Zone. Hosts are the regional endpoints; an
       # SDK pinned to a global endpoint (s3.amazonaws.com, for instance) needs that host added.
+      #
+      # Every host must be a fixed name. These entries resolve by DNS, and Istio rejects a host it
+      # cannot resolve, wildcards included - the whole chart then fails to apply, not just the one
+      # entry, so the chart refuses a wildcard at render instead.
       services:
         # Credentials. Both hosts: EKS sets AWS_STS_REGIONAL_ENDPOINTS=regional, older SDKs still
         # use the global endpoint.
@@ -354,12 +358,17 @@ zone:
           hosts: ["kafka.{region}.amazonaws.com"]
         - name: mq
           hosts: ["mq.{region}.amazonaws.com"]
-        # Storage and images. The wildcard hosts are the virtual-hosted bucket and registry forms;
-        # Istio allows a wildcard only as the leading label.
+        # Storage and images. Only the endpoints that are a fixed name: the virtual-hosted bucket
+        # form (<bucket>.s3.{region}.amazonaws.com) and the registry form
+        # (<account>.dkr.ecr.{region}.amazonaws.com) vary per bucket and per account, and a
+        # wildcard cannot stand in for them here - see the note on hosts above. An environment
+        # whose SDKs use virtual-hosted addressing, which is the S3 default, adds the buckets it
+        # uses through extraServices. Image pulls do not need the registry host: those are made by
+        # the kubelet on the node, not by the Pod, so they never pass through its sidecar.
         - name: s3
-          hosts: ["s3.{region}.amazonaws.com", "*.s3.{region}.amazonaws.com"]
+          hosts: ["s3.{region}.amazonaws.com"]
         - name: ecr
-          hosts: ["api.ecr.{region}.amazonaws.com", "*.dkr.ecr.{region}.amazonaws.com"]
+          hosts: ["api.ecr.{region}.amazonaws.com"]
         # Secrets and configuration.
         - name: kms
           hosts: ["kms.{region}.amazonaws.com"]

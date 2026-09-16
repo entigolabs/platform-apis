@@ -300,17 +300,27 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 		}
 	})
 
-	// Istio accepts a wildcard only as the leading label, so the virtual-hosted bucket and registry
-	// forms have to survive substitution intact. sts.*.amazonaws.com would be rejected instead.
-	t.Run("wildcard hosts keep their leading label", func(t *testing.T) {
+	// Under resolution DNS with no endpoints Istio requires a host it can resolve, and its
+	// validating webhook rejects a wildcard against the whole chart at apply time rather than
+	// against the one entry - so the chart refuses one at render, wherever it sits in the name.
+	// Failing the render names the host and says why, instead of leaving it to the webhook to
+	// reject the entire platform-apis sync minutes later.
+	t.Run("a wildcard host fails the render", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region)
-		for _, want := range []string{
-			`- "*.s3.eu-north-1.amazonaws.com"`,
-			`- "*.dkr.ecr.eu-north-1.amazonaws.com"`,
+		for _, host := range []string{
+			`*.s3.{region}.amazonaws.com`, // leading label, the virtual-hosted bucket form
+			`s3.*.amazonaws.com`,          // and anywhere else, which Istio rejects just the same
 		} {
-			if !strings.Contains(out, want) {
-				t.Errorf("rendered output is missing %q", want)
+			out, err := exec.Command("helm", "template", "test-release", chartDir,
+				"--set", granular, "--set", region,
+				"--set", "zone.istioServiceEntries.awsApis.services[0].name=s3",
+				"--set", "zone.istioServiceEntries.awsApis.services[0].hosts[0]="+host).CombinedOutput()
+			if err == nil {
+				t.Errorf("wildcard host %q rendered instead of failing", host)
+				continue
+			}
+			if !strings.Contains(string(out), "is a wildcard") {
+				t.Errorf("the failure for %q does not explain the wildcard: %s", host, out)
 			}
 		}
 	})
