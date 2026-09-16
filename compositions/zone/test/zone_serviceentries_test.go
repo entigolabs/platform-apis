@@ -53,7 +53,7 @@ func TestZoneServiceEntries(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular, dataCIDR)
 		for _, want := range []string{
-			"name: platform-apis-data-subnets",
+			"name: platform-apis-subnet-data",
 			"namespace: istio-system",
 			`- "10.0.16.0/22"`,
 			"resolution: NONE",
@@ -65,7 +65,7 @@ func TestZoneServiceEntries(t *testing.T) {
 				t.Errorf("rendered data ServiceEntry is missing %q", want)
 			}
 		}
-		if strings.Contains(out, "platform-apis-service-subnets") {
+		if strings.Contains(out, "platform-apis-subnet-service") {
 			t.Error("the service group rendered even though it has no cidrs")
 		}
 	})
@@ -73,7 +73,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	t.Run("service group renders separately", func(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular, dataCIDR, svcCIDR)
-		for _, want := range []string{"platform-apis-data-subnets", "platform-apis-service-subnets", "number: 8443"} {
+		for _, want := range []string{"platform-apis-subnet-data", "platform-apis-subnet-service", "number: 8443"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("rendered output is missing %q", want)
 			}
@@ -96,7 +96,7 @@ func TestZoneServiceEntries(t *testing.T) {
 			"zone.istioServiceEntries.extraSubnets[0].ports[0].number=5432",
 			"zone.istioServiceEntries.extraSubnets[0].ports[0].name=tcp-postgres",
 			"zone.istioServiceEntries.extraSubnets[0].ports[0].protocol=TCP")
-		for _, want := range []string{"platform-apis-partner-subnets", `- "10.90.0.0/24"`, "number: 5432"} {
+		for _, want := range []string{"platform-apis-extra-subnet-partner", `- "10.90.0.0/24"`, "number: 5432"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("rendered extraSubnets entry is missing %q", want)
 			}
@@ -122,7 +122,7 @@ func TestZoneServiceEntries(t *testing.T) {
 			t.Error("an address kept the quotes the agent added")
 		}
 		// service and podCidrs are the same value here, which is the default subnet_split_mode.
-		if strings.Contains(out, "platform-apis-service-subnets") {
+		if strings.Contains(out, "platform-apis-subnet-service") {
 			t.Error("the service group rendered despite matching the quoted podCidrs")
 		}
 	})
@@ -171,10 +171,10 @@ func TestZoneServiceEntries(t *testing.T) {
 		out := renderChart(t, granular, dataCIDR,
 			`zone.istioServiceEntries.service.cidrs=10.1.0.0/21\,10.1.8.0/21`,
 			`zone.istioServiceEntries.podCidrs=10.1.0.0/21\,10.1.8.0/21`)
-		if strings.Contains(out, "platform-apis-service-subnets") {
+		if strings.Contains(out, "platform-apis-subnet-service") {
 			t.Fatal("the service group rendered even though its cidrs are the Pod cidrs")
 		}
-		if !strings.Contains(out, "platform-apis-data-subnets") {
+		if !strings.Contains(out, "platform-apis-subnet-data") {
 			t.Error("the guard wrongly dropped the data group")
 		}
 	})
@@ -185,7 +185,7 @@ func TestZoneServiceEntries(t *testing.T) {
 		out := renderChart(t, granular, dataCIDR,
 			"zone.istioServiceEntries.service.cidrs=10.1.8.0/21",
 			"zone.istioServiceEntries.podCidrs=10.1.16.0/21")
-		if !strings.Contains(out, "platform-apis-service-subnets") {
+		if !strings.Contains(out, "platform-apis-subnet-service") {
 			t.Fatal("the service group was dropped even though it does not overlap the Pod cidrs")
 		}
 	})
@@ -195,7 +195,7 @@ func TestZoneServiceEntries(t *testing.T) {
 		out := renderChart(t, granular, dataCIDR,
 			`zone.istioServiceEntries.service.cidrs=10.1.8.0/21\,10.1.16.0/21`,
 			"zone.istioServiceEntries.podCidrs=10.1.16.0/21")
-		if strings.Contains(out, "platform-apis-service-subnets") {
+		if strings.Contains(out, "platform-apis-subnet-service") {
 			t.Fatal("the service group rendered despite overlapping the Pod cidrs")
 		}
 	})
@@ -207,7 +207,7 @@ func TestZoneServiceEntries(t *testing.T) {
 		out := renderChart(t, granular,
 			"zone.istioServiceEntries.data.cidrs=10.1.0.0/21",
 			"zone.istioServiceEntries.podCidrs=10.1.0.0/21")
-		if !strings.Contains(out, "platform-apis-data-subnets") {
+		if !strings.Contains(out, "platform-apis-subnet-data") {
 			t.Fatal("the data group was dropped by the podCidrs guard")
 		}
 	})
@@ -219,7 +219,7 @@ func TestZoneServiceEntries(t *testing.T) {
 		out := renderChart(t, granular,
 			"zone.istioServiceEntries.extraSubnets[0].name=partner",
 			"zone.istioServiceEntries.extraSubnets[0].cidrs[0]=10.90.0.0/24")
-		if strings.Contains(out, "platform-apis-partner-subnets") {
+		if strings.Contains(out, "platform-apis-extra-subnet-partner") {
 			t.Fatal("an extraSubnets entry with no ports rendered a ServiceEntry that opens nothing")
 		}
 	})
@@ -375,6 +375,8 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 // TestZoneExtraServices covers istioServiceEntries.extraServices, the hostname entries an
 // environment adds. Helm replaces a list rather than merging into it, so opening one more endpoint
 // through the AWS defaults would mean restating every host to keep them; these are added on top.
+// It also covers the naming that keeps the lists apart: each renders under a prefix no other list
+// can produce, so no name chosen in one can collide with a name from another.
 func TestZoneExtraServices(t *testing.T) {
 	t.Parallel()
 	const (
@@ -388,7 +390,7 @@ func TestZoneExtraServices(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular, region, extraName, extraHost)
 		for _, want := range []string{
-			"name: platform-apis-bedrock-hosts",
+			"name: platform-apis-extra-host-bedrock",
 			`- "bedrock-runtime.eu-north-1.amazonaws.com"`,
 			"name: platform-apis-aws-sts",
 			"name: platform-apis-aws-s3",
@@ -407,7 +409,7 @@ func TestZoneExtraServices(t *testing.T) {
 			"zone.istioServiceEntries.extraServices[0].ports[0].number=8443",
 			"zone.istioServiceEntries.extraServices[0].ports[0].name=tls-https-alt",
 			"zone.istioServiceEntries.extraServices[0].ports[0].protocol=TLS")
-		for _, want := range []string{"name: platform-apis-partner-hosts", "number: 8443"} {
+		for _, want := range []string{"name: platform-apis-extra-host-partner", "number: 8443"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("rendered output is missing %q", want)
 			}
@@ -421,7 +423,7 @@ func TestZoneExtraServices(t *testing.T) {
 		out := renderChart(t, granular,
 			"zone.istioServiceEntries.extraServices[0].name=partner",
 			"zone.istioServiceEntries.extraServices[0].hosts[0]=api.partner.example.com")
-		if !strings.Contains(out, "name: platform-apis-partner-hosts") {
+		if !strings.Contains(out, "name: platform-apis-extra-host-partner") {
 			t.Error("an extra service with no regional host was dropped with the defaults")
 		}
 		if strings.Contains(out, "platform-apis-aws-sts") {
@@ -446,26 +448,35 @@ func TestZoneExtraServices(t *testing.T) {
 	t.Run("an extra service left with no hosts is skipped", func(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular, extraName, extraHost)
-		if strings.Contains(out, "platform-apis-bedrock-hosts") {
+		if strings.Contains(out, "platform-apis-extra-host-bedrock") {
 			t.Fatal("an extra service whose only host needs a region rendered anyway")
 		}
 	})
 
-	// Two entries of the same name are two objects with one name in one namespace, where only the
-	// last applied survives. Failing the render says so instead.
-	t.Run("a name used twice fails the render", func(t *testing.T) {
+	// Each list renders under a prefix of its own, so a name reused across lists adds an entry
+	// rather than replacing one. An extraSubnets entry named after a built-in group is the case
+	// that would otherwise silently take the built-in's place.
+	t.Run("an extra subnet named after a built-in group sits next to it", func(t *testing.T) {
 		t.Parallel()
-		out, err := exec.Command("helm", "template", "test-release", chartDir,
-			"--set", granular, "--set", region,
-			"--set", "zone.istioServiceEntries.extraServices[0].name=partner",
-			"--set", "zone.istioServiceEntries.extraServices[0].hosts[0]=api.partner.example.com",
-			"--set", "zone.istioServiceEntries.extraServices[1].name=partner",
-			"--set", "zone.istioServiceEntries.extraServices[1].hosts[0]=files.partner.example.com").CombinedOutput()
-		if err == nil {
-			t.Fatal("a duplicate name rendered instead of failing")
+		out := renderChart(t, granular,
+			"zone.istioServiceEntries.data.cidrs=10.0.16.0/22",
+			"zone.istioServiceEntries.extraSubnets[0].name=data",
+			"zone.istioServiceEntries.extraSubnets[0].cidrs=10.9.0.0/16",
+			"zone.istioServiceEntries.extraSubnets[0].ports[0].number=9092",
+			"zone.istioServiceEntries.extraSubnets[0].ports[0].name=tcp-kafka",
+			"zone.istioServiceEntries.extraSubnets[0].ports[0].protocol=TCP")
+		for _, want := range []string{
+			"name: platform-apis-subnet-data",
+			"name: platform-apis-extra-subnet-data",
+			`- "10.0.16.0/22"`,
+			`- "10.9.0.0/16"`,
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendered output is missing %q", want)
+			}
 		}
-		if !strings.Contains(string(out), `"platform-apis-partner-hosts" would be rendered more than once`) {
-			t.Errorf("the failure does not name the duplicate: %s", out)
+		if strings.Count(out, "name: platform-apis-subnet-data\n") != 1 {
+			t.Error("the built-in data group was rendered more than once")
 		}
 	})
 
@@ -476,7 +487,7 @@ func TestZoneExtraServices(t *testing.T) {
 		out := renderChart(t, granular, region,
 			"zone.istioServiceEntries.extraServices[0].name=s3",
 			"zone.istioServiceEntries.extraServices[0].hosts[0]=s3.example.com")
-		for _, want := range []string{"name: platform-apis-s3-hosts", "name: platform-apis-aws-s3"} {
+		for _, want := range []string{"name: platform-apis-extra-host-s3", "name: platform-apis-aws-s3"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("rendered output is missing %q", want)
 			}

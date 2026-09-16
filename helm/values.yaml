@@ -241,15 +241,20 @@ zone:
   # Ports must be listed one by one: a ServiceEntry has no port range syntax, and omitting ports
   # opens nothing rather than everything.
   istioServiceEntries:
+    # Destinations a Zone may reach while granularEgress is on, as Istio ServiceEntries. Each list
+    # below renders under a prefix of its own - platform-apis-subnet-, -extra-subnet-, -aws- and
+    # -extra-host- - so a name chosen in one list can never collide with a name from another, and
+    # the prefix says which list an entry came from when reading them back out of the cluster.
+    #
     # Namespace the entries are created in. Must be the Namespace the Zone Sidecars allow, which is
     # istio-system unless Istio was installed elsewhere.
     istioNamespace: istio-system
     # The cluster's region, substituted into {region} in any host below.
     #   region: "{{ .toutput.eks.region }}"
     region: ""
-    # Managed data services: RDS, ElastiCache and MSK. Deliberately one group rather than separate
-    # database and elasticache groups, so a Valkey launched into the database subnet works the same
-    # as one in the elasticache subnet.
+    # Managed data services: RDS, ElastiCache and MSK, as platform-apis-subnet-data. Deliberately
+    # one group rather than separate database and elasticache groups, so a Valkey launched into the
+    # database subnet works the same as one in the elasticache subnet.
     #
     # cidrs takes a YAML list or a comma separated string. infralib passes a subnet output through
     # as one comma separated value, and two of them are joined with a comma:
@@ -277,7 +282,7 @@ zone:
     # overlap these, see below. Leave empty to disable the guard.
     #   podCidrs: "{{ .toutput.vpc.compute_subnets_cidr_blocks }}"
     podCidrs: ""
-    # Internal services reachable inside the VPC.
+    # Internal services reachable inside the VPC, as platform-apis-subnet-service.
     #   cidrs: "{{ .toutput.vpc.service_subnets_cidr_blocks }}"
     # With subnet_split_mode "default" the VPC returns the same private subnet CIDRs for the
     # service and the compute subnets, so this group would open its ports to every Pod. Setting
@@ -291,7 +296,8 @@ zone:
         - {number: 8080, name: tcp-http-alt, protocol: TCP}
         - {number: 8443, name: tcp-https-alt, protocol: TCP}
     # Additional subnets a cluster needs to reach, each with its own ports. One ServiceEntry is
-    # created per entry, named "<name>-subnets".
+    # created per entry, named platform-apis-extra-subnet-<name>. That prefix is the entry's own,
+    # so a name reused from the groups above adds an entry rather than replacing one.
     # extraSubnets:
     #   - name: partner-database
     #     cidrs: ["10.90.0.0/24"]
@@ -303,8 +309,9 @@ zone:
     defaultPorts:
       - {number: 443, name: tls-https, protocol: TLS}
     # Endpoints this environment needs, reached by hostname. One ServiceEntry per entry, named
-    # platform-apis-<name>-hosts, alongside the AWS ones below rather than replacing them, so
-    # opening one more endpoint does not mean restating every default host.
+    # platform-apis-extra-host-<name>, alongside the AWS ones below rather than replacing them, so
+    # opening one more endpoint does not mean restating every default host. That prefix is the
+    # entry's own, so a name reused from the AWS list adds an entry rather than replacing one.
     #   extraServices:
     #     - name: bedrock
     #       hosts: ["bedrock-runtime.{region}.amazonaws.com"]

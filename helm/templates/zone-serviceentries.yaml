@@ -51,14 +51,14 @@ silently dropping the entry would break database access instead of over-opening 
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  name: platform-apis-{{ .name }}-subnets
+  name: {{ .objectName }}
   namespace: {{ .istioNamespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   hosts:
-    - {{ .name }}-subnets.platform-apis.invalid
+    - {{ .objectName }}.invalid
   addresses:
     {{- range $clean }}
     - {{ . | quote }}
@@ -130,39 +130,28 @@ spec:
 {{- if .Values.zone.environmentConfig.granularEgress }}
 {{- $se := .Values.zone.istioServiceEntries }}
 {{- $istioNs := $se.istioNamespace }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" "data" "istioNamespace" $istioNs "cidrs" $se.data.cidrs "ports" $se.data.ports) }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" $se.service.cidrs "ports" $se.service.ports "skipIfOverlaps" $se.podCidrs) }}
+{{/* Every entry below lands in one Namespace, where two objects cannot share a name. The name
+     each list renders carries a prefix no other list can produce - subnet-, extra-subnet-, aws-
+     and extra-host- are pairwise distinct right after platform-apis- - so a name chosen in one
+     list can never collide with a name from another, whatever it is called. An extraSubnets entry
+     named "data" renders platform-apis-extra-subnet-data and sits next to the built-in
+     platform-apis-subnet-data rather than replacing it. A name repeated within one list still
+     collides, and is left to show up as the duplicate it plainly is. */}}
+{{- include "platform-apis.zoneServiceEntry" (dict "objectName" "platform-apis-subnet-data" "istioNamespace" $istioNs "cidrs" $se.data.cidrs "ports" $se.data.ports) }}
+{{- include "platform-apis.zoneServiceEntry" (dict "objectName" "platform-apis-subnet-service" "istioNamespace" $istioNs "cidrs" $se.service.cidrs "ports" $se.service.ports "skipIfOverlaps" $se.podCidrs) }}
 {{- range $se.extraSubnets }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" .name "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
-{{- end }}
-{{- $region := $se.region }}
-{{- $awsServices := $se.awsApis.services | default list }}
-{{- $extraServices := $se.extraServices | default list }}
-{{/* Every hostname entry lands in one namespace, so a name that renders twice would produce two
-     objects with one name and only the last would survive the apply. Fail on it instead. */}}
-{{- $names := list }}
-{{- range $awsServices }}
-{{- $names = append $names (printf "platform-apis-aws-%s" .name) }}
-{{- end }}
-{{- range $extraServices }}
-{{- $names = append $names (printf "platform-apis-%s-hosts" .name) }}
-{{- end }}
-{{- $seen := list }}
-{{- range $names }}
-{{- if has . $seen }}
-{{- fail (printf "zone.istioServiceEntries: %q would be rendered more than once" .) }}
-{{- end }}
-{{- $seen = append $seen . }}
+{{- include "platform-apis.zoneServiceEntry" (dict "objectName" (printf "platform-apis-extra-subnet-%s" .name) "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
 {{- end }}
 {{/* The AWS defaults are a set of regional endpoints, so without a region none of them can be
      rendered. extraServices are whatever this environment needs and may not be regional at all,
      so they are not held back by that. */}}
+{{- $region := $se.region }}
 {{- if $region }}
-{{- range $awsServices }}
+{{- range $se.awsApis.services | default list }}
 {{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-aws-%s" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
 {{- end }}
 {{- end }}
-{{- range $extraServices }}
-{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-%s-hosts" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
+{{- range $se.extraServices | default list }}
+{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-extra-host-%s" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
 {{- end }}
 {{- end }}
