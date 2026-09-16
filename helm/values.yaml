@@ -244,6 +244,9 @@ zone:
     # Namespace the entries are created in. Must be the Namespace the Zone Sidecars allow, which is
     # istio-system unless Istio was installed elsewhere.
     istioNamespace: istio-system
+    # The cluster's region, substituted into {region} in any host below.
+    #   region: "{{ .toutput.eks.region }}"
+    region: ""
     # Managed data services: RDS, ElastiCache and MSK. Deliberately one group rather than separate
     # database and elasticache groups, so a Valkey launched into the database subnet works the same
     # as one in the elasticache subnet.
@@ -295,6 +298,23 @@ zone:
     #     ports:
     #       - {number: 5432, name: tcp-postgres, protocol: TCP}
     extraSubnets: []
+    # Ports for a hostname entry that does not set its own. These endpoints are HTTPS, and TLS is
+    # what lets Envoy route on the SNI.
+    defaultPorts:
+      - {number: 443, name: tls-https, protocol: TLS}
+    # Endpoints this environment needs, reached by hostname. One ServiceEntry per entry, named
+    # platform-apis-<name>-hosts, alongside the AWS ones below rather than replacing them, so
+    # opening one more endpoint does not mean restating every default host.
+    #   extraServices:
+    #     - name: bedrock
+    #       hosts: ["bedrock-runtime.{region}.amazonaws.com"]
+    #     - name: partner
+    #       hosts: ["api.partner.example.com"]
+    #       ports:
+    #         - {number: 8443, name: tls-https-alt, protocol: TLS}
+    # Unlike the AWS defaults these render even when region is empty, since an endpoint here may
+    # not be regional. A host that does use {region} is dropped while no region is set.
+    extraServices: []
     # AWS service APIs every Zone can reach. One ServiceEntry per service, named
     # platform-apis-aws-<name>, scoped by hostname rather than by address because an AWS endpoint
     # resolves to addresses that change and that the cluster cannot know in advance.
@@ -306,18 +326,12 @@ zone:
     # here grants nothing the Zone's own IAM role does not already allow - the entry decides what
     # a Pod may connect to, not what it may do once connected.
     #
-    # {region} is replaced with the region below, and a host without it is used as written. The
-    # whole group is skipped while region is empty, since every default host needs it.
-    #   region: "{{ .toutput.eks.region }}"
+    # {region} is replaced with the region above, and a host without it is used as written. The
+    # whole group is skipped while region is empty, since every default host needs it. To add an
+    # endpoint use extraServices, overriding this list replaces it the way Helm treats any list.
     awsApis:
-      region: ""
-      # Applied to every service that does not set its own ports. AWS APIs are HTTPS only, and TLS
-      # is what lets Envoy route on the SNI.
-      ports:
-        - {number: 443, name: tls-https, protocol: TLS}
       # Drop an entry to close that service for every Zone. Hosts are the regional endpoints; an
       # SDK pinned to a global endpoint (s3.amazonaws.com, for instance) needs that host added.
-      # An environment that overrides this replaces the whole list, the way Helm treats any list.
       services:
         # Credentials. Both hosts: EKS sets AWS_STS_REGIONAL_ENDPOINTS=regional, older SDKs still
         # use the global endpoint.
@@ -359,20 +373,6 @@ zone:
           hosts: ["logs.{region}.amazonaws.com"]
         - name: monitoring
           hosts: ["monitoring.{region}.amazonaws.com"]
-      # Endpoints this environment needs on top of the defaults. Added to the list above rather
-      # than replacing it, so opening one more service does not mean restating every host. Same
-      # shape as a services entry, and each renders its own ServiceEntry named
-      # platform-apis-aws-<name>, so the name has to differ from every name above.
-      #   extraServices:
-      #     - name: bedrock
-      #       hosts: ["bedrock-runtime.{region}.amazonaws.com"]
-      #     - name: partner
-      #       hosts: ["api.partner.example.com"]
-      #       ports:
-      #         - {number: 8443, name: tls-https-alt, protocol: TLS}
-      # Unlike the defaults these render even when region is empty, since an endpoint here may not
-      # be regional. A host that does use {region} is dropped while no region is set.
-      extraServices: []
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com

@@ -233,7 +233,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 	t.Parallel()
 	const (
 		granular = "zone.environmentConfig.granularEgress=true"
-		region   = "zone.istioServiceEntries.awsApis.region=eu-north-1"
+		region   = "zone.istioServiceEntries.region=eu-north-1"
 	)
 
 	t.Run("not rendered while granularEgress is off", func(t *testing.T) {
@@ -372,23 +372,23 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 	})
 }
 
-// TestZoneAWSAPIExtraServices covers awsApis.extraServices. Helm replaces a list rather than
-// merging into it, so opening one more endpoint through services would mean restating every
-// default host; these are added on top instead.
-func TestZoneAWSAPIExtraServices(t *testing.T) {
+// TestZoneExtraServices covers istioServiceEntries.extraServices, the hostname entries an
+// environment adds. Helm replaces a list rather than merging into it, so opening one more endpoint
+// through the AWS defaults would mean restating every host to keep them; these are added on top.
+func TestZoneExtraServices(t *testing.T) {
 	t.Parallel()
 	const (
 		granular  = "zone.environmentConfig.granularEgress=true"
-		region    = "zone.istioServiceEntries.awsApis.region=eu-north-1"
-		extraName = "zone.istioServiceEntries.awsApis.extraServices[0].name=bedrock"
-		extraHost = "zone.istioServiceEntries.awsApis.extraServices[0].hosts[0]=bedrock-runtime.{region}.amazonaws.com"
+		region    = "zone.istioServiceEntries.region=eu-north-1"
+		extraName = "zone.istioServiceEntries.extraServices[0].name=bedrock"
+		extraHost = "zone.istioServiceEntries.extraServices[0].hosts[0]=bedrock-runtime.{region}.amazonaws.com"
 	)
 
 	t.Run("an extra service renders next to the defaults", func(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular, region, extraName, extraHost)
 		for _, want := range []string{
-			"name: platform-apis-aws-bedrock",
+			"name: platform-apis-bedrock-hosts",
 			`- "bedrock-runtime.eu-north-1.amazonaws.com"`,
 			"name: platform-apis-aws-sts",
 			"name: platform-apis-aws-s3",
@@ -402,12 +402,12 @@ func TestZoneAWSAPIExtraServices(t *testing.T) {
 	t.Run("an extra service can set its own ports", func(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular, region,
-			"zone.istioServiceEntries.awsApis.extraServices[0].name=partner",
-			"zone.istioServiceEntries.awsApis.extraServices[0].hosts[0]=api.partner.example.com",
-			"zone.istioServiceEntries.awsApis.extraServices[0].ports[0].number=8443",
-			"zone.istioServiceEntries.awsApis.extraServices[0].ports[0].name=tls-https-alt",
-			"zone.istioServiceEntries.awsApis.extraServices[0].ports[0].protocol=TLS")
-		for _, want := range []string{"name: platform-apis-aws-partner", "number: 8443"} {
+			"zone.istioServiceEntries.extraServices[0].name=partner",
+			"zone.istioServiceEntries.extraServices[0].hosts[0]=api.partner.example.com",
+			"zone.istioServiceEntries.extraServices[0].ports[0].number=8443",
+			"zone.istioServiceEntries.extraServices[0].ports[0].name=tls-https-alt",
+			"zone.istioServiceEntries.extraServices[0].ports[0].protocol=TLS")
+		for _, want := range []string{"name: platform-apis-partner-hosts", "number: 8443"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("rendered output is missing %q", want)
 			}
@@ -419,9 +419,9 @@ func TestZoneAWSAPIExtraServices(t *testing.T) {
 	t.Run("an extra service without a region still renders", func(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular,
-			"zone.istioServiceEntries.awsApis.extraServices[0].name=partner",
-			"zone.istioServiceEntries.awsApis.extraServices[0].hosts[0]=api.partner.example.com")
-		if !strings.Contains(out, "name: platform-apis-aws-partner") {
+			"zone.istioServiceEntries.extraServices[0].name=partner",
+			"zone.istioServiceEntries.extraServices[0].hosts[0]=api.partner.example.com")
+		if !strings.Contains(out, "name: platform-apis-partner-hosts") {
 			t.Error("an extra service with no regional host was dropped with the defaults")
 		}
 		if strings.Contains(out, "platform-apis-aws-sts") {
@@ -434,7 +434,7 @@ func TestZoneAWSAPIExtraServices(t *testing.T) {
 	t.Run("a host needing a region is dropped while none is set", func(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular, extraName, extraHost,
-			"zone.istioServiceEntries.awsApis.extraServices[0].hosts[1]=bedrock.example.com")
+			"zone.istioServiceEntries.extraServices[0].hosts[1]=bedrock.example.com")
 		if strings.Contains(out, "{region}") || strings.Contains(out, "bedrock-runtime..amazonaws.com") {
 			t.Error("a host that needs a region was rendered without one")
 		}
@@ -446,24 +446,40 @@ func TestZoneAWSAPIExtraServices(t *testing.T) {
 	t.Run("an extra service left with no hosts is skipped", func(t *testing.T) {
 		t.Parallel()
 		out := renderChart(t, granular, extraName, extraHost)
-		if strings.Contains(out, "platform-apis-aws-bedrock") {
+		if strings.Contains(out, "platform-apis-bedrock-hosts") {
 			t.Fatal("an extra service whose only host needs a region rendered anyway")
 		}
 	})
 
 	// Two entries of the same name are two objects with one name in one namespace, where only the
 	// last applied survives. Failing the render says so instead.
-	t.Run("a name already used by the defaults fails the render", func(t *testing.T) {
+	t.Run("a name used twice fails the render", func(t *testing.T) {
 		t.Parallel()
 		out, err := exec.Command("helm", "template", "test-release", chartDir,
 			"--set", granular, "--set", region,
-			"--set", "zone.istioServiceEntries.awsApis.extraServices[0].name=sts",
-			"--set", "zone.istioServiceEntries.awsApis.extraServices[0].hosts[0]=sts.example.com").CombinedOutput()
+			"--set", "zone.istioServiceEntries.extraServices[0].name=partner",
+			"--set", "zone.istioServiceEntries.extraServices[0].hosts[0]=api.partner.example.com",
+			"--set", "zone.istioServiceEntries.extraServices[1].name=partner",
+			"--set", "zone.istioServiceEntries.extraServices[1].hosts[0]=files.partner.example.com").CombinedOutput()
 		if err == nil {
-			t.Fatal("a duplicate service name rendered instead of failing")
+			t.Fatal("a duplicate name rendered instead of failing")
 		}
-		if !strings.Contains(string(out), `"sts" is used by more than one service`) {
+		if !strings.Contains(string(out), `"platform-apis-partner-hosts" would be rendered more than once`) {
 			t.Errorf("the failure does not name the duplicate: %s", out)
+		}
+	})
+
+	// An extra named after an AWS service is not a collision: the two render under different
+	// names, so both survive.
+	t.Run("an extra may reuse an AWS service name", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular, region,
+			"zone.istioServiceEntries.extraServices[0].name=s3",
+			"zone.istioServiceEntries.extraServices[0].hosts[0]=s3.example.com")
+		for _, want := range []string{"name: platform-apis-s3-hosts", "name: platform-apis-aws-s3"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendered output is missing %q", want)
+			}
 		}
 	})
 }

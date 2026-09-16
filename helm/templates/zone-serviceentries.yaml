@@ -77,9 +77,9 @@ spec:
 {{- end }}
 
 {{/*
-Renders one ServiceEntry opening a set of AWS service endpoints by hostname.
+Renders one ServiceEntry opening a set of endpoints by hostname.
 
-These are scoped by hostname rather than by address, because an AWS endpoint resolves to addresses
+These are scoped by hostname rather than by address, for destinations that resolve to addresses
 that change and that the cluster cannot know in advance. resolution: DNS is what makes that safe:
 Envoy resolves the hosts and routes the connection on the TLS SNI, so a connection to a host that
 is not listed finds no filter chain and is still blackholed. The subnet groups above cannot work
@@ -91,7 +91,7 @@ the endpoints AWS does not regionalise. A host that needs a region while none is
 rather than rendered with the placeholder still in it, which would match nothing, and a service
 with no hosts left is skipped, the same way a subnet group with no cidrs is.
 */}}
-{{- define "platform-apis.zoneAWSServiceEntry" -}}
+{{- define "platform-apis.zoneHostServiceEntry" -}}
 {{- $region := .region }}
 {{- $hosts := list }}
 {{- range .hosts }}
@@ -105,7 +105,7 @@ with no hosts left is skipped, the same way a subnet group with no cidrs is.
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  name: platform-apis-aws-{{ .name }}
+  name: {{ .objectName }}
   namespace: {{ .istioNamespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
@@ -128,33 +128,41 @@ spec:
 {{- end }}
 {{- end }}
 {{- if .Values.zone.environmentConfig.granularEgress }}
-{{- $istioNs := .Values.zone.istioServiceEntries.istioNamespace }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" "data" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.data.cidrs "ports" .Values.zone.istioServiceEntries.data.ports) }}
-{{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" .Values.zone.istioServiceEntries.service.cidrs "ports" .Values.zone.istioServiceEntries.service.ports "skipIfOverlaps" .Values.zone.istioServiceEntries.podCidrs) }}
-{{- range .Values.zone.istioServiceEntries.extraSubnets }}
+{{- $se := .Values.zone.istioServiceEntries }}
+{{- $istioNs := $se.istioNamespace }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" "data" "istioNamespace" $istioNs "cidrs" $se.data.cidrs "ports" $se.data.ports) }}
+{{- include "platform-apis.zoneServiceEntry" (dict "name" "service" "istioNamespace" $istioNs "cidrs" $se.service.cidrs "ports" $se.service.ports "skipIfOverlaps" $se.podCidrs) }}
+{{- range $se.extraSubnets }}
 {{- include "platform-apis.zoneServiceEntry" (dict "name" .name "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
 {{- end }}
-{{- $aws := .Values.zone.istioServiceEntries.awsApis }}
-{{- $services := $aws.services | default list }}
-{{- $extra := $aws.extraServices | default list }}
-{{/* Both lists render into one namespace, so a name used twice would produce two objects with
-     the same name and only the last would survive the apply. Fail on it instead. */}}
+{{- $region := $se.region }}
+{{- $awsServices := $se.awsApis.services | default list }}
+{{- $extraServices := $se.extraServices | default list }}
+{{/* Every hostname entry lands in one namespace, so a name that renders twice would produce two
+     objects with one name and only the last would survive the apply. Fail on it instead. */}}
+{{- $names := list }}
+{{- range $awsServices }}
+{{- $names = append $names (printf "platform-apis-aws-%s" .name) }}
+{{- end }}
+{{- range $extraServices }}
+{{- $names = append $names (printf "platform-apis-%s-hosts" .name) }}
+{{- end }}
 {{- $seen := list }}
-{{- range concat $services $extra }}
-{{- if has .name $seen }}
-{{- fail (printf "zone.istioServiceEntries.awsApis: %q is used by more than one service" .name) }}
+{{- range $names }}
+{{- if has . $seen }}
+{{- fail (printf "zone.istioServiceEntries: %q would be rendered more than once" .) }}
 {{- end }}
-{{- $seen = append $seen .name }}
+{{- $seen = append $seen . }}
 {{- end }}
-{{/* The defaults are a set of regional AWS endpoints, so without a region none of them can be
+{{/* The AWS defaults are a set of regional endpoints, so without a region none of them can be
      rendered. extraServices are whatever this environment needs and may not be regional at all,
      so they are not held back by that. */}}
-{{- if $aws.region }}
-{{- range $services }}
-{{- include "platform-apis.zoneAWSServiceEntry" (dict "name" .name "istioNamespace" $istioNs "region" $aws.region "hosts" .hosts "ports" (.ports | default $aws.ports)) }}
+{{- if $region }}
+{{- range $awsServices }}
+{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-aws-%s" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
 {{- end }}
 {{- end }}
-{{- range $extra }}
-{{- include "platform-apis.zoneAWSServiceEntry" (dict "name" .name "istioNamespace" $istioNs "region" $aws.region "hosts" .hosts "ports" (.ports | default $aws.ports)) }}
+{{- range $extraServices }}
+{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-%s-hosts" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
 {{- end }}
 {{- end }}
