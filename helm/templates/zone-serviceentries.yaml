@@ -87,15 +87,16 @@ this way - a plain database connection carries no SNI - which is also why they m
 since a hostname-only entry with resolution NONE opens its ports to every destination.
 
 {region} in a host is replaced with the region passed in. A host without it is used as written, for
-the endpoints AWS does not regionalise. A service with no hosts left is skipped, the same way a
-subnet group with no cidrs is.
+the endpoints AWS does not regionalise. A host that needs a region while none is set is dropped
+rather than rendered with the placeholder still in it, which would match nothing, and a service
+with no hosts left is skipped, the same way a subnet group with no cidrs is.
 */}}
 {{- define "platform-apis.zoneAWSServiceEntry" -}}
 {{- $region := .region }}
 {{- $hosts := list }}
 {{- range .hosts }}
 {{- $host := . | trim }}
-{{- if $host }}
+{{- if and $host (or $region (not (contains "{region}" $host))) }}
 {{- $hosts = append $hosts (replace "{region}" $region $host) }}
 {{- end }}
 {{- end }}
@@ -134,9 +135,26 @@ spec:
 {{- include "platform-apis.zoneServiceEntry" (dict "name" .name "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
 {{- end }}
 {{- $aws := .Values.zone.istioServiceEntries.awsApis }}
+{{- $services := $aws.services | default list }}
+{{- $extra := $aws.extraServices | default list }}
+{{/* Both lists render into one namespace, so a name used twice would produce two objects with
+     the same name and only the last would survive the apply. Fail on it instead. */}}
+{{- $seen := list }}
+{{- range concat $services $extra }}
+{{- if has .name $seen }}
+{{- fail (printf "zone.istioServiceEntries.awsApis: %q is used by more than one service" .name) }}
+{{- end }}
+{{- $seen = append $seen .name }}
+{{- end }}
+{{/* The defaults are a set of regional AWS endpoints, so without a region none of them can be
+     rendered. extraServices are whatever this environment needs and may not be regional at all,
+     so they are not held back by that. */}}
 {{- if $aws.region }}
-{{- range $aws.services }}
+{{- range $services }}
 {{- include "platform-apis.zoneAWSServiceEntry" (dict "name" .name "istioNamespace" $istioNs "region" $aws.region "hosts" .hosts "ports" (.ports | default $aws.ports)) }}
 {{- end }}
+{{- end }}
+{{- range $extra }}
+{{- include "platform-apis.zoneAWSServiceEntry" (dict "name" .name "istioNamespace" $istioNs "region" $aws.region "hosts" .hosts "ports" (.ports | default $aws.ports)) }}
 {{- end }}
 {{- end }}

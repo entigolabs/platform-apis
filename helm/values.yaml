@@ -359,6 +359,20 @@ zone:
           hosts: ["logs.{region}.amazonaws.com"]
         - name: monitoring
           hosts: ["monitoring.{region}.amazonaws.com"]
+      # Endpoints this environment needs on top of the defaults. Added to the list above rather
+      # than replacing it, so opening one more service does not mean restating every host. Same
+      # shape as a services entry, and each renders its own ServiceEntry named
+      # platform-apis-aws-<name>, so the name has to differ from every name above.
+      #   extraServices:
+      #     - name: bedrock
+      #       hosts: ["bedrock-runtime.{region}.amazonaws.com"]
+      #     - name: partner
+      #       hosts: ["api.partner.example.com"]
+      #       ports:
+      #         - {number: 8443, name: tls-https-alt, protocol: TLS}
+      # Unlike the defaults these render even when region is empty, since an endpoint here may not
+      # be regional. A host that does use {region} is dropped while no region is set.
+      extraServices: []
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com
