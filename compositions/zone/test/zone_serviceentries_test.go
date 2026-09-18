@@ -153,6 +153,35 @@ func TestZoneServiceEntries(t *testing.T) {
 		}
 	})
 
+	// The data group is fed the database and the elasticache outputs joined together. An
+	// environment that puts ElastiCache in the database subnets returns the same CIDRs from both,
+	// so every address arrives twice.
+	t.Run("repeated cidrs are listed once", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular,
+			`zone.istioServiceEntries.data.cidrs=10.160.59.0/26\,10.160.59.64/26\,10.160.59.128/26\,10.160.59.0/26\,10.160.59.64/26\,10.160.59.128/26`)
+		for _, cidr := range []string{"10.160.59.0/26", "10.160.59.64/26", "10.160.59.128/26"} {
+			if got := strings.Count(out, `- "`+cidr+`"`); got != 1 {
+				t.Errorf("cidr %s rendered %d times, want 1", cidr, got)
+			}
+		}
+	})
+
+	// A repeat inside a YAML list is the same defect arriving by the other route.
+	t.Run("repeated cidrs in a list are listed once", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, granular,
+			"zone.istioServiceEntries.data.cidrs[0]=10.0.16.0/22",
+			"zone.istioServiceEntries.data.cidrs[1]=10.0.20.0/22",
+			"zone.istioServiceEntries.data.cidrs[2]=10.0.16.0/22")
+		if got := strings.Count(out, `- "10.0.16.0/22"`); got != 1 {
+			t.Errorf("repeated cidr rendered %d times, want 1", got)
+		}
+		if !strings.Contains(out, `- "10.0.20.0/22"`) {
+			t.Error("deduplication dropped a distinct cidr")
+		}
+	})
+
 	// Both outputs empty joins to a bare ",". That must skip the group, not render an entry with
 	// no addresses, which would match every destination on its ports.
 	t.Run("a string of only separators is skipped", func(t *testing.T) {
