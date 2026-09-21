@@ -16,6 +16,10 @@ renders a Terraform list with every element quoted, so a real value arrives look
 '"10.0.16.0/22","10.0.20.0/22"' and each segment is unquoted here, the same way aws-alb does it.
 Empty segments are dropped, so a trailing comma from an unset elasticache output is harmless.
 
+Repeats are dropped too. The data group is fed the database and the elasticache outputs joined
+together, and an environment that puts ElastiCache in the database subnets returns the same CIDRs
+from both - listing each one twice in spec.addresses.
+
 skipIfOverlaps is optional. A group naming it is dropped when any of its CIDRs also appears in
 that list. It exists for the service subnets: with subnet_split_mode "default" the VPC returns
 the same private subnet CIDRs for the service and compute subnets, and the compute subnets are
@@ -31,7 +35,7 @@ silently dropping the entry would break database access instead of over-opening 
 {{- $out := list }}
 {{- range $in }}
 {{- $v := . | trim | trimAll "\"" | trim }}
-{{- if $v }}
+{{- if and $v (not (has $v $out)) }}
 {{- $out = append $out $v }}
 {{- end }}
 {{- end }}
