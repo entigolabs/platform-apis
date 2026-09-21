@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
-// renderChart runs helm template with the given --set overrides and returns the manifest.
-func renderChart(t *testing.T, values ...string) string {
+// helmTemplate runs helm template with exactly the given --set overrides and returns the manifest.
+// It renders nothing from zone-serviceentries.yaml on its own, because values.yaml leaves
+// istioNamespace empty - use renderEntries for a test that expects an entry.
+func helmTemplate(t *testing.T, values ...string) string {
 	t.Helper()
 	args := []string{"template", "test-release", chartDir}
 	for _, v := range values {
@@ -25,10 +27,12 @@ func renderChart(t *testing.T, values ...string) string {
 // that expects an entry has to set it - and one that expects none must not.
 const istioNS = "zone.istioServiceEntries.istioNamespace=istio-system"
 
-// renderEntries renders the chart on a cluster that has Istio.
+// renderEntries renders the chart on a cluster that has Istio, which is what every test of these
+// entries wants. A test asserting an entry is absent has to render through helmTemplate instead,
+// or it cannot tell the absence it means from the one an empty istioNamespace causes.
 func renderEntries(t *testing.T, values ...string) string {
 	t.Helper()
-	return renderChart(t, append([]string{istioNS}, values...)...)
+	return helmTemplate(t, append([]string{istioNS}, values...)...)
 }
 
 // TestZoneServiceEntries covers helm/templates/zone-serviceentries.yaml, the cluster-wide
@@ -169,7 +173,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// so every address arrives twice.
 	t.Run("repeated cidrs are listed once", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			`zone.istioServiceEntries.data.cidrs=10.160.59.0/26\,10.160.59.64/26\,10.160.59.128/26\,10.160.59.0/26\,10.160.59.64/26\,10.160.59.128/26`)
 		for _, cidr := range []string{"10.160.59.0/26", "10.160.59.64/26", "10.160.59.128/26"} {
 			if got := strings.Count(out, `- "`+cidr+`"`); got != 1 {
@@ -181,7 +185,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// A repeat inside a YAML list is the same defect arriving by the other route.
 	t.Run("repeated cidrs in a list are listed once", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			"zone.istioServiceEntries.data.cidrs[0]=10.0.16.0/22",
 			"zone.istioServiceEntries.data.cidrs[1]=10.0.20.0/22",
 			"zone.istioServiceEntries.data.cidrs[2]=10.0.16.0/22")
@@ -293,7 +297,7 @@ func TestZoneServiceEntriesWithoutIstio(t *testing.T) {
 
 	t.Run("values.yaml ships no istioNamespace", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, populated...)
+		out := helmTemplate(t, populated...)
 		if strings.Contains(out, "kind: ServiceEntry") {
 			t.Fatal("a ServiceEntry rendered with no istioNamespace, which no cluster without Istio can apply")
 		}
@@ -303,7 +307,7 @@ func TestZoneServiceEntriesWithoutIstio(t *testing.T) {
 	// rejected for the empty metadata.namespace even where the CRD does exist.
 	t.Run("an explicitly empty istioNamespace renders nothing", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, append([]string{"zone.istioServiceEntries.istioNamespace="}, populated...)...)
+		out := helmTemplate(t, append([]string{"zone.istioServiceEntries.istioNamespace="}, populated...)...)
 		if strings.Contains(out, "kind: ServiceEntry") {
 			t.Fatal("a ServiceEntry rendered with istioNamespace set to the empty string")
 		}
@@ -316,7 +320,7 @@ func TestZoneServiceEntriesWithoutIstio(t *testing.T) {
 	// Zones included, rather than losing the composition along with the entries.
 	t.Run("the rest of the chart is unaffected", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, populated...)
+		out := helmTemplate(t, populated...)
 		for _, want := range []string{"kind: Zone", "kind: EnvironmentConfig", "kind: Function"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("rendering without Istio dropped %q from the chart", want)
