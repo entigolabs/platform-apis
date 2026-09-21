@@ -136,9 +136,14 @@ spec:
     {{- end }}
 {{- end }}
 {{- end }}
-{{- if .Values.zone.environmentConfig.granularEgress }}
+{{/* An empty istioNamespace is how a cluster without Istio says so, and then nothing here is
+     rendered. ServiceEntry is Istio's own CRD, so on such a cluster every entry below would fail
+     to apply and take the whole platform-apis sync with it rather than only itself. It is checked
+     ahead of granularEgress because it decides whether these objects can exist at all, where
+     granularEgress only decides whether they are wanted. */}}
 {{- $se := .Values.zone.istioServiceEntries }}
 {{- $istioNs := $se.istioNamespace }}
+{{- if and $istioNs .Values.zone.environmentConfig.granularEgress }}
 {{/* Every entry below lands in one Namespace, where two objects cannot share a name. The name
      each list renders carries a prefix no other list can produce - subnet-, extra-subnet-, aws-
      and extra-host- are pairwise distinct right after platform-apis- - so a name chosen in one

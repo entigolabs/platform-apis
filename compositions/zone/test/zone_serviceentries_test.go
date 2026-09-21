@@ -20,6 +20,17 @@ func renderChart(t *testing.T, values ...string) string {
 	return string(out)
 }
 
+// istioNS names the Namespace the entries land in. values.yaml leaves istioNamespace empty,
+// because that is how a cluster without Istio says so and nothing is rendered at all, so a test
+// that expects an entry has to set it - and one that expects none must not.
+const istioNS = "zone.istioServiceEntries.istioNamespace=istio-system"
+
+// renderEntries renders the chart on a cluster that has Istio.
+func renderEntries(t *testing.T, values ...string) string {
+	t.Helper()
+	return renderChart(t, append([]string{istioNS}, values...)...)
+}
+
 // TestZoneServiceEntries covers helm/templates/zone-serviceentries.yaml, the cluster-wide
 // ServiceEntries that let every Zone reach the shared infrastructure subnets while granularEgress
 // is on.
@@ -33,7 +44,7 @@ func TestZoneServiceEntries(t *testing.T) {
 
 	t.Run("not rendered while granularEgress is off", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, dataCIDR, svcCIDR)
+		out := renderEntries(t, dataCIDR, svcCIDR)
 		if strings.Contains(out, "kind: ServiceEntry") {
 			t.Fatal("a ServiceEntry was rendered with granularEgress disabled")
 		}
@@ -43,7 +54,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// none, so an empty cidrs list must skip the object rather than render it without addresses.
 	t.Run("a group with no cidrs is skipped", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular)
+		out := renderEntries(t, granular)
 		if strings.Contains(out, "kind: ServiceEntry") {
 			t.Fatal("a ServiceEntry was rendered with no cidrs, which would open every destination")
 		}
@@ -51,7 +62,7 @@ func TestZoneServiceEntries(t *testing.T) {
 
 	t.Run("data group renders with its cidrs and ports", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, dataCIDR)
+		out := renderEntries(t, granular, dataCIDR)
 		for _, want := range []string{
 			"name: platform-apis-subnet-data",
 			"namespace: istio-system",
@@ -72,7 +83,7 @@ func TestZoneServiceEntries(t *testing.T) {
 
 	t.Run("service group renders separately", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, dataCIDR, svcCIDR)
+		out := renderEntries(t, granular, dataCIDR, svcCIDR)
 		for _, want := range []string{"platform-apis-subnet-data", "platform-apis-subnet-service", "number: 8443"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("rendered output is missing %q", want)
@@ -82,7 +93,7 @@ func TestZoneServiceEntries(t *testing.T) {
 
 	t.Run("istioNamespace is configurable", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, dataCIDR, "zone.istioServiceEntries.istioNamespace=mesh")
+		out := renderEntries(t, granular, dataCIDR, "zone.istioServiceEntries.istioNamespace=mesh")
 		if !strings.Contains(out, "namespace: mesh") {
 			t.Error("istioNamespace override was not applied")
 		}
@@ -90,7 +101,7 @@ func TestZoneServiceEntries(t *testing.T) {
 
 	t.Run("extraSubnets render their own entry", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			"zone.istioServiceEntries.extraSubnets[0].name=partner",
 			"zone.istioServiceEntries.extraSubnets[0].cidrs[0]=10.90.0.0/24",
 			"zone.istioServiceEntries.extraSubnets[0].ports[0].number=5432",
@@ -107,7 +118,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// like '"10.0.16.0/22","10.0.20.0/22"'. Taken verbatim from a rendered biz values file.
 	t.Run("quoted cidrs from the agent are unquoted", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			`zone.istioServiceEntries.data.cidrs="10.146.16.0/22"\,"10.146.20.0/22"\,"10.146.0.0/26"`,
 			`zone.istioServiceEntries.podCidrs="10.146.32.0/21"\,"10.146.40.0/21"`,
 			`zone.istioServiceEntries.service.cidrs="10.146.32.0/21"\,"10.146.40.0/21"`)
@@ -131,7 +142,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// with a comma, so the string form has to work as well as a YAML list.
 	t.Run("cidrs accept a comma separated string", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			`zone.istioServiceEntries.data.cidrs=10.0.16.0/22\,10.0.20.0/22\,10.0.0.0/26`)
 		for _, want := range []string{`- "10.0.16.0/22"`, `- "10.0.20.0/22"`, `- "10.0.0.0/26"`} {
 			if !strings.Contains(out, want) {
@@ -144,7 +155,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// joined. The empty segment must be dropped, not rendered as an address.
 	t.Run("empty segments in the string are dropped", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, `zone.istioServiceEntries.data.cidrs=10.0.16.0/22\,`)
+		out := renderEntries(t, granular, `zone.istioServiceEntries.data.cidrs=10.0.16.0/22\,`)
 		if !strings.Contains(out, `- "10.0.16.0/22"`) {
 			t.Error("the populated cidr was dropped")
 		}
@@ -157,7 +168,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// no addresses, which would match every destination on its ports.
 	t.Run("a string of only separators is skipped", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, `zone.istioServiceEntries.data.cidrs=\,`)
+		out := renderEntries(t, granular, `zone.istioServiceEntries.data.cidrs=\,`)
 		if strings.Contains(out, "kind: ServiceEntry") {
 			t.Fatal("a ServiceEntry rendered from an empty cidr string, which would open every destination")
 		}
@@ -168,7 +179,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// would open its ports to every Pod. podCidrs makes that case skip itself.
 	t.Run("service is skipped when its cidrs overlap podCidrs", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, dataCIDR,
+		out := renderEntries(t, granular, dataCIDR,
 			`zone.istioServiceEntries.service.cidrs=10.1.0.0/21\,10.1.8.0/21`,
 			`zone.istioServiceEntries.podCidrs=10.1.0.0/21\,10.1.8.0/21`)
 		if strings.Contains(out, "platform-apis-subnet-service") {
@@ -182,7 +193,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// With "spoke" the two are disjoint, which is when the group is worth having.
 	t.Run("service renders when disjoint from podCidrs", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, dataCIDR,
+		out := renderEntries(t, granular, dataCIDR,
 			"zone.istioServiceEntries.service.cidrs=10.1.8.0/21",
 			"zone.istioServiceEntries.podCidrs=10.1.16.0/21")
 		if !strings.Contains(out, "platform-apis-subnet-service") {
@@ -192,7 +203,7 @@ func TestZoneServiceEntries(t *testing.T) {
 
 	t.Run("a partial overlap with podCidrs also skips", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, dataCIDR,
+		out := renderEntries(t, granular, dataCIDR,
 			`zone.istioServiceEntries.service.cidrs=10.1.8.0/21\,10.1.16.0/21`,
 			"zone.istioServiceEntries.podCidrs=10.1.16.0/21")
 		if strings.Contains(out, "platform-apis-subnet-service") {
@@ -204,7 +215,7 @@ func TestZoneServiceEntries(t *testing.T) {
 	// database access rather than over-open it.
 	t.Run("the data group ignores podCidrs", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			"zone.istioServiceEntries.data.cidrs=10.1.0.0/21",
 			"zone.istioServiceEntries.podCidrs=10.1.0.0/21")
 		if !strings.Contains(out, "platform-apis-subnet-data") {
@@ -216,11 +227,71 @@ func TestZoneServiceEntries(t *testing.T) {
 	// ports opens nothing rather than everything.
 	t.Run("an extraSubnets entry without ports is skipped", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			"zone.istioServiceEntries.extraSubnets[0].name=partner",
 			"zone.istioServiceEntries.extraSubnets[0].cidrs[0]=10.90.0.0/24")
 		if strings.Contains(out, "platform-apis-extra-subnet-partner") {
 			t.Fatal("an extraSubnets entry with no ports rendered a ServiceEntry that opens nothing")
+		}
+	})
+}
+
+// TestZoneServiceEntriesWithoutIstio covers the cluster that has no Istio, which an empty
+// istioNamespace is how an environment says. ServiceEntry is Istio's own CRD, so there the objects
+// cannot be applied at all - and one manifest ArgoCD cannot apply fails the whole platform-apis
+// sync, not only the entry it came from. infralib leaves istioNamespace empty wherever the
+// istio-istiod module is not installed, so this is the default rather than a corner case.
+func TestZoneServiceEntriesWithoutIstio(t *testing.T) {
+	t.Parallel()
+	const granular = "zone.environmentConfig.granularEgress=true"
+
+	// Everything the populated lists need, so what keeps them out of the manifest below is the
+	// missing Namespace and nothing else. The same overrides with istioNS added render 17 entries.
+	populated := []string{
+		granular,
+		"zone.istioServiceEntries.region=eu-north-1",
+		"zone.istioServiceEntries.data.cidrs[0]=10.0.16.0/22",
+		"zone.istioServiceEntries.service.cidrs[0]=10.0.32.0/21",
+		"zone.istioServiceEntries.podCidrs[0]=10.0.64.0/21",
+		"zone.istioServiceEntries.extraSubnets[0].name=partner",
+		"zone.istioServiceEntries.extraSubnets[0].cidrs[0]=10.90.0.0/24",
+		"zone.istioServiceEntries.extraSubnets[0].ports[0].number=5432",
+		"zone.istioServiceEntries.extraSubnets[0].ports[0].name=tcp-postgres",
+		"zone.istioServiceEntries.extraSubnets[0].ports[0].protocol=TCP",
+		"zone.istioServiceEntries.extraServices[0].name=partner",
+		"zone.istioServiceEntries.extraServices[0].hosts[0]=api.partner.example.com",
+	}
+
+	t.Run("values.yaml ships no istioNamespace", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, populated...)
+		if strings.Contains(out, "kind: ServiceEntry") {
+			t.Fatal("a ServiceEntry rendered with no istioNamespace, which no cluster without Istio can apply")
+		}
+	})
+
+	// The one that has to hold in practice: an entry with the Namespace left empty would be
+	// rejected for the empty metadata.namespace even where the CRD does exist.
+	t.Run("an explicitly empty istioNamespace renders nothing", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, append([]string{"zone.istioServiceEntries.istioNamespace="}, populated...)...)
+		if strings.Contains(out, "kind: ServiceEntry") {
+			t.Fatal("a ServiceEntry rendered with istioNamespace set to the empty string")
+		}
+		if strings.Contains(out, "platform-apis-aws-") || strings.Contains(out, "platform-apis-extra-host-") {
+			t.Error("a hostname entry rendered without an istioNamespace")
+		}
+	})
+
+	// Only these objects depend on Istio. A cluster without it still gets the rest of the chart,
+	// Zones included, rather than losing the composition along with the entries.
+	t.Run("the rest of the chart is unaffected", func(t *testing.T) {
+		t.Parallel()
+		out := renderChart(t, populated...)
+		for _, want := range []string{"kind: Zone", "kind: EnvironmentConfig", "kind: Function"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("rendering without Istio dropped %q from the chart", want)
+			}
 		}
 	})
 }
@@ -238,7 +309,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 
 	t.Run("not rendered while granularEgress is off", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, region)
+		out := renderEntries(t, region)
 		if strings.Contains(out, "platform-apis-aws-") {
 			t.Fatal("an AWS ServiceEntry was rendered with granularEgress disabled")
 		}
@@ -248,7 +319,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 	// beats rendering a host with the placeholder still in it, which would silently match nothing.
 	t.Run("the group is skipped when no region is set", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular)
+		out := renderEntries(t, granular)
 		if strings.Contains(out, "platform-apis-aws-") {
 			t.Fatal("an AWS ServiceEntry was rendered without a region")
 		}
@@ -256,7 +327,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 
 	t.Run("each service renders its own entry", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region)
+		out := renderEntries(t, granular, region)
 		for _, want := range []string{
 			"name: platform-apis-aws-sts",
 			"name: platform-apis-aws-s3",
@@ -275,7 +346,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 
 	t.Run("hosts carry the region, the protocol and the resolution Envoy needs", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region)
+		out := renderEntries(t, granular, region)
 		for _, want := range []string{
 			`- "sts.eu-north-1.amazonaws.com"`,
 			`- "kms.eu-north-1.amazonaws.com"`,
@@ -294,7 +365,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 	// and losing it would break them while the regional host kept working.
 	t.Run("a host without the placeholder is kept as written", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region)
+		out := renderEntries(t, granular, region)
 		if !strings.Contains(out, `- "sts.amazonaws.com"`) {
 			t.Error("the global STS host was dropped")
 		}
@@ -312,7 +383,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 			`s3.*.amazonaws.com`,          // and anywhere else, which Istio rejects just the same
 		} {
 			out, err := exec.Command("helm", "template", "test-release", chartDir,
-				"--set", granular, "--set", region,
+				"--set", istioNS, "--set", granular, "--set", region,
 				"--set", "zone.istioServiceEntries.awsApis.services[0].name=s3",
 				"--set", "zone.istioServiceEntries.awsApis.services[0].hosts[0]="+host).CombinedOutput()
 			if err == nil {
@@ -329,7 +400,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 	// Pod gets a blackhole instead of the API. Scoped to our own hosts.
 	t.Run("no host keeps an unsubstituted placeholder", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region)
+		out := renderEntries(t, granular, region)
 		if strings.Contains(out, "{region}") {
 			t.Error("a host kept the {region} placeholder")
 		}
@@ -339,7 +410,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 	// treats every list, so each of these passes a complete list.
 	t.Run("a service with no hosts is skipped", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region,
+		out := renderEntries(t, granular, region,
 			"zone.istioServiceEntries.awsApis.services[0].name=empty",
 			"zone.istioServiceEntries.awsApis.services[1].name=present",
 			"zone.istioServiceEntries.awsApis.services[1].hosts[0]=present.{region}.amazonaws.com")
@@ -353,7 +424,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 
 	t.Run("a custom service brings its own name, hosts and ports", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region,
+		out := renderEntries(t, granular, region,
 			"zone.istioServiceEntries.awsApis.services[0].name=renamed",
 			"zone.istioServiceEntries.awsApis.services[0].hosts[0]=example.{region}.amazonaws.com",
 			"zone.istioServiceEntries.awsApis.services[0].ports[0].number=8443",
@@ -375,7 +446,7 @@ func TestZoneAWSAPIServiceEntries(t *testing.T) {
 
 	t.Run("istioNamespace applies to the AWS entries too", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region, "zone.istioServiceEntries.istioNamespace=mesh")
+		out := renderEntries(t, granular, region, "zone.istioServiceEntries.istioNamespace=mesh")
 		if strings.Contains(out, "namespace: istio-system") {
 			t.Error("an AWS entry stayed in istio-system after the override")
 		}
@@ -398,7 +469,7 @@ func TestZoneExtraServices(t *testing.T) {
 
 	t.Run("an extra service renders next to the defaults", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region, extraName, extraHost)
+		out := renderEntries(t, granular, region, extraName, extraHost)
 		for _, want := range []string{
 			"name: platform-apis-extra-host-bedrock",
 			`- "bedrock-runtime.eu-north-1.amazonaws.com"`,
@@ -413,7 +484,7 @@ func TestZoneExtraServices(t *testing.T) {
 
 	t.Run("an extra service can set its own ports", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region,
+		out := renderEntries(t, granular, region,
 			"zone.istioServiceEntries.extraServices[0].name=partner",
 			"zone.istioServiceEntries.extraServices[0].hosts[0]=api.partner.example.com",
 			"zone.istioServiceEntries.extraServices[0].ports[0].number=8443",
@@ -430,7 +501,7 @@ func TestZoneExtraServices(t *testing.T) {
 	// default set needs.
 	t.Run("an extra service without a region still renders", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			"zone.istioServiceEntries.extraServices[0].name=partner",
 			"zone.istioServiceEntries.extraServices[0].hosts[0]=api.partner.example.com")
 		if !strings.Contains(out, "name: platform-apis-extra-host-partner") {
@@ -445,7 +516,7 @@ func TestZoneExtraServices(t *testing.T) {
 	// matches nothing. Dropping it leaves the entry with only hosts that can work.
 	t.Run("a host needing a region is dropped while none is set", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, extraName, extraHost,
+		out := renderEntries(t, granular, extraName, extraHost,
 			"zone.istioServiceEntries.extraServices[0].hosts[1]=bedrock.example.com")
 		if strings.Contains(out, "{region}") || strings.Contains(out, "bedrock-runtime..amazonaws.com") {
 			t.Error("a host that needs a region was rendered without one")
@@ -457,7 +528,7 @@ func TestZoneExtraServices(t *testing.T) {
 
 	t.Run("an extra service left with no hosts is skipped", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, extraName, extraHost)
+		out := renderEntries(t, granular, extraName, extraHost)
 		if strings.Contains(out, "platform-apis-extra-host-bedrock") {
 			t.Fatal("an extra service whose only host needs a region rendered anyway")
 		}
@@ -468,7 +539,7 @@ func TestZoneExtraServices(t *testing.T) {
 	// that would otherwise silently take the built-in's place.
 	t.Run("an extra subnet named after a built-in group sits next to it", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular,
+		out := renderEntries(t, granular,
 			"zone.istioServiceEntries.data.cidrs=10.0.16.0/22",
 			"zone.istioServiceEntries.extraSubnets[0].name=data",
 			"zone.istioServiceEntries.extraSubnets[0].cidrs=10.9.0.0/16",
@@ -494,7 +565,7 @@ func TestZoneExtraServices(t *testing.T) {
 	// names, so both survive.
 	t.Run("an extra may reuse an AWS service name", func(t *testing.T) {
 		t.Parallel()
-		out := renderChart(t, granular, region,
+		out := renderEntries(t, granular, region,
 			"zone.istioServiceEntries.extraServices[0].name=s3",
 			"zone.istioServiceEntries.extraServices[0].hosts[0]=s3.example.com")
 		for _, want := range []string{"name: platform-apis-extra-host-s3", "name: platform-apis-aws-s3"} {

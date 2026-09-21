@@ -234,9 +234,9 @@ zone:
   # "<istioNamespace>/*", so a single entry per subnet group serves the whole cluster and the Zone
   # composition does not have to generate one per Namespace.
   #
-  # Only rendered while zone.environmentConfig.granularEgress is enabled. A group whose cidrs list
-  # is empty is skipped entirely, because a ServiceEntry with addresses unset matches every
-  # destination on its ports instead of none.
+  # Only rendered while zone.environmentConfig.granularEgress is enabled and istioNamespace names a
+  # Namespace. A group whose cidrs list is empty is skipped entirely, because a ServiceEntry with
+  # addresses unset matches every destination on its ports instead of none.
   #
   # Ports must be listed one by one: a ServiceEntry has no port range syntax, and omitting ports
   # opens nothing rather than everything.
@@ -248,7 +248,15 @@ zone:
     #
     # Namespace the entries are created in. Must be the Namespace the Zone Sidecars allow, which is
     # istio-system unless Istio was installed elsewhere.
-    istioNamespace: istio-system
+    #
+    # Empty means this cluster has no Istio, and then no ServiceEntry is rendered at all: the
+    # ServiceEntry CRD is Istio's own, so on a cluster without it every entry below would fail to
+    # apply and take the whole platform-apis sync with it. infralib sets this from the name the
+    # istio-istiod module was given and leaves it empty where that module is not installed, so an
+    # environment turns the entries on by installing Istio rather than by setting anything here.
+    # granularEgress needs Istio for its Sidecars either way, so leaving this empty while
+    # granularEgress is on means the Zones are closed with nothing to open the subnets again.
+    istioNamespace: ""
     # The cluster's region, substituted into {region} in any host below.
     #   region: "{{ .toutput.eks.region }}"
     region: ""
