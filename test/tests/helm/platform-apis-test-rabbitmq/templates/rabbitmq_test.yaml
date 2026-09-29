@@ -14,3 +14,16 @@ spec:
   configuration:
     data: |
       consumer_timeout = 1800000
+---
+apiVersion: mq.entigo.com/v1alpha1
+kind: RabbitMQBroker
+metadata:
+  name: test-rabbitmq-public-broker
+  namespace: {{ .Release.Namespace }}
+spec:
+  instanceType: mq.m7g.medium
+  engineVersion: "4.2"
+  engineType: RabbitMQ
+  deploymentMode: SINGLE_INSTANCE
+  autoMinorVersionUpgrade: true
+  publiclyAccessible: true

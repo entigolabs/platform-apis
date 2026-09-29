@@ -126,7 +126,9 @@ func newRabbitMQBrokerGenerator(
 func (g *rabbitMQBrokerGenerator) generate() (map[string]client.Object, error) {
 	desired := make(map[string]client.Object)
 
-	maps.Copy(desired, g.buildSecurityGroup())
+	if !g.rabbitMQBroker.Spec.PubliclyAccessible {
+		maps.Copy(desired, g.buildSecurityGroup())
+	}
 
 	desired[credentialsKey] = g.buildCredentialsSecret()
 
@@ -416,7 +418,6 @@ func (g *rabbitMQBrokerGenerator) buildSecurityGroup() map[string]client.Object 
 
 func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 	brokerName := string(g.names.broker)
-	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
 
 	availableSubnets := g.subnetGroup.Status.AtProvider.SubnetIds
@@ -433,7 +434,6 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 		subnetIds = append(subnetIds, availableSubnets...)
 	}
 
-	securityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 	broker := &mqv1beta1.Broker{
 		TypeMeta:   metav1.TypeMeta{Kind: "Broker", APIVersion: mqApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: brokerName, Namespace: g.rabbitMQBroker.Namespace},
@@ -451,7 +451,6 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 				EngineVersion:           g.rabbitMQBroker.Spec.EngineVersion,
 				HostInstanceType:        g.rabbitMQBroker.Spec.InstanceType,
 				PubliclyAccessible:      &g.rabbitMQBroker.Spec.PubliclyAccessible,
-				SecurityGroupRefs:       securityGroupIDRef,
 				Region:                  region,
 				User: []mqv1beta1.UserParameters{{
 					Username:      new(g.username),
@@ -468,6 +467,10 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 				SubnetIds: subnetIds,
 			},
 		},
+	}
+
+	if !g.rabbitMQBroker.Spec.PubliclyAccessible {
+		broker.Spec.ForProvider.SecurityGroupRefs = []xpv2v1.NamespacedReference{{Name: string(g.names.sg)}}
 	}
 
 	if g.rabbitMQBroker.Spec.Configuration != nil {

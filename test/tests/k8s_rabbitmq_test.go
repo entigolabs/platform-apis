@@ -33,6 +33,15 @@ func testRabbitMQ(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.K
 	t.Run("configuration", func(t *testing.T) {
 		t.Run("RabbitMQConfigLifecycle", func(t *testing.T) { testRabbitMQConfigLifecycle(t, mqNs) })
 	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("publicAccess", func(t *testing.T) {
+		t.Run("RabbitMQPublicAccessImmutable", func(t *testing.T) { testRabbitMQPublicAccessImmutable(t, mqNs) })
+		t.Run("RabbitMQPublicBroker", func(t *testing.T) { testRabbitMQPublicBroker(t, mqNs) })
+	})
 }
 
 // testRabbitMQLifecycle drives a single RabbitMQBroker through provisioning and asserts the AWS
@@ -134,12 +143,63 @@ func testRabbitMQConfigLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 	waitFieldEquals(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, ".status.engineVersion", RabbitMQUpgradeVersion, 240, 15*time.Second)
 }
 
+func testRabbitMQPublicAccessImmutable(t *testing.T, mqNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	before := getField(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, ".spec.publiclyAccessible")
+	require.Equal(t, "false", before, "broker should start out private")
+
+	out, err := terrak8s.RunKubectlAndGetOutputE(t, mqNs, "patch", RabbitMQBrokerKind, RabbitMQBrokerName,
+		"--type", "merge", "-p", `{"spec":{"publiclyAccessible":true}}`)
+	require.Error(t, err, "switching publiclyAccessible on an existing broker must be rejected")
+	require.Contains(t, out, "publiclyAccessible is immutable")
+
+	require.Equal(t, before, getField(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, ".spec.publiclyAccessible"),
+		"a rejected patch must leave the broker private")
+}
+
+// testRabbitMQPublicBroker drives a second, publiclyAccessible broker through provisioning. Amazon MQ
+// rejects CreateBroker for a RabbitMQ broker that sets both publiclyAccessible and securityGroups, so no
+// SecurityGroup stack is composed. Subnets stay attached - the subnetIds assertions are what catch it if
+// Amazon MQ turns out to reject those on a public broker too.
+func testRabbitMQPublicBroker(t *testing.T, mqNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	waitResourceExists(t, mqNs, "secret", RabbitMQPublicCredentialsSecretName, 60, 10*time.Second)
+
+	brokerName := waitSyncedAndReadyByLabel(t, mqNs, RabbitMQAwsBrokerKind, RabbitMQPublicBrokerName, 120, 15*time.Second)
+	require.NotEmpty(t, brokerName)
+	if t.Failed() {
+		return
+	}
+
+	require.Empty(t, getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.securityGroupRefs"),
+		"a public broker must not reference any security group")
+	require.Empty(t, getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".status.atProvider.securityGroups"),
+		"a public broker must not report any security group")
+	require.NotEmpty(t, getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.subnetIds"),
+		"subnets must stay attached on a public broker")
+	require.NotEmpty(t, getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".status.atProvider.subnetIds"),
+		"Amazon MQ must accept subnetIds on a public broker")
+
+	// No SecurityGroup or SecurityGroupRule is composed for this broker at all.
+	waitNoResourcesByLabel(t, mqNs, SecurityGroupKind, RabbitMQPublicBrokerName, 3, 5*time.Second)
+	waitNoResourcesByLabel(t, mqNs, SecurityGroupRuleKind, RabbitMQPublicBrokerName, 3, 5*time.Second)
+
+	waitResourceExists(t, mqNs, "secret", RabbitMQPublicConnectionSecretName, 60, 10*time.Second)
+	require.NotEmpty(t, getField(t, mqNs, "secret", RabbitMQPublicConnectionSecretName, ".data"),
+		"connection secret should be populated for a public broker")
+	waitFieldEquals(t, mqNs, RabbitMQBrokerKind, RabbitMQPublicBrokerName, ".status.publiclyAccessible", "true", 60, 10*time.Second)
+	require.NotEmpty(t, getField(t, mqNs, RabbitMQBrokerKind, RabbitMQPublicBrokerName, ".status.amazonMQBrokerID"),
+		"composite amazonMQBrokerID should be populated")
+}
+
 func cleanupRabbitMQ(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	if t.Failed() {
 		return // leave resources in place for debugging
 	}
 	mqNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, RabbitMQNamespaceName)
-	cleanupDeleteParallel(t, mqNs, RabbitMQBrokerKind, 180, RabbitMQBrokerName)
+	cleanupDeleteParallel(t, mqNs, RabbitMQBrokerKind, 180, RabbitMQBrokerName, RabbitMQPublicBrokerName)
 
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", RabbitMQApplicationName, "--ignore-not-found")
 }

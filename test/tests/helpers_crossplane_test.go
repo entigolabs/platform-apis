@@ -80,6 +80,26 @@ func waitResourceGone(t *testing.T, opts *terrak8s.KubectlOptions, kind, name st
 	require.NoError(t, err, "%s/%s was not removed", kind, name)
 }
 
+// waitNoResourcesByLabel polls until no resource of the given kind carries the
+// crossplane.io/composite=<composite> label.
+func waitNoResourcesByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind, composite string, retries int, interval time.Duration) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("no %s with composite=%s", kind, composite), retries, interval,
+		func() (string, error) {
+			names, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind,
+				"-l", fmt.Sprintf("crossplane.io/composite=%s", composite),
+				"-o", "jsonpath={.items[*].metadata.name}")
+			if err != nil {
+				return "", err
+			}
+			if strings.TrimSpace(names) != "" {
+				return "", fmt.Errorf("%s still present for composite=%s: %s", kind, composite, names)
+			}
+			return "", nil
+		})
+	require.NoError(t, err, "%s was not removed for composite=%s", kind, composite)
+}
+
 // waitFieldEquals polls until a jsonpath field on a resource equals the expected value.
 func waitFieldEquals(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fieldPath, expected string, retries int, interval time.Duration) {
 	t.Helper()
