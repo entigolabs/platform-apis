@@ -152,7 +152,7 @@ func testBrokerCrossplaneRender(t *testing.T) {
 		"spec.forProvider.region":                   "eu-north-1",
 		"spec.forProvider.engineType":               "RabbitMQ",
 		"spec.forProvider.hostInstanceType":         "mq.m7g.medium",
-		"spec.forProvider.user.0.username":          "mqadmin",
+		"spec.initProvider.user.0.username":         "mqadmin",
 		"spec.forProvider.subnetIds.0":              "subnet-0",
 		"spec.forProvider.securityGroupRefs.0.name": "*",
 		"spec.writeConnectionSecretToRef.name":      "rabbitmq-example-connection",

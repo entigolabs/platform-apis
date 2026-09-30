@@ -128,6 +128,8 @@ func testRabbitMQConfigLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 	//    The engine upgrade is slow, so allow a long window.
 	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name", newConfig, 240, 15*time.Second)
 	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.engineVersion", RabbitMQUpgradeVersion, 240, 15*time.Second)
+	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".status.atProvider.engineVersion", RabbitMQUpgradeVersion, 240, 15*time.Second)
+	waitSyncedAndReady(t, mqNs, RabbitMQAwsBrokerKind, brokerName, 60, 15*time.Second)
 	if t.Failed() {
 		return
 	}

@@ -452,7 +452,14 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 				HostInstanceType:        g.rabbitMQBroker.Spec.InstanceType,
 				PubliclyAccessible:      &g.rabbitMQBroker.Spec.PubliclyAccessible,
 				Region:                  region,
-				User: []mqv1beta1.UserParameters{{
+				EncryptionOptions: &mqv1beta1.EncryptionOptionsParameters{
+					KMSKeyID:       g.kmsDataKeyIDRef(),
+					UseAwsOwnedKey: new(false),
+				},
+				SubnetIds: subnetIds,
+			},
+			InitProvider: mqv1beta1.BrokerInitParameters{
+				User: []mqv1beta1.UserInitParameters{{
 					Username:      new(g.username),
 					ConsoleAccess: new(true),
 					PasswordSecretRef: xpv2v1.LocalSecretKeySelector{
@@ -460,11 +467,6 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 						Key:                  "password",
 					},
 				}},
-				EncryptionOptions: &mqv1beta1.EncryptionOptionsParameters{
-					KMSKeyID:       g.kmsDataKeyIDRef(),
-					UseAwsOwnedKey: new(false),
-				},
-				SubnetIds: subnetIds,
 			},
 		},
 	}
