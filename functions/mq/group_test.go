@@ -63,6 +63,7 @@ const (
 	sgResJson             = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"description":"allow traffic from vpc","region":"eu-north-1","tags":{"Name":"%s","entigo:zone":"zone-a"},"vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 	ingressResJson        = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow amqps from vpc","fromPort":5671,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":5671,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 	consoleIngressResJson = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow management console from vpc","fromPort":443,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":443,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
+	mgmtIngressResJson    = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow management api from vpc","fromPort":15671,"protocol":"tcp","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":15671,"type":"ingress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 	egressResJson         = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroupRule","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"cidrBlocks":["0.0.0.0/0"],"description":"allow traffic from vpc","fromPort":0,"protocol":"-1","region":"eu-north-1","securityGroupIdRef":{"name":"%s"},"toPort":0,"type":"egress"},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 
 	credentialsResJson = `{"apiVersion":"v1","kind":"Secret","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"type":"Opaque","stringData":{"password":"%s","username":"mqadmin"}}`
@@ -109,6 +110,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 	sgName := service.GetSGName(brokerCRName, setHash)
 	sgIngressName := service.GetSGIngressName(brokerCRName, setHash)
 	sgConsoleIngressName := service.GetSGConsoleIngressName(brokerCRName, setHash)
+	sgMgmtIngressName := service.GetSGMgmtIngressName(brokerCRName, setHash)
 	sgEgressName := service.GetSGEgressName(brokerCRName, setHash)
 	brokerName := service.GetBrokerName(brokerCRName, setHash)
 	configName := service.GetConfigurationName(brokerCRName, "4.2", setHash)
@@ -157,6 +159,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName))},
 							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName))},
 							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName))},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName))},
 							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName))},
 							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, "IGNORED"))},
 							configName:           {Resource: resource.MustStructJSON(fmt.Sprintf(configResJson, configName, configName))},
@@ -176,6 +179,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
 							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 							configName:           withReadyStatus(fmt.Sprintf(configObservedResJson, configName, configName)),
@@ -192,6 +196,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
 							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
 							configName:           {Resource: resource.MustStructJSON(fmt.Sprintf(configResJson, configName, configName)), Ready: 1},
@@ -212,6 +217,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
 							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 							oldConfigName:        withReadyStatus(fmt.Sprintf(configObservedResJson, oldConfigName, oldConfigName)),
@@ -229,6 +235,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
 							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
 							newConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(configV43ResJson, newConfigName, newConfigName))},
@@ -250,6 +257,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
 							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 							configName:           withReadyStatus(fmt.Sprintf(configObservedResJson, configName, configName)),
@@ -268,6 +276,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
 							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
 							configName:           {Resource: resource.MustStructJSON(fmt.Sprintf(configResJson, configName, configName)), Ready: 1},
@@ -288,6 +297,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
 							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 						},
@@ -303,6 +313,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
 							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
 							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(minimalBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName))},
@@ -322,6 +333,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
 							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 						},
@@ -337,6 +349,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
 							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
 							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(multiAZBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName))},
@@ -404,6 +417,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
 							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
 							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
 							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
 							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
 							brokerName:           withReadyStatus(fmt.Sprintf(`{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{}},"status":{"atProvider":{"id":"b-1234abcd-5678-90ef","brokerName":"test-mq-broker-811c9dc5","region":"eu-north-1","instances":[{"consoleUrl":"https://console.example.com","endpoints":["amqps://b-1234.mq.eu-north-1.amazonaws.com:5671"],"ipAddress":"10.0.1.5"}],"securityGroups":["sg-abc123"],"subnetIds":["subnet-aaa111"]}}}`, brokerName)),
@@ -421,6 +435,7 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
 							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
 							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
 							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
 							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
 							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(minimalBrokerResJson, brokerName, brokerName, sgName, credentialsSecretName, connectionSecretName)), Ready: 1},

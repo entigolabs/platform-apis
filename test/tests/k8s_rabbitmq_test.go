@@ -56,6 +56,14 @@ func testRabbitMQLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 		return
 	}
 
+	for _, port := range []string{"5671", "443", "15671"} {
+		require.NotEmpty(t, waitSyncedAndReadyByLabelWhere(t, mqNs, SecurityGroupRuleKind, RabbitMQBrokerName,
+			".spec.forProvider.fromPort", port, 60, 10*time.Second), "no ingress rule for port %s", port)
+	}
+	if t.Failed() {
+		return
+	}
+
 	// Credentials secret carries the admin username/password used to bootstrap the broker.
 	require.NotEmpty(t, getField(t, mqNs, "secret", RabbitMQCredentialsSecretName, ".data.username"),
 		"credentials secret username should be populated")

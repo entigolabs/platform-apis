@@ -62,6 +62,7 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 				service.GetSGName(broker.GetName(), setHash),
 				service.GetSGIngressName(broker.GetName(), setHash),
 				service.GetSGConsoleIngressName(broker.GetName(), setHash),
+				service.GetSGMgmtIngressName(broker.GetName(), setHash),
 				service.GetSGEgressName(broker.GetName(), setHash),
 			}, firstGroup...)
 		}
