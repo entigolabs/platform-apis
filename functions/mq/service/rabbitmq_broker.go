@@ -50,7 +50,7 @@ type rabbitMQBrokerGenerator struct {
 }
 
 type resourceNames struct {
-	sg, sgIngress, sgConsoleIngress, sgEgress, configuration, broker resource.Name
+	sg, sgIngress, sgConsoleIngress, sgMgmtIngress, sgEgress, configuration, broker resource.Name
 }
 
 func GenerateRabbitMQBrokerObjects(
@@ -126,7 +126,9 @@ func newRabbitMQBrokerGenerator(
 func (g *rabbitMQBrokerGenerator) generate() (map[string]client.Object, error) {
 	desired := make(map[string]client.Object)
 
-	maps.Copy(desired, g.buildSecurityGroup())
+	if !g.rabbitMQBroker.Spec.PubliclyAccessible {
+		maps.Copy(desired, g.buildSecurityGroup())
+	}
 
 	desired[credentialsKey] = g.buildCredentialsSecret()
 
@@ -296,6 +298,10 @@ func GetSGConsoleIngressName(RabbitMQBrokerName string, hash string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-console-ingress-%s", RabbitMQBrokerName, hash))
 }
 
+func GetSGMgmtIngressName(RabbitMQBrokerName string, hash string) string {
+	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-mgmt-ingress-%s", RabbitMQBrokerName, hash))
+}
+
 func GetSGEgressName(RabbitMQBrokerName string, hash string) string {
 	return base.GenerateEligibleKubernetesFullName(fmt.Sprintf("%s-sg-egress-%s", RabbitMQBrokerName, hash))
 }
@@ -315,6 +321,7 @@ func (g *rabbitMQBrokerGenerator) generateNames() {
 	g.names.sg = resource.Name(GetSGName(g.rabbitMQBroker.Name, g.hash))
 	g.names.sgIngress = resource.Name(GetSGIngressName(g.rabbitMQBroker.Name, g.hash))
 	g.names.sgConsoleIngress = resource.Name(GetSGConsoleIngressName(g.rabbitMQBroker.Name, g.hash))
+	g.names.sgMgmtIngress = resource.Name(GetSGMgmtIngressName(g.rabbitMQBroker.Name, g.hash))
 	g.names.sgEgress = resource.Name(GetSGEgressName(g.rabbitMQBroker.Name, g.hash))
 	g.names.configuration = resource.Name(GetConfigurationName(g.rabbitMQBroker.Name, g.engineVersion(), g.hash))
 	g.names.broker = resource.Name(GetBrokerName(g.rabbitMQBroker.Name, g.hash))
@@ -346,6 +353,7 @@ func (g *rabbitMQBrokerGenerator) buildSecurityGroup() map[string]client.Object 
 	cidrBlock := "0.0.0.0/0"
 	amqpsPort := float64(5671)
 	consolePort := float64(443)
+	mgmtPort := float64(15671)
 
 	ingressName := string(g.names.sgIngress)
 	groups[ingressName] = &ec2mv1beta1.SecurityGroupRule{
@@ -389,6 +397,27 @@ func (g *rabbitMQBrokerGenerator) buildSecurityGroup() map[string]client.Object 
 		},
 	}
 
+	mgmtIngressName := string(g.names.sgMgmtIngress)
+	groups[mgmtIngressName] = &ec2mv1beta1.SecurityGroupRule{
+		TypeMeta:   metav1.TypeMeta{Kind: "SecurityGroupRule", APIVersion: ec2ApiVersion},
+		ObjectMeta: metav1.ObjectMeta{Name: mgmtIngressName, Namespace: g.rabbitMQBroker.Namespace},
+		Spec: ec2mv1beta1.SecurityGroupRuleSpec{
+			ManagedResourceSpec: xpv2v2.ManagedResourceSpec{
+				ProviderConfigReference: &xpvcommon.ProviderConfigReference{Name: g.env.AWSProvider, Kind: "ClusterProviderConfig"},
+			},
+			ForProvider: ec2mv1beta1.SecurityGroupRuleParameters_2{
+				Region:             region,
+				SecurityGroupIDRef: &xpv2v1.NamespacedReference{Name: sgName},
+				Type:               new("ingress"),
+				FromPort:           &mgmtPort,
+				ToPort:             &mgmtPort,
+				Protocol:           new("tcp"),
+				CidrBlocks:         []*string{&cidrBlock},
+				Description:        new("allow management api from vpc"),
+			},
+		},
+	}
+
 	egressName := string(g.names.sgEgress)
 	egressPort := float64(0)
 	egressRule := &ec2mv1beta1.SecurityGroupRule{
@@ -416,7 +445,6 @@ func (g *rabbitMQBrokerGenerator) buildSecurityGroup() map[string]client.Object 
 
 func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 	brokerName := string(g.names.broker)
-	sgName := string(g.names.sg)
 	region := g.vpc.Spec.ForProvider.Region
 
 	availableSubnets := g.subnetGroup.Status.AtProvider.SubnetIds
@@ -433,7 +461,6 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 		subnetIds = append(subnetIds, availableSubnets...)
 	}
 
-	securityGroupIDRef := []xpv2v1.NamespacedReference{{Name: sgName}}
 	broker := &mqv1beta1.Broker{
 		TypeMeta:   metav1.TypeMeta{Kind: "Broker", APIVersion: mqApiVersion},
 		ObjectMeta: metav1.ObjectMeta{Name: brokerName, Namespace: g.rabbitMQBroker.Namespace},
@@ -451,9 +478,15 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 				EngineVersion:           g.rabbitMQBroker.Spec.EngineVersion,
 				HostInstanceType:        g.rabbitMQBroker.Spec.InstanceType,
 				PubliclyAccessible:      &g.rabbitMQBroker.Spec.PubliclyAccessible,
-				SecurityGroupRefs:       securityGroupIDRef,
 				Region:                  region,
-				User: []mqv1beta1.UserParameters{{
+				EncryptionOptions: &mqv1beta1.EncryptionOptionsParameters{
+					KMSKeyID:       g.kmsDataKeyIDRef(),
+					UseAwsOwnedKey: new(false),
+				},
+				SubnetIds: subnetIds,
+			},
+			InitProvider: mqv1beta1.BrokerInitParameters{
+				User: []mqv1beta1.UserInitParameters{{
 					Username:      new(g.username),
 					ConsoleAccess: new(true),
 					PasswordSecretRef: xpv2v1.LocalSecretKeySelector{
@@ -461,13 +494,12 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 						Key:                  "password",
 					},
 				}},
-				EncryptionOptions: &mqv1beta1.EncryptionOptionsParameters{
-					KMSKeyID:       g.kmsDataKeyIDRef(),
-					UseAwsOwnedKey: new(false),
-				},
-				SubnetIds: subnetIds,
 			},
 		},
+	}
+
+	if !g.rabbitMQBroker.Spec.PubliclyAccessible {
+		broker.Spec.ForProvider.SecurityGroupRefs = []xpv2v1.NamespacedReference{{Name: string(g.names.sg)}}
 	}
 
 	if g.rabbitMQBroker.Spec.Configuration != nil {

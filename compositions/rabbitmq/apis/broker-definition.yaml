@@ -24,6 +24,8 @@ spec:
               x-kubernetes-validations:
                 - rule: "!has(oldSelf.configuration) || has(self.configuration)"
                   message: "spec.configuration cannot be removed once set; Amazon MQ does not support disassociating a broker configuration (only changing it)"
+                - rule: "has(self.publiclyAccessible) == has(oldSelf.publiclyAccessible) && (!has(self.publiclyAccessible) || self.publiclyAccessible == oldSelf.publiclyAccessible)"
+                  message: "spec.publiclyAccessible is immutable; Amazon MQ only accepts it on CreateBroker, so switching an existing broker between private and public requires creating a new RabbitMQBroker"
               properties:
                 autoMinorVersionUpgrade:
                   default: true

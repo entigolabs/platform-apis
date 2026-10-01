@@ -215,6 +215,11 @@ const (
 	RabbitMQConnectionSecretName  = RabbitMQBrokerName + "-connection"
 	RabbitMQCredentialsSecretName = RabbitMQBrokerName + "-credentials"
 
+	// Second broker, created publiclyAccessible: composes no security group at all.
+	RabbitMQPublicBrokerName            = "test-rabbitmq-public-broker"
+	RabbitMQPublicConnectionSecretName  = RabbitMQPublicBrokerName + "-connection"
+	RabbitMQPublicCredentialsSecretName = RabbitMQPublicBrokerName + "-credentials"
+
 	// ── MariaDB ───────────────────────────────────────────────────────────────
 
 	MariadbNamespaceName   = "test-mariadb"

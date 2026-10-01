@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/entigolabs/static-common/crossplane"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -23,6 +24,61 @@ func TestRabbitMQCrossplaneRender(t *testing.T) {
 	crossplane.StartCustomFunction(t, function, "9443")
 
 	t.Run("Broker", testBrokerCrossplaneRender)
+	t.Run("PublicBroker", testPublicBrokerCrossplaneRender)
+}
+
+func testPublicBrokerCrossplaneRender(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	extra := filepath.Join(tmpDir, "extra.yaml")
+	tempBrokerResource := filepath.Join(tmpDir, "broker.yaml")
+	observed := filepath.Join(tmpDir, "observed.yaml")
+
+	crossplane.AppendYamlToResources(t, env, extra)
+	crossplane.AppendYamlToResources(t, required, extra)
+
+	brokerUnstructured := crossplane.ParseYamlFileToUnstructured(t, brokerResource)
+	mockedBroker := crossplane.MockByKind(t, brokerUnstructured, "RabbitMQBroker", "mq.entigo.com/v1alpha1", false, map[string]interface{}{
+		"metadata.uid":            "000000000000",
+		"spec.publiclyAccessible": true,
+	})
+	crossplane.AppendToResources(t, tempBrokerResource, mockedBroker)
+
+	t.Log("Rendering...")
+	resources := crossplane.CrossplaneRender(t, tempBrokerResource, brokerComposition, functionsConfig, crossplane.Ptr(extra), nil)
+
+	t.Log("Asserting no SecurityGroup stack is composed for a public broker")
+	crossplane.AssertResourceCount(t, resources, "RabbitMQBroker", 1)
+	crossplane.AssertResourceCount(t, resources, "SecurityGroup", 0)
+	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 0)
+	crossplane.AssertResourceCount(t, resources, "Secret", 1)
+	crossplane.AssertResourceCount(t, resources, "Broker", 0)
+
+	t.Log("Mocking observed credentials secret")
+	mockedSecret := crossplane.MockByKind(t, resources, "Secret", "v1", true, nil)
+	crossplane.AppendToResources(t, observed, mockedSecret)
+
+	t.Log("Rendering...")
+	resources = crossplane.CrossplaneRender(t, tempBrokerResource, brokerComposition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
+
+	t.Log("Asserting the Broker is composed without a security group")
+	crossplane.AssertResourceCount(t, resources, "SecurityGroup", 0)
+	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 0)
+	crossplane.AssertResourceCount(t, resources, "Broker", 1)
+
+	crossplane.AssertFieldValues(t, resources, "Broker", "mq.aws.m.upbound.io/v1beta1", map[string]string{
+		"spec.forProvider.publiclyAccessible": "true",
+		"spec.forProvider.subnetIds.0":        "subnet-0",
+	})
+
+	for _, res := range resources {
+		if res.GetKind() != "Broker" {
+			continue
+		}
+		if _, found, _ := unstructured.NestedFieldNoCopy(res.Object, "spec", "forProvider", "securityGroupRefs"); found {
+			t.Fatal("a public broker must not reference any security group")
+		}
+	}
 }
 
 func testBrokerCrossplaneRender(t *testing.T) {
@@ -47,7 +103,7 @@ func testBrokerCrossplaneRender(t *testing.T) {
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "RabbitMQBroker", 1)
 	crossplane.AssertResourceCount(t, resources, "SecurityGroup", 1)
-	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 3)
+	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 4)
 	crossplane.AssertResourceCount(t, resources, "Secret", 1)
 	crossplane.AssertResourceCount(t, resources, "Broker", 0)
 
@@ -84,19 +140,21 @@ func testBrokerCrossplaneRender(t *testing.T) {
 	t.Log("Asserting rendered resources count")
 	crossplane.AssertResourceCount(t, resources, "RabbitMQBroker", 1)
 	crossplane.AssertResourceCount(t, resources, "SecurityGroup", 1)
-	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 3)
+	crossplane.AssertResourceCount(t, resources, "SecurityGroupRule", 4)
 	crossplane.AssertResourceCount(t, resources, "Secret", 1)
 	crossplane.AssertResourceCount(t, resources, "Broker", 1)
 
 	t.Log("Validating mq.aws.m.upbound.io Broker fields")
 	crossplane.AssertFieldValues(t, resources, "Broker", "mq.aws.m.upbound.io/v1beta1", map[string]string{
-		"metadata.ownerReferences.0.apiVersion": "mq.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "RabbitMQBroker",
-		"metadata.ownerReferences.0.name":       "rabbitmq-example",
-		"spec.forProvider.region":               "eu-north-1",
-		"spec.forProvider.engineType":           "RabbitMQ",
-		"spec.forProvider.hostInstanceType":     "mq.m7g.medium",
-		"spec.forProvider.user.0.username":      "mqadmin",
-		"spec.writeConnectionSecretToRef.name":  "rabbitmq-example-connection",
+		"metadata.ownerReferences.0.apiVersion":     "mq.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":           "RabbitMQBroker",
+		"metadata.ownerReferences.0.name":           "rabbitmq-example",
+		"spec.forProvider.region":                   "eu-north-1",
+		"spec.forProvider.engineType":               "RabbitMQ",
+		"spec.forProvider.hostInstanceType":         "mq.m7g.medium",
+		"spec.initProvider.user.0.username":         "mqadmin",
+		"spec.forProvider.subnetIds.0":              "subnet-0",
+		"spec.forProvider.securityGroupRefs.0.name": "*",
+		"spec.writeConnectionSecretToRef.name":      "rabbitmq-example-connection",
 	})
 }

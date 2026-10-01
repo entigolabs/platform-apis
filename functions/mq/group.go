@@ -55,12 +55,17 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 	case apis.XRKindRabbitMQBroker:
 		broker := *object.(*v1alpha1.RabbitMQBroker)
 		setHash := base.GenerateFNVHash(broker.GetUID())
-		sg := service.GetSGName(broker.GetName(), setHash)
-		sgIngress := service.GetSGIngressName(broker.GetName(), setHash)
-		sgConsoleIngress := service.GetSGConsoleIngressName(broker.GetName(), setHash)
-		sgEgress := service.GetSGEgressName(broker.GetName(), setHash)
 		mqBroker := service.GetBrokerName(broker.GetName(), setHash)
-		firstGroup := []string{sg, sgIngress, sgConsoleIngress, sgEgress, "credentials"}
+		firstGroup := []string{"credentials"}
+		if !broker.Spec.PubliclyAccessible {
+			firstGroup = append([]string{
+				service.GetSGName(broker.GetName(), setHash),
+				service.GetSGIngressName(broker.GetName(), setHash),
+				service.GetSGConsoleIngressName(broker.GetName(), setHash),
+				service.GetSGMgmtIngressName(broker.GetName(), setHash),
+				service.GetSGEgressName(broker.GetName(), setHash),
+			}, firstGroup...)
+		}
 		if broker.Spec.Configuration != nil {
 			engineVersion := ""
 			if broker.Spec.EngineVersion != nil {

@@ -154,6 +154,9 @@ status:
   atProvider:
     arn: arn:aws:rds:eu-north-1:012345678901:subgrp:test-subnetgroup
     state: Complete
+    subnetIds:
+      - subnet-0
+      - subnet-1
     subnets:
       - subnetID: subnet-0
         subnetStatus: Active
