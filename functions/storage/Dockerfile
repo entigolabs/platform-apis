@@ -1,3 +1,4 @@
+# Built per architecture on native runners (build-functions.yml), nothing is emulated.
 FROM --platform=${BUILDPLATFORM} golang:1.25-alpine AS build
 
 WORKDIR /fn
