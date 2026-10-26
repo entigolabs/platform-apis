@@ -224,14 +224,14 @@ func (g zoneGenerator) getOracleNodePool(pool v1alpha1.Pool) (*unstructured.Unst
 	tags := map[string]any{}
 	for key, value := range g.env.Tags {
 		if value != nil {
-			tags[key] = *value
+			tags[ociTagKey(key)] = *value
 		}
 	}
 	for key, value := range base.GetObjectTags(&g.zone) {
-		tags[key] = value
+		tags[ociTagKey(key)] = value
 	}
-	tags[base.TenancyZoneLabel] = zoneName
-	tags[zonePoolAnnotation] = zonePool
+	tags[ociTagKey(base.TenancyZoneLabel)] = zoneName
+	tags[ociTagKey(zonePoolAnnotation)] = zonePool
 	tags["cluster-autoscaler"] = "enabled"
 	tags["minSize"] = strconv.FormatFloat(spec.minSize, 'f', -1, 64)
 	tags["maxSize"] = strconv.FormatFloat(spec.maxSize, 'f', -1, 64)
@@ -340,6 +340,15 @@ func getOracleNodePoolName(zonePool string) string {
 	suffix := hex.EncodeToString(hash[:])[:8]
 	prefix := strings.TrimRight(zonePool[:ociNodePoolNameMaxLength-len(suffix)-1], "-")
 	return prefix + "-" + suffix
+}
+
+func ociTagKey(key string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '.' || r == '/' || r == ' ' {
+			return '-'
+		}
+		return r
+	}, key)
 }
 
 func nestedString(obj map[string]any, fields ...string) string {
