@@ -48,6 +48,7 @@ const (
 	NamespaceKey          = "Namespaces"
 	VPCKey                = "VPC"
 	KMSDataAliasKey       = "KMSDataAlias"
+	KMSDataKeyKey         = "KMSDataKey"
 	SecurityGroupKey      = "NodeSecurityGroup"
 	ClusterKey            = "Cluster"
 	SubnetsKey            = "Subnets"
@@ -110,6 +111,7 @@ type zoneGenerator struct {
 	subnets        []*ec2v1beta1.Subnet
 	computeSubnets []*ec2v1beta1.Subnet
 	ingressClasses []*networkingv1.IngressClass
+	oracle         oracleInfra
 
 	zoneAnnotations map[string]string
 	zoneTags        map[string]*string
@@ -133,26 +135,35 @@ func GenerateZoneObjects(
 	var kmsDataAlias kmsv1beta1.Alias
 	var securityGroup ec2v1beta1.SecurityGroup
 	var cluster eksv1beta1.Cluster
+	var subnets []*ec2v1beta1.Subnet
+	var oracle oracleInfra
 
 	namespaces, err := base.ExtractResources[*corev1.Namespace](required, NamespaceKey)
 	if err != nil {
 		return nil, err
 	}
-	if err := base.ExtractRequiredResource(required, VPCKey, &vpc); err != nil {
-		return nil, err
-	}
-	if _, err := base.ExtractOptionalResource(required, KMSDataAliasKey, &kmsDataAlias); err != nil {
-		return nil, err
-	}
-	if err := base.ExtractRequiredResource(required, SecurityGroupKey, &securityGroup); err != nil {
-		return nil, err
-	}
-	if err := base.ExtractRequiredResource(required, ClusterKey, &cluster); err != nil {
-		return nil, err
-	}
-	subnets, err := base.ExtractResources[*ec2v1beta1.Subnet](required, SubnetsKey)
-	if err != nil {
-		return nil, err
+	if env.GetCloud() == apis.CloudOracle {
+		oracle, err = getOracleInfra(required, env)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if err := base.ExtractRequiredResource(required, VPCKey, &vpc); err != nil {
+			return nil, err
+		}
+		if _, err := base.ExtractOptionalResource(required, KMSDataAliasKey, &kmsDataAlias); err != nil {
+			return nil, err
+		}
+		if err := base.ExtractRequiredResource(required, SecurityGroupKey, &securityGroup); err != nil {
+			return nil, err
+		}
+		if err := base.ExtractRequiredResource(required, ClusterKey, &cluster); err != nil {
+			return nil, err
+		}
+		subnets, err = base.ExtractResources[*ec2v1beta1.Subnet](required, SubnetsKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 	ingressClasses, err := base.ExtractResources[*networkingv1.IngressClass](required, IngressClassKey)
 	if err != nil {
@@ -175,6 +186,7 @@ func GenerateZoneObjects(
 		subnets:        subnets,
 		computeSubnets: filterSubnetsByType(subnets, env.ComputeSubnetType),
 		ingressClasses: ingressClasses,
+		oracle:         oracle,
 		zoneAnnotations: map[string]string{
 			base.TenancyZoneLabel: zone.Name,
 		},
@@ -242,13 +254,21 @@ func (g zoneGenerator) generate() (map[string]client.Object, error) {
 	if crb != nil {
 		objs[GetClusterRoleBindingKey(g.zone.Name, RoleContributor)] = crb
 	}
-	launchTemplates := g.generateLaunchTemplates()
-	maps.Copy(objs, launchTemplates)
-	nodePools, err := g.generateNodePools()
-	if err != nil {
-		return nil, err
+	if g.env.GetCloud() == apis.CloudOracle {
+		nodePools, err := g.generateOracleNodePools()
+		if err != nil {
+			return nil, err
+		}
+		maps.Copy(objs, nodePools)
+	} else {
+		launchTemplates := g.generateLaunchTemplates()
+		maps.Copy(objs, launchTemplates)
+		nodePools, err := g.generateNodePools()
+		if err != nil {
+			return nil, err
+		}
+		maps.Copy(objs, nodePools)
 	}
-	maps.Copy(objs, nodePools)
 	objs[GetAppProjectKey(g.zone.Name)] = g.getAppProject()
 	networkPolicies, err := g.generateTargetNetworkPolicies()
 	if err != nil {

@@ -101,6 +101,9 @@ spec:
                                 - max-size
                                 - desired-size
                                 - security-groups
+                                - oci/ocpus
+                                - oci/memory-gb
+                                - oci/image
                             # Single value - accepts string or integer
                             value:
                               x-kubernetes-int-or-string: true
