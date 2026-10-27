@@ -88,9 +88,13 @@ func GenerateZoneObjects(
 	required map[string][]resource.Required,
 	observed map[resource.Name]resource.ObservedComposed,
 	log logging.Logger,
+	cloudProvider apis.CloudProvider,
 ) (map[string]client.Object, error) {
 	env, err := GetEnvironment(required)
 	if err != nil {
+		return nil, err
+	}
+	if err := env.ValidateFor(cloudProvider); err != nil {
 		return nil, err
 	}
 	namespaces, err := base.ExtractResources[*corev1.Namespace](required, NamespaceKey)
@@ -120,7 +124,7 @@ func GenerateZoneObjects(
 		uqNamespaces:  GetUniqueNamespaces(zone, namespaces),
 		roleMappings:  mergeRoleMappings(zone, env),
 	}
-	if env.GetCloudProvider() == apis.CloudProviderOracle {
+	if cloudProvider == apis.CloudProviderOracle {
 		oci, err := newOCIZoneGenerator(generator)
 		if err != nil {
 			return nil, err

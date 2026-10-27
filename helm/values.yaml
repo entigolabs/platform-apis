@@ -1,4 +1,7 @@
 global:
+  # Cloud the cluster runs on, aws or oracle. Selects which cloud's resources the zone function
+  # creates for a Zone's pools.
+  cloudProvider: aws
   # ARNs of the environment's KMS keys, supplied by the infralib agent from optional
   # outputs. Empty means the environment has no KMS module, and every KMS reference in
   # the EnvironmentConfigs below drops out. Resources then fall back to AWS-managed keys.

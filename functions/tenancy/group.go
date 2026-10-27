@@ -29,7 +29,8 @@ const (
 )
 
 type GroupImpl struct {
-	log logging.Logger
+	log           logging.Logger
+	cloudProvider apis.CloudProvider
 }
 
 var _ base.GroupService = &GroupImpl{}
@@ -52,7 +53,7 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 }
 
 func (g *GroupImpl) generateZone(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
-	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed, g.log)
+	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed, g.log, g.cloudProvider)
 }
 
 func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
@@ -98,7 +99,10 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		if env.GetCloudProvider() == apis.CloudProviderOracle {
+		if err := env.ValidateFor(g.cloudProvider); err != nil {
+			return nil, err
+		}
+		if g.cloudProvider == apis.CloudProviderOracle {
 			maps.Copy(resources, ociSelectors(env))
 		} else {
 			maps.Copy(resources, awsSelectors(env))

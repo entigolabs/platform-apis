@@ -8,6 +8,7 @@ import (
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
+	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +26,6 @@ func ociRequired(referencePools ...string) map[string][]resource.Required {
 			"kind":       "EnvironmentConfig",
 			"metadata":   map[string]any{"name": "platform-apis-zone"},
 			"data": map[string]any{
-				"cloudProvider":     "oracle",
 				"oracleProvider":    "crossplane-oracle",
 				"argoCDNamespace":   "argocd",
 				"cluster":           "oke",
@@ -108,7 +108,7 @@ func flexRequirements() []v1alpha1.Requirement {
 
 func TestGenerateZoneObjectsOCI(t *testing.T) {
 	zone := ociZone("team-a", flexRequirements()...)
-	objs, err := GenerateZoneObjects(zone, ociRequired("tools", "main"), nil, logging.NewNopLogger())
+	objs, err := GenerateZoneObjects(zone, ociRequired("tools", "main"), nil, logging.NewNopLogger(), apis.CloudProviderOracle)
 	if err != nil {
 		t.Fatalf("GenerateZoneObjects: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestOCINodePoolExternalName(t *testing.T) {
 				}
 			}
 			objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...),
-				ociRequired("tools"), observed, logging.NewNopLogger())
+				ociRequired("tools"), observed, logging.NewNopLogger(), apis.CloudProviderOracle)
 			if err != nil {
 				t.Fatalf("GenerateZoneObjects: %v", err)
 			}
@@ -288,7 +288,7 @@ func TestGetOCINodePool(t *testing.T) {
 				requirements = tc.override
 			}
 			objs, err := GenerateZoneObjects(ociZone(zoneName, requirements...),
-				ociRequired(tc.reference...), nil, logging.NewNopLogger())
+				ociRequired(tc.reference...), nil, logging.NewNopLogger(), apis.CloudProviderOracle)
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("error = %v, want containing %q", err, tc.wantErr)

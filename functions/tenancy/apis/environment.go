@@ -2,21 +2,21 @@ package apis
 
 import (
 	"errors"
-	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type CloudProvider string
+
 const (
-	CloudProviderAWS    = "aws"
-	CloudProviderOracle = "oracle"
+	CloudProviderAWS    CloudProvider = "aws"
+	CloudProviderOracle CloudProvider = "oracle"
 )
 
 type Environment struct {
 	AppProject                     AppProject         `json:"appProject"`
 	ArgoCDNamespace                string             `json:"argoCDNamespace"`
 	AWSProvider                    string             `json:"awsProvider"`
-	CloudProvider                  string             `json:"cloudProvider,omitempty"`
 	Cluster                        string             `json:"cluster"`
 	CreateAppsNamespace            bool               `json:"createAppsNamespace"`
 	ComputeSubnetType              string             `json:"computeSubnetType"`
@@ -46,13 +46,6 @@ type RoleMapping struct {
 	Groups  []string `json:"groups"`
 }
 
-func (e Environment) GetCloudProvider() string {
-	if e.CloudProvider == "" {
-		return CloudProviderAWS
-	}
-	return e.CloudProvider
-}
-
 func (e Environment) GetReferenceNodePools() []string {
 	if len(e.ReferenceNodePools) == 0 {
 		return []string{"tools", "main", "mon"}
@@ -60,22 +53,24 @@ func (e Environment) GetReferenceNodePools() []string {
 	return e.ReferenceNodePools
 }
 
-func (e Environment) Validate() error {
-	switch e.GetCloudProvider() {
-	case CloudProviderAWS:
+func (e Environment) ValidateFor(provider CloudProvider) error {
+	switch provider {
+	case CloudProviderOracle:
+		if e.OracleProvider == "" {
+			return errors.New("oracleProvider is required")
+		}
+	default:
 		if e.AWSProvider == "" {
 			return errors.New("awsProvider is required")
 		}
 		if e.VPC == "" {
 			return errors.New("vpc is required")
 		}
-	case CloudProviderOracle:
-		if e.OracleProvider == "" {
-			return errors.New("oracleProvider is required")
-		}
-	default:
-		return fmt.Errorf("unsupported cloudProvider %q", e.CloudProvider)
 	}
+	return nil
+}
+
+func (e Environment) Validate() error {
 	if e.ArgoCDNamespace == "" {
 		return errors.New("argoCDNamespace is required")
 	}
