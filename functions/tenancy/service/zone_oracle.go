@@ -164,6 +164,8 @@ func parseOraclePool(pool v1alpha1.Pool) (oraclePoolSpec, error) {
 			spec.memoryGB = &val
 		case requirementImage:
 			spec.image = requirement.Value.String()
+		default:
+			return spec, fmt.Errorf("pool %s: requirement %s is not supported on Oracle", pool.Name, requirement.Key)
 		}
 	}
 	if spec.shape == "" {
