@@ -50,7 +50,7 @@ type Namespace struct {
 	// Name of the namespace.
 	Name string `json:"name"`
 
-	// Name of the Node Pool where to schedule workloads. If not specified, the first pool is used.
+	// Name of the Zone pool to schedule the namespace's workloads on. If not specified, they can be scheduled on any of the Zone's pools.
 	Pool string `json:"pool,omitempty"`
 }
 
