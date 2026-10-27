@@ -3,7 +3,7 @@
 This guide explains how to write, structure, and register a new end-to-end test suite in `test/tests/`.
 
 End-to-end tests run against a **live AWS Kubernetes cluster** with Crossplane, ArgoCD, and all platform-apis packages installed.
-They cannot be run locally — they are triggered by CI, which copies the Go test files into the `entigolabs/entigo-infralib` repository and runs them from there.
+They are triggered by CI, which copies the Go test files into the `entigolabs/entigo-infralib` repository and runs them from there with infralib's test framework, [entigo-infralib-test](https://github.com/entigolabs/entigo-infralib-test). They compile without any of that (`cd test && go vet ./tests/`); running them yourself means an infralib checkout with the files copied in the same way and `./test.sh --env aws_biz modules/k8s/platform-apis` there.
 Kyverno Admission Webhook Tests creation described separately [here](#kyverno-admission-webhook-tests)
 ---
 
@@ -11,11 +11,11 @@ Kyverno Admission Webhook Tests creation described separately [here](#kyverno-ad
 
 ```
 CI builds Helm charts  →  prepare-infralib-branch copies test files
-→  infralib pipeline runs go test  →  tests connect to cluster
+→  run-infralib-tests: framework test.sh applies the module, runs go test  →  tests connect to cluster
 →  ArgoCD deploys CRs  →  Crossplane reconciles  →  tests run
 ```
 
-The entry point is `TestK8sPlatformApisAWSBiz` in `k8s_unit_basic_test.go`. It:
+The entry point is `TestPlatformApis` in `k8s_unit_basic_test.go`, which the framework's `env.RunEach` runs on aws_biz (aws_pri is named, as the framework requires of every environment the module is part of, and skipped). It:
 1. Waits for all Crossplane packages (Functions + Configurations) to be Healthy+Installed.
 2. Sets up zone infrastructure (required base for all suites).
 3. Dispatches active suites in parallel.
