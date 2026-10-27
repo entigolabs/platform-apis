@@ -1,12 +1,7 @@
 ## Platform-Apis Tests
 
 ### Prerequisites
-Go requires import of one library which is actually a folder in entigo-infralib repo.
-Clone infralib repo and use symlink to mock folder existence in platform-apis.
-
-```
-ln -s <full path to cloned entigo-infralib repo>/common <full path to cloned platform-apis repo>/common
-```
+The end-to-end tests are written against [entigo-infralib-test](https://github.com/entigolabs/entigo-infralib-test), the public test framework of entigo-infralib, which `test/go.mod` requires like any other Go module. Nothing from the infralib repository needs to be on the machine to compile them (`cd test && go vet ./tests/`).
 
 ### Test Suite
 
@@ -123,7 +118,7 @@ These are live integration tests that run against a real AWS Kubernetes cluster.
 | [`terratest/modules/k8s`](https://terratest.gruntwork.io/) | kubectl wrappers, polling helpers (`retry.DoWithRetryE`) |
 | [`terratest/modules/retry`](https://terratest.gruntwork.io/) | Retry loop primitives |
 | [`testify/require`](https://github.com/stretchr/testify) | Assertions |
-| [`entigo-infralib-common/k8s`](https://github.com/entigolabs/entigo-infralib) | Cluster connection setup (`k8s.CheckKubectlConnection`) |
+| [`entigo-infralib-test/env`, `/k8s`](https://github.com/entigolabs/entigo-infralib-test) | Which environments to run on (`env.RunEach`), the cluster's kubeconfig context and connection check (`k8s.Connect`) |
 | ArgoCD | Deploys test resources via Helm charts into the cluster |
 | Crossplane | Manages the platform-apis XRDs and compositions under test |
 
@@ -170,8 +165,8 @@ test/tests/
 
 1. **CI builds** the platform-apis Helm chart and all `platform-apis-test-<suite>` Helm charts and pushes them to GHCR.
 2. **`prepare-infralib-branch`** workflow clones `entigolabs/entigo-infralib`, copies the `test/tests/` Go files and the relevant ArgoCD Application templates into the infralib module, and commits to a feature branch.
-3. **`run-infralib-tests`** triggers the infralib test pipeline, which runs `go test ./...` from the infralib module against the live cluster.
-4. Each `TestK8sPlatformApis*` function connects to the cluster, reads `testconfig/suites.yaml` to determine which suites are active, waits for all required Crossplane packages in parallel, then dispatches to the suite-specific test functions in parallel.
+3. **`run-infralib-tests`** checks that branch out and runs the framework's `./test.sh --env aws_biz modules/k8s/platform-apis`, which applies the module with the new chart in its regular step on aws_biz and runs the module's tests in the framework's AWS test image against the live cluster. The contributor and maintainer credentials of the role tests reach the test container through `INFRALIB_TEST_EXTRA_ENV`.
+4. `TestPlatformApis` runs on aws_biz (aws_pri is named, as the framework requires, and skipped): it connects to the cluster, reads `testconfig/suites.yaml` to determine which suites are active, waits for all required Crossplane packages in parallel, then dispatches to the suite-specific test functions in parallel.
 
 ### Suite Selection
 

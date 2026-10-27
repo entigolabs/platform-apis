@@ -133,6 +133,25 @@ jobs:
             echo "$AFFECTED_SUITES" | jq -r '.[] | "  - " + .'
           } > "$TARGET/testconfig/suites.yaml"
 
+      - name: Require the suites' libraries in the infralib go.mod
+        # The suites use terratest and yaml.v3, which infralib's own tests do
+        # not; the versions are the ones test/go.mod pins. The framework runs
+        # go test with the repository's go.mod, so the branch commits the
+        # updated go.mod and go.sum (cleanup-infralib-test-files tidies them
+        # back once the tests are replaced with the mock).
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: infralib/go.mod
+          cache-dependency-path: infralib/go.sum
+      - name: Add the suites' libraries
+        working-directory: infralib
+        run: |
+          terratest=$(awk '$1 == "github.com/gruntwork-io/terratest" {print $2}' ../platform-apis/test/go.mod)
+          yaml=$(awk '$1 == "gopkg.in/yaml.v3" {print $2}' ../platform-apis/test/go.mod)
+          go get "github.com/gruntwork-io/terratest@${terratest}" "gopkg.in/yaml.v3@${yaml}"
+          go mod tidy
+          go vet ./${{ env.INFRALIB_MODULE_PATH }}/test/
+
       - name: Pin testhelm version in templates
         if: inputs.testhelm_version != ''
         env:

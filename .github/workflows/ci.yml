@@ -140,7 +140,14 @@ jobs:
           token: ${{ secrets.INFRALIB_PAT }}
           ref: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
       - name: Replace tests with mocks
+        # The module keeps a test that only connects to the cluster, in the
+        # framework's form; the suites' libraries leave go.mod with them.
         env:
           BRANCH: ${{ needs.prepare-infralib-branch.outputs.branch_name }}
         run: |
@@ -149,30 +156,27 @@ jobs:
 
           git rm -f "$INFRALIB_MODULE_PATH/test/"*_test.go || true
           git rm -rf "$INFRALIB_MODULE_PATH/test/templates/" || true
+          git rm -rf "$INFRALIB_MODULE_PATH/test/testconfig/" || true
 
           cat << 'EOF' > "$INFRALIB_MODULE_PATH/test/k8s_unit_basic_test.go"
           package test
 
           import (
           	"testing"
-          	"github.com/entigolabs/entigo-infralib-common/k8s"
+
+          	"github.com/entigolabs/entigo-infralib-test/env"
+          	"github.com/entigolabs/entigo-infralib-test/k8s"
           )
 
-          func TestK8sPlatformApisAWSBiz(t *testing.T) {
-          	testK8sPlatformApis(t, "aws", "biz")
-          }
-
-          func TestK8sPlatformApisAWSPri(t *testing.T) {
-          	testK8sPlatformApis(t, "aws", "pri")
-          }
-
-          func testK8sPlatformApis(t *testing.T, cloudName string, envName string) {
-          	t.Parallel()
-          	_, _ = k8s.CheckKubectlConnection(t, cloudName, envName)
+          func TestPlatformApis(t *testing.T) {
+          	env.Run(t, func(t *testing.T, e *env.Environment) {
+          		_ = k8s.Connect(t, e)
+          	})
           }
           EOF
+          go mod tidy
 
-          git add "$INFRALIB_MODULE_PATH/test/k8s_unit_basic_test.go"
+          git add "$INFRALIB_MODULE_PATH/test/k8s_unit_basic_test.go" go.mod go.sum
 
           if git diff --staged --quiet; then
             echo "No changes, nothing to commit"

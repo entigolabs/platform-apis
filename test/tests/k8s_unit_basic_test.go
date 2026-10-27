@@ -8,27 +8,31 @@ import (
 	"testing"
 	"time"
 
-	"github.com/entigolabs/entigo-infralib-common/k8s"
+	"github.com/entigolabs/entigo-infralib-test/env"
+	"github.com/entigolabs/entigo-infralib-test/k8s"
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/stretchr/testify/require"
 )
 
-func TestK8sPlatformApisAWSBiz(t *testing.T) {
-	testPlatformApis(t, "aws", "biz")
+// TestPlatformApis runs the end-to-end suites on the environments the
+// platform-apis module is part of (one parallel subtest each). The map must
+// name exactly those environments; the suites themselves run on aws_biz only,
+// aws_pri lacks what some of them need.
+func TestPlatformApis(t *testing.T) {
+	env.RunEach(t, map[string]env.TestFunc{
+		"aws_biz": testPlatformApis,
+		"aws_pri": func(t *testing.T, e *env.Environment) { t.Skip("the end-to-end suites run on aws_biz only") },
+	})
 }
 
-// func TestK8sPlatformApisAWSPri(t *testing.T) {
-// 	testPlatformApis(t, "aws", "pri")
-// }
-
-func testPlatformApis(t *testing.T, cloudName, envName string) {
-	t.Parallel()
-
-	kubectlOptions, _ := k8s.CheckKubectlConnection(t, cloudName, envName)
+func testPlatformApis(t *testing.T, e *env.Environment) {
+	// The framework picks the kubeconfig context of the environment's cluster
+	// and checks it answers; the suites then drive kubectl through terratest.
+	c := k8s.Connect(t, e)
 	cfg := loadSuiteConfig()
 
-	cluster, argocd := setupKubectlClients(kubectlOptions, envName)
+	cluster, argocd := setupKubectlClients(c.Context, e.Prefix)
 
 	waitPackagesReady(t, cfg, cluster)
 	if t.Failed() {
@@ -177,10 +181,15 @@ func checkPlatformApisHaveRequiredPackages(t *testing.T, cluster *terrak8s.Kubec
 	})
 }
 
-func setupKubectlClients(opts *terrak8s.KubectlOptions, envName string) (*terrak8s.KubectlOptions, *terrak8s.KubectlOptions) {
-	argocdNamespace := fmt.Sprintf("argocd-%s", envName)
-	cluster := terrak8s.NewKubectlOptions(opts.ContextName, opts.ConfigPath, "")
-	argocd := terrak8s.NewKubectlOptions(opts.ContextName, opts.ConfigPath, argocdNamespace)
+// setupKubectlClients returns kubectl options for the cluster (no namespace)
+// and for its ArgoCD, which the environments install as argocd-<prefix>. The
+// kubeconfig is the executor's, where KUBECONFIG points (the test container
+// mounts it there); an empty path lets terratest use the default location.
+func setupKubectlClients(contextName, prefix string) (*terrak8s.KubectlOptions, *terrak8s.KubectlOptions) {
+	argocdNamespace := fmt.Sprintf("argocd-%s", prefix)
+	kubeconfig := os.Getenv("KUBECONFIG")
+	cluster := terrak8s.NewKubectlOptions(contextName, kubeconfig, "")
+	argocd := terrak8s.NewKubectlOptions(contextName, kubeconfig, argocdNamespace)
 	return cluster, argocd
 }
 
