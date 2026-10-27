@@ -124,7 +124,7 @@ func GenerateZoneObjects(
 		uqNamespaces:  GetUniqueNamespaces(zone, namespaces),
 		roleMappings:  mergeRoleMappings(zone, env),
 	}
-	if cloudProvider == apis.CloudProviderOracle {
+	if cloudProvider == apis.CloudProviderOCI {
 		oci, err := newOCIZoneGenerator(generator)
 		if err != nil {
 			return nil, err

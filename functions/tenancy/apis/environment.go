@@ -9,8 +9,8 @@ import (
 type CloudProvider string
 
 const (
-	CloudProviderAWS    CloudProvider = "aws"
-	CloudProviderOracle CloudProvider = "oracle"
+	CloudProviderAWS CloudProvider = "aws"
+	CloudProviderOCI CloudProvider = "oracle"
 )
 
 type Environment struct {
@@ -25,7 +25,7 @@ type Environment struct {
 	GranularEgress                 bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude          []string           `json:"granularEgressExclude,omitempty"`
 	GranularNamespaceNetworkPolicy bool               `json:"granularNamespaceNetworkPolicy,omitempty"`
-	OracleProvider                 string             `json:"oracleProvider,omitempty"`
+	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
 	ReferenceNodePools             []string           `json:"referenceNodePools,omitempty"`
 	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
@@ -55,8 +55,8 @@ func (e Environment) GetReferenceNodePools() []string {
 
 func (e Environment) ValidateFor(provider CloudProvider) error {
 	switch provider {
-	case CloudProviderOracle:
-		if e.OracleProvider == "" {
+	case CloudProviderOCI:
+		if e.OCIProvider == "" {
 			return errors.New("oracleProvider is required")
 		}
 	default:

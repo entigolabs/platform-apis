@@ -238,7 +238,7 @@ func (g ociZoneGenerator) getNodePool(pool v1alpha1.Pool) (*unstructured.Unstruc
 		},
 		"spec": map[string]any{
 			"managementPolicies": []any{"Observe", "Create", "Update", "Delete"},
-			"providerConfigRef":  map[string]any{"name": g.env.OracleProvider},
+			"providerConfigRef":  map[string]any{"name": g.env.OCIProvider},
 			"forProvider":        forProvider,
 			"initProvider": map[string]any{
 				"nodeConfigDetails": []any{map[string]any{"size": spec.minSize}},

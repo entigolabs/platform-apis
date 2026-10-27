@@ -102,7 +102,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err := env.ValidateFor(g.cloudProvider); err != nil {
 			return nil, err
 		}
-		if g.cloudProvider == apis.CloudProviderOracle {
+		if g.cloudProvider == apis.CloudProviderOCI {
 			maps.Copy(resources, ociSelectors(env))
 		} else {
 			maps.Copy(resources, awsSelectors(env))

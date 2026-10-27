@@ -108,7 +108,7 @@ func flexRequirements() []v1alpha1.Requirement {
 
 func TestGenerateZoneObjectsOCI(t *testing.T) {
 	zone := ociZone("team-a", flexRequirements()...)
-	objs, err := GenerateZoneObjects(zone, ociRequired("tools", "main"), nil, logging.NewNopLogger(), apis.CloudProviderOracle)
+	objs, err := GenerateZoneObjects(zone, ociRequired("tools", "main"), nil, logging.NewNopLogger(), apis.CloudProviderOCI)
 	if err != nil {
 		t.Fatalf("GenerateZoneObjects: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestOCINodePoolExternalName(t *testing.T) {
 				}
 			}
 			objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...),
-				ociRequired("tools"), observed, logging.NewNopLogger(), apis.CloudProviderOracle)
+				ociRequired("tools"), observed, logging.NewNopLogger(), apis.CloudProviderOCI)
 			if err != nil {
 				t.Fatalf("GenerateZoneObjects: %v", err)
 			}
@@ -288,7 +288,7 @@ func TestGetOCINodePool(t *testing.T) {
 				requirements = tc.override
 			}
 			objs, err := GenerateZoneObjects(ociZone(zoneName, requirements...),
-				ociRequired(tc.reference...), nil, logging.NewNopLogger(), apis.CloudProviderOracle)
+				ociRequired(tc.reference...), nil, logging.NewNopLogger(), apis.CloudProviderOCI)
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("error = %v, want containing %q", err, tc.wantErr)
