@@ -209,12 +209,10 @@ func ociSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSKey},
 		}
 	}
-	for _, name := range env.GetReferenceNodePools() {
-		resources[service.GetReferenceNodePoolKey(name)] = &fnv1.ResourceSelector{
-			Kind:       "NodePool",
-			ApiVersion: ociContainerEngineApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
-		}
+	resources[service.TemplateNodePoolKey] = &fnv1.ResourceSelector{
+		Kind:       "NodePool",
+		ApiVersion: ociContainerEngineApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: service.TemplateNodePoolName},
 	}
 	return resources
 }

@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func ociRequired(referencePools ...string) map[string][]resource.Required {
+func ociRequired(templateImage string) map[string][]resource.Required {
 	obj := func(o map[string]any) []resource.Required {
 		return []resource.Required{{Resource: &unstructured.Unstructured{Object: o}}}
 	}
@@ -65,12 +65,12 @@ func ociRequired(referencePools ...string) map[string][]resource.Required {
 			"status":   map[string]any{"atProvider": map[string]any{"id": s.id}},
 		})...)
 	}
-	for _, name := range referencePools {
-		required[GetReferenceNodePoolKey(name)] = obj(map[string]any{
+	if templateImage != "" {
+		required[TemplateNodePoolKey] = obj(map[string]any{
 			"apiVersion": "containerengine.oci.upbound.io/v1alpha1", "kind": "NodePool",
-			"metadata": map[string]any{"name": name},
+			"metadata": map[string]any{"name": TemplateNodePoolName},
 			"status": map[string]any{"atProvider": map[string]any{
-				"nodeSourceDetails": []any{map[string]any{"imageId": "ocid1.image." + name}},
+				"nodeSourceDetails": []any{map[string]any{"imageId": templateImage}},
 				"nodeConfigDetails": []any{map[string]any{
 					"placementConfigs": []any{
 						map[string]any{"availabilityDomain": "AD-2", "subnetId": "ocid1.subnet.private0"},
@@ -108,7 +108,7 @@ func flexRequirements() []v1alpha1.Requirement {
 
 func TestGenerateZoneObjectsOCI(t *testing.T) {
 	zone := ociZone("team-a", flexRequirements()...)
-	objs, err := GenerateZoneObjects(zone, ociRequired("tools", "main"), nil, logging.NewNopLogger(), apis.CloudProviderOCI)
+	objs, err := GenerateZoneObjects(zone, ociRequired("ocid1.image.tools"), nil, logging.NewNopLogger(), apis.CloudProviderOCI)
 	if err != nil {
 		t.Fatalf("GenerateZoneObjects: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestOCINodePoolExternalName(t *testing.T) {
 				}
 			}
 			objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...),
-				ociRequired("tools"), observed, logging.NewNopLogger(), apis.CloudProviderOCI)
+				ociRequired("ocid1.image.tools"), observed, logging.NewNopLogger(), apis.CloudProviderOCI)
 			if err != nil {
 				t.Fatalf("GenerateZoneObjects: %v", err)
 			}
@@ -213,7 +213,7 @@ func TestOCINodePoolExternalName(t *testing.T) {
 func TestGetOCINodePool(t *testing.T) {
 	tests := map[string]struct {
 		zone       string
-		reference  []string
+		noTemplate bool
 		extra      []v1alpha1.Requirement
 		override   []v1alpha1.Requirement
 		wantErr    string
@@ -223,16 +223,11 @@ func TestGetOCINodePool(t *testing.T) {
 		wantPlaced []string
 		wantSpot   bool
 	}{
-		"falls back to the next reference pool": {
-			reference: []string{"main"}, wantName: "team-a-default", wantImage: "ocid1.image.main",
-			wantPlaced: []string{"AD-1", "AD-2"},
-		},
 		"zone filters availability domains": {
-			reference: []string{"tools"}, extra: []v1alpha1.Requirement{{Key: "zone", Values: []string{"AD-2"}}},
+			extra:    []v1alpha1.Requirement{{Key: "zone", Values: []string{"AD-2"}}},
 			wantName: "team-a-default", wantImage: "ocid1.image.tools", wantPlaced: []string{"AD-2"},
 		},
 		"image override and spot": {
-			reference: []string{"tools"},
 			extra: []v1alpha1.Requirement{
 				{Key: requirementImage, Value: intstr.FromString("ocid1.image.arm")},
 				{Key: "capacity-type", Value: intstr.FromString("SPOT")},
@@ -240,12 +235,10 @@ func TestGetOCINodePool(t *testing.T) {
 			wantName: "team-a-default", wantImage: "ocid1.image.arm", wantPlaced: []string{"AD-1", "AD-2"}, wantSpot: true,
 		},
 		"long names are shortened for OCI": {
-			zone: "a-very-long-zone-name-for-testing", reference: []string{"tools"},
-			wantName:  "a-very-long-zone-name-f-*",
+			zone: "a-very-long-zone-name-for-testing", wantName: "a-very-long-zone-name-f-*",
 			wantImage: "ocid1.image.tools", wantPlaced: []string{"AD-1", "AD-2"},
 		},
 		"zero max size skips the pool": {
-			reference: []string{"tools"},
 			override: []v1alpha1.Requirement{
 				{Key: "instance-type", Values: []string{"VM.Standard.E5.Flex"}},
 				{Key: requirementOCPUs, Value: intstr.FromInt32(2)},
@@ -254,26 +247,23 @@ func TestGetOCINodePool(t *testing.T) {
 			wantNil: true,
 		},
 		"flex shape without ocpus": {
-			reference: []string{"tools"},
-			override:  []v1alpha1.Requirement{{Key: "instance-type", Values: []string{"VM.Standard.E5.Flex"}}},
-			wantErr:   "requires oci/ocpus",
+			override: []v1alpha1.Requirement{{Key: "instance-type", Values: []string{"VM.Standard.E5.Flex"}}},
+			wantErr:  "requires oci/ocpus",
 		},
 		"several instance types": {
-			reference: []string{"tools"},
-			override:  []v1alpha1.Requirement{{Key: "instance-type", Values: []string{"VM.Standard3.Flex", "VM.Standard.E5.Flex"}}},
-			wantErr:   "exactly one instance-type",
+			override: []v1alpha1.Requirement{{Key: "instance-type", Values: []string{"VM.Standard3.Flex", "VM.Standard.E5.Flex"}}},
+			wantErr:  "exactly one instance-type",
 		},
 		"unsupported requirement is rejected": {
-			reference: []string{"tools"},
-			extra:     []v1alpha1.Requirement{{Key: "ami-type", Value: intstr.FromString("AL2023_ARM_64_STANDARD")}},
-			wantErr:   "requirement ami-type is not supported on OCI",
+			extra:   []v1alpha1.Requirement{{Key: "ami-type", Value: intstr.FromString("AL2023_ARM_64_STANDARD")}},
+			wantErr: "requirement ami-type is not supported on OCI",
 		},
-		"no reference pool": {
-			reference: nil,
-			wantErr:   "none of the reference node pools",
+		"no template pool": {
+			noTemplate: true,
+			wantErr:    "NodePool template not found",
 		},
 		"zone matches no availability domain": {
-			reference: []string{"tools"}, extra: []v1alpha1.Requirement{{Key: "zone", Values: []string{"AD-9"}}},
+			extra:   []v1alpha1.Requirement{{Key: "zone", Values: []string{"AD-9"}}},
 			wantErr: "no availability domain",
 		},
 	}
@@ -288,7 +278,7 @@ func TestGetOCINodePool(t *testing.T) {
 				requirements = tc.override
 			}
 			objs, err := GenerateZoneObjects(ociZone(zoneName, requirements...),
-				ociRequired(tc.reference...), nil, logging.NewNopLogger(), apis.CloudProviderOCI)
+				ociRequired(templateImage(tc.noTemplate)), nil, logging.NewNopLogger(), apis.CloudProviderOCI)
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("error = %v, want containing %q", err, tc.wantErr)
@@ -342,4 +332,11 @@ func keys[V any](m map[string]V) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func templateImage(none bool) string {
+	if none {
+		return ""
+	}
+	return "ocid1.image.tools"
 }

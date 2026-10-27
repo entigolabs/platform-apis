@@ -27,7 +27,6 @@ type Environment struct {
 	GranularNamespaceNetworkPolicy bool               `json:"granularNamespaceNetworkPolicy,omitempty"`
 	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
-	ReferenceNodePools             []string           `json:"referenceNodePools,omitempty"`
 	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
 	SecurityGroup                  string             `json:"securityGroup"`
 	Tags                           map[string]*string `json:"tags,omitempty"`
@@ -44,13 +43,6 @@ type AppProject struct {
 type RoleMapping struct {
 	RoleRef string   `json:"roleRef"`
 	Groups  []string `json:"groups"`
-}
-
-func (e Environment) GetReferenceNodePools() []string {
-	if len(e.ReferenceNodePools) == 0 {
-		return []string{"tools", "main", "mon"}
-	}
-	return e.ReferenceNodePools
 }
 
 func (e Environment) ValidateFor(provider CloudProvider) error {

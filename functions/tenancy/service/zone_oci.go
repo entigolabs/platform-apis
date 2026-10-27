@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	referenceNodePoolKeyPrefix = "ReferenceNodePool-"
+	TemplateNodePoolKey  = "TemplateNodePool"
+	TemplateNodePoolName = "template"
 
 	ociNodePoolNameMaxLength = 32
 	ociBootVolumeSizeInGbs   = "50"
@@ -29,11 +30,11 @@ const (
 
 type ociZoneGenerator struct {
 	zoneGenerator
-	cluster       *unstructured.Unstructured
-	nodeNSGID     string
-	dataKeyID     string
-	subnetIDs     []string
-	referencePool *unstructured.Unstructured
+	cluster      *unstructured.Unstructured
+	nodeNSGID    string
+	dataKeyID    string
+	subnetIDs    []string
+	templatePool *unstructured.Unstructured
 }
 
 type ociPoolSpec struct {
@@ -46,10 +47,6 @@ type ociPoolSpec struct {
 	nsgIDs      []string
 	minSize     float64
 	maxSize     float64
-}
-
-func GetReferenceNodePoolKey(name string) string {
-	return referenceNodePoolKeyPrefix + name
 }
 
 func GetOCINodePoolKey(poolName string) string {
@@ -71,12 +68,7 @@ func newOCIZoneGenerator(common zoneGenerator) (ociZoneGenerator, error) {
 		g.dataKeyID = nestedString(key.Object, "status", "atProvider", "id")
 	}
 	g.subnetIDs = g.getComputeSubnetIDs()
-	for _, name := range g.env.GetReferenceNodePools() {
-		if pool := firstRequired(g.required, GetReferenceNodePoolKey(name)); pool != nil {
-			g.referencePool = pool
-			break
-		}
-	}
+	g.templatePool = firstRequired(g.required, TemplateNodePoolKey)
 	return g, nil
 }
 
@@ -124,9 +116,8 @@ func (g ociZoneGenerator) generateNodePools() (map[string]client.Object, error) 
 	if len(g.zone.Spec.Pools) == 0 {
 		return objs, nil
 	}
-	if g.referencePool == nil {
-		return nil, fmt.Errorf("none of the reference node pools %v is observed",
-			g.env.GetReferenceNodePools())
+	if g.templatePool == nil {
+		return nil, fmt.Errorf("NodePool %s not found in required resources", TemplateNodePoolName)
 	}
 	for _, pool := range g.zone.Spec.Pools {
 		np, err := g.getNodePool(pool)
@@ -250,10 +241,10 @@ func (g ociZoneGenerator) getNodePool(pool v1alpha1.Pool) (*unstructured.Unstruc
 func (g ociZoneGenerator) getNodeSource(poolName string, spec ociPoolSpec) (map[string]any, error) {
 	image := spec.image
 	if image == "" {
-		image = nestedSliceString(g.referencePool.Object, "imageId", "status", "atProvider", "nodeSourceDetails")
+		image = nestedSliceString(g.templatePool.Object, "imageId", "status", "atProvider", "nodeSourceDetails")
 	}
 	if image == "" {
-		return nil, fmt.Errorf("pool %s: reference node pool %s has no image", poolName, g.referencePool.GetName())
+		return nil, fmt.Errorf("pool %s: template node pool %s has no image", poolName, g.templatePool.GetName())
 	}
 	return map[string]any{
 		"sourceType":          "IMAGE",
@@ -295,8 +286,8 @@ func (g ociZoneGenerator) getNodeConfig(poolName string, spec ociPoolSpec) (map[
 	if g.dataKeyID != "" {
 		nodeConfig["kmsKeyId"] = g.dataKeyID
 	}
-	refNodeConfig := nestedSliceMap(g.referencePool.Object, "status", "atProvider", "nodeConfigDetails")
-	if podNetwork, ok := refNodeConfig["nodePoolPodNetworkOptionDetails"]; ok {
+	templateNodeConfig := nestedSliceMap(g.templatePool.Object, "status", "atProvider", "nodeConfigDetails")
+	if podNetwork, ok := templateNodeConfig["nodePoolPodNetworkOptionDetails"]; ok {
 		nodeConfig["nodePoolPodNetworkOptionDetails"] = podNetwork
 	}
 	return nodeConfig, nil
@@ -308,8 +299,8 @@ func (g ociZoneGenerator) getPlacements(poolName string, spec ociPoolSpec) ([]an
 	}
 	domains := g.getAvailabilityDomains(spec)
 	if len(domains) == 0 {
-		return nil, fmt.Errorf("pool %s: no availability domain of reference node pool %s matches the pool",
-			poolName, g.referencePool.GetName())
+		return nil, fmt.Errorf("pool %s: no availability domain of template node pool %s matches the pool",
+			poolName, g.templatePool.GetName())
 	}
 	var placements []any
 	for i, domain := range domains {
@@ -332,8 +323,8 @@ func (g ociZoneGenerator) getPlacements(poolName string, spec ociPoolSpec) ([]an
 
 func (g ociZoneGenerator) getAvailabilityDomains(spec ociPoolSpec) []string {
 	var domains []string
-	refNodeConfig := nestedSliceMap(g.referencePool.Object, "status", "atProvider", "nodeConfigDetails")
-	refPlacements, _ := refNodeConfig["placementConfigs"].([]any)
+	templateNodeConfig := nestedSliceMap(g.templatePool.Object, "status", "atProvider", "nodeConfigDetails")
+	refPlacements, _ := templateNodeConfig["placementConfigs"].([]any)
 	for _, placement := range refPlacements {
 		p, ok := placement.(map[string]any)
 		if !ok {
