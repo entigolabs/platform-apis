@@ -1,5 +1,11 @@
 name: Execute Infralib Tests
 
+# Runs the end-to-end suites on the infralib branch prepare-infralib-branch
+# made: the framework's test.sh (entigo-infralib-test) applies the module in
+# its regular step on aws_biz and runs the tests copied into the module. The
+# contributor and maintainer IAM users of the role tests travel into the
+# test container through INFRALIB_TEST_EXTRA_ENV.
+
 on:
   workflow_call:
     inputs:
@@ -15,6 +21,7 @@ on:
 env:
   INFRALIB_REPO: entigolabs/entigo-infralib
   INFRALIB_MODULE_PATH: modules/k8s/platform-apis
+  ENVIRONMENT: aws_biz
 
 jobs:
   run-tests:
@@ -23,36 +30,38 @@ jobs:
     concurrency:
       group: infralib-e2e-tests
       cancel-in-progress: false
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
     steps:
+      # The infralib branch is the working directory: test.sh and the
+      # framework's actions read the environments from the repository root.
       - name: Checkout entigo-infralib
         uses: actions/checkout@v4
         with:
           repository: ${{ env.INFRALIB_REPO }}
           token: ${{ secrets.INFRALIB_PAT }}
           ref: ${{ inputs.branch_name }}
-          path: infralib
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Kubeconfig for ${{ env.ENVIRONMENT }}
+        uses: entigolabs/entigo-infralib-test/.github/actions/kubeconfig@main
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          environments: ${{ env.ENVIRONMENT }}
 
-      - name: Run Test Script
-        id: tests
-        working-directory: infralib/${{ env.INFRALIB_MODULE_PATH }}
+      - name: Apply and test ${{ env.INFRALIB_MODULE_PATH }} ${{ inputs.helm_version }} on ${{ env.ENVIRONMENT }}
         env:
-          ENTIGO_INFRALIB_TEST_TIMEOUT: 60m
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
           CONTRIBUTOR_AWS_ACCESS_KEY_ID: ${{ secrets.CONTRIBUTOR_AWS_ACCESS_KEY_ID }}
           CONTRIBUTOR_AWS_SECRET_ACCESS_KEY: ${{ secrets.CONTRIBUTOR_AWS_SECRET_ACCESS_KEY }}
           MAINTAINER_AWS_ACCESS_KEY_ID: ${{ secrets.MAINTAINER_AWS_ACCESS_KEY_ID }}
           MAINTAINER_AWS_SECRET_ACCESS_KEY: ${{ secrets.MAINTAINER_AWS_SECRET_ACCESS_KEY }}
-        run: ./test.sh
+          INFRALIB_TEST_EXTRA_ENV: CONTRIBUTOR_AWS_ACCESS_KEY_ID CONTRIBUTOR_AWS_SECRET_ACCESS_KEY MAINTAINER_AWS_ACCESS_KEY_ID MAINTAINER_AWS_SECRET_ACCESS_KEY
+        run: ./test.sh --env "${ENVIRONMENT}" --timeout 60m "${INFRALIB_MODULE_PATH}"
 
-      - name: Fail if tests failed
-        if: steps.tests.outputs.exit_code != '0'
-        run: exit 1
+      - name: Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infralib-logs-${{ inputs.helm_version }}
+          path: logs/
+          if-no-files-found: ignore
