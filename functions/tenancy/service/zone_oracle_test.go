@@ -6,6 +6,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/function-sdk-go/resource"
+	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/google/go-cmp/cmp"
@@ -167,6 +168,45 @@ func TestGenerateZoneObjectsOracle(t *testing.T) {
 	provider, _, _ := unstructured.NestedString(np.Object, "spec", "providerConfigRef", "name")
 	if provider != "crossplane-oracle" {
 		t.Errorf("providerConfigRef = %q, want crossplane-oracle", provider)
+	}
+}
+
+func TestOracleNodePoolExternalName(t *testing.T) {
+	tests := map[string]struct {
+		observed map[string]any
+		want     string
+	}{
+		"not observed yet": {},
+		"created, id in status": {
+			observed: map[string]any{"status": map[string]any{"atProvider": map[string]any{"id": "ocid1.nodepool.x"}}},
+			want:     "ocid1.nodepool.x",
+		},
+		"external name kept over status": {
+			observed: map[string]any{
+				"metadata": map[string]any{"annotations": map[string]any{externalNameAnnotation: "ocid1.nodepool.kept"}},
+				"status":   map[string]any{"atProvider": map[string]any{"id": "ocid1.nodepool.x"}},
+			},
+			want: "ocid1.nodepool.kept",
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			observed := map[resource.Name]resource.ObservedComposed{}
+			if tc.observed != nil {
+				observed[resource.Name(GetOracleNodePoolKey("default"))] = resource.ObservedComposed{
+					Resource: &composed.Unstructured{Unstructured: unstructured.Unstructured{Object: tc.observed}},
+				}
+			}
+			objs, err := GenerateZoneObjects(oracleZone("team-a", flexRequirements()...),
+				oracleRequired("tools"), observed, logging.NewNopLogger())
+			if err != nil {
+				t.Fatalf("GenerateZoneObjects: %v", err)
+			}
+			np := objs[GetOracleNodePoolKey("default")].(*unstructured.Unstructured)
+			if got := np.GetAnnotations()[externalNameAnnotation]; got != tc.want {
+				t.Errorf("external name = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
