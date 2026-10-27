@@ -98,8 +98,8 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		if env.GetCloud() == apis.CloudOracle {
-			maps.Copy(resources, oracleSelectors(env))
+		if env.GetCloudProvider() == apis.CloudProviderOracle {
+			maps.Copy(resources, ociSelectors(env))
 		} else {
 			maps.Copy(resources, awsSelectors(env))
 		}
@@ -180,7 +180,7 @@ func awsSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
 	return resources
 }
 
-func oracleSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
+func ociSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
 	resources := map[string]*fnv1.ResourceSelector{
 		service.ClusterKey: {
 			Kind:       "Cluster",

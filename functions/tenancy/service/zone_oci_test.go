@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func oracleRequired(referencePools ...string) map[string][]resource.Required {
+func ociRequired(referencePools ...string) map[string][]resource.Required {
 	obj := func(o map[string]any) []resource.Required {
 		return []resource.Required{{Resource: &unstructured.Unstructured{Object: o}}}
 	}
@@ -25,7 +25,7 @@ func oracleRequired(referencePools ...string) map[string][]resource.Required {
 			"kind":       "EnvironmentConfig",
 			"metadata":   map[string]any{"name": "platform-apis-zone"},
 			"data": map[string]any{
-				"cloud":             "oracle",
+				"cloudProvider":     "oracle",
 				"oracleProvider":    "crossplane-oracle",
 				"argoCDNamespace":   "argocd",
 				"cluster":           "oke",
@@ -87,7 +87,7 @@ func oracleRequired(referencePools ...string) map[string][]resource.Required {
 	return required
 }
 
-func oracleZone(name string, requirements ...v1alpha1.Requirement) v1alpha1.Zone {
+func ociZone(name string, requirements ...v1alpha1.Requirement) v1alpha1.Zone {
 	return v1alpha1.Zone{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Spec: v1alpha1.ZoneSpec{
@@ -106,9 +106,9 @@ func flexRequirements() []v1alpha1.Requirement {
 	}
 }
 
-func TestGenerateZoneObjectsOracle(t *testing.T) {
-	zone := oracleZone("team-a", flexRequirements()...)
-	objs, err := GenerateZoneObjects(zone, oracleRequired("tools", "main"), nil, logging.NewNopLogger())
+func TestGenerateZoneObjectsOCI(t *testing.T) {
+	zone := ociZone("team-a", flexRequirements()...)
+	objs, err := GenerateZoneObjects(zone, ociRequired("tools", "main"), nil, logging.NewNopLogger())
 	if err != nil {
 		t.Fatalf("GenerateZoneObjects: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestGenerateZoneObjectsOracle(t *testing.T) {
 			t.Errorf("unexpected AWS object %s", key)
 		}
 	}
-	np, ok := objs[GetOracleNodePoolKey("default")].(*unstructured.Unstructured)
+	np, ok := objs[GetOCINodePoolKey("default")].(*unstructured.Unstructured)
 	if !ok {
 		t.Fatalf("node pool not generated, got keys %v", keys(objs))
 	}
@@ -171,7 +171,7 @@ func TestGenerateZoneObjectsOracle(t *testing.T) {
 	}
 }
 
-func TestOracleNodePoolExternalName(t *testing.T) {
+func TestOCINodePoolExternalName(t *testing.T) {
 	tests := map[string]struct {
 		observed map[string]any
 		want     string
@@ -193,16 +193,16 @@ func TestOracleNodePoolExternalName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			observed := map[resource.Name]resource.ObservedComposed{}
 			if tc.observed != nil {
-				observed[resource.Name(GetOracleNodePoolKey("default"))] = resource.ObservedComposed{
+				observed[resource.Name(GetOCINodePoolKey("default"))] = resource.ObservedComposed{
 					Resource: &composed.Unstructured{Unstructured: unstructured.Unstructured{Object: tc.observed}},
 				}
 			}
-			objs, err := GenerateZoneObjects(oracleZone("team-a", flexRequirements()...),
-				oracleRequired("tools"), observed, logging.NewNopLogger())
+			objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...),
+				ociRequired("tools"), observed, logging.NewNopLogger())
 			if err != nil {
 				t.Fatalf("GenerateZoneObjects: %v", err)
 			}
-			np := objs[GetOracleNodePoolKey("default")].(*unstructured.Unstructured)
+			np := objs[GetOCINodePoolKey("default")].(*unstructured.Unstructured)
 			if got := np.GetAnnotations()[externalNameAnnotation]; got != tc.want {
 				t.Errorf("external name = %q, want %q", got, tc.want)
 			}
@@ -210,7 +210,7 @@ func TestOracleNodePoolExternalName(t *testing.T) {
 	}
 }
 
-func TestGetOracleNodePool(t *testing.T) {
+func TestGetOCINodePool(t *testing.T) {
 	tests := map[string]struct {
 		zone       string
 		reference  []string
@@ -266,7 +266,7 @@ func TestGetOracleNodePool(t *testing.T) {
 		"unsupported requirement is rejected": {
 			reference: []string{"tools"},
 			extra:     []v1alpha1.Requirement{{Key: "ami-type", Value: intstr.FromString("AL2023_ARM_64_STANDARD")}},
-			wantErr:   "requirement ami-type is not supported on Oracle",
+			wantErr:   "requirement ami-type is not supported on OCI",
 		},
 		"no reference pool": {
 			reference: nil,
@@ -287,8 +287,8 @@ func TestGetOracleNodePool(t *testing.T) {
 			if tc.override != nil {
 				requirements = tc.override
 			}
-			objs, err := GenerateZoneObjects(oracleZone(zoneName, requirements...),
-				oracleRequired(tc.reference...), nil, logging.NewNopLogger())
+			objs, err := GenerateZoneObjects(ociZone(zoneName, requirements...),
+				ociRequired(tc.reference...), nil, logging.NewNopLogger())
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("error = %v, want containing %q", err, tc.wantErr)
@@ -298,7 +298,7 @@ func TestGetOracleNodePool(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GenerateZoneObjects: %v", err)
 			}
-			np, ok := objs[GetOracleNodePoolKey("default")].(*unstructured.Unstructured)
+			np, ok := objs[GetOCINodePoolKey("default")].(*unstructured.Unstructured)
 			if tc.wantNil {
 				if ok {
 					t.Fatalf("node pool generated, want none")

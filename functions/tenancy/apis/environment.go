@@ -8,15 +8,15 @@ import (
 )
 
 const (
-	CloudAWS    = "aws"
-	CloudOracle = "oracle"
+	CloudProviderAWS    = "aws"
+	CloudProviderOracle = "oracle"
 )
 
 type Environment struct {
 	AppProject                     AppProject         `json:"appProject"`
 	ArgoCDNamespace                string             `json:"argoCDNamespace"`
 	AWSProvider                    string             `json:"awsProvider"`
-	Cloud                          string             `json:"cloud,omitempty"`
+	CloudProvider                  string             `json:"cloudProvider,omitempty"`
 	Cluster                        string             `json:"cluster"`
 	CreateAppsNamespace            bool               `json:"createAppsNamespace"`
 	ComputeSubnetType              string             `json:"computeSubnetType"`
@@ -46,11 +46,11 @@ type RoleMapping struct {
 	Groups  []string `json:"groups"`
 }
 
-func (e Environment) GetCloud() string {
-	if e.Cloud == "" {
-		return CloudAWS
+func (e Environment) GetCloudProvider() string {
+	if e.CloudProvider == "" {
+		return CloudProviderAWS
 	}
-	return e.Cloud
+	return e.CloudProvider
 }
 
 func (e Environment) GetReferenceNodePools() []string {
@@ -61,20 +61,20 @@ func (e Environment) GetReferenceNodePools() []string {
 }
 
 func (e Environment) Validate() error {
-	switch e.GetCloud() {
-	case CloudAWS:
+	switch e.GetCloudProvider() {
+	case CloudProviderAWS:
 		if e.AWSProvider == "" {
 			return errors.New("awsProvider is required")
 		}
 		if e.VPC == "" {
 			return errors.New("vpc is required")
 		}
-	case CloudOracle:
+	case CloudProviderOracle:
 		if e.OracleProvider == "" {
 			return errors.New("oracleProvider is required")
 		}
 	default:
-		return fmt.Errorf("unsupported cloud %q", e.Cloud)
+		return fmt.Errorf("unsupported cloudProvider %q", e.CloudProvider)
 	}
 	if e.ArgoCDNamespace == "" {
 		return errors.New("argoCDNamespace is required")
