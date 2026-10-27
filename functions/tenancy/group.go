@@ -1,6 +1,8 @@
 package main
 
 import (
+	"maps"
+
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
@@ -21,6 +23,8 @@ const (
 	ingressClassParamsApiVersion = "elbv2.k8s.aws/v1beta1"
 	gatewayApiVersion            = "gateway.networking.k8s.io/v1"
 	lbConfigApiVersion           = "gateway.k8s.aws/v1beta1"
+	ociContainerEngineApiVersion = "containerengine.oci.upbound.io/v1alpha1"
+	ociNetworkingApiVersion      = "networking.oci.upbound.io/v1alpha1"
 	infralibZone                 = "infralib"
 )
 
@@ -94,47 +98,19 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		resources[service.VPCKey] = base.RequiredClusterVPC(env.VPC)
-		if env.DataKMSAlias != "" {
-			resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
-				Kind:       "Alias",
-				ApiVersion: "kms.aws.upbound.io/v1beta1",
-				Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSAlias},
-			}
-		}
-		resources[service.SecurityGroupKey] = &fnv1.ResourceSelector{
-			Kind:       "SecurityGroup",
-			ApiVersion: ec2ApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.SecurityGroup},
-		}
-		resources[service.ClusterKey] = &fnv1.ResourceSelector{
-			Kind:       "Cluster",
-			ApiVersion: "eks.aws.upbound.io/v1beta1",
-			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.Cluster},
-		}
-		resources[service.SubnetsKey] = &fnv1.ResourceSelector{
-			Kind:       "Subnet",
-			ApiVersion: ec2ApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		if env.GetCloud() == apis.CloudOracle {
+			maps.Copy(resources, oracleSelectors(env))
+		} else {
+			maps.Copy(resources, awsSelectors(env))
 		}
 		resources[service.IngressClassKey] = &fnv1.ResourceSelector{
 			Kind:       "IngressClass",
 			ApiVersion: "networking.k8s.io/v1",
 			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 		}
-		resources[service.IngressClassParamsKey] = &fnv1.ResourceSelector{
-			Kind:       "IngressClassParams",
-			ApiVersion: ingressClassParamsApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
-		}
 		resources[service.GatewayKey] = &fnv1.ResourceSelector{
 			Kind:       "Gateway",
 			ApiVersion: gatewayApiVersion,
-			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
-		}
-		resources[service.LoadBalancerConfigurationKey] = &fnv1.ResourceSelector{
-			Kind:       "LoadBalancerConfiguration",
-			ApiVersion: lbConfigApiVersion,
 			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 		}
 		for _, ns := range service.GetUniqueNamespaces(zone, namespaces) {
@@ -164,6 +140,79 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 	default:
 		return nil, nil
 	}
+}
+
+func awsSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
+	resources := make(map[string]*fnv1.ResourceSelector)
+	resources[service.VPCKey] = base.RequiredClusterVPC(env.VPC)
+	if env.DataKMSAlias != "" {
+		resources[service.KMSDataAliasKey] = &fnv1.ResourceSelector{
+			Kind:       "Alias",
+			ApiVersion: "kms.aws.upbound.io/v1beta1",
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSAlias},
+		}
+	}
+	resources[service.SecurityGroupKey] = &fnv1.ResourceSelector{
+		Kind:       "SecurityGroup",
+		ApiVersion: ec2ApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.SecurityGroup},
+	}
+	resources[service.ClusterKey] = &fnv1.ResourceSelector{
+		Kind:       "Cluster",
+		ApiVersion: "eks.aws.upbound.io/v1beta1",
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.Cluster},
+	}
+	resources[service.SubnetsKey] = &fnv1.ResourceSelector{
+		Kind:       "Subnet",
+		ApiVersion: ec2ApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+	}
+	resources[service.IngressClassParamsKey] = &fnv1.ResourceSelector{
+		Kind:       "IngressClassParams",
+		ApiVersion: ingressClassParamsApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+	}
+	resources[service.LoadBalancerConfigurationKey] = &fnv1.ResourceSelector{
+		Kind:       "LoadBalancerConfiguration",
+		ApiVersion: lbConfigApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+	}
+	return resources
+}
+
+func oracleSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
+	resources := map[string]*fnv1.ResourceSelector{
+		service.ClusterKey: {
+			Kind:       "Cluster",
+			ApiVersion: ociContainerEngineApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.Cluster},
+		},
+		service.SecurityGroupKey: {
+			Kind:       "NetworkSecurityGroup",
+			ApiVersion: ociNetworkingApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.SecurityGroup},
+		},
+		service.SubnetsKey: {
+			Kind:       "Subnet",
+			ApiVersion: ociNetworkingApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		},
+	}
+	if env.DataKMSKey != "" {
+		resources[service.KMSDataKeyKey] = &fnv1.ResourceSelector{
+			Kind:       "Key",
+			ApiVersion: "kms.oci.upbound.io/v1alpha1",
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSKey},
+		}
+	}
+	for _, name := range env.GetReferenceNodePools() {
+		resources[service.GetReferenceNodePoolKey(name)] = &fnv1.ResourceSelector{
+			Kind:       "NodePool",
+			ApiVersion: ociContainerEngineApiVersion,
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: name},
+		}
+	}
+	return resources
 }
 
 func (g *GroupImpl) GetObservedStatus(_ *composed.Unstructured) (map[string]interface{}, error) {
