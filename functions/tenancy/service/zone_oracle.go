@@ -269,6 +269,9 @@ func (g zoneGenerator) getOracleNodePool(pool v1alpha1.Pool) (*unstructured.Unst
 	for key, value := range g.zoneAnnotations {
 		annotations[key] = value
 	}
+	if id := g.getObservedOCID(GetOracleNodePoolKey(pool.Name)); id != "" {
+		annotations[externalNameAnnotation] = id
+	}
 	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "containerengine.oci.upbound.io/v1alpha1",
 		"kind":       "NodePool",
@@ -340,6 +343,17 @@ func getOracleNodePoolName(zonePool string) string {
 	suffix := hex.EncodeToString(hash[:])[:8]
 	prefix := strings.TrimRight(zonePool[:ociNodePoolNameMaxLength-len(suffix)-1], "-")
 	return prefix + "-" + suffix
+}
+
+func (g zoneGenerator) getObservedOCID(key string) string {
+	observed, ok := g.observed[resource.Name(key)]
+	if !ok || observed.Resource == nil {
+		return ""
+	}
+	if name := observed.Resource.GetAnnotations()[externalNameAnnotation]; name != "" {
+		return name
+	}
+	return nestedString(observed.Resource.Object, "status", "atProvider", "id")
 }
 
 func ociTagKey(key string) string {
