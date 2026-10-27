@@ -263,6 +263,11 @@ func TestGetOracleNodePool(t *testing.T) {
 			override:  []v1alpha1.Requirement{{Key: "instance-type", Values: []string{"VM.Standard3.Flex", "VM.Standard.E5.Flex"}}},
 			wantErr:   "exactly one instance-type",
 		},
+		"unsupported requirement is rejected": {
+			reference: []string{"tools"},
+			extra:     []v1alpha1.Requirement{{Key: "ami-type", Value: intstr.FromString("AL2023_ARM_64_STANDARD")}},
+			wantErr:   "requirement ami-type is not supported on Oracle",
+		},
 		"no reference pool": {
 			reference: nil,
 			wantErr:   "none of the reference node pools",
