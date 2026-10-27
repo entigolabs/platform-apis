@@ -146,10 +146,7 @@ func (g awsZoneGenerator) generateLaunchTemplates() map[string]client.Object {
 
 	for _, pool := range g.zone.Spec.Pools {
 		zonePool := fmt.Sprintf("%s-%s", zoneName, pool.Name)
-		annotations := map[string]string{
-			zonePoolAnnotation: zonePool,
-		}
-		maps.Copy(annotations, g.zoneAnnotations)
+		annotations := g.getPoolAnnotations(zonePool)
 		tags := make(map[string]*string)
 		maps.Copy(tags, g.env.Tags)
 		tags[base.TenancyZoneLabel] = &zoneName
@@ -468,18 +465,15 @@ func (g awsZoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2
 		}
 	}
 
-	annotations := map[string]string{
-		zonePoolAnnotation: zonePool,
-	}
-	maps.Copy(annotations, g.zoneAnnotations)
+	annotations := g.getPoolAnnotations(zonePool)
 	tags := map[string]*string{
 		base.TenancyZoneLabel: &zoneName,
 		zonePoolAnnotation:    &zonePool,
 	}
 	maps.Copy(tags, g.env.Tags)
-	eksLabels := map[string]*string{
-		base.TenancyZoneLabel: &zoneName,
-		zonePoolAnnotation:    &zonePool,
+	eksLabels := make(map[string]*string)
+	for key, value := range g.getPoolLabels(zonePool) {
+		eksLabels[key] = &value
 	}
 
 	ng := &eksv1beta1.NodeGroup{

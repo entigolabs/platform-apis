@@ -223,11 +223,8 @@ func (g ociZoneGenerator) getNodePool(pool v1alpha1.Pool) (*unstructured.Unstruc
 		"nodeShape":         spec.shape,
 		"nodeSourceDetails": []any{nodeSource},
 		"nodeConfigDetails": []any{nodeConfig},
-		"initialNodeLabels": []any{
-			map[string]any{"key": base.TenancyZoneLabel, "value": g.zone.GetName()},
-			map[string]any{"key": zonePoolAnnotation, "value": zonePool},
-		},
-		"freeformTags": g.getNodePoolTags(zonePool, spec),
+		"initialNodeLabels": toOCINodeLabels(g.getPoolLabels(zonePool)),
+		"freeformTags":      g.getNodePoolTags(zonePool, spec),
 	}
 	if shapeConfig := getShapeConfig(spec); shapeConfig != nil {
 		forProvider["nodeShapeConfig"] = []any{shapeConfig}
@@ -374,14 +371,22 @@ func (g ociZoneGenerator) getNodePoolTags(zonePool string, spec ociPoolSpec) map
 }
 
 func (g ociZoneGenerator) getNodePoolAnnotations(poolName, zonePool string) map[string]any {
-	annotations := map[string]any{zonePoolAnnotation: zonePool}
-	for key, value := range g.zoneAnnotations {
+	annotations := map[string]any{}
+	for key, value := range g.getPoolAnnotations(zonePool) {
 		annotations[key] = value
 	}
 	if id := g.getObservedOCID(GetOCINodePoolKey(poolName)); id != "" {
 		annotations[externalNameAnnotation] = id
 	}
 	return annotations
+}
+
+func toOCINodeLabels(labels map[string]string) []any {
+	var nodeLabels []any
+	for _, key := range slices.Sorted(maps.Keys(labels)) {
+		nodeLabels = append(nodeLabels, map[string]any{"key": key, "value": labels[key]})
+	}
+	return nodeLabels
 }
 
 func (g ociZoneGenerator) getObservedOCID(key string) string {

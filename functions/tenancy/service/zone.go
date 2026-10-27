@@ -194,6 +194,19 @@ func (g zoneGenerator) generateCommon() (map[string]client.Object, error) {
 	return objs, nil
 }
 
+func (g zoneGenerator) getPoolAnnotations(zonePool string) map[string]string {
+	annotations := map[string]string{zonePoolAnnotation: zonePool}
+	maps.Copy(annotations, g.zoneAnnotations)
+	return annotations
+}
+
+func (g zoneGenerator) getPoolLabels(zonePool string) map[string]string {
+	return map[string]string{
+		base.TenancyZoneLabel: g.zone.Name,
+		zonePoolAnnotation:    zonePool,
+	}
+}
+
 func GetEnvironment(required map[string][]resource.Required) (apis.Environment, error) {
 	var env apis.Environment
 	err := base.GetEnvironment(base.EnvironmentKey, required, &env)
