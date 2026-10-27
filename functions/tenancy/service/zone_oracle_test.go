@@ -148,12 +148,12 @@ func TestGenerateZoneObjectsOracle(t *testing.T) {
 			map[string]any{"key": zonePoolAnnotation, "value": "team-a-default"},
 		},
 		"freeformTags": map[string]any{
-			"env":                 "test",
-			base.TenancyZoneLabel: "team-a",
-			zonePoolAnnotation:    "team-a-default",
-			"cluster-autoscaler":  "enabled",
-			"minSize":             "1",
-			"maxSize":             "3",
+			"env":                          "test",
+			"tenancy-entigo-com-zone":      "team-a",
+			"tenancy-entigo-com-zone-pool": "team-a-default",
+			"cluster-autoscaler":           "enabled",
+			"minSize":                      "1",
+			"maxSize":                      "3",
 		},
 	}
 	got, _, _ := unstructured.NestedMap(np.Object, "spec", "forProvider")
