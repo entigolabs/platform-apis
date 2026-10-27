@@ -18,14 +18,15 @@ import (
 )
 
 const (
-	environmentName              = "platform-apis-zone"
-	ec2ApiVersion                = "ec2.aws.upbound.io/v1beta1"
-	ingressClassParamsApiVersion = "elbv2.k8s.aws/v1beta1"
-	gatewayApiVersion            = "gateway.networking.k8s.io/v1"
-	lbConfigApiVersion           = "gateway.k8s.aws/v1beta1"
-	ociContainerEngineApiVersion = "containerengine.oci.upbound.io/v1alpha1"
-	ociNetworkingApiVersion      = "networking.oci.upbound.io/v1alpha1"
-	infralibZone                 = "infralib"
+	environmentName                 = "platform-apis-zone"
+	ec2ApiVersion                   = "ec2.aws.upbound.io/v1beta1"
+	ingressClassParamsApiVersion    = "elbv2.k8s.aws/v1beta1"
+	gatewayApiVersion               = "gateway.networking.k8s.io/v1"
+	lbConfigApiVersion              = "gateway.k8s.aws/v1beta1"
+	ociContainerEngineApiVersion    = "containerengine.oci.upbound.io/v1alpha1"
+	ociNetworkingApiVersion         = "networking.oci.upbound.io/v1alpha1"
+	ociIngressClassParamsApiVersion = "ingress.oraclecloud.com/v1beta1"
+	infralibZone                    = "infralib"
 )
 
 type GroupImpl struct {
@@ -208,6 +209,11 @@ func ociSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
 			ApiVersion: "kms.oci.upbound.io/v1alpha1",
 			Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.DataKMSKey},
 		}
+	}
+	resources[service.IngressClassParamsKey] = &fnv1.ResourceSelector{
+		Kind:       "IngressClassParameters",
+		ApiVersion: ociIngressClassParamsApiVersion,
+		Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 	}
 	resources[service.TemplateNodePoolKey] = &fnv1.ResourceSelector{
 		Kind:       "NodePool",

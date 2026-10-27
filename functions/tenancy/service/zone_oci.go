@@ -12,6 +12,9 @@ import (
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -26,6 +29,10 @@ const (
 	requirementOCPUs    = "oci/ocpus"
 	requirementMemoryGB = "oci/memory-gb"
 	requirementImage    = "oci/image"
+
+	ociIngressClassParamsGroup = "ingress.oraclecloud.com"
+	ociIngressClassParamsKind  = "IngressClassParameters"
+	gatewayNameLabel           = "gateway.networking.k8s.io/gateway-name"
 )
 
 type ociZoneGenerator struct {
@@ -108,6 +115,11 @@ func (g ociZoneGenerator) generate() (map[string]client.Object, error) {
 		return nil, err
 	}
 	maps.Copy(objs, nodePools)
+	networkPolicies, err := g.generateTargetNetworkPolicies()
+	if err != nil {
+		return nil, err
+	}
+	maps.Copy(objs, networkPolicies)
 	return objs, nil
 }
 
@@ -427,4 +439,120 @@ func nestedSliceMap(obj map[string]any, fields ...string) map[string]any {
 func nestedSliceString(obj map[string]any, key string, fields ...string) string {
 	value, _ := nestedSliceMap(obj, fields...)[key].(string)
 	return value
+}
+
+func (g ociZoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object, error) {
+	classBlocks := g.getIngressClassBlocks()
+	gatewayBlocks := g.getGatewayBlocks()
+	objs := make(map[string]client.Object)
+	for _, ns := range g.uqNamespaces {
+		if ns == "" {
+			continue
+		}
+		ingresses, err := base.ExtractResources[*networkingv1.Ingress](g.required, ns+IngressKey)
+		if err != nil {
+			return nil, err
+		}
+		services, err := base.ExtractResources[*corev1.Service](g.required, ns+ServiceKey)
+		if err != nil {
+			return nil, err
+		}
+		for _, ingress := range ingresses {
+			if ingress.Spec.IngressClassName == nil {
+				continue
+			}
+			blocks := classBlocks[*ingress.Spec.IngressClassName]
+			if len(blocks) == 0 {
+				continue
+			}
+			for _, rule := range ingress.Spec.Rules {
+				if rule.HTTP == nil {
+					continue
+				}
+				for _, path := range rule.HTTP.Paths {
+					if path.Backend.Service == nil {
+						continue
+					}
+					addTargetNetworkPolicy(objs, ns, ingress.Name, path.Backend.Service.Name,
+						path.Backend.Service.Port.Name, path.Backend.Service.Port.Number, services, blocks)
+				}
+			}
+		}
+		for _, route := range g.required[ns+HTTPRouteKey] {
+			blocks := g.getRouteBlocks(route.Resource, gatewayBlocks, ns)
+			if len(blocks) == 0 {
+				continue
+			}
+			for _, backend := range g.getHTTPRouteBackends(route.Resource, ns) {
+				addTargetNetworkPolicy(objs, ns, route.Resource.GetName(), backend.name,
+					"", backend.port, services, blocks)
+			}
+		}
+	}
+	return objs, nil
+}
+
+// getIngressClassBlocks resolves ingress class name -> network policy peers by following
+// IngressClass.spec.parameters -> IngressClassParameters.spec.subnetId -> Subnet id. The native
+// ingress controller's load balancer sends traffic to the pods from that subnet.
+func (g ociZoneGenerator) getIngressClassBlocks() map[string][]networkingv1.NetworkPolicyPeer {
+	paramSubnetIDs := make(map[string]string)
+	for _, params := range g.required[IngressClassParamsKey] {
+		if params.Resource == nil {
+			continue
+		}
+		if id := nestedString(params.Resource.Object, "spec", "subnetId"); id != "" {
+			paramSubnetIDs[getNamespacedName(params.Resource.GetNamespace(), params.Resource.GetName())] = id
+		}
+	}
+	subnetCIDRs := make(map[string]string)
+	for _, subnet := range g.required[SubnetsKey] {
+		if subnet.Resource == nil {
+			continue
+		}
+		id := nestedString(subnet.Resource.Object, "status", "atProvider", "id")
+		if cidr := nestedString(subnet.Resource.Object, "status", "atProvider", "cidrBlock"); id != "" && cidr != "" {
+			subnetCIDRs[id] = cidr
+		}
+	}
+	classBlocks := make(map[string][]networkingv1.NetworkPolicyPeer)
+	for _, ingressClass := range g.ingressClasses {
+		params := ingressClass.Spec.Parameters
+		if params == nil || params.APIGroup == nil || *params.APIGroup != ociIngressClassParamsGroup ||
+			!strings.EqualFold(params.Kind, ociIngressClassParamsKind) || params.Namespace == nil {
+			continue
+		}
+		cidr := subnetCIDRs[paramSubnetIDs[getNamespacedName(*params.Namespace, params.Name)]]
+		if cidr == "" {
+			g.log.Debug("No subnet resolved for ingress class", "ingressClass", ingressClass.Name,
+				"ingressClassParameters", params.Name)
+			continue
+		}
+		classBlocks[ingressClass.Name] = []networkingv1.NetworkPolicyPeer{{
+			IPBlock: &networkingv1.IPBlock{CIDR: cidr},
+		}}
+	}
+	return classBlocks
+}
+
+// getGatewayBlocks resolves gateway namespace/name -> network policy peers. Oracle gateways run
+// in-cluster behind a native ingress load balancer, so routed traffic comes from the gateway's pods.
+func (g ociZoneGenerator) getGatewayBlocks() map[string][]networkingv1.NetworkPolicyPeer {
+	gatewayBlocks := make(map[string][]networkingv1.NetworkPolicyPeer)
+	for _, gateway := range g.required[GatewayKey] {
+		if gateway.Resource == nil {
+			continue
+		}
+		namespace := gateway.Resource.GetNamespace()
+		name := gateway.Resource.GetName()
+		gatewayBlocks[getNamespacedName(namespace, name)] = []networkingv1.NetworkPolicyPeer{{
+			NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{
+				corev1.LabelMetadataName: namespace,
+			}},
+			PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{
+				gatewayNameLabel: name,
+			}},
+		}}
+	}
+	return gatewayBlocks
 }
