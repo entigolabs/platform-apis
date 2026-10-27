@@ -6,6 +6,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type CloudProvider string
+
+const (
+	CloudProviderAWS CloudProvider = "aws"
+	CloudProviderOCI CloudProvider = "oracle"
+)
+
 type Environment struct {
 	AppProject                     AppProject         `json:"appProject"`
 	ArgoCDNamespace                string             `json:"argoCDNamespace"`
@@ -14,9 +21,11 @@ type Environment struct {
 	CreateAppsNamespace            bool               `json:"createAppsNamespace"`
 	ComputeSubnetType              string             `json:"computeSubnetType"`
 	DataKMSAlias                   string             `json:"dataKMSAlias"`
+	DataKMSKey                     string             `json:"dataKMSKey,omitempty"`
 	GranularEgress                 bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude          []string           `json:"granularEgressExclude,omitempty"`
 	GranularNamespaceNetworkPolicy bool               `json:"granularNamespaceNetworkPolicy,omitempty"`
+	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
 	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
 	SecurityGroup                  string             `json:"securityGroup"`
@@ -36,15 +45,26 @@ type RoleMapping struct {
 	Groups  []string `json:"groups"`
 }
 
-func (e Environment) Validate() error {
-	if e.AWSProvider == "" {
-		return errors.New("awsProvider is required")
+func (e Environment) ValidateFor(provider CloudProvider) error {
+	switch provider {
+	case CloudProviderOCI:
+		if e.OCIProvider == "" {
+			return errors.New("oracleProvider is required")
+		}
+	default:
+		if e.AWSProvider == "" {
+			return errors.New("awsProvider is required")
+		}
+		if e.VPC == "" {
+			return errors.New("vpc is required")
+		}
 	}
+	return nil
+}
+
+func (e Environment) Validate() error {
 	if e.ArgoCDNamespace == "" {
 		return errors.New("argoCDNamespace is required")
-	}
-	if e.VPC == "" {
-		return errors.New("vpc is required")
 	}
 	if e.SecurityGroup == "" {
 		return errors.New("securityGroup is required")

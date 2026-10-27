@@ -28,8 +28,10 @@ spec:
                   weight: 90
           containers:
           - name: package-runtime
-            {{- if .Values.workspace }}
             env:
+              - name: CLOUD_PROVIDER
+                value: {{ .Values.global.cloudProvider }}
+            {{- if .Values.workspace }}
               - name: WORKSPACE
                 value: {{ .Values.workspace }}
             {{- end }}

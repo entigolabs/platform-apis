@@ -6,7 +6,7 @@ metadata:
   name: testzone
 spec:
   namespaces:
-    - name: abfe  # when no pool is explicitly specified, default pool is used.
+    - name: abfe  # without a pool, workloads can be scheduled on any of the Zone's pools.
     - name: abbe
       pool: spot
   pools: 

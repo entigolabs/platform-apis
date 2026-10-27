@@ -50,7 +50,7 @@ type Namespace struct {
 	// Name of the namespace.
 	Name string `json:"name"`
 
-	// Name of the Node Pool where to schedule workloads. If not specified, the first pool is used.
+	// Name of the Zone pool to schedule the namespace's workloads on. If not specified, they can be scheduled on any of the Zone's pools.
 	Pool string `json:"pool,omitempty"`
 }
 
@@ -68,7 +68,7 @@ type Pool struct {
 
 type Requirement struct {
 	// Requirement key
-	// +kubebuilder:validation:Enum=ami-type;instance-type;capacity-type;zone;min-size;max-size;desired-size;security-groups
+	// +kubebuilder:validation:Enum=ami-type;instance-type;capacity-type;zone;min-size;max-size;desired-size;security-groups;oci/ocpus;oci/memory-gb;oci/image
 	Key string `json:"key"`
 
 	// Single value for capacity-type, min-size, max-size, or desired-size. Can be string or integer.

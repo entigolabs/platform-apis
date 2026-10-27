@@ -61,7 +61,7 @@ spec:
                         description: Name of the namespace.
                       pool:
                         type: string
-                        description: Name of the Node Pool where to schedule workloads. If not specified, the first pool is used.
+                        description: Name of the Zone pool to schedule the namespace's workloads on. If not specified, they can be scheduled on any of the Zone's pools.
                     required:
                       - name
                 pools:
@@ -101,6 +101,9 @@ spec:
                                 - max-size
                                 - desired-size
                                 - security-groups
+                                - oci/ocpus
+                                - oci/memory-gb
+                                - oci/image
                             # Single value - accepts string or integer
                             value:
                               x-kubernetes-int-or-string: true
