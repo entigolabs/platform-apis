@@ -34,7 +34,12 @@ func testPlatformApisOracle(t *testing.T, e *env.Environment) {
 	}
 
 	t.Run("pod-on-pool", func(t *testing.T) {
-		applyFile(t, cluster, "./templates/oracle_zone_app.yaml")
+		applyFile(t, cluster, "./templates/oracle_zone_namespace.yaml")
+		waitNamespacePoliciesReady(t, cluster, OracleZoneName, OracleZoneNamespace)
+		if t.Failed() {
+			return
+		}
+		applyFile(t, cluster, "./templates/oracle_zone_pod.yaml")
 		nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, OracleZoneNamespace)
 		zonePool := OracleZoneName + "-" + OracleZonePool
 
