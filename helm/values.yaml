@@ -2,13 +2,16 @@ global:
   # Cloud the cluster runs on, aws or oracle. Selects which cloud's resources the zone function
   # creates for a Zone's pools.
   cloudProvider: aws
-  # ARNs of the environment's KMS keys, supplied by the infralib agent from optional
+  # IDs of the environment's KMS keys, supplied by the infralib agent from optional
   # outputs. Empty means the environment has no KMS module, and every KMS reference in
   # the EnvironmentConfigs below drops out. Resources then fall back to AWS-managed keys.
   kms:
     dataKeyArn: ""
     configKeyArn: ""
     dataAliasArn: ""
+    # OCID of the environment's data key on Oracle. Empty means the environment has no KMS
+    # module, and the Zone's node pools fall back to Oracle-managed keys.
+    oracleDataKeyId: ""
 
 workspace: ""
 
@@ -177,6 +180,7 @@ zone:
     granularNamespaceNetworkPolicy: false
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
+    oracleProvider: "crossplane-oracle"
     # User groups that get a role in every Zone. A Zone can add its own groups with
     # spec.roleMapping, which applies only to that Zone's Namespaces.
     roleMapping:
@@ -198,6 +202,7 @@ zone:
       namespaceResourceWhitelist: []
     cluster: eks
     dataKMSAlias: data
+    dataKMSKey: data
     securityGroup: "eks-node"
     vpc: vpc
     computeSubnetType: compute
