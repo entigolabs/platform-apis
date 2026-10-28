@@ -11,6 +11,8 @@ import (
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -321,6 +323,127 @@ func TestGetOCINodePool(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantPlaced, domains); diff != "" {
 				t.Errorf("availability domains (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestOCITargetNetworkPolicies(t *testing.T) {
+	obj := func(o map[string]any) resource.Required {
+		return resource.Required{Resource: &unstructured.Unstructured{Object: o}}
+	}
+	required := ociRequired("ocid1.image.tools")
+	required[SubnetsKey] = append(required[SubnetsKey], obj(map[string]any{
+		"apiVersion": "networking.oci.upbound.io/v1alpha1", "kind": "Subnet",
+		"metadata": map[string]any{"name": "public-0", "labels": map[string]any{subnetTypeLabel: "public"}},
+		"status":   map[string]any{"atProvider": map[string]any{"id": "ocid1.subnet.public0", "cidrBlock": "10.0.0.0/24"}},
+	}))
+	required[IngressClassKey] = []resource.Required{
+		obj(map[string]any{
+			"apiVersion": "networking.k8s.io/v1", "kind": "IngressClass",
+			"metadata": map[string]any{"name": "external"},
+			"spec": map[string]any{
+				"controller": "oci.oraclecloud.com/native-ingress-controller",
+				"parameters": map[string]any{
+					"apiGroup": "ingress.oraclecloud.com", "kind": "ingressclassparameters",
+					"scope": "Namespace", "namespace": "native-ingress", "name": "external-parameters",
+				},
+			},
+		}),
+		obj(map[string]any{
+			"apiVersion": "networking.k8s.io/v1", "kind": "IngressClass",
+			"metadata": map[string]any{"name": "other"},
+			"spec":     map[string]any{"controller": "example.com/other"},
+		}),
+	}
+	required[IngressClassParamsKey] = []resource.Required{obj(map[string]any{
+		"apiVersion": "ingress.oraclecloud.com/v1beta1", "kind": "IngressClassParameters",
+		"metadata": map[string]any{"name": "external-parameters", "namespace": "native-ingress"},
+		"spec":     map[string]any{"subnetId": "ocid1.subnet.public0"},
+	})}
+	required[GatewayKey] = []resource.Required{obj(map[string]any{
+		"apiVersion": "gateway.networking.k8s.io/v1", "kind": "Gateway",
+		"metadata": map[string]any{"name": "internal", "namespace": "oracle-gateway"},
+	})}
+	required["app"+ServiceKey] = []resource.Required{obj(map[string]any{
+		"apiVersion": "v1", "kind": "Service",
+		"metadata": map[string]any{"name": "web", "namespace": "app"},
+		"spec": map[string]any{
+			"selector": map[string]any{"app": "web"},
+			"ports":    []any{map[string]any{"port": int64(80), "targetPort": int64(8080)}},
+		},
+	})}
+	ingress := func(name, class string) resource.Required {
+		return obj(map[string]any{
+			"apiVersion": "networking.k8s.io/v1", "kind": "Ingress",
+			"metadata": map[string]any{"name": name, "namespace": "app"},
+			"spec": map[string]any{
+				"ingressClassName": class,
+				"rules": []any{map[string]any{"http": map[string]any{"paths": []any{map[string]any{
+					"path": "/", "pathType": "Prefix",
+					"backend": map[string]any{"service": map[string]any{
+						"name": "web", "port": map[string]any{"number": int64(80)},
+					}},
+				}}}}},
+			},
+		})
+	}
+	required["app"+IngressKey] = []resource.Required{ingress("web", "external"), ingress("web-other", "other")}
+	required["app"+HTTPRouteKey] = []resource.Required{obj(map[string]any{
+		"apiVersion": "gateway.networking.k8s.io/v1", "kind": "HTTPRoute",
+		"metadata": map[string]any{"name": "web-route", "namespace": "app"},
+		"spec": map[string]any{
+			"parentRefs": []any{map[string]any{"name": "internal", "namespace": "oracle-gateway"}},
+			"rules": []any{map[string]any{"backendRefs": []any{map[string]any{
+				"name": "web", "port": int64(80),
+			}}}},
+		},
+	})}
+	zone := ociZone("team-a", flexRequirements()...)
+	zone.Spec.Namespaces = []v1alpha1.Namespace{{Name: "app"}}
+
+	objs, err := GenerateZoneObjects(zone, required, nil, logging.NewNopLogger(), apis.CloudProviderOCI)
+	if err != nil {
+		t.Fatalf("GenerateZoneObjects: %v", err)
+	}
+	var netpols []string
+	for key := range objs {
+		if strings.HasPrefix(key, "netpol-app-") {
+			netpols = append(netpols, key)
+		}
+	}
+	if len(netpols) != 2 {
+		t.Errorf("got target network policies %v, want 2", netpols)
+	}
+	port := intstr.FromInt32(8080)
+	tests := map[string]networkingv1.NetworkPolicyPeer{
+		"web": {IPBlock: &networkingv1.IPBlock{CIDR: "10.0.0.0/24"}},
+		"web-route": {
+			NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{
+				"kubernetes.io/metadata.name": "oracle-gateway",
+			}},
+			PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{
+				"gateway.networking.k8s.io/gateway-name": "internal",
+			}},
+		},
+	}
+	for source, peer := range tests {
+		t.Run(source, func(t *testing.T) {
+			np, ok := objs[GetTargetNetworkPolicyKey("app", source, "web", port)].(*networkingv1.NetworkPolicy)
+			if !ok {
+				t.Fatalf("network policy not generated, got keys %v", keys(objs))
+			}
+			protocol := corev1.ProtocolTCP
+			want := networkingv1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{MatchLabels: map[string]string{"app": "web"}},
+				PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress},
+				Ingress: []networkingv1.NetworkPolicyIngressRule{{
+					From:  []networkingv1.NetworkPolicyPeer{peer},
+					Ports: []networkingv1.NetworkPolicyPort{{Protocol: &protocol, Port: &port}},
+				}},
+			}
+			if diff := cmp.Diff(want, np.Spec); diff != "" {
+				t.Errorf("spec mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

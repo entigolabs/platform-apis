@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"maps"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -859,4 +860,178 @@ func (g zoneGenerator) getAppProject() client.Object {
 			},
 		},
 	}
+}
+
+type httpRouteBackend struct {
+	name string
+	port int32
+}
+
+func GetTargetNetworkPolicyKey(namespace, ingress, service string, port intstr.IntOrString) string {
+	return "netpol-" + namespace + "-" + ingress + "-" + service + "-" + port.String()
+}
+
+func addTargetNetworkPolicy(objs map[string]client.Object, ns, ingressName, serviceName string,
+	portName string, portNumber int32, services []*corev1.Service, blocks []networkingv1.NetworkPolicyPeer) {
+	if serviceName == "" {
+		return
+	}
+	var service *corev1.Service
+	var targetPort *intstr.IntOrString
+	for _, svc := range services {
+		if svc.Name != serviceName {
+			continue
+		}
+		service = svc
+		for _, port := range svc.Spec.Ports {
+			if portName != "" && port.Name == portName ||
+				portNumber != 0 && port.Port == portNumber {
+				tp := port.TargetPort
+				targetPort = &tp
+				break
+			}
+		}
+		break
+	}
+	if service == nil || targetPort == nil {
+		return
+	}
+	matchLabels := make(map[string]string)
+	for key, value := range service.Spec.Selector {
+		matchLabels[key] = value
+	}
+	protocol := corev1.ProtocolTCP
+	objs[GetTargetNetworkPolicyKey(ns, ingressName, serviceName, *targetPort)] = &networkingv1.NetworkPolicy{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "NetworkPolicy",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%s-%s", ingressName, serviceName, targetPort.String()),
+			Namespace: ns,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{MatchLabels: matchLabels},
+			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{{
+				From: blocks,
+				Ports: []networkingv1.NetworkPolicyPort{{
+					Protocol: &protocol,
+					Port:     targetPort,
+				}},
+			}},
+		},
+	}
+}
+
+// getRouteBlocks unions the peers of every gateway the route lists as a parent, parents that aren't
+// gateways or whose peers couldn't be resolved contribute nothing.
+
+func (g zoneGenerator) getRouteBlocks(route *unstructured.Unstructured,
+	gatewayBlocks map[string][]networkingv1.NetworkPolicyPeer, namespace string) []networkingv1.NetworkPolicyPeer {
+	parents, found, err := unstructured.NestedSlice(route.Object, "spec", "parentRefs")
+	if err != nil {
+		g.log.Debug("Failed to read http route parent refs", "httpRoute", route.GetName(), "error", err)
+		return nil
+	}
+	if !found {
+		return nil
+	}
+	var blocks []networkingv1.NetworkPolicyPeer
+	for _, parent := range parents {
+		parentMap, ok := parent.(map[string]any)
+		if !ok {
+			continue
+		}
+		name := getOptionalString(parentMap, "name", "")
+		if name == "" || getOptionalString(parentMap, "kind", gatewayKind) != gatewayKind ||
+			getOptionalString(parentMap, "group", gatewayGroup) != gatewayGroup {
+			continue
+		}
+		parentNamespace := getOptionalString(parentMap, "namespace", namespace)
+		for _, block := range gatewayBlocks[getNamespacedName(parentNamespace, name)] {
+			if slices.ContainsFunc(blocks, func(b networkingv1.NetworkPolicyPeer) bool {
+				return reflect.DeepEqual(b, block)
+			}) {
+				continue
+			}
+			blocks = append(blocks, block)
+		}
+	}
+	return blocks
+}
+
+// getHTTPRouteBackends returns the service backends of every route rule. Backends in another
+// namespace are skipped, their policy would have to be created in that namespace instead.
+
+func (g zoneGenerator) getHTTPRouteBackends(route *unstructured.Unstructured, namespace string) []httpRouteBackend {
+	rules, found, err := unstructured.NestedSlice(route.Object, "spec", "rules")
+	if err != nil {
+		g.log.Debug("Failed to read http route rules", "httpRoute", route.GetName(), "error", err)
+		return nil
+	}
+	if !found {
+		return nil
+	}
+	var backends []httpRouteBackend
+	for _, rule := range rules {
+		ruleMap, ok := rule.(map[string]any)
+		if !ok {
+			continue
+		}
+		refs, ok := ruleMap["backendRefs"].([]any)
+		if !ok {
+			continue
+		}
+		for _, ref := range refs {
+			refMap, ok := ref.(map[string]any)
+			if !ok {
+				continue
+			}
+			name := getOptionalString(refMap, "name", "")
+			if name == "" || getOptionalString(refMap, "kind", serviceBackendKind) != serviceBackendKind ||
+				getOptionalString(refMap, "group", "") != "" {
+				continue
+			}
+			if refNamespace := getOptionalString(refMap, "namespace", namespace); refNamespace != namespace {
+				g.log.Debug("Skipping cross namespace http route backend", "httpRoute", route.GetName(),
+					"service", name, "namespace", refNamespace)
+				continue
+			}
+			port, ok := getNumber(refMap["port"])
+			if !ok {
+				g.log.Debug("Skipping http route backend without a port", "httpRoute", route.GetName(),
+					"service", name)
+				continue
+			}
+			backends = append(backends, httpRouteBackend{name: name, port: port})
+		}
+	}
+	return backends
+}
+
+func getOptionalString(obj map[string]any, key, defaultValue string) string {
+	value, ok := obj[key].(string)
+	if !ok {
+		return defaultValue
+	}
+	return value
+}
+
+// getNumber handles both representations, unstructured objects coming from crossplane are decoded
+// from protobuf structs where every number is a float
+
+func getNumber(value any) (int32, bool) {
+	switch number := value.(type) {
+	case int64:
+		return int32(number), true
+	case float64:
+		return int32(number), true
+	default:
+		return 0, false
+	}
+}
+
+func getNamespacedName(namespace, name string) string {
+	return namespace + "/" + name
 }
