@@ -71,6 +71,12 @@ const (
 	AAppsApplicationName = "a-apps"
 	BAppsApplicationName = "b-apps"
 
+	OCINodePoolKind  = "nodepool.containerengine.oci.upbound.io"
+	OCIZoneName      = "oci"
+	OCIZonePool      = "default"
+	OCIZoneNamespace = "oci1"
+	OCIZonePodName   = "oci1-pause"
+
 	// ── CronJob ───────────────────────────────────────────────────────────────
 
 	CronjobNamespaceName   = "test-cronjob"

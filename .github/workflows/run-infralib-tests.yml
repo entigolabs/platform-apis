@@ -2,9 +2,9 @@ name: Execute Infralib Tests
 
 # Runs the end-to-end suites on the infralib branch prepare-infralib-branch
 # made: the framework's test.sh (entigo-infralib-test) applies the module in
-# its regular step on aws_biz and runs the tests copied into the module. The
-# contributor and maintainer IAM users of the role tests travel into the
-# test container through INFRALIB_TEST_EXTRA_ENV.
+# its regular step on aws_biz and oracle_biz and runs the tests copied into
+# the module. The contributor and maintainer IAM users of the role tests
+# travel into the test container through INFRALIB_TEST_EXTRA_ENV.
 
 on:
   workflow_call:
@@ -21,7 +21,7 @@ on:
 env:
   INFRALIB_REPO: entigolabs/entigo-infralib
   INFRALIB_MODULE_PATH: modules/k8s/platform-apis
-  ENVIRONMENT: aws_biz
+  ENVIRONMENTS: aws_biz,oracle_biz
 
 jobs:
   run-tests:
@@ -34,6 +34,8 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      OCI_REGION: ${{ secrets.OCI_REGION }}
+      OCI_COMPARTMENT_ID: ${{ secrets.OCI_COMPARTMENT_ID }}
     steps:
       # The infralib branch is the working directory: test.sh and the
       # framework's actions read the environments from the repository root.
@@ -44,19 +46,31 @@ jobs:
           token: ${{ secrets.INFRALIB_PAT }}
           ref: ${{ inputs.branch_name }}
 
-      - name: Kubeconfig for ${{ env.ENVIRONMENT }}
+      - name: Credentials for ${{ env.ENVIRONMENTS }}
+        uses: entigolabs/entigo-infralib-test/.github/actions/credentials@main
+        with:
+          oci_config: ${{ secrets.OCI_CONFIG }}
+          oci_private_key: ${{ secrets.OCI_PRIVATE_KEY }}
+          environments: ${{ env.ENVIRONMENTS }}
+
+      - name: Kubeconfig for ${{ env.ENVIRONMENTS }}
         uses: entigolabs/entigo-infralib-test/.github/actions/kubeconfig@main
         with:
-          environments: ${{ env.ENVIRONMENT }}
+          environments: ${{ env.ENVIRONMENTS }}
 
-      - name: Apply and test ${{ env.INFRALIB_MODULE_PATH }} ${{ inputs.helm_version }} on ${{ env.ENVIRONMENT }}
+      - name: Apply and test ${{ env.INFRALIB_MODULE_PATH }} ${{ inputs.helm_version }} on ${{ env.ENVIRONMENTS }}
         env:
           CONTRIBUTOR_AWS_ACCESS_KEY_ID: ${{ secrets.CONTRIBUTOR_AWS_ACCESS_KEY_ID }}
           CONTRIBUTOR_AWS_SECRET_ACCESS_KEY: ${{ secrets.CONTRIBUTOR_AWS_SECRET_ACCESS_KEY }}
           MAINTAINER_AWS_ACCESS_KEY_ID: ${{ secrets.MAINTAINER_AWS_ACCESS_KEY_ID }}
           MAINTAINER_AWS_SECRET_ACCESS_KEY: ${{ secrets.MAINTAINER_AWS_SECRET_ACCESS_KEY }}
           INFRALIB_TEST_EXTRA_ENV: CONTRIBUTOR_AWS_ACCESS_KEY_ID CONTRIBUTOR_AWS_SECRET_ACCESS_KEY MAINTAINER_AWS_ACCESS_KEY_ID MAINTAINER_AWS_SECRET_ACCESS_KEY
-        run: ./test.sh --env "${ENVIRONMENT}" --timeout 60m "${INFRALIB_MODULE_PATH}"
+        run: |
+          args=()
+          for e in ${ENVIRONMENTS//,/ }; do
+              args+=(--env "$e")
+          done
+          ./test.sh "${args[@]}" --timeout 60m "${INFRALIB_MODULE_PATH}"
 
       - name: Logs
         if: always()
