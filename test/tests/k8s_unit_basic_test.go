@@ -18,13 +18,13 @@ import (
 // TestPlatformApis runs the end-to-end suites on the environments the
 // platform-apis module is part of (one parallel subtest each). The map must
 // name exactly those environments; the suites themselves run on aws_biz only,
-// aws_pri lacks what some of them need. oracle_biz runs the Oracle Zone test.
+// aws_pri lacks what some of them need. oracle_biz runs the OCI Zone test.
 func TestPlatformApis(t *testing.T) {
 	env.RunEach(t, map[string]env.TestFunc{
 		"aws_biz":    testPlatformApis,
 		"aws_pri":    func(t *testing.T, e *env.Environment) { t.Skip("the end-to-end suites run on aws_biz only") },
-		"oracle_biz": testPlatformApisOracle,
-		"oracle_pri": func(t *testing.T, e *env.Environment) { t.Skip("the Oracle Zone test runs on oracle_biz only") },
+		"oracle_biz": testPlatformApisOCI,
+		"oracle_pri": func(t *testing.T, e *env.Environment) { t.Skip("the OCI Zone test runs on oracle_biz only") },
 	})
 }
 

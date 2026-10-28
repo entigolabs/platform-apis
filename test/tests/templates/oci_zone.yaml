@@ -2,7 +2,7 @@
 apiVersion: tenancy.entigo.com/v1alpha1
 kind: Zone
 metadata:
-  name: oracle
+  name: oci
 spec:
   pools:
   - name: default

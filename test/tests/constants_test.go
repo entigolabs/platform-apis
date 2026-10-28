@@ -71,11 +71,11 @@ const (
 	AAppsApplicationName = "a-apps"
 	BAppsApplicationName = "b-apps"
 
-	NodePoolKind        = "nodepool.containerengine.oci.upbound.io"
-	OracleZoneName      = "oracle"
-	OracleZonePool      = "default"
-	OracleZoneNamespace = "oracle1"
-	OracleZonePodName   = "oracle1-pause"
+	NodePoolKind     = "nodepool.containerengine.oci.upbound.io"
+	OCIZoneName      = "oci"
+	OCIZonePool      = "default"
+	OCIZoneNamespace = "oci1"
+	OCIZonePodName   = "oci1-pause"
 
 	// ── CronJob ───────────────────────────────────────────────────────────────
 
