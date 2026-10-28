@@ -132,6 +132,17 @@ rules:
 - apiGroups: ["rbac.authorization.k8s.io"]
   resources: ["*"]
   verbs: ["get", "watch", "list"]
+{{- if eq .Values.global.cloudProvider "oracle" }}
+- apiGroups: ["containerengine.oci.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["kms.oci.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["networking.oci.upbound.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -308,6 +319,9 @@ data:
   granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
+{{- if eq .Values.global.cloudProvider "oracle" }}
+  oracleProvider: {{ .Values.zone.environmentConfig.oracleProvider }}
+{{- end }}
   {{- if $mergedRoleMapping }}
   roleMapping:
     {{- range $role, $groups := $mergedRoleMapping }}
@@ -336,6 +350,9 @@ data:
   cluster: {{ .Values.zone.environmentConfig.cluster }}
 {{- if .Values.global.kms.dataAliasArn }}
   dataKMSAlias: {{ .Values.zone.environmentConfig.dataKMSAlias }}
+{{- end }}
+{{- if and (eq .Values.global.cloudProvider "oracle") .Values.global.kms.oracleDataKeyId }}
+  dataKMSKey: {{ .Values.zone.environmentConfig.dataKMSKey }}
 {{- end }}
   securityGroup: {{ .Values.zone.environmentConfig.securityGroup }}
   vpc: {{ .Values.zone.environmentConfig.vpc }}
