@@ -158,9 +158,11 @@ rules:
 - apiGroups: ["elbv2.k8s.aws"]
   resources: ["ingressclassparams"]
   verbs: ["get", "watch", "list"]
+{{- if eq .Values.global.cloudProvider "oracle" }}
 - apiGroups: ["ingress.oraclecloud.com"]
   resources: ["ingressclassparameters"]
   verbs: ["get", "watch", "list"]
+{{- end }}
 - apiGroups: ["metrics.k8s.io"]
   resources: ["nodes"]
   verbs: ["get", "watch", "list"]
