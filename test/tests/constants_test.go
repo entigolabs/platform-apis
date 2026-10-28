@@ -71,7 +71,7 @@ const (
 	AAppsApplicationName = "a-apps"
 	BAppsApplicationName = "b-apps"
 
-	NodePoolKind     = "nodepool.containerengine.oci.upbound.io"
+	OCINodePoolKind  = "nodepool.containerengine.oci.upbound.io"
 	OCIZoneName      = "oci"
 	OCIZonePool      = "default"
 	OCIZoneNamespace = "oci1"

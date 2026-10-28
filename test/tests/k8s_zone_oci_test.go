@@ -26,7 +26,7 @@ func testPlatformApisOCI(t *testing.T, e *env.Environment) {
 	t.Run("zone", func(t *testing.T) {
 		applyFile(t, cluster, "./templates/oci_zone.yaml")
 		waitSyncedAndReady(t, cluster, ZoneKind, OCIZoneName, 60, 10*time.Second)
-		waitSyncedAndReadyByLabel(t, cluster, NodePoolKind, OCIZoneName, 60, 10*time.Second)
+		waitSyncedAndReadyByLabel(t, cluster, OCINodePoolKind, OCIZoneName, 60, 10*time.Second)
 		waitZoneNodesReady(t, cluster, OCIZoneName)
 	})
 	if t.Failed() {
