@@ -116,6 +116,8 @@ jobs:
               webaccess)  cp "$SOURCE/templates/webaccess_test_application.yaml"  "$TARGET/templates/" ;;
               webapp)     cp "$SOURCE/templates/webapp_test_application.yaml"     "$TARGET/templates/" ;;
               zone)       cp "$SOURCE/templates/a_test_application.yaml"          "$TARGET/templates/"
+                          cp "$SOURCE/templates/oracle_zone.yaml"                 "$TARGET/templates/"
+                          cp "$SOURCE/templates/oracle_zone_app.yaml"             "$TARGET/templates/"
                           cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_namespace.yaml"           "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_zone.yaml"                "$TARGET/templates/"

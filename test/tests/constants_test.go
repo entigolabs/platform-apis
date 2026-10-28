@@ -71,6 +71,12 @@ const (
 	AAppsApplicationName = "a-apps"
 	BAppsApplicationName = "b-apps"
 
+	NodePoolKind        = "nodepool.containerengine.oci.upbound.io"
+	OracleZoneName      = "oracle"
+	OracleZonePool      = "default"
+	OracleZoneNamespace = "oracle1"
+	OracleZonePodName   = "oracle1-pause"
+
 	// ── CronJob ───────────────────────────────────────────────────────────────
 
 	CronjobNamespaceName   = "test-cronjob"
