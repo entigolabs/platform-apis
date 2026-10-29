@@ -178,12 +178,39 @@ zone:
     # another Namespace in the same Zone. A Zone can override this with
     # spec.granularNamespaceNetworkPolicy.
     granularNamespaceNetworkPolicy: false
-    # Maintainers and contributors get a fixed set of rules in Zone Namespaces (workloads, config,
-    # Secrets, ingress and routes, Istio traffic rules, ExternalSecrets and the platform APIs).
-    # Resources of other operators installed in the cluster are added here. Rules for resource
-    # types that are not installed have no effect.
+    # Rules of the Role maintainers and contributors get in every Zone Namespace. List resources
+    # explicitly: a wildcard would also grant RBAC, NetworkPolicies, Crossplane managed resources
+    # and the Namespace object itself. Add the resources of other operators installed in the
+    # cluster here; rules for resource types that are not installed have no effect.
     namespaceRole:
-      additionalRules:
+      rules:
+        - apiGroups: [""]
+          resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "secrets",
+                      "persistentvolumeclaims", "serviceaccounts", "events"]
+          verbs: ["*"]
+        - apiGroups: [""]
+          resources: ["pods/exec", "pods/portforward", "pods/eviction"]
+          verbs: ["create"]
+        - apiGroups: ["apps", "batch", "autoscaling", "policy"]
+          resources: ["*"]
+          verbs: ["*"]
+        - apiGroups: ["networking.k8s.io"]
+          resources: ["ingresses"]
+          verbs: ["*"]
+        - apiGroups: ["gateway.networking.k8s.io"]
+          resources: ["httproutes", "grpcroutes", "tcproutes", "tlsroutes"]
+          verbs: ["*"]
+        - apiGroups: ["networking.istio.io"]
+          resources: ["virtualservices", "destinationrules", "serviceentries"]
+          verbs: ["*"]
+        - apiGroups: ["external-secrets.io"]
+          resources: ["externalsecrets"]
+          verbs: ["*"]
+        - apiGroups: ["artifact.entigo.com", "database.entigo.com", "mq.entigo.com",
+                      "networking.entigo.com", "queue.entigo.com", "storage.entigo.com",
+                      "workload.entigo.com"]
+          resources: ["*"]
+          verbs: ["*"]
         - apiGroups: ["cert-manager.io"]
           resources: ["certificates", "issuers"]
           verbs: ["*"]

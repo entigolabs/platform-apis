@@ -44,8 +44,8 @@ type AppProject struct {
 
 // NamespaceRole configures the Role bound to maintainers and contributors in Zone Namespaces.
 type NamespaceRole struct {
-	// AdditionalRules are added to the built-in rules, e.g. for operators installed in the cluster.
-	AdditionalRules []rbacv1.PolicyRule `json:"additionalRules,omitempty"`
+	// Rules of the Role, shipped as defaults in the platform-apis chart values.
+	Rules []rbacv1.PolicyRule `json:"rules,omitempty"`
 }
 
 type RoleMapping struct {
@@ -54,6 +54,11 @@ type RoleMapping struct {
 }
 
 func (e Environment) ValidateFor(provider CloudProvider) error {
+	// Missing rules (an EnvironmentConfig older than the function, e.g. during an upgrade) must stop
+	// the reconcile instead of emptying every Zone Namespace Role. An empty list is a valid choice.
+	if e.NamespaceRole.Rules == nil {
+		return errors.New("namespaceRole.rules is required")
+	}
 	switch provider {
 	case CloudProviderOCI:
 		if e.OCIProvider == "" {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"os"
 	"testing"
 
 	"github.com/entigolabs/function-base/base"
@@ -10,6 +11,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/component-helpers/auth/rbac/validation"
+	"sigs.k8s.io/yaml"
 )
 
 func TestMergeRoleMappings(t *testing.T) {
@@ -211,8 +213,9 @@ func TestGetNamespaceIstioInjection(t *testing.T) {
 	}
 }
 
-// TestGetAllRole checks the zone namespace role bound to maintainers and contributors with the
-// Kubernetes RBAC rule comparator, so a wildcard creeping back in fails the denied cases.
+// TestGetAllRole checks the zone namespace role bound to maintainers and contributors, built from
+// the default rules shipped in the chart values, with the Kubernetes RBAC rule comparator, so a
+// wildcard creeping into the defaults fails the denied cases.
 func TestGetAllRole(t *testing.T) {
 	type access struct{ group, resource, verb string }
 	allowed := []access{
@@ -248,6 +251,8 @@ func TestGetAllRole(t *testing.T) {
 		{"queue.entigo.com", "topics", "create"},
 		{"storage.entigo.com", "s3buckets", "create"},
 		{"workload.entigo.com", "webapps", "update"},
+		{"cert-manager.io", "certificates", "create"},
+		{"monitoring.coreos.com", "servicemonitors", "create"},
 	}
 	denied := []access{
 		// namespace-scoped bindings authorize the Namespace object itself, kubernetes/kubernetes#142024
@@ -278,7 +283,8 @@ func TestGetAllRole(t *testing.T) {
 		{"tenancy.entigo.com", "zones", "update"},
 	}
 
-	rules := zoneGenerator{}.getAllRole("test-app-ns").Rules
+	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: chartDefaultRules(t)}}}
+	rules := g.getAllRole("test-app-ns").Rules
 	allows := func(a access) bool {
 		covered, _ := validation.Covers(rules, []rbacv1.PolicyRule{{
 			APIGroups: []string{a.group},
@@ -324,37 +330,62 @@ func TestGetNamespaceRole(t *testing.T) {
 	}
 }
 
-// TestGetAllRoleAdditionalRules checks that namespaceRole.additionalRules extend the built-in rules.
-func TestGetAllRoleAdditionalRules(t *testing.T) {
+// TestGetAllRoleUsesEnvironmentRules checks that the role holds exactly the configured rules, and
+// grants nothing when none are configured.
+func TestGetAllRoleUsesEnvironmentRules(t *testing.T) {
 	certificate := []rbacv1.PolicyRule{{
 		APIGroups: []string{"cert-manager.io"},
 		Resources: []string{"certificates"},
 		Verbs:     []string{"create"},
 	}}
-	deployment := []rbacv1.PolicyRule{{
-		APIGroups: []string{"apps"},
-		Resources: []string{"deployments"},
-		Verbs:     []string{"create"},
-	}}
-
-	without := zoneGenerator{}.getAllRole("test-app-ns").Rules
-	if covered, _ := validation.Covers(without, certificate); covered {
-		t.Error("certificates must not be allowed without additionalRules")
-	}
-
-	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{AdditionalRules: []rbacv1.PolicyRule{{
+	configured := []rbacv1.PolicyRule{{
 		APIGroups: []string{"cert-manager.io"},
 		Resources: []string{"certificates", "issuers"},
 		Verbs:     []string{"*"},
-	}}}}}
-	with := g.getAllRole("test-app-ns").Rules
-	if covered, _ := validation.Covers(with, certificate); !covered {
-		t.Error("certificates must be allowed with additionalRules")
+	}}
+
+	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: configured}}}
+	if diff := cmp.Diff(configured, g.getAllRole("test-app-ns").Rules); diff != "" {
+		t.Errorf("role rules differ from the configured rules (-want +got):\n%s", diff)
 	}
-	if covered, _ := validation.Covers(with, deployment); !covered {
-		t.Error("additionalRules must extend the built-in rules, not replace them")
+
+	empty := zoneGenerator{}.getAllRole("test-app-ns").Rules
+	if covered, _ := validation.Covers(empty, certificate); covered || len(empty) != 0 {
+		t.Errorf("without configured rules the role must grant nothing, got %v", empty)
 	}
-	if len(with) != len(without)+1 {
-		t.Errorf("got %d rules, want %d", len(with), len(without)+1)
+}
+
+// chartDefaultRules reads zone.environmentConfig.namespaceRole.rules from the chart values.
+func chartDefaultRules(t *testing.T) []rbacv1.PolicyRule {
+	t.Helper()
+	raw, err := os.ReadFile("../../../helm/values.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var values struct {
+		Zone struct {
+			EnvironmentConfig apis.Environment `json:"environmentConfig"`
+		} `json:"zone"`
+	}
+	if err := yaml.Unmarshal(raw, &values); err != nil {
+		t.Fatal(err)
+	}
+	rules := values.Zone.EnvironmentConfig.NamespaceRole.Rules
+	if len(rules) == 0 {
+		t.Fatal("chart values have no zone.environmentConfig.namespaceRole.rules")
+	}
+	return rules
+}
+
+// TestValidateNamespaceRoleRules checks that a missing rules list stops the reconcile (an older
+// EnvironmentConfig during an upgrade), while an explicitly empty list is accepted.
+func TestValidateNamespaceRoleRules(t *testing.T) {
+	env := apis.Environment{AWSProvider: "crossplane-aws", VPC: "vpc"}
+	if err := env.ValidateFor(apis.CloudProviderAWS); err == nil {
+		t.Error("missing namespaceRole.rules must be rejected")
+	}
+	env.NamespaceRole.Rules = []rbacv1.PolicyRule{}
+	if err := env.ValidateFor(apis.CloudProviderAWS); err != nil {
+		t.Errorf("an empty namespaceRole.rules list must be accepted: %v", err)
 	}
 }

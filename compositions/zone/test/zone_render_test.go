@@ -345,7 +345,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"rules.0.resources.0":                   "pods",
 		"rules.0.verbs.0":                       "*",
 		"rules.2.apiGroups.0":                   "apps",
-		// namespaceRole.additionalRules from the EnvironmentConfig
+		// cert-manager rule from namespaceRole.rules in the EnvironmentConfig
 		"rules.8.apiGroups.0": "cert-manager.io",
 		"rules.8.resources.0": "certificates",
 		"rules.8.resources.1": "issuers",

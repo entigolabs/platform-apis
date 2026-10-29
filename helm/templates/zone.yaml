@@ -322,11 +322,9 @@ data:
   granularEgressExclude: {{ .Values.zone.environmentConfig.granularEgressExclude }}
   granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
   {{- with .Values.zone.environmentConfig.namespaceRole }}
-  {{- if .additionalRules }}
   namespaceRole:
-    additionalRules:
-      {{- toYaml .additionalRules | nindent 6 }}
-  {{- end }}
+    rules:
+      {{- toYaml .rules | nindent 6 }}
   {{- end }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}

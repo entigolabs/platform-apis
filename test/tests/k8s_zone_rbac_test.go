@@ -51,7 +51,7 @@ func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			{"create", "externalsecrets.external-secrets.io", true},
 			{"create", "postgresqlinstances.database.entigo.com", true},
 			{"create", "webapps.workload.entigo.com", true},
-			// namespaceRole.additionalRules chart default
+			// in the namespaceRole.rules chart defaults
 			{"create", "certificates.cert-manager.io", true},
 			{"create", "servicemonitors.monitoring.coreos.com", true},
 			{"create", "rolepolicyattachments.iam.aws.m.upbound.io", false},
