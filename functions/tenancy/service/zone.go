@@ -459,12 +459,54 @@ func (g zoneGenerator) getNetworkPolicy(nsName string, granularNetwork bool) *ne
 	}
 }
 
+// getAllRole lists allowed resources explicitly instead of */*/*. A wildcard would also grant
+// managed resources (*.upbound.io), RBAC, NetworkPolicies and the Namespace object itself
+// (namespace-scoped RoleBindings authorize /api/v1/namespaces/<ns>, kubernetes/kubernetes#142024).
 func (g zoneGenerator) getAllRole(nsName string) *rbacv1.Role {
-	rules := []rbacv1.PolicyRule{{
-		APIGroups: []string{"*"},
-		Resources: []string{"*"},
-		Verbs:     []string{"*"},
-	}}
+	rules := []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{""},
+			Resources: []string{"pods", "pods/log", "services", "endpoints", "configmaps", "secrets",
+				"persistentvolumeclaims", "serviceaccounts", "events"},
+			Verbs: []string{"*"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"pods/exec", "pods/portforward", "pods/eviction"},
+			Verbs:     []string{"create"},
+		},
+		{
+			APIGroups: []string{"apps", "batch", "autoscaling", "policy"},
+			Resources: []string{"*"},
+			Verbs:     []string{"*"},
+		},
+		{
+			APIGroups: []string{"networking.k8s.io"},
+			Resources: []string{"ingresses"},
+			Verbs:     []string{"*"},
+		},
+		{
+			APIGroups: []string{"gateway.networking.k8s.io"},
+			Resources: []string{"httproutes", "grpcroutes", "tcproutes", "tlsroutes"},
+			Verbs:     []string{"*"},
+		},
+		{
+			APIGroups: []string{"networking.istio.io"},
+			Resources: []string{"virtualservices", "destinationrules", "serviceentries"},
+			Verbs:     []string{"*"},
+		},
+		{
+			APIGroups: []string{"external-secrets.io"},
+			Resources: []string{"externalsecrets"},
+			Verbs:     []string{"*"},
+		},
+		{
+			APIGroups: []string{"artifact.entigo.com", "database.entigo.com", "mq.entigo.com",
+				"networking.entigo.com", "queue.entigo.com", "storage.entigo.com", "workload.entigo.com"},
+			Resources: []string{"*"},
+			Verbs:     []string{"*"},
+		},
+	}
 	return g.getRole(nsName, nsName+"-all", rules)
 }
 

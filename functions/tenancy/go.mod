@@ -26,7 +26,10 @@ require (
 	sigs.k8s.io/controller-runtime v0.23.3
 )
 
-require github.com/google/go-cmp v0.7.0
+require (
+	github.com/google/go-cmp v0.7.0
+	k8s.io/component-helpers v0.35.2
+)
 
 require (
 	cel.dev/expr v0.25.1 // indirect

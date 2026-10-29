@@ -29,7 +29,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["namespaces"]
-  verbs: ["create"]
+  verbs: ["create", "update", "patch", "delete"]
 - apiGroups: ["tenancy.entigo.com"]
   resources: ["zones"]
   verbs: ["*"]

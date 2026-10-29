@@ -314,9 +314,10 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
 		"metadata.ownerReferences.0.kind":       "Zone",
 		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "*",
-		"rules.0.resources.0":                   "*",
+		"rules.0.apiGroups.0":                   "",
+		"rules.0.resources.0":                   "pods",
 		"rules.0.verbs.0":                       "*",
+		"rules.2.apiGroups.0":                   "apps",
 	})
 
 	t.Log("Validating rbac.authorization.k8s.io Role fields")
@@ -340,9 +341,10 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
 		"metadata.ownerReferences.0.kind":       "Zone",
 		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "*",
-		"rules.0.resources.0":                   "*",
+		"rules.0.apiGroups.0":                   "",
+		"rules.0.resources.0":                   "pods",
 		"rules.0.verbs.0":                       "*",
+		"rules.2.apiGroups.0":                   "apps",
 	})
 
 	t.Log("Validating rbac.authorization.k8s.io Role fields")

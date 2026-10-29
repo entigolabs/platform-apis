@@ -7,7 +7,9 @@ import (
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/google/go-cmp/cmp"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/component-helpers/auth/rbac/validation"
 )
 
 func TestMergeRoleMappings(t *testing.T) {
@@ -206,5 +208,93 @@ func TestGetNamespaceIstioInjection(t *testing.T) {
 				t.Fatalf("istio-injection = %q, want %q", value, "enabled")
 			}
 		})
+	}
+}
+
+// TestGetAllRole checks the zone namespace role bound to maintainers and contributors with the
+// Kubernetes RBAC rule comparator, so a wildcard creeping back in fails the denied cases.
+func TestGetAllRole(t *testing.T) {
+	type access struct{ group, resource, verb string }
+	allowed := []access{
+		{"", "pods", "delete"},
+		{"", "pods/log", "get"},
+		{"", "pods/exec", "create"},
+		{"", "pods/portforward", "create"},
+		{"", "pods/eviction", "create"},
+		{"", "services", "create"},
+		{"", "configmaps", "update"},
+		{"", "secrets", "create"},
+		{"", "secrets", "delete"},
+		{"", "persistentvolumeclaims", "create"},
+		{"", "serviceaccounts", "create"},
+		{"", "events", "list"},
+		{"apps", "deployments", "patch"},
+		{"apps", "statefulsets", "create"},
+		{"apps", "deployments/scale", "update"},
+		{"batch", "jobs", "create"},
+		{"batch", "cronjobs", "delete"},
+		{"autoscaling", "horizontalpodautoscalers", "create"},
+		{"policy", "poddisruptionbudgets", "create"},
+		{"networking.k8s.io", "ingresses", "create"},
+		{"gateway.networking.k8s.io", "httproutes", "create"},
+		{"networking.istio.io", "virtualservices", "create"},
+		{"networking.istio.io", "destinationrules", "update"},
+		{"networking.istio.io", "serviceentries", "create"},
+		{"external-secrets.io", "externalsecrets", "create"},
+		{"artifact.entigo.com", "repositories", "create"},
+		{"database.entigo.com", "postgresqlinstances", "create"},
+		{"mq.entigo.com", "rabbitmqbrokers", "delete"},
+		{"networking.entigo.com", "webaccesses", "create"},
+		{"queue.entigo.com", "topics", "create"},
+		{"storage.entigo.com", "s3buckets", "create"},
+		{"workload.entigo.com", "webapps", "update"},
+	}
+	denied := []access{
+		// namespace-scoped bindings authorize the Namespace object itself, kubernetes/kubernetes#142024
+		{"", "namespaces", "get"},
+		{"", "namespaces", "update"},
+		{"", "namespaces", "patch"},
+		{"", "namespaces", "delete"},
+		{"", "resourcequotas", "update"},
+		{"", "limitranges", "delete"},
+		// managed resources use the Crossplane provider credentials
+		{"iam.aws.m.upbound.io", "rolepolicyattachments", "create"},
+		{"iam.aws.m.upbound.io", "roles", "create"},
+		{"s3.aws.m.upbound.io", "buckets", "create"},
+		{"iam.aws.upbound.io", "policies", "create"},
+		{"apiextensions.crossplane.io", "compositions", "create"},
+		{"pkg.crossplane.io", "providers", "create"},
+		{"rbac.authorization.k8s.io", "roles", "create"},
+		{"rbac.authorization.k8s.io", "rolebindings", "create"},
+		{"rbac.authorization.k8s.io", "rolebindings", "update"},
+		{"networking.k8s.io", "networkpolicies", "update"},
+		{"networking.k8s.io", "networkpolicies", "delete"},
+		{"networking.istio.io", "sidecars", "update"},
+		{"security.istio.io", "authorizationpolicies", "create"},
+		{"security.istio.io", "peerauthentications", "create"},
+		{"kyverno.io", "policies", "create"},
+		{"policies.kyverno.io", "policyexceptions", "create"},
+		{"argoproj.io", "applications", "create"},
+		{"tenancy.entigo.com", "zones", "update"},
+	}
+
+	rules := zoneGenerator{}.getAllRole("test-app-ns").Rules
+	allows := func(a access) bool {
+		covered, _ := validation.Covers(rules, []rbacv1.PolicyRule{{
+			APIGroups: []string{a.group},
+			Resources: []string{a.resource},
+			Verbs:     []string{a.verb},
+		}})
+		return covered
+	}
+	for _, a := range allowed {
+		if !allows(a) {
+			t.Errorf("want allowed: %s %s (group %q)", a.verb, a.resource, a.group)
+		}
+	}
+	for _, a := range denied {
+		if allows(a) {
+			t.Errorf("want denied: %s %s (group %q)", a.verb, a.resource, a.group)
+		}
 	}
 }
