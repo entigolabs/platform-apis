@@ -178,10 +178,8 @@ zone:
     # another Namespace in the same Zone. A Zone can override this with
     # spec.granularNamespaceNetworkPolicy.
     granularNamespaceNetworkPolicy: false
-    # Rules of the Role maintainers and contributors get in every Zone Namespace. List resources
-    # explicitly: a wildcard would also grant RBAC, NetworkPolicies, Crossplane managed resources
-    # and the Namespace object itself. Add the resources of other operators installed in the
-    # cluster here; rules for resource types that are not installed have no effect.
+    # Role of maintainers and contributors in Zone Namespaces. Avoid wildcards: they also grant RBAC,
+    # Crossplane managed resources and the Namespace itself.
     namespaceRole:
       rules:
         - apiGroups: [""]
@@ -445,8 +443,7 @@ zone:
         - name: monitoring
           hosts: ["monitoring.{region}.amazonaws.com"]
   kyvernoNamespace: kyverno
-  # Namespace of Crossplane and its providers. Their service accounts are the only ones allowed to
-  # create namespaced managed resources (*.m.upbound.io) in Zone Namespaces.
+  # only service accounts of this namespace may create managed resources in Zone Namespaces
   crossplaneNamespace: crossplane-system
   clusterResourceWhitelist:
     - group: tenancy.entigo.com

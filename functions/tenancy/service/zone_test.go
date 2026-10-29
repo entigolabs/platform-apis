@@ -213,9 +213,7 @@ func TestGetNamespaceIstioInjection(t *testing.T) {
 	}
 }
 
-// TestGetAllRole checks the zone namespace role bound to maintainers and contributors, built from
-// the default rules shipped in the chart values, with the Kubernetes RBAC rule comparator, so a
-// wildcard creeping into the defaults fails the denied cases.
+// TestGetAllRole checks the chart default rules.
 func TestGetAllRole(t *testing.T) {
 	type access struct{ group, resource, verb string }
 	allowed := []access{
@@ -255,14 +253,13 @@ func TestGetAllRole(t *testing.T) {
 		{"monitoring.coreos.com", "servicemonitors", "create"},
 	}
 	denied := []access{
-		// namespace-scoped bindings authorize the Namespace object itself, kubernetes/kubernetes#142024
+		// kubernetes/kubernetes#142024
 		{"", "namespaces", "get"},
 		{"", "namespaces", "update"},
 		{"", "namespaces", "patch"},
 		{"", "namespaces", "delete"},
 		{"", "resourcequotas", "update"},
 		{"", "limitranges", "delete"},
-		// managed resources use the Crossplane provider credentials
 		{"iam.aws.m.upbound.io", "rolepolicyattachments", "create"},
 		{"iam.aws.m.upbound.io", "roles", "create"},
 		{"s3.aws.m.upbound.io", "buckets", "create"},
@@ -305,7 +302,6 @@ func TestGetAllRole(t *testing.T) {
 	}
 }
 
-// TestGetNamespaceRole checks that maintainers can manage only their own zone namespace object.
 func TestGetNamespaceRole(t *testing.T) {
 	rules := zoneGenerator{}.getNamespaceRole("test-app-ns").Rules
 	allows := func(name, verb string) bool {
@@ -330,8 +326,6 @@ func TestGetNamespaceRole(t *testing.T) {
 	}
 }
 
-// TestGetAllRoleUsesEnvironmentRules checks that the role holds exactly the configured rules, and
-// grants nothing when none are configured.
 func TestGetAllRoleUsesEnvironmentRules(t *testing.T) {
 	certificate := []rbacv1.PolicyRule{{
 		APIGroups: []string{"cert-manager.io"},
@@ -355,7 +349,6 @@ func TestGetAllRoleUsesEnvironmentRules(t *testing.T) {
 	}
 }
 
-// chartDefaultRules reads zone.environmentConfig.namespaceRole.rules from the chart values.
 func chartDefaultRules(t *testing.T) []rbacv1.PolicyRule {
 	t.Helper()
 	raw, err := os.ReadFile("../../../helm/values.yaml")
@@ -377,8 +370,6 @@ func chartDefaultRules(t *testing.T) []rbacv1.PolicyRule {
 	return rules
 }
 
-// TestValidateNamespaceRoleRules checks that a missing rules list stops the reconcile (an older
-// EnvironmentConfig during an upgrade), while an explicitly empty list is accepted.
 func TestValidateNamespaceRoleRules(t *testing.T) {
 	env := apis.Environment{AWSProvider: "crossplane-aws", VPC: "vpc"}
 	if err := env.ValidateFor(apis.CloudProviderAWS); err == nil {

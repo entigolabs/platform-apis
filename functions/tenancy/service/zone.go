@@ -469,17 +469,11 @@ func (g zoneGenerator) getNetworkPolicy(nsName string, granularNetwork bool) *ne
 	}
 }
 
-// getAllRole uses the environment's namespaceRole.rules, which the platform-apis chart ships with
-// defaults. The rules list resources explicitly: a wildcard would also grant managed resources
-// (*.upbound.io), RBAC, NetworkPolicies and the Namespace object itself (namespace-scoped
-// RoleBindings authorize /api/v1/namespaces/<ns>, kubernetes/kubernetes#142024).
 func (g zoneGenerator) getAllRole(nsName string) *rbacv1.Role {
 	return g.getRole(nsName, nsName+"-all", g.env.NamespaceRole.Rules)
 }
 
-// getNamespaceRole lets maintainers manage the zone namespace object itself. A RoleBinding in the
-// namespace authorizes /api/v1/namespaces/<ns> (kubernetes/kubernetes#142024), so this stays limited
-// to zone namespaces, unlike a cluster-wide grant.
+// getNamespaceRole lets maintainers manage the zone namespace object itself.
 func (g zoneGenerator) getNamespaceRole(nsName string) *rbacv1.Role {
 	rules := []rbacv1.PolicyRule{{
 		APIGroups:     []string{""},

@@ -940,10 +940,7 @@ spec:
           : "no zone label - must be labeled manually first")
       ).join(", ")
 ---
-# Namespaced managed resources (*.m.upbound.io, *.m.crossplane.io) use the Crossplane provider
-# credentials, so creating one directly (kubectl, ArgoCD, a self-granted Role) acts with the
-# provider's permissions. Only Crossplane, composing platform APIs, may create them in Zone
-# Namespaces.
+# Managed resources act with the Crossplane provider credentials, so only Crossplane may create them.
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:

@@ -9,11 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// TestZoneManagedResourceDeny covers platform-apis-zone-managed-resource-deny (ValidatingPolicy).
-// The kyverno CLI cannot evaluate a wildcard rule against a custom resource offline (it has no CRD
-// to map the kind), so the rendered matchConditions are evaluated with CEL directly: the request is
-// denied when every condition matches. The namespaceSelector (Zone Namespaces except infralib) is
-// checked on its rendered form.
+// TestZoneManagedResourceDeny evaluates the policy's matchConditions with CEL, as the kyverno CLI
+// cannot match a wildcard rule against a CRD offline.
 func TestZoneManagedResourceDeny(t *testing.T) {
 	spec := renderManagedResourcePolicy(t, "crossplane-system")
 
