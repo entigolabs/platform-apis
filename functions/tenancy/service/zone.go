@@ -469,7 +469,8 @@ func (g zoneGenerator) getNetworkPolicy(nsName string, granularNetwork bool) *ne
 	}
 }
 
-// getAllRole lists allowed resources explicitly instead of */*/*. A wildcard would also grant
+// getAllRole lists allowed resources explicitly instead of */*/*, plus the environment's
+// namespaceRole.additionalRules for operators installed in the cluster. A wildcard would also grant
 // managed resources (*.upbound.io), RBAC, NetworkPolicies and the Namespace object itself
 // (namespace-scoped RoleBindings authorize /api/v1/namespaces/<ns>, kubernetes/kubernetes#142024).
 func (g zoneGenerator) getAllRole(nsName string) *rbacv1.Role {
@@ -517,6 +518,7 @@ func (g zoneGenerator) getAllRole(nsName string) *rbacv1.Role {
 			Verbs:     []string{"*"},
 		},
 	}
+	rules = append(rules, g.env.NamespaceRole.AdditionalRules...)
 	return g.getRole(nsName, nsName+"-all", rules)
 }
 

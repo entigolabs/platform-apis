@@ -323,3 +323,38 @@ func TestGetNamespaceRole(t *testing.T) {
 		t.Errorf("want denied: create namespace (granted by the maintainer ClusterRole)")
 	}
 }
+
+// TestGetAllRoleAdditionalRules checks that namespaceRole.additionalRules extend the built-in rules.
+func TestGetAllRoleAdditionalRules(t *testing.T) {
+	certificate := []rbacv1.PolicyRule{{
+		APIGroups: []string{"cert-manager.io"},
+		Resources: []string{"certificates"},
+		Verbs:     []string{"create"},
+	}}
+	deployment := []rbacv1.PolicyRule{{
+		APIGroups: []string{"apps"},
+		Resources: []string{"deployments"},
+		Verbs:     []string{"create"},
+	}}
+
+	without := zoneGenerator{}.getAllRole("test-app-ns").Rules
+	if covered, _ := validation.Covers(without, certificate); covered {
+		t.Error("certificates must not be allowed without additionalRules")
+	}
+
+	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{AdditionalRules: []rbacv1.PolicyRule{{
+		APIGroups: []string{"cert-manager.io"},
+		Resources: []string{"certificates", "issuers"},
+		Verbs:     []string{"*"},
+	}}}}}
+	with := g.getAllRole("test-app-ns").Rules
+	if covered, _ := validation.Covers(with, certificate); !covered {
+		t.Error("certificates must be allowed with additionalRules")
+	}
+	if covered, _ := validation.Covers(with, deployment); !covered {
+		t.Error("additionalRules must extend the built-in rules, not replace them")
+	}
+	if len(with) != len(without)+1 {
+		t.Errorf("got %d rules, want %d", len(with), len(without)+1)
+	}
+}

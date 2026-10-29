@@ -3,6 +3,7 @@ package apis
 import (
 	"errors"
 
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,6 +26,7 @@ type Environment struct {
 	GranularEgress                 bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude          []string           `json:"granularEgressExclude,omitempty"`
 	GranularNamespaceNetworkPolicy bool               `json:"granularNamespaceNetworkPolicy,omitempty"`
+	NamespaceRole                  NamespaceRole      `json:"namespaceRole,omitempty"`
 	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
 	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
@@ -38,6 +40,12 @@ type AppProject struct {
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty"`
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty"`
 	SourceRepos                []string           `json:"sourceRepos,omitempty"`
+}
+
+// NamespaceRole configures the Role bound to maintainers and contributors in Zone Namespaces.
+type NamespaceRole struct {
+	// AdditionalRules are added to the built-in rules, e.g. for operators installed in the cluster.
+	AdditionalRules []rbacv1.PolicyRule `json:"additionalRules,omitempty"`
 }
 
 type RoleMapping struct {

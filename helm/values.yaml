@@ -178,6 +178,18 @@ zone:
     # another Namespace in the same Zone. A Zone can override this with
     # spec.granularNamespaceNetworkPolicy.
     granularNamespaceNetworkPolicy: false
+    # Maintainers and contributors get a fixed set of rules in Zone Namespaces (workloads, config,
+    # Secrets, ingress and routes, Istio traffic rules, ExternalSecrets and the platform APIs).
+    # Resources of other operators installed in the cluster are added here. Rules for resource
+    # types that are not installed have no effect.
+    namespaceRole:
+      additionalRules:
+        - apiGroups: ["cert-manager.io"]
+          resources: ["certificates", "issuers"]
+          verbs: ["*"]
+        - apiGroups: ["monitoring.coreos.com"]
+          resources: ["servicemonitors", "podmonitors", "prometheusrules"]
+          verbs: ["*"]
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
     oracleProvider: "crossplane-oracle"
