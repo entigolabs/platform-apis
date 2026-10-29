@@ -238,6 +238,10 @@ func GetRBACRoleReadKey(zone, namespace string) string {
 	return "rbacrole-read-" + zone + "-" + namespace
 }
 
+func GetRBACRoleNamespaceKey(zone, namespace string) string {
+	return "rbacrole-namespace-" + zone + "-" + namespace
+}
+
 func GetRBKey(zone, namespace, roleRef string) string {
 	return "rb-" + roleRef + "-" + zone + "-" + namespace
 }
@@ -320,6 +324,12 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 			roleName = readRole.Name
 		}
 		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
+	}
+	if groups, ok := g.roleMappings[RoleMaintainer]; ok {
+		nsRole := g.getNamespaceRole(name)
+		objs[GetRBACRoleNamespaceKey(g.zone.Name, name)] = nsRole
+		objs[GetRBKey(g.zone.Name, name, RoleMaintainer+"-namespace")] =
+			g.getRoleBinding(name, name+"-"+RoleMaintainer+"-namespace", nsRole.Name, groups)
 	}
 	objs[GetMutatingPolicyKey(g.zone.Name, name)] = g.getMutatingPolicy(name, pool)
 	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = g.getLabelsMutatingPolicy(name)
@@ -508,6 +518,19 @@ func (g zoneGenerator) getAllRole(nsName string) *rbacv1.Role {
 		},
 	}
 	return g.getRole(nsName, nsName+"-all", rules)
+}
+
+// getNamespaceRole lets maintainers manage the zone namespace object itself. A RoleBinding in the
+// namespace authorizes /api/v1/namespaces/<ns> (kubernetes/kubernetes#142024), so this stays limited
+// to zone namespaces, unlike a cluster-wide grant.
+func (g zoneGenerator) getNamespaceRole(nsName string) *rbacv1.Role {
+	rules := []rbacv1.PolicyRule{{
+		APIGroups:     []string{""},
+		Resources:     []string{"namespaces"},
+		ResourceNames: []string{nsName},
+		Verbs:         []string{"update", "patch", "delete"},
+	}}
+	return g.getRole(nsName, nsName+"-namespace", rules)
 }
 
 func (g zoneGenerator) getReadRole(nsName string) *rbacv1.Role {

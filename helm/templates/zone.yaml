@@ -29,7 +29,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["namespaces"]
-  verbs: ["create", "update", "patch", "delete"]
+  verbs: ["create"]
 - apiGroups: ["tenancy.entigo.com"]
   resources: ["zones"]
   verbs: ["*"]
@@ -934,6 +934,53 @@ spec:
           "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels[variables.zoneLabel]
           : "no zone label - must be labeled manually first")
       ).join(", ")
+---
+# Namespaced managed resources (*.m.upbound.io, *.m.crossplane.io) use the Crossplane provider
+# credentials, so creating one directly (kubectl, ArgoCD, a self-granted Role) acts with the
+# provider's permissions. Only Crossplane, composing platform APIs, may create them in Zone
+# Namespaces.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-managed-resource-deny
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  validationActions:
+    - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  matchConstraints:
+    namespaceSelector:
+      matchExpressions:
+        - key: tenancy.entigo.com/zone
+          operator: Exists
+        - key: tenancy.entigo.com/zone
+          operator: NotIn
+          values: ["infralib"]
+    resourceRules:
+      - apiGroups: ["*"]
+        apiVersions: ["*"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["*"]
+        scope: Namespaced
+  matchConditions:
+    - name: "is-managed-resource"
+      expression: 'request.kind.group.endsWith(".m.upbound.io") || request.kind.group.endsWith(".m.crossplane.io")'
+    - name: "not-crossplane"
+      expression: '!request.userInfo.username.startsWith("system:serviceaccount:{{ .Values.zone.crossplaneNamespace }}:")'
+    # the garbage collector updates owner references of dependents
+    - name: "not-kube-controller"
+      expression: '!request.userInfo.username.startsWith("system:serviceaccount:kube-system:") && request.userInfo.username != "system:kube-controller-manager"'
+  validations:
+    - expression: "false"
+      messageExpression: >-
+        "Managed resource " + request.kind.kind + "." + request.kind.group +
+        " can only be created by Crossplane, use the platform APIs instead."
 
 {{- $deletionProtectedResources := list }}
 {{- if .Values.s3bucket.install }}

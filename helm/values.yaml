@@ -406,6 +406,9 @@ zone:
         - name: monitoring
           hosts: ["monitoring.{region}.amazonaws.com"]
   kyvernoNamespace: kyverno
+  # Namespace of Crossplane and its providers. Their service accounts are the only ones allowed to
+  # create namespaced managed resources (*.m.upbound.io) in Zone Namespaces.
+  crossplaneNamespace: crossplane-system
   clusterResourceWhitelist:
     - group: tenancy.entigo.com
       kind: Zone

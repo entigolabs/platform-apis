@@ -298,3 +298,28 @@ func TestGetAllRole(t *testing.T) {
 		}
 	}
 }
+
+// TestGetNamespaceRole checks that maintainers can manage only their own zone namespace object.
+func TestGetNamespaceRole(t *testing.T) {
+	rules := zoneGenerator{}.getNamespaceRole("test-app-ns").Rules
+	allows := func(name, verb string) bool {
+		covered, _ := validation.Covers(rules, []rbacv1.PolicyRule{{
+			APIGroups:     []string{""},
+			Resources:     []string{"namespaces"},
+			ResourceNames: []string{name},
+			Verbs:         []string{verb},
+		}})
+		return covered
+	}
+	for _, verb := range []string{"update", "patch", "delete"} {
+		if !allows("test-app-ns", verb) {
+			t.Errorf("want allowed: %s namespace test-app-ns", verb)
+		}
+		if allows("kube-system", verb) {
+			t.Errorf("want denied: %s namespace kube-system", verb)
+		}
+	}
+	if allows("test-app-ns", "create") {
+		t.Errorf("want denied: create namespace (granted by the maintainer ClusterRole)")
+	}
+}
