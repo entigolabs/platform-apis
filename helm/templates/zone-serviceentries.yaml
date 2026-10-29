@@ -90,10 +90,11 @@ is not listed finds no filter chain and is still blackholed. The subnet groups a
 this way - a plain database connection carries no SNI - which is also why they must set addresses,
 since a hostname-only entry with resolution NONE opens its ports to every destination.
 
-{region} in a host is replaced with the region passed in. A host without it is used as written, for
-the endpoints AWS does not regionalise. A host that needs a region while none is set is dropped
-rather than rendered with the placeholder still in it, which would match nothing, and a service
-with no hosts left is skipped, the same way a subnet group with no cidrs is.
+{region}, {domain} and {namespace} in a host are replaced with the values passed in vars. A host
+without them is used as written, for the endpoints AWS does not regionalise. A host that needs a
+value which is not set is dropped rather than rendered with the placeholder still in it, which
+would match nothing, and a service with no hosts left is skipped, the same way a subnet group with
+no cidrs is.
 
 Every host has to be a name Istio can resolve. Under resolution DNS with no endpoints, Istio's
 validating webhook rejects anything else, wildcards included, and it rejects it at apply time
@@ -101,7 +102,7 @@ against the whole chart rather than the one entry - a single "*.s3.<region>.amaz
 the entire platform-apis sync. Failing the render says which host and why, before any of that.
 */}}
 {{- define "platform-apis.zoneHostServiceEntry" -}}
-{{- $region := .region }}
+{{- $vars := .vars }}
 {{- $objectName := .objectName }}
 {{- $hosts := list }}
 {{- range .hosts }}
@@ -109,8 +110,14 @@ the entire platform-apis sync. Failing the render says which host and why, befor
 {{- fail (printf "zone.istioServiceEntries: %s host %q is a wildcard. These entries resolve by DNS, where Istio requires a name it can resolve and rejects the whole chart, so list the names in use instead" $objectName .) }}
 {{- end }}
 {{- $host := . | trim }}
-{{- if and $host (or $region (not (contains "{region}" $host))) }}
-{{- $hosts = append $hosts (replace "{region}" $region $host) }}
+{{- range $name, $value := $vars }}
+{{- $placeholder := printf "{%s}" $name }}
+{{- if contains $placeholder $host }}
+{{- $host = ternary (replace $placeholder $value $host) "" (ne $value "") }}
+{{- end }}
+{{- end }}
+{{- if $host }}
+{{- $hosts = append $hosts $host }}
 {{- end }}
 {{- end }}
 {{- if and $hosts .ports }}
@@ -149,8 +156,8 @@ spec:
 {{- $istioNs := $se.istioNamespace }}
 {{- if and $istioNs .Values.zone.environmentConfig.granularEgress }}
 {{/* Every entry below lands in one Namespace, where two objects cannot share a name. The name
-     each list renders carries a prefix no other list can produce - subnet-, extra-subnet-, aws-
-     and extra-host- are pairwise distinct right after platform-apis- - so a name chosen in one
+     each list renders carries a prefix no other list can produce - subnet-, extra-subnet-, aws-,
+     oci- and extra-host- are pairwise distinct right after platform-apis- - so a name chosen in one
      list can never collide with a name from another, whatever it is called. An extraSubnets entry
      named "data" renders platform-apis-extra-subnet-data and sits next to the built-in
      platform-apis-subnet-data rather than replacing it. A name repeated within one list still
@@ -160,16 +167,28 @@ spec:
 {{- range $se.extraSubnets }}
 {{- include "platform-apis.zoneServiceEntry" (dict "objectName" (printf "platform-apis-extra-subnet-%s" .name) "istioNamespace" $istioNs "cidrs" .cidrs "ports" .ports) }}
 {{- end }}
-{{/* The AWS defaults are a set of regional endpoints, so without a region none of them can be
-     rendered. extraServices are whatever this environment needs and may not be regional at all,
-     so they are not held back by that. */}}
-{{- $region := $se.region }}
-{{- if $region }}
+{{/* The AWS and OCI defaults are each their own cloud's regional endpoints, so each renders only
+     on that cloud, and without a region (and on OCI a domain) none of them can be rendered.
+     extraServices are whatever this environment needs and may not be regional at all, so they
+     are not held back by that. */}}
+{{- $vars := dict "region" ($se.region | default "") "domain" ($se.domain | default "") "namespace" ($se.objectStorageNamespace | default "") }}
+{{- $cloud := .Values.global.cloudProvider }}
+{{- if and (eq $cloud "aws") $vars.region }}
 {{- range $se.awsApis.services | default list }}
-{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-aws-%s" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
+{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-aws-%s" .name) "istioNamespace" $istioNs "vars" $vars "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
+{{- end }}
+{{- end }}
+{{- if eq $cloud "oracle" }}
+{{- with $se.ociApis.workloadIdentity }}
+{{- include "platform-apis.zoneServiceEntry" (dict "objectName" "platform-apis-oci-workload-identity" "istioNamespace" $istioNs "cidrs" .address "ports" .ports) }}
+{{- end }}
+{{- if and $vars.region $vars.domain }}
+{{- range $se.ociApis.services | default list }}
+{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-oci-%s" .name) "istioNamespace" $istioNs "vars" $vars "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- range $se.extraServices | default list }}
-{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-extra-host-%s" .name) "istioNamespace" $istioNs "region" $region "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
+{{- include "platform-apis.zoneHostServiceEntry" (dict "objectName" (printf "platform-apis-extra-host-%s" .name) "istioNamespace" $istioNs "vars" $vars "hosts" .hosts "ports" (.ports | default $se.defaultPorts)) }}
 {{- end }}
 {{- end }}

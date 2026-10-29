@@ -250,8 +250,8 @@ zone:
   # opens nothing rather than everything.
   istioServiceEntries:
     # Destinations a Zone may reach while granularEgress is on, as Istio ServiceEntries. Each list
-    # below renders under a prefix of its own - platform-apis-subnet-, -extra-subnet-, -aws- and
-    # -extra-host- - so a name chosen in one list can never collide with a name from another, and
+    # below renders under a prefix of its own - platform-apis-subnet-, -extra-subnet-, -aws-, -oci-
+    # and -extra-host- - so a name chosen in one list can never collide with a name from another, and
     # the prefix says which list an entry came from when reading them back out of the cluster.
     #
     # Namespace the entries are created in. Must be the Namespace the Zone Sidecars allow, which is
@@ -268,6 +268,13 @@ zone:
     # The cluster's region, substituted into {region} in any host below.
     #   region: "{{ .toutput.eks.region }}"
     region: ""
+    # The cloud's domain, substituted into {domain} in any host below. On Oracle it is the realm's
+    # second-level domain, oraclecloud.com, or oraclecloud.eu in the EU Sovereign Cloud.
+    #   domain: "{{ .agent.providerDomain }}"
+    domain: ""
+    # The tenancy's Object Storage namespace, substituted into {namespace} in any host below.
+    #   objectStorageNamespace: "{{ .toutput.oke.object_storage_namespace }}"
+    objectStorageNamespace: ""
     # Managed data services: RDS, ElastiCache and MSK, as platform-apis-subnet-data. Deliberately
     # one group rather than separate database and elasticache groups, so a Valkey launched into the
     # database subnet works the same as one in the elasticache subnet.
@@ -325,9 +332,9 @@ zone:
     defaultPorts:
       - {number: 443, name: tls-https, protocol: TLS}
     # Endpoints this environment needs, reached by hostname. One ServiceEntry per entry, named
-    # platform-apis-extra-host-<name>, alongside the AWS ones below rather than replacing them, so
-    # opening one more endpoint does not mean restating every default host. That prefix is the
-    # entry's own, so a name reused from the AWS list adds an entry rather than replacing one.
+    # platform-apis-extra-host-<name>, alongside the AWS and OCI ones below rather than replacing
+    # them, so opening one more endpoint does not mean restating every default host. That prefix is
+    # the entry's own, so a name reused from those lists adds an entry rather than replacing one.
     #   extraServices:
     #     - name: bedrock
     #       hosts: ["bedrock-runtime.{region}.amazonaws.com"]
@@ -335,12 +342,14 @@ zone:
     #       hosts: ["api.partner.example.com"]
     #       ports:
     #         - {number: 8443, name: tls-https-alt, protocol: TLS}
-    # Unlike the AWS defaults these render even when region is empty, since an endpoint here may
-    # not be regional. A host that does use {region} is dropped while no region is set.
+    # Unlike the AWS and OCI defaults these render even when region is empty, since an endpoint
+    # here may not be regional. A host that uses {region}, {domain} or {namespace} is dropped
+    # while that value is not set.
     extraServices: []
-    # AWS service APIs every Zone can reach. One ServiceEntry per service, named
-    # platform-apis-aws-<name>, scoped by hostname rather than by address because an AWS endpoint
-    # resolves to addresses that change and that the cluster cannot know in advance.
+    # AWS service APIs every Zone can reach, rendered when global.cloudProvider is aws. One
+    # ServiceEntry per service, named platform-apis-aws-<name>, scoped by hostname rather than by
+    # address because an AWS endpoint resolves to addresses that change and that the cluster cannot
+    # know in advance.
     #
     # sts is not optional: a tenant ServiceAccount carries eks.amazonaws.com/role-arn and the Pod
     # itself calls STS to exchange it for credentials, so with granularEgress on and STS closed
@@ -405,6 +414,68 @@ zone:
           hosts: ["logs.{region}.amazonaws.com"]
         - name: monitoring
           hosts: ["monitoring.{region}.amazonaws.com"]
+    # OCI service APIs every Zone can reach, rendered when global.cloudProvider is oracle. One
+    # ServiceEntry per service, named platform-apis-oci-<name>, scoped by hostname for the same
+    # reason as the AWS list. Hosts follow the endpoint templates of the OCI SDKs, with {region}
+    # and {domain} filled in above. The whole group is skipped while region or domain is empty.
+    ociApis:
+      # OKE Workload Identity, as platform-apis-oci-workload-identity. Not optional, for the same
+      # reason as sts above: a Pod using Workload Identity fetches its token from the proxymux on
+      # the kube-apiserver Service address, port 12250, and with granularEgress on and that closed
+      # every such Pod fails to authenticate. The address is the first address of the services
+      # CIDR. Empty skips the entry.
+      #   address: "{{ .toutput.oke.kubernetes_service_ip }}"
+      workloadIdentity:
+        address: ""
+        ports:
+          - {number: 12250, name: tcp-proxymux, protocol: TCP}
+      services:
+        # Storage. objectstorage.{region}.{domain} is the SDK default in every realm but the
+        # commercial one, where the SDK calls the tenancy's own {namespace} host instead.
+        - name: objectstorage
+          hosts:
+            - "objectstorage.{region}.{domain}"
+            - "{namespace}.objectstorage.{region}.oci.customer-oci.com"
+        # Images. Pulls are made by the kubelet on the node and never pass through the sidecar,
+        # this is the Artifacts API.
+        - name: artifacts
+          hosts: ["artifacts.{region}.oci.{domain}"]
+        # Secrets and keys. The key operations go to a host of the vault's own
+        # (<vault>-crypto.kms.{region}.{domain}), which varies per vault, so an environment adds
+        # the vaults it uses through extraServices.
+        - name: secrets
+          hosts: ["secrets.vaults.{region}.oci.{domain}"]
+        - name: vaults
+          hosts: ["vaults.{region}.oci.{domain}"]
+        - name: kms
+          hosts: ["kms.{region}.{domain}"]
+        # Identity.
+        - name: identity
+          hosts: ["identity.{region}.oci.{domain}"]
+        - name: auth
+          hosts: ["auth.{region}.{domain}"]
+        # Managed data services. The data path to an instance is opened by the data subnet group
+        # above, these are the control plane APIs.
+        - name: database
+          hosts: ["database.{region}.{domain}"]
+        - name: postgresql
+          hosts: ["postgresql.{region}.oci.{domain}"]
+        - name: redis
+          hosts: ["redis.{region}.oci.{domain}"]
+        - name: nosql
+          hosts: ["nosql.{region}.oci.{domain}"]
+        # Messaging.
+        - name: streaming
+          hosts: ["streaming.{region}.oci.{domain}"]
+        - name: queue
+          hosts: ["messaging.{region}.oci.{domain}"]
+        - name: notification
+          hosts: ["notification.{region}.{domain}"]
+        # Observability.
+        - name: logging
+          hosts: ["logging.{region}.oci.{domain}", "ingestion.logging.{region}.oci.{domain}"]
+        - name: monitoring
+          hosts: ["telemetry.{region}.{domain}"]
   kyvernoNamespace: kyverno
   clusterResourceWhitelist:
     - group: tenancy.entigo.com
