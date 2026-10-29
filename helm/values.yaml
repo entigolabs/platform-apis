@@ -215,6 +215,14 @@ zone:
     podSecurity: baseline
     # Cloud tags added to Zone resources such as NodeGroups.
     tags: {}
+    # Gives every Zone its own ClusterSecretStore, zone-<zone-name>, usable only from the Zone's
+    # Namespaces. It authenticates with its own ServiceAccount and IRSA role and reads only AWS
+    # Secrets Manager secrets tagged entigo:zone=<zone-name>. The cluster-wide store is not
+    # changed. AWS only.
+    secretStore:
+      # Namespace of the external-secrets installation, where each Zone's ServiceAccount is
+      # created. Supplied by the infralib agent. Empty creates no Zone stores.
+      namespace: ""
   # Copies the labels and annotations an ArgoCD Application declares under
   # spec.syncPolicy.managedNamespaceMetadata onto the Namespace that Application deploys to.
   # Labels that decide which Zone a Namespace belongs to are ignored, those can only be changed

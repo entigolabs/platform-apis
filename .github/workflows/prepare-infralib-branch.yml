@@ -126,7 +126,10 @@ jobs:
                           cp "$SOURCE/templates/kyverno_kubeconfig.yaml"          "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_repository.yaml"          "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_role.yaml"                "$TARGET/templates/"
-                          cp "$SOURCE/templates/kyverno_configmap.yaml"           "$TARGET/templates/" ;;
+                          cp "$SOURCE/templates/kyverno_configmap.yaml"           "$TARGET/templates/"
+                          cp "$SOURCE/templates/secretstore_source_secret.yaml"   "$TARGET/templates/"
+                          cp "$SOURCE/templates/secretstore_pushsecret.yaml"      "$TARGET/templates/"
+                          cp "$SOURCE/templates/secretstore_externalsecret.yaml"  "$TARGET/templates/" ;;
             esac
           done
 

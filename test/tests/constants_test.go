@@ -71,6 +71,28 @@ const (
 	AAppsApplicationName = "a-apps"
 	BAppsApplicationName = "b-apps"
 
+	// ── Zone secret store ────────────────────────────────────────────────────
+
+	ClusterSecretStoreKind    = "clustersecretstore.external-secrets.io"
+	PushSecretKind            = "pushsecret.external-secrets.io"
+	ZoneSecretStoreA          = "zone-a"
+	DatabaseEnvironmentConfig = "platform-apis-database"
+	// AWS secrets tagged entigo:zone=a, entigo:zone=b and untagged, pushed by these PushSecrets
+	SecretStoreRemoteKeyA        = "platform-apis-test-zss-a"
+	SecretStoreRemoteKeyB        = "platform-apis-test-zss-b"
+	SecretStoreRemoteKeyUntagged = "platform-apis-test-zss-untagged"
+	SecretStorePushA             = "zss-push-a"
+	SecretStorePushB             = "zss-push-b"
+	SecretStorePushUntagged      = "zss-push-untagged"
+	SecretStoreValue             = "zone-secret-store-test"
+	SecretStoreSourceName        = "zss-source"
+	SecretStoreLegacyESName      = "zss-legacy"
+	SecretStoreZoneESName        = "zss-zone"
+	SecretStoreUntaggedESName    = "zss-zone-untagged"
+	SecretStoreOtherZoneESName   = "zss-zone-other-zone"
+	SecretStoreForeignESName     = "zss-foreign-namespace"
+	SecretStoreSwitchESName      = "zss-switch"
+
 	OCINodePoolKind  = "nodepool.containerengine.oci.upbound.io"
 	OCIZoneName      = "oci"
 	OCIZonePool      = "default"

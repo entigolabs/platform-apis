@@ -70,6 +70,11 @@ func (g awsZoneGenerator) generate() (map[string]client.Object, error) {
 		return nil, err
 	}
 	maps.Copy(objs, nodePools)
+	secretStore, err := g.generateSecretStore()
+	if err != nil {
+		return nil, err
+	}
+	maps.Copy(objs, secretStore)
 	networkPolicies, err := g.generateTargetNetworkPolicies()
 	if err != nil {
 		return nil, err
