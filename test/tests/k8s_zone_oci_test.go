@@ -22,6 +22,9 @@ func testPlatformApisOCI(t *testing.T, e *env.Environment) {
 	if t.Failed() {
 		return
 	}
+	if !loadSuiteConfig().Has("zone") {
+		t.Skip("the zone suite is not among the affected suites")
+	}
 
 	t.Run("zone", func(t *testing.T) {
 		applyFile(t, cluster, "./templates/oci_zone.yaml")
