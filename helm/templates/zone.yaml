@@ -259,7 +259,7 @@ metadata:
   name: platform-apis-zone
 rules:
   - apiGroups: [""]
-    resources: ["namespaces", "services"]
+    resources: ["namespaces", "services", "serviceaccounts"]
     verbs: ["*"]
   - apiGroups: ["argoproj.io"]
     resources: ["appprojects"]
@@ -282,6 +282,9 @@ rules:
   - apiGroups: ["networking.istio.io"]
     resources: ["*"]
     verbs: ["*"]
+  - apiGroups: ["external-secrets.io"]
+    resources: ["clustersecretstores"]
+    verbs: ["*"]
 
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -297,6 +300,7 @@ spec:
   - accessentries.eks.aws.upbound.io
   - roles.iam.aws.upbound.io
   - rolepolicyattachments.iam.aws.upbound.io
+  - rolepolicies.iam.aws.upbound.io
 
 # ---
 # apiVersion: rbac.authorization.k8s.io/v1
@@ -367,6 +371,9 @@ data:
   {{- else }}
   tags: {}
   {{- end }}
+{{- if and (ne .Values.global.cloudProvider "oracle") .Values.zone.environmentConfig.secretStoreNamespace }}
+  secretStoreNamespace: {{ .Values.zone.environmentConfig.secretStoreNamespace | quote }}
+{{- end }}
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration

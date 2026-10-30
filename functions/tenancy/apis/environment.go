@@ -28,6 +28,7 @@ type Environment struct {
 	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
 	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
+	SecretStoreNamespace           string             `json:"secretStoreNamespace,omitempty"`
 	SecurityGroup                  string             `json:"securityGroup"`
 	Tags                           map[string]*string `json:"tags,omitempty"`
 	VPC                            string             `json:"vpc"`

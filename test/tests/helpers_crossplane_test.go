@@ -20,6 +20,15 @@ func waitSyncedAndReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name 
 	require.NoError(t, err)
 }
 
+// waitReady polls the Ready condition of resources that have no Synced condition, such as
+// external-secrets resources.
+func waitReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, retries int, interval time.Duration) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s/%s Ready", kind, name), retries, interval,
+		func() (string, error) { return checkConditions(t, opts, kind, name, "Ready") })
+	require.NoError(t, err, "%s/%s never became Ready", kind, name)
+}
+
 // waitSyncedAndReadyByLabel waits for a Crossplane resource identified by crossplane.io/composite label.
 // Returns the resource name once ready.
 func waitSyncedAndReadyByLabel(t *testing.T, opts *terrak8s.KubectlOptions, kind, composite string, retries int, interval time.Duration) string {
@@ -152,6 +161,23 @@ func waitFieldContains(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, 
 			return v, nil
 		})
 	require.NoError(t, err)
+}
+
+// waitFieldChanged polls until a jsonpath field on a resource is non-empty and differs from previous.
+func waitFieldChanged(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fieldPath, previous string, retries int, interval time.Duration) {
+	t.Helper()
+	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s/%s %s changed", kind, name, fieldPath), retries, interval,
+		func() (string, error) {
+			v, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o", fmt.Sprintf("jsonpath={%s}", fieldPath))
+			if err != nil {
+				return "", err
+			}
+			if v == "" || v == previous {
+				return "", fmt.Errorf("%s/%s: field %s still %q", kind, name, fieldPath, v)
+			}
+			return v, nil
+		})
+	require.NoError(t, err, "%s/%s: field %s never changed from %q", kind, name, fieldPath, previous)
 }
 
 // patchResource applies a JSON merge patch to a resource.
