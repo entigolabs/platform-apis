@@ -7,12 +7,13 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
+	esv1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
+	esmeta "github.com/external-secrets/external-secrets/apis/meta/v1"
 	"github.com/google/go-cmp/cmp"
 	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
 	iamv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/iam/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
 	testOIDC       = "oidc.eks.eu-north-1.amazonaws.com/id/ABC123"
 )
 
-var testSecretStoreEnv = apis.Environment{AWSProvider: "aws", SecretStore: apis.SecretStore{Namespace: "external-secrets"}}
+var testSecretStoreEnv = apis.Environment{AWSProvider: "aws", SecretStoreNamespace: "external-secrets"}
 
 func newSecretStoreTestGenerator(env apis.Environment, clusterArn, issuer *string) awsZoneGenerator {
 	var cluster eksv1beta1.Cluster
@@ -49,7 +50,7 @@ func TestGenerateSecretStoreDisabled(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(objs) != 0 {
-		t.Fatalf("expected no objects without secretStore.namespace, got %d", len(objs))
+		t.Fatalf("expected no objects without secretStoreNamespace, got %d", len(objs))
 	}
 }
 
@@ -72,22 +73,6 @@ func TestGenerateSecretStoreInvalidCluster(t *testing.T) {
 	}
 }
 
-func TestParseArnPartition(t *testing.T) {
-	arn, err := parseArn("arn:aws-us-gov:eks:us-gov-west-1:222222222222:cluster/c")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got := arn.roleArn("r"); got != "arn:aws-us-gov:iam::222222222222:role/r" {
-		t.Errorf("roleArn = %s", got)
-	}
-	if got := arn.oidcProviderArn("p"); got != "arn:aws-us-gov:iam::222222222222:oidc-provider/p" {
-		t.Errorf("oidcProviderArn = %s", got)
-	}
-	if got := arn.secretsArn(); got != "arn:aws-us-gov:secretsmanager:us-gov-west-1:222222222222:secret:*" {
-		t.Errorf("secretsArn = %s", got)
-	}
-}
-
 func TestGenerateSecretStore(t *testing.T) {
 	g := newSecretStoreTestGenerator(testSecretStoreEnv, base.StringPtr(testClusterArn), base.StringPtr(testOIDCIssuer))
 	objs, err := g.generateSecretStore()
@@ -98,42 +83,40 @@ func TestGenerateSecretStore(t *testing.T) {
 		t.Fatalf("expected 4 objects, got %d", len(objs))
 	}
 
-	// IRSA: only the Zone's ServiceAccount may assume the role
 	role := objs[GetSecretStoreRoleKey("teama")].(*iamv1beta1.Role)
 	if role.Name != "teama-secrets" {
 		t.Errorf("role name = %s", role.Name)
 	}
-	wantTrust := []iamStatement{{
-		Effect:    "Allow",
-		Principal: map[string]string{"Federated": "arn:aws:iam::111111111111:oidc-provider/" + testOIDC},
-		Action:    []string{"sts:AssumeRoleWithWebIdentity"},
-		Condition: map[string]map[string]string{"StringEquals": {
+	wantTrust := []any{map[string]any{
+		"Effect":    "Allow",
+		"Principal": map[string]any{"Federated": "arn:aws:iam::111111111111:oidc-provider/" + testOIDC},
+		"Action":    "sts:AssumeRoleWithWebIdentity",
+		"Condition": map[string]any{"StringEquals": map[string]any{
 			testOIDC + ":aud": "sts.amazonaws.com",
 			testOIDC + ":sub": "system:serviceaccount:external-secrets:zone-teama",
 		}},
 	}}
-	if diff := cmp.Diff(wantTrust, decodePolicy(t, *role.Spec.ForProvider.AssumeRolePolicy).Statement); diff != "" {
+	if diff := cmp.Diff(wantTrust, decodeStatements(t, *role.Spec.ForProvider.AssumeRolePolicy)); diff != "" {
 		t.Errorf("trust policy mismatch (-want +got):\n%s", diff)
 	}
 
-	// Read only, and only secrets tagged with the Zone
 	rolePolicy := objs[GetSecretStoreRolePolicyKey("teama")].(*iamv1beta1.RolePolicy)
 	if rolePolicy.Spec.ForProvider.RoleRef.Name != "teama-secrets" {
 		t.Errorf("role policy roleRef = %s", rolePolicy.Spec.ForProvider.RoleRef.Name)
 	}
-	wantPermissions := []iamStatement{{
-		Sid:    "ReadZoneSecrets",
-		Effect: "Allow",
-		Action: []string{
+	wantPermissions := []any{map[string]any{
+		"Sid":    "ReadZoneSecrets",
+		"Effect": "Allow",
+		"Action": []any{
 			"secretsmanager:GetSecretValue",
 			"secretsmanager:DescribeSecret",
 			"secretsmanager:ListSecretVersionIds",
 			"secretsmanager:GetResourcePolicy",
 		},
-		Resource:  "arn:aws:secretsmanager:eu-north-1:111111111111:secret:*",
-		Condition: map[string]map[string]string{"StringEquals": {"aws:ResourceTag/entigo:zone": "teama"}},
+		"Resource":  "arn:aws:secretsmanager:eu-north-1:111111111111:secret:*",
+		"Condition": map[string]any{"StringEquals": map[string]any{"aws:ResourceTag/entigo:zone": "teama"}},
 	}}
-	if diff := cmp.Diff(wantPermissions, decodePolicy(t, *rolePolicy.Spec.ForProvider.Policy).Statement); diff != "" {
+	if diff := cmp.Diff(wantPermissions, decodeStatements(t, *rolePolicy.Spec.ForProvider.Policy)); diff != "" {
 		t.Errorf("permission policy mismatch (-want +got):\n%s", diff)
 	}
 
@@ -145,46 +128,33 @@ func TestGenerateSecretStore(t *testing.T) {
 		t.Errorf("service account role annotation = %s", got)
 	}
 
-	store := objs[GetSecretStoreKey("teama")].(*unstructured.Unstructured)
-	if store.GetKind() != "ClusterSecretStore" || store.GetName() != "zone-teama" {
-		t.Errorf("store = %s/%s", store.GetKind(), store.GetName())
+	store := objs[GetSecretStoreKey("teama")].(*esv1.ClusterSecretStore)
+	if store.Name != "zone-teama" {
+		t.Errorf("store name = %s", store.Name)
 	}
-	expectString(t, store, "teama", "spec", "conditions", "0", "namespaceSelector", "matchLabels", base.TenancyZoneLabel)
-	expectString(t, store, "eu-north-1", "spec", "provider", "aws", "region")
-	expectString(t, store, "zone-teama", "spec", "provider", "aws", "auth", "jwt", "serviceAccountRef", "name")
-	expectString(t, store, "external-secrets", "spec", "provider", "aws", "auth", "jwt", "serviceAccountRef", "namespace")
-	if _, found, _ := unstructured.NestedString(store.Object, "spec", "provider", "aws", "role"); found {
-		t.Error("store must authenticate with the Zone's ServiceAccount, not assume a role")
+	wantSpec := esv1.SecretStoreSpec{
+		Conditions: []esv1.ClusterSecretStoreCondition{{
+			NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{base.TenancyZoneLabel: "teama"}},
+		}},
+		Provider: &esv1.SecretStoreProvider{AWS: &esv1.AWSProvider{
+			Service: esv1.AWSServiceSecretsManager,
+			Region:  "eu-north-1",
+			Auth: esv1.AWSAuth{JWTAuth: &esv1.AWSJWTAuth{
+				ServiceAccountRef: &esmeta.ServiceAccountSelector{Name: "zone-teama", Namespace: base.StringPtr("external-secrets")},
+			}},
+		}},
+	}
+	if diff := cmp.Diff(wantSpec, store.Spec); diff != "" {
+		t.Errorf("store spec mismatch (-want +got):\n%s", diff)
 	}
 }
 
-func decodePolicy(t *testing.T, raw string) iamPolicy {
+func decodeStatements(t *testing.T, raw string) []any {
 	t.Helper()
-	var policy iamPolicy
+	var policy map[string]any
 	if err := json.Unmarshal([]byte(raw), &policy); err != nil {
 		t.Fatalf("invalid policy json: %v", err)
 	}
-	return policy
-}
-
-// expectString walks maps and, for numeric path segments, slices.
-func expectString(t *testing.T, obj *unstructured.Unstructured, want string, path ...string) {
-	t.Helper()
-	var cur any = obj.Object
-	for _, p := range path {
-		switch v := cur.(type) {
-		case map[string]any:
-			cur = v[p]
-		case []any:
-			if p != "0" || len(v) == 0 {
-				t.Fatalf("unsupported index %s in %v", p, path)
-			}
-			cur = v[0]
-		default:
-			t.Fatalf("path %v not found", path)
-		}
-	}
-	if cur != want {
-		t.Errorf("%v = %v, want %s", path, cur, want)
-	}
+	statements, _ := policy["Statement"].([]any)
+	return statements
 }

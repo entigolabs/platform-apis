@@ -367,12 +367,9 @@ data:
   {{- else }}
   tags: {}
   {{- end }}
-  {{- with .Values.zone.environmentConfig.secretStore }}
-  {{- if and (ne $.Values.global.cloudProvider "oracle") .namespace }}
-  secretStore:
-    namespace: {{ .namespace | quote }}
-  {{- end }}
-  {{- end }}
+{{- if and (ne .Values.global.cloudProvider "oracle") .Values.zone.environmentConfig.secretStoreNamespace }}
+  secretStoreNamespace: {{ .Values.zone.environmentConfig.secretStoreNamespace | quote }}
+{{- end }}
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration

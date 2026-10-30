@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/entigolabs/function-base/base"
+	esv1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
+	esmeta "github.com/external-secrets/external-secrets/apis/meta/v1"
 	iamv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/iam/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -19,11 +21,6 @@ const (
 	secretStoreRoleSuffix = "-secrets"
 	irsaRoleAnnotation    = "eks.amazonaws.com/role-arn"
 )
-
-// The secret store keys are deliberately outside the Zone sequence. A sequence step that is not
-// Ready holds back new objects in later steps, so a failing secrets role would stop RBAC and
-// node pools for new Namespaces and pools. These objects need no ordering, Crossplane resolves
-// the roleRef and the store becomes Ready once the role can be assumed.
 
 func GetSecretStoreRoleKey(zone string) string {
 	return "secretstore-role-" + zone
@@ -41,27 +38,19 @@ func GetSecretStoreKey(zone string) string {
 	return "secretstore-" + zone
 }
 
-// GetSecretStoreName is the ClusterSecretStore that ExternalSecrets in the Zone's Namespaces
-// reference. Its ServiceAccount, in the external-secrets Namespace, has the same name.
+// GetSecretStoreName is also the name of the store's ServiceAccount.
 func GetSecretStoreName(zone string) string {
 	return "zone-" + zone
 }
 
-// generateSecretStore gives the Zone its own ServiceAccount, IRSA role and ClusterSecretStore.
-// The store can only be used from the Zone's Namespaces and only reads AWS Secrets Manager
-// secrets tagged entigo:zone=<zone>. The cluster-wide store from infralib is left untouched, so
-// ExternalSecrets that reference it keep working.
+// generateSecretStore objects are kept out of the Zone sequence on purpose. A step that is not Ready
+// holds back later steps, so a failing secrets role would block RBAC and node pools.
 func (g awsZoneGenerator) generateSecretStore() (map[string]client.Object, error) {
-	namespace := g.env.SecretStore.Namespace
+	namespace := g.env.SecretStoreNamespace
 	if namespace == "" {
 		return nil, nil
 	}
-	// The secrets live in the cluster's account, so it is taken from the cluster ARN
-	clusterArn := g.cluster.Status.AtProvider.Arn
-	if clusterArn == nil {
-		return nil, errors.New("cluster status has no arn, required for the zone secret store")
-	}
-	arn, err := parseArn(*clusterArn)
+	region, account, err := g.clusterRegionAndAccount()
 	if err != nil {
 		return nil, err
 	}
@@ -71,23 +60,28 @@ func (g awsZoneGenerator) generateSecretStore() (map[string]client.Object, error
 	}
 	name := GetSecretStoreName(g.zone.Name)
 	roleName := g.zone.Name + secretStoreRoleSuffix
-	trustPolicy, err := secretStoreTrustPolicy(arn, oidcProvider, namespace, name)
-	if err != nil {
-		return nil, err
-	}
-	permissionPolicy, err := secretStorePermissionPolicy(g.zone.Name, arn.secretsArn())
-	if err != nil {
-		return nil, err
-	}
+	roleArn := fmt.Sprintf("arn:aws:iam::%s:role/%s", account, roleName)
 	return map[string]client.Object{
-		GetSecretStoreRoleKey(g.zone.Name):           g.getSecretStoreRole(roleName, trustPolicy),
-		GetSecretStoreRolePolicyKey(g.zone.Name):     g.getSecretStoreRolePolicy(roleName, permissionPolicy),
-		GetSecretStoreServiceAccountKey(g.zone.Name): g.getSecretStoreServiceAccount(name, namespace, arn.roleArn(roleName)),
-		GetSecretStoreKey(g.zone.Name):               g.getSecretStore(name, namespace, arn.region),
+		GetSecretStoreRoleKey(g.zone.Name):           g.getIAMRole(roleName, secretStoreAssumeRolePolicy(account, oidcProvider, namespace, name)),
+		GetSecretStoreRolePolicyKey(g.zone.Name):     g.getSecretStoreRolePolicy(roleName, secretStorePermissionPolicy(g.zone.Name, region, account)),
+		GetSecretStoreServiceAccountKey(g.zone.Name): g.getSecretStoreServiceAccount(name, namespace, roleArn),
+		GetSecretStoreKey(g.zone.Name):               g.getSecretStore(name, namespace, region),
 	}, nil
 }
 
-// clusterOIDCProvider returns the cluster's IAM OIDC provider, the issuer URL without its scheme.
+// clusterRegionAndAccount reads them from the cluster ARN, as the secrets live in the cluster's account.
+func (g awsZoneGenerator) clusterRegionAndAccount() (string, string, error) {
+	clusterArn := g.cluster.Status.AtProvider.Arn
+	if clusterArn == nil {
+		return "", "", errors.New("cluster status has no arn, required for the zone secret store")
+	}
+	parts := strings.Split(*clusterArn, ":")
+	if len(parts) < 6 || parts[3] == "" || parts[4] == "" {
+		return "", "", fmt.Errorf("cannot read region and account from cluster arn %q", *clusterArn)
+	}
+	return parts[3], parts[4], nil
+}
+
 func (g awsZoneGenerator) clusterOIDCProvider() (string, error) {
 	identity := g.cluster.Status.AtProvider.Identity
 	if len(identity) == 0 || len(identity[0].Oidc) == 0 || identity[0].Oidc[0].Issuer == nil {
@@ -98,55 +92,6 @@ func (g awsZoneGenerator) clusterOIDCProvider() (string, error) {
 		return "", errors.New("cluster oidc issuer is empty")
 	}
 	return provider, nil
-}
-
-type awsArn struct {
-	partition, region, account string
-}
-
-func parseArn(value string) (awsArn, error) {
-	parts := strings.SplitN(value, ":", 6)
-	if len(parts) != 6 || parts[0] != "arn" || parts[1] == "" || parts[3] == "" || parts[4] == "" {
-		return awsArn{}, fmt.Errorf("cannot read partition, region and account from arn %q", value)
-	}
-	return awsArn{partition: parts[1], region: parts[3], account: parts[4]}, nil
-}
-
-func (a awsArn) roleArn(name string) string {
-	return fmt.Sprintf("arn:%s:iam::%s:role/%s", a.partition, a.account, name)
-}
-
-func (a awsArn) oidcProviderArn(provider string) string {
-	return fmt.Sprintf("arn:%s:iam::%s:oidc-provider/%s", a.partition, a.account, provider)
-}
-
-func (a awsArn) secretsArn() string {
-	return fmt.Sprintf("arn:%s:secretsmanager:%s:%s:secret:*", a.partition, a.region, a.account)
-}
-
-func (g awsZoneGenerator) getSecretStoreRole(name, trustPolicy string) *iamv1beta1.Role {
-	return &iamv1beta1.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "iam.aws.upbound.io/v1beta1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Annotations: g.zoneAnnotations,
-		},
-		Spec: iamv1beta1.RoleSpec{
-			ResourceSpec: v1.ResourceSpec{
-				ManagementPolicies: []v1.ManagementAction{v1.ManagementActionAll},
-				ProviderConfigReference: &v1.Reference{
-					Name: g.env.AWSProvider,
-				},
-			},
-			ForProvider: iamv1beta1.RoleParameters{
-				AssumeRolePolicy: base.StringPtr(trustPolicy),
-				Tags:             g.zoneTags,
-			},
-		},
-	}
 }
 
 func (g awsZoneGenerator) getSecretStoreRolePolicy(roleName, policy string) *iamv1beta1.RolePolicy {
@@ -174,13 +119,11 @@ func (g awsZoneGenerator) getSecretStoreRolePolicy(roleName, policy string) *iam
 	}
 }
 
-// getSecretStoreServiceAccount is the identity the store authenticates as. It lives in the
-// external-secrets Namespace, out of reach of the Zone's users, and IRSA maps it to the Zone role.
+// getSecretStoreServiceAccount lives in the external-secrets Namespace, out of reach of the Zone's
+// users, as anyone able to use it could read the Zone's secrets.
 func (g awsZoneGenerator) getSecretStoreServiceAccount(name, namespace, roleArn string) *corev1.ServiceAccount {
 	annotations := map[string]string{irsaRoleAnnotation: roleArn}
-	for k, v := range g.zoneAnnotations {
-		annotations[k] = v
-	}
+	maps.Copy(annotations, g.zoneAnnotations)
 	return &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -194,104 +137,84 @@ func (g awsZoneGenerator) getSecretStoreServiceAccount(name, namespace, roleArn 
 	}
 }
 
-func (g awsZoneGenerator) getSecretStore(name, namespace, region string) client.Object {
-	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "external-secrets.io/v1",
-		"kind":       "ClusterSecretStore",
-		"metadata": map[string]any{
-			"name":        name,
-			"annotations": toAnyMap(g.zoneAnnotations),
-			"labels":      map[string]any{base.TenancyZoneLabel: g.zone.Name},
+func (g awsZoneGenerator) getSecretStore(name, namespace, region string) *esv1.ClusterSecretStore {
+	return &esv1.ClusterSecretStore{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "external-secrets.io/v1",
+			Kind:       "ClusterSecretStore",
 		},
-		"spec": map[string]any{
-			// Only the Zone's own Namespaces may reference this store
-			"conditions": []any{map[string]any{
-				"namespaceSelector": map[string]any{
-					"matchLabels": map[string]any{base.TenancyZoneLabel: g.zone.Name},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Annotations: g.zoneAnnotations,
+			Labels:      map[string]string{base.TenancyZoneLabel: g.zone.Name},
+		},
+		Spec: esv1.SecretStoreSpec{
+			Conditions: []esv1.ClusterSecretStoreCondition{{
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{base.TenancyZoneLabel: g.zone.Name},
 				},
 			}},
-			"provider": map[string]any{
-				"aws": map[string]any{
-					"service": "SecretsManager",
-					"region":  region,
-					"auth": map[string]any{
-						"jwt": map[string]any{
-							"serviceAccountRef": map[string]any{
-								"name":      name,
-								"namespace": namespace,
-							},
+			Provider: &esv1.SecretStoreProvider{
+				AWS: &esv1.AWSProvider{
+					Service: esv1.AWSServiceSecretsManager,
+					Region:  region,
+					Auth: esv1.AWSAuth{
+						JWTAuth: &esv1.AWSJWTAuth{
+							ServiceAccountRef: &esmeta.ServiceAccountSelector{Name: name, Namespace: &namespace},
 						},
 					},
 				},
 			},
 		},
-	}}
-}
-
-func toAnyMap(m map[string]string) map[string]any {
-	out := make(map[string]any, len(m))
-	for k, v := range m {
-		out[k] = v
 	}
-	return out
 }
 
-type iamPolicy struct {
-	Version   string         `json:"Version"`
-	Statement []iamStatement `json:"Statement"`
-}
-
-type iamStatement struct {
-	Sid       string                       `json:"Sid,omitempty"`
-	Effect    string                       `json:"Effect"`
-	Principal map[string]string            `json:"Principal,omitempty"`
-	Action    []string                     `json:"Action"`
-	Resource  string                       `json:"Resource,omitempty"`
-	Condition map[string]map[string]string `json:"Condition,omitempty"`
-}
-
-func marshalPolicy(policy iamPolicy) (string, error) {
-	out, err := json.MarshalIndent(policy, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
-}
-
-// secretStoreTrustPolicy lets only the Zone's ServiceAccount assume the Zone role through IRSA,
-// the same way infralib's external-secrets role trusts its own ServiceAccount.
-func secretStoreTrustPolicy(arn awsArn, oidcProvider, namespace, serviceAccount string) (string, error) {
-	return marshalPolicy(iamPolicy{
-		Version: "2012-10-17",
-		Statement: []iamStatement{{
-			Effect:    "Allow",
-			Principal: map[string]string{"Federated": arn.oidcProviderArn(oidcProvider)},
-			Action:    []string{"sts:AssumeRoleWithWebIdentity"},
-			Condition: map[string]map[string]string{"StringEquals": {
-				oidcProvider + ":aud": "sts.amazonaws.com",
-				oidcProvider + ":sub": fmt.Sprintf("system:serviceaccount:%s:%s", namespace, serviceAccount),
-			}},
-		}},
-	})
-}
-
-// secretStorePermissionPolicy lets the Zone role read only secrets tagged with the Zone's name.
-// The tag is the platform's AWS tag key, entigo:zone, not the Kubernetes label key: a "/" in the
-// key would be read as the separator in an aws:ResourceTag/<key> condition.
-func secretStorePermissionPolicy(zone, secrets string) (string, error) {
-	return marshalPolicy(iamPolicy{
-		Version: "2012-10-17",
-		Statement: []iamStatement{{
-			Sid:    "ReadZoneSecrets",
-			Effect: "Allow",
-			Action: []string{
-				"secretsmanager:GetSecretValue",
-				"secretsmanager:DescribeSecret",
-				"secretsmanager:ListSecretVersionIds",
-				"secretsmanager:GetResourcePolicy",
+// secretStoreAssumeRolePolicy mirrors the trust policy of infralib's external-secrets role.
+func secretStoreAssumeRolePolicy(account, oidcProvider, namespace, serviceAccount string) string {
+	doc := map[string]any{
+		"Version": "2012-10-17",
+		"Statement": []any{
+			map[string]any{
+				"Effect": "Allow",
+				"Principal": map[string]any{
+					"Federated": fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", account, oidcProvider),
+				},
+				"Action": "sts:AssumeRoleWithWebIdentity",
+				"Condition": map[string]any{
+					"StringEquals": map[string]any{
+						oidcProvider + ":aud": "sts.amazonaws.com",
+						oidcProvider + ":sub": fmt.Sprintf("system:serviceaccount:%s:%s", namespace, serviceAccount),
+					},
+				},
 			},
-			Resource:  secrets,
-			Condition: map[string]map[string]string{"StringEquals": {"aws:ResourceTag/" + base.TenancyZoneAWSTag: zone}},
-		}},
-	})
+		},
+	}
+	b, _ := json.Marshal(doc)
+	return string(b)
+}
+
+// secretStorePermissionPolicy uses the AWS tag key, not the Kubernetes label key, as a "/" in the
+// key would be read as the separator in an aws:ResourceTag/<key> condition.
+func secretStorePermissionPolicy(zone, region, account string) string {
+	doc := map[string]any{
+		"Version": "2012-10-17",
+		"Statement": []any{
+			map[string]any{
+				"Sid":    "ReadZoneSecrets",
+				"Effect": "Allow",
+				"Action": []string{
+					"secretsmanager:GetSecretValue",
+					"secretsmanager:DescribeSecret",
+					"secretsmanager:ListSecretVersionIds",
+					"secretsmanager:GetResourcePolicy",
+				},
+				"Resource": fmt.Sprintf("arn:aws:secretsmanager:%s:%s:secret:*", region, account),
+				"Condition": map[string]any{
+					"StringEquals": map[string]any{"aws:ResourceTag/" + base.TenancyZoneAWSTag: zone},
+				},
+			},
+		},
+	}
+	b, _ := json.Marshal(doc)
+	return string(b)
 }

@@ -10,8 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// A sequence step that is not Ready holds back new objects in later steps, so the Zone secret
-// store must stay unsequenced: a failing secrets role must not block RBAC or node pools.
 func TestSecretStoreKeysAreNotSequenced(t *testing.T) {
 	zone := &v1alpha1.Zone{TypeMeta: metav1.TypeMeta{Kind: apis.XRKindZone}}
 	sequence := (&GroupImpl{}).GetSequence(zone)

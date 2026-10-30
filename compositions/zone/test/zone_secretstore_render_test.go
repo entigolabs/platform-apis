@@ -1,34 +1,34 @@
 package test
 
 import (
-	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/entigolabs/static-common/crossplane"
 )
 
-// TestZoneSecretStoreRender renders a Zone with secretStore set in the EnvironmentConfig. The
-// store objects are not part of the Zone sequence, so they are expected in the first render.
+// The store objects are not part of the Zone sequence, so they are expected in the first render.
 func TestZoneSecretStoreRender(t *testing.T) {
 	crossplane.StartCustomFunction(t, function, "9443")
 
 	tmpDir := t.TempDir()
 	extra := filepath.Join(tmpDir, "extra.yaml")
-	envWithStore := filepath.Join(tmpDir, "environment-config.yaml")
-	requiredWithArn := filepath.Join(tmpDir, "required-resources.yaml")
 
-	writeWithEdit(t, env, envWithStore, func(s string) string {
-		return s + "\n  secretStore:\n    namespace: external-secrets\n"
-	})
-	writeWithEdit(t, required, requiredWithArn, func(s string) string {
-		return strings.Replace(s, "    version: \"1.32\"",
-			"    version: \"1.32\"\n    arn: arn:aws:eks:eu-north-1:111111111111:cluster/eks\n"+
-				"    identity:\n    - oidc:\n      - issuer: https://oidc.eks.eu-north-1.amazonaws.com/id/ABC123", 1)
-	})
-	crossplane.AppendYamlToResources(t, envWithStore, extra)
-	crossplane.AppendYamlToResources(t, requiredWithArn, extra)
+	envConfig := crossplane.ParseYamlFileToUnstructured(t, env)
+	crossplane.AppendToResources(t, extra, crossplane.MockByKind(t, envConfig, "EnvironmentConfig", "apiextensions.crossplane.io/v1beta1", false, map[string]interface{}{
+		"data.secretStoreNamespace": "external-secrets",
+	}))
+	for _, res := range crossplane.ParseYamlFileToUnstructured(t, required) {
+		if res.GetKind() == "Cluster" {
+			res = crossplane.Mock(t, res, false, map[string]interface{}{
+				"status.atProvider.arn": "arn:aws:eks:eu-north-1:111111111111:cluster/eks",
+				"status.atProvider.identity": []interface{}{map[string]interface{}{
+					"oidc": []interface{}{map[string]interface{}{"issuer": "https://oidc.eks.eu-north-1.amazonaws.com/id/ABC123"}},
+				}},
+			})
+		}
+		crossplane.AppendToResources(t, extra, res)
+	}
 
 	resources := crossplane.CrossplaneRender(t, zoneResource, composition, functionsConfig, crossplane.Ptr(extra), nil)
 
@@ -62,15 +62,4 @@ func TestZoneSecretStoreRender(t *testing.T) {
 		"spec.forProvider.roleRef.name": "testzone-secrets",
 		"spec.forProvider.policy":       "*",
 	})
-}
-
-func writeWithEdit(t *testing.T, src, dst string, edit func(string) string) {
-	t.Helper()
-	data, err := os.ReadFile(src)
-	if err != nil {
-		t.Fatalf("read %s: %v", src, err)
-	}
-	if err := os.WriteFile(dst, []byte(edit(string(data))), 0o600); err != nil {
-		t.Fatalf("write %s: %v", dst, err)
-	}
 }

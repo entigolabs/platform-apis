@@ -28,7 +28,7 @@ type Environment struct {
 	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
 	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
-	SecretStore                    SecretStore        `json:"secretStore,omitempty"`
+	SecretStoreNamespace           string             `json:"secretStoreNamespace,omitempty"`
 	SecurityGroup                  string             `json:"securityGroup"`
 	Tags                           map[string]*string `json:"tags,omitempty"`
 	VPC                            string             `json:"vpc"`
@@ -39,13 +39,6 @@ type AppProject struct {
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty"`
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty"`
 	SourceRepos                []string           `json:"sourceRepos,omitempty"`
-}
-
-// SecretStore gives each Zone a ServiceAccount, IRSA role and ClusterSecretStore. Empty Namespace
-// means no Zone gets them.
-type SecretStore struct {
-	// Namespace of the external-secrets installation, where the Zones' ServiceAccounts are created
-	Namespace string `json:"namespace,omitempty"`
 }
 
 type RoleMapping struct {

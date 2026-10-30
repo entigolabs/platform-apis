@@ -6,7 +6,6 @@ import (
 	"time"
 
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
-	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,22 +13,17 @@ type secretStoreData struct {
 	Name, Namespace, Store, Source, RemoteKey, Zone, Value string
 }
 
-// testZoneSecretStore checks the per-Zone ClusterSecretStore against real AWS. The cluster-wide
-// store must keep working, the Zone store must only read secrets tagged entigo:zone=<zone> and
-// only from the Zone's own Namespaces, and moving an ExternalSecret between the two must keep its
-// Secret.
 func testZoneSecretStore(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Run("secret-store", func(t *testing.T) {
 		a1 := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, "a1")
 		b1 := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, "b1")
 		defer cleanupZoneSecretStore(t, a1, b1)
 
-		// The cluster-wide store is named after the environment's external-secrets module
 		legacy := getField(t, cluster, "environmentconfig", DatabaseEnvironmentConfig, ".data.esClusterSecretStore")
 		require.NotEmpty(t, legacy, "cluster-wide ClusterSecretStore name not found")
 
 		// Ready means ESO got credentials for the Zone role through the Zone's ServiceAccount
-		waitReady(t, cluster, ClusterSecretStoreKind, ZoneSecretStoreA, 30)
+		waitReady(t, cluster, ClusterSecretStoreKind, ZoneSecretStoreA, 30, 10*time.Second)
 		if t.Failed() {
 			return
 		}
@@ -78,7 +72,7 @@ func pushSecretFixture(t *testing.T, opts *terrak8s.KubectlOptions, name, store,
 		Name: name, Namespace: opts.Namespace, Store: store,
 		Source: SecretStoreSourceName, RemoteKey: remoteKey, Zone: zone,
 	})
-	waitReady(t, opts, PushSecretKind, name, 30)
+	waitReady(t, opts, PushSecretKind, name, 30, 10*time.Second)
 }
 
 func applyExternalSecret(t *testing.T, opts *terrak8s.KubectlOptions, name, store, remoteKey string) {
@@ -91,12 +85,11 @@ func applyExternalSecret(t *testing.T, opts *terrak8s.KubectlOptions, name, stor
 func testExternalSecretSyncs(t *testing.T, opts *terrak8s.KubectlOptions, name, store, remoteKey string) {
 	t.Helper()
 	applyExternalSecret(t, opts, name, store, remoteKey)
-	waitReady(t, opts, ExternalSecretKind, name, 30)
+	waitReady(t, opts, ExternalSecretKind, name, 30, 10*time.Second)
 	require.Equal(t, SecretStoreValue, string(terrak8s.GetSecret(t, opts, name).Data["value"]))
 }
 
-// testExternalSecretDenied expects the ExternalSecret to report an error and no Secret to be
-// written, whether IAM or the store's namespace condition rejects it.
+// testExternalSecretDenied covers both IAM and the store's namespace condition rejecting the read.
 func testExternalSecretDenied(t *testing.T, opts *terrak8s.KubectlOptions, name, store, remoteKey string) {
 	t.Helper()
 	applyExternalSecret(t, opts, name, store, remoteKey)
@@ -106,8 +99,7 @@ func testExternalSecretDenied(t *testing.T, opts *terrak8s.KubectlOptions, name,
 	require.Empty(t, out, "Secret %s/%s was written although %s must not read %s there", opts.Namespace, name, store, remoteKey)
 }
 
-// testSwitchStore moves an ExternalSecret of a tagged secret from the cluster-wide store to the
-// Zone store, the step a team takes to adopt it, and checks the same Secret keeps being synced.
+// testSwitchStore is the step a team takes to adopt the Zone store.
 func testSwitchStore(t *testing.T, opts *terrak8s.KubectlOptions, legacy string) {
 	t.Helper()
 	testExternalSecretSyncs(t, opts, SecretStoreSwitchESName, legacy, SecretStoreRemoteKeyA)
@@ -116,37 +108,12 @@ func testSwitchStore(t *testing.T, opts *terrak8s.KubectlOptions, legacy string)
 
 	patchResource(t, opts, ExternalSecretKind, SecretStoreSwitchESName,
 		fmt.Sprintf(`{"spec":{"secretStoreRef":{"name":"%s"}}}`, ZoneSecretStoreA))
-	waitFieldChanged(t, opts, ExternalSecretKind, SecretStoreSwitchESName, ".status.refreshTime", refreshed)
-	waitReady(t, opts, ExternalSecretKind, SecretStoreSwitchESName, 30)
+	waitFieldChanged(t, opts, ExternalSecretKind, SecretStoreSwitchESName, ".status.refreshTime", refreshed, 30, 10*time.Second)
+	waitReady(t, opts, ExternalSecretKind, SecretStoreSwitchESName, 30, 10*time.Second)
 	require.Equal(t, uid, getField(t, opts, "secret", SecretStoreSwitchESName, ".metadata.uid"), "Secret was recreated when the store changed")
 }
 
-// waitReady polls the Ready condition of external-secrets resources, which have no Synced condition.
-func waitReady(t *testing.T, opts *terrak8s.KubectlOptions, kind, name string, retries int) {
-	t.Helper()
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s/%s Ready", kind, name), retries, 10*time.Second,
-		func() (string, error) { return checkConditions(t, opts, kind, name, "Ready") })
-	require.NoError(t, err, "%s/%s never became Ready", kind, name)
-}
-
-func waitFieldChanged(t *testing.T, opts *terrak8s.KubectlOptions, kind, name, fieldPath, previous string) {
-	t.Helper()
-	_, err := retry.DoWithRetryE(t, fmt.Sprintf("%s/%s %s changed", kind, name, fieldPath), 30, 10*time.Second,
-		func() (string, error) {
-			v, err := terrak8s.RunKubectlAndGetOutputE(t, opts, "get", kind, name, "-o", fmt.Sprintf("jsonpath={%s}", fieldPath))
-			if err != nil {
-				return "", err
-			}
-			if v == "" || v == previous {
-				return "", fmt.Errorf("%s still %q", fieldPath, v)
-			}
-			return v, nil
-		})
-	require.NoError(t, err, "%s/%s: field %s never changed from %q", kind, name, fieldPath, previous)
-}
-
-// cleanupZoneSecretStore deletes the ExternalSecrets first, then the PushSecrets, which remove the
-// AWS secrets, and their source Secret. The Namespaces are kept, as the guide's cleanup contract asks.
+// cleanupZoneSecretStore keeps the Namespaces. Deleting the PushSecrets removes the AWS secrets.
 func cleanupZoneSecretStore(t *testing.T, a1, b1 *terrak8s.KubectlOptions) {
 	cleanupDeleteParallel(t, a1, ExternalSecretKind, 30, SecretStoreLegacyESName, SecretStoreZoneESName,
 		SecretStoreUntaggedESName, SecretStoreOtherZoneESName, SecretStoreSwitchESName)
