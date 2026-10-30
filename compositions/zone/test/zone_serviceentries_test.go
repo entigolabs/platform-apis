@@ -164,8 +164,10 @@ func TestZoneServiceEntries(t *testing.T) {
 		if !strings.Contains(out, `- "10.0.16.0/22"`) {
 			t.Error("the populated cidr was dropped")
 		}
-		if strings.Contains(out, `- ""`) {
-			t.Error("an empty segment was rendered as an address")
+		for _, doc := range strings.Split(out, "\n---") {
+			if strings.Contains(doc, "kind: ServiceEntry") && strings.Contains(doc, `- ""`) {
+				t.Error("an empty segment was rendered as an address")
+			}
 		}
 	})
 

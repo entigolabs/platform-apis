@@ -36,6 +36,7 @@ func ociRequired(templateImage string) map[string][]resource.Required {
 				"dataKMSKey":        "data",
 				"podSecurity":       "baseline",
 				"tags":              map[string]any{"env": "test"},
+				"namespaceRole":     map[string]any{"rules": []any{}},
 			},
 		}),
 		ClusterKey: obj(map[string]any{

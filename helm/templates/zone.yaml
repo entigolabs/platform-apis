@@ -321,6 +321,11 @@ data:
   granularEgress: {{ .Values.zone.environmentConfig.granularEgress }}
   granularEgressExclude: {{ .Values.zone.environmentConfig.granularEgressExclude }}
   granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
+  {{- with .Values.zone.environmentConfig.namespaceRole }}
+  namespaceRole:
+    rules:
+      {{- toYaml .rules | nindent 6 }}
+  {{- end }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
 {{- if eq .Values.global.cloudProvider "oracle" }}
@@ -934,6 +939,50 @@ spec:
           "owned by zone: " + dyn(variables.existingNamespaces.items).filter(existingNs, existingNs.metadata.name == requestedNs.name)[0].metadata.labels[variables.zoneLabel]
           : "no zone label - must be labeled manually first")
       ).join(", ")
+---
+# Managed resources act with the Crossplane provider credentials, so only Crossplane may create them.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-managed-resource-deny
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  validationActions:
+    - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  matchConstraints:
+    namespaceSelector:
+      matchExpressions:
+        - key: tenancy.entigo.com/zone
+          operator: Exists
+        - key: tenancy.entigo.com/zone
+          operator: NotIn
+          values: ["infralib"]
+    resourceRules:
+      - apiGroups: ["*"]
+        apiVersions: ["*"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["*"]
+        scope: Namespaced
+  matchConditions:
+    - name: "is-managed-resource"
+      expression: 'request.kind.group.endsWith(".m.upbound.io") || request.kind.group.endsWith(".m.crossplane.io")'
+    - name: "not-crossplane"
+      expression: '!request.userInfo.username.startsWith("system:serviceaccount:{{ .Values.zone.crossplaneNamespace }}:")'
+    # the garbage collector updates owner references of dependents
+    - name: "not-kube-controller"
+      expression: '!request.userInfo.username.startsWith("system:serviceaccount:kube-system:") && request.userInfo.username != "system:kube-controller-manager"'
+  validations:
+    - expression: "false"
+      messageExpression: >-
+        "Managed resource " + request.kind.kind + "." + request.kind.group +
+        " can only be created by Crossplane, use the platform APIs instead."
 
 {{- $deletionProtectedResources := list }}
 {{- if .Values.s3bucket.install }}

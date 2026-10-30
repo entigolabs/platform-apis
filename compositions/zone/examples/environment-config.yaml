@@ -7,6 +7,41 @@ data:
   granularEgress: false
   granularEgressExclude: []
   granularNamespaceNetworkPolicy: false
+  namespaceRole:
+    rules:
+      - apiGroups: [""]
+        resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "secrets",
+                    "persistentvolumeclaims", "serviceaccounts", "events"]
+        verbs: ["*"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/portforward", "pods/eviction"]
+        verbs: ["create"]
+      - apiGroups: ["apps", "batch", "autoscaling", "policy"]
+        resources: ["*"]
+        verbs: ["*"]
+      - apiGroups: ["networking.k8s.io"]
+        resources: ["ingresses"]
+        verbs: ["*"]
+      - apiGroups: ["gateway.networking.k8s.io"]
+        resources: ["httproutes", "grpcroutes", "tcproutes", "tlsroutes"]
+        verbs: ["*"]
+      - apiGroups: ["networking.istio.io"]
+        resources: ["virtualservices", "destinationrules", "serviceentries"]
+        verbs: ["*"]
+      - apiGroups: ["external-secrets.io"]
+        resources: ["externalsecrets"]
+        verbs: ["*"]
+      - apiGroups: ["artifact.entigo.com", "database.entigo.com", "mq.entigo.com",
+                    "networking.entigo.com", "queue.entigo.com", "storage.entigo.com",
+                    "workload.entigo.com"]
+        resources: ["*"]
+        verbs: ["*"]
+      - apiGroups: ["cert-manager.io"]
+        resources: ["certificates", "issuers"]
+        verbs: ["*"]
+      - apiGroups: ["monitoring.coreos.com"]
+        resources: ["servicemonitors", "podmonitors", "prometheusrules"]
+        verbs: ["*"]
   argoCDNamespace: "argocd"
   awsProvider: "crossplane-aws"
   appProject:

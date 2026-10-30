@@ -178,6 +178,43 @@ zone:
     # another Namespace in the same Zone. A Zone can override this with
     # spec.granularNamespaceNetworkPolicy.
     granularNamespaceNetworkPolicy: false
+    # Role of maintainers and contributors in Zone Namespaces. Avoid wildcards: they also grant RBAC,
+    # Crossplane managed resources and the Namespace itself.
+    namespaceRole:
+      rules:
+        - apiGroups: [""]
+          resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "secrets",
+                      "persistentvolumeclaims", "serviceaccounts", "events"]
+          verbs: ["*"]
+        - apiGroups: [""]
+          resources: ["pods/exec", "pods/portforward", "pods/eviction"]
+          verbs: ["create"]
+        - apiGroups: ["apps", "batch", "autoscaling", "policy"]
+          resources: ["*"]
+          verbs: ["*"]
+        - apiGroups: ["networking.k8s.io"]
+          resources: ["ingresses"]
+          verbs: ["*"]
+        - apiGroups: ["gateway.networking.k8s.io"]
+          resources: ["httproutes", "grpcroutes", "tcproutes", "tlsroutes"]
+          verbs: ["*"]
+        - apiGroups: ["networking.istio.io"]
+          resources: ["virtualservices", "destinationrules", "serviceentries"]
+          verbs: ["*"]
+        - apiGroups: ["external-secrets.io"]
+          resources: ["externalsecrets"]
+          verbs: ["*"]
+        - apiGroups: ["artifact.entigo.com", "database.entigo.com", "mq.entigo.com",
+                      "networking.entigo.com", "queue.entigo.com", "storage.entigo.com",
+                      "workload.entigo.com"]
+          resources: ["*"]
+          verbs: ["*"]
+        - apiGroups: ["cert-manager.io"]
+          resources: ["certificates", "issuers"]
+          verbs: ["*"]
+        - apiGroups: ["monitoring.coreos.com"]
+          resources: ["servicemonitors", "podmonitors", "prometheusrules"]
+          verbs: ["*"]
     argoCDNamespace: "argocd"
     awsProvider: "crossplane-aws"
     oracleProvider: "crossplane-oracle"
@@ -477,6 +514,8 @@ zone:
         - name: monitoring
           hosts: ["telemetry.{region}.{domain}"]
   kyvernoNamespace: kyverno
+  # only service accounts of this namespace may create managed resources in Zone Namespaces
+  crossplaneNamespace: crossplane-system
   clusterResourceWhitelist:
     - group: tenancy.entigo.com
       kind: Zone
