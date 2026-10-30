@@ -272,9 +272,6 @@ zone:
     # second-level domain, oraclecloud.com, or oraclecloud.eu in the EU Sovereign Cloud.
     #   domain: "{{ .agent.providerDomain }}"
     domain: ""
-    # The tenancy's Object Storage namespace, substituted into {namespace} in any host below.
-    #   objectStorageNamespace: "{{ .toutput.oke.object_storage_namespace }}"
-    objectStorageNamespace: ""
     # Managed data services: RDS, ElastiCache and MSK, as platform-apis-subnet-data. Deliberately
     # one group rather than separate database and elasticache groups, so a Valkey launched into the
     # database subnet works the same as one in the elasticache subnet.
@@ -343,8 +340,8 @@ zone:
     #       ports:
     #         - {number: 8443, name: tls-https-alt, protocol: TLS}
     # Unlike the AWS and OCI defaults these render even when region is empty, since an endpoint
-    # here may not be regional. A host that uses {region}, {domain} or {namespace} is dropped
-    # while that value is not set.
+    # here may not be regional. A host that uses {region} or {domain} is dropped while that value
+    # is not set.
     extraServices: []
     # AWS service APIs every Zone can reach, rendered when global.cloudProvider is aws. One
     # ServiceEntry per service, named platform-apis-aws-<name>, scoped by hostname rather than by
@@ -430,12 +427,11 @@ zone:
         ports:
           - {number: 12250, name: tcp-proxymux, protocol: TCP}
       services:
-        # Storage. objectstorage.{region}.{domain} is the SDK default in every realm but the
-        # commercial one, where the SDK calls the tenancy's own {namespace} host instead.
+        # Storage. The SDKs call the tenancy's own <namespace>.objectstorage host instead only when
+        # realm-specific endpoint templates are switched on, which an environment adds itself
+        # through extraServices.
         - name: objectstorage
-          hosts:
-            - "objectstorage.{region}.{domain}"
-            - "{namespace}.objectstorage.{region}.oci.customer-oci.com"
+          hosts: ["objectstorage.{region}.{domain}"]
         # Images. Pulls are made by the kubelet on the node and never pass through the sidecar,
         # this is the Artifacts API.
         - name: artifacts

@@ -90,7 +90,7 @@ is not listed finds no filter chain and is still blackholed. The subnet groups a
 this way - a plain database connection carries no SNI - which is also why they must set addresses,
 since a hostname-only entry with resolution NONE opens its ports to every destination.
 
-{region}, {domain} and {namespace} in a host are replaced with the values passed in vars. A host
+{region} and {domain} in a host are replaced with the values passed in vars. A host
 without them is used as written, for the endpoints AWS does not regionalise. A host that needs a
 value which is not set is dropped rather than rendered with the placeholder still in it, which
 would match nothing, and a service with no hosts left is skipped, the same way a subnet group with
@@ -171,7 +171,7 @@ spec:
      on that cloud, and without a region (and on OCI a domain) none of them can be rendered.
      extraServices are whatever this environment needs and may not be regional at all, so they
      are not held back by that. */}}
-{{- $vars := dict "region" ($se.region | default "") "domain" ($se.domain | default "") "namespace" ($se.objectStorageNamespace | default "") }}
+{{- $vars := dict "region" ($se.region | default "") "domain" ($se.domain | default "") }}
 {{- $cloud := .Values.global.cloudProvider }}
 {{- if and (eq $cloud "aws") $vars.region }}
 {{- range $se.awsApis.services | default list }}
