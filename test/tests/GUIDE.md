@@ -531,6 +531,7 @@ YAML for test resources is rendered from Go template files in `templates/`:
 | `kyverno_namespace.yaml` | `kyvernoNsData` | Namespace with zone label and PSA labels; omits zone label when `Zone` is empty |
 | `kyverno_zone.yaml` | `kyvernoZoneData` | Zone with optional namespace list |
 | `kyverno_argoapp.yaml` | `kyvernoArgoAppData` | ArgoCD Application for GeneratingPolicy tests |
+| `kyverno_pod.yaml` | `kyvernoPodData` | Restricted-compliant pause Pod with a verbatim nodeSelector, for the per-namespace nodeSelector policies |
 | `kyverno_kubeconfig.yaml` | `kyvernoKubeconfigData` | EKS kubeconfig for role-based tests (rendered internally by `roleKubectlOptions`) |
 
 ### Structure of a Kyverno test function

@@ -57,6 +57,10 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			t.Parallel()
 			testKyvernoNamespaceArgoCDMetadata(t, cluster)
 		})
+		t.Run("PodNodeSelector", func(t *testing.T) {
+			t.Parallel()
+			testKyvernoPodNodeSelector(t, cluster)
+		})
 		if contributorKeyID != "" && contributorSecret != "" {
 			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 			t.Run("ContributorDeny", func(t *testing.T) {
@@ -357,6 +361,53 @@ func testKyvernoAppsNamespaceRestriction(t *testing.T, cluster *terrak8s.Kubectl
 		})
 		_, err := kyvernoApply(t, cluster, configMapYAML(t, kyvernoConfigMapData{
 			Name: name, Namespace: KyvernoTestNSName,
+		}))
+		assertKyvernoAllowed(t, err)
+	})
+}
+
+// testKyvernoPodNodeSelector covers the per-namespace <zone>-<namespace>-validate-nodeselector
+// ValidatingPolicy the zone composition generates: a pod may only select the zone's own pools
+// or the zone itself. The b1 namespace carries a pool, so the add-nodeselector MutatingPolicy
+// leaves a pod that already sets tenancy.entigo.com/zone-pool alone and the validation sees the
+// selector as written. A namespace without a pool is no good for the deny case: the mutation
+// adds the zone key first and that alone satisfies the policy.
+func testKyvernoPodNodeSelector(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	b1 := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, ZoneBPoolNamespace)
+	waitNamespacePoliciesReady(t, cluster, ZoneBName, ZoneBPoolNamespace)
+	if t.Failed() {
+		return
+	}
+
+	t.Run("fail: pod cannot select another zone's pool", func(t *testing.T) {
+		t.Parallel()
+		out, err := kyvernoApply(t, b1, podYAML(t, kyvernoPodData{
+			Name: "kyverno-nodeselector-other-zone-pool", Namespace: ZoneBPoolNamespace,
+			NodeSelector: map[string]string{"tenancy.entigo.com/zone-pool": ZoneAName + "-" + ZoneAPool},
+		}))
+		assertKyvernoDenied(t, out, err)
+		require.Contains(t, out+" "+err.Error(), "nodeSelector",
+			"the denial should come from the validate-nodeselector policy; output: %s", out)
+	})
+	t.Run("fail: pod cannot select another zone", func(t *testing.T) {
+		t.Parallel()
+		out, err := kyvernoApply(t, b1, podYAML(t, kyvernoPodData{
+			Name: "kyverno-nodeselector-other-zone", Namespace: ZoneBPoolNamespace,
+			NodeSelector: map[string]string{"tenancy.entigo.com/zone": ZoneAName},
+		}))
+		assertKyvernoDenied(t, out, err)
+		require.Contains(t, out+" "+err.Error(), "nodeSelector",
+			"the denial should come from the validate-nodeselector policy; output: %s", out)
+	})
+	t.Run("pass: pod can select its own zone's pool", func(t *testing.T) {
+		t.Parallel()
+		const podName = "kyverno-nodeselector-own-pool"
+		t.Cleanup(func() {
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, b1, "delete", "pod", podName, "--ignore-not-found", "--wait=false")
+		})
+		_, err := kyvernoApply(t, b1, podYAML(t, kyvernoPodData{
+			Name: podName, Namespace: ZoneBPoolNamespace,
+			NodeSelector: map[string]string{"tenancy.entigo.com/zone-pool": ZoneBName + "-" + ZoneBPool},
 		}))
 		assertKyvernoAllowed(t, err)
 	})
