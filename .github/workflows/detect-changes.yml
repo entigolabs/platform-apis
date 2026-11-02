@@ -163,6 +163,12 @@ jobs:
               - 'test/tests/helm/platform-apis-test-app/**'
               - 'test/tests/helm/platform-apis-test-a-apps/**'
               - 'test/tests/helm/platform-apis-test-b-apps/**'
+              - 'test/tests/k8s_zone*_test.go'
+              - 'test/tests/helpers_kyverno_test.go'
+              - 'test/tests/templates/kyverno_*.yaml'
+              - 'test/tests/templates/zone_test_application.yaml'
+              - 'test/tests/templates/a_test_application.yaml'
+              - 'test/tests/templates/b_test_application.yaml'
 
       - name: Detect changes
         if: github.event_name != 'workflow_dispatch'
