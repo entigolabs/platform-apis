@@ -63,7 +63,7 @@ func (g awsZoneGenerator) generateSecretStore() (map[string]client.Object, error
 	roleArn := fmt.Sprintf("arn:aws:iam::%s:role/%s", account, roleName)
 	return map[string]client.Object{
 		GetSecretStoreRoleKey(g.zone.Name):           g.getIAMRole(roleName, secretStoreAssumeRolePolicy(account, oidcProvider, namespace, name)),
-		GetSecretStoreRolePolicyKey(g.zone.Name):     g.getSecretStoreRolePolicy(roleName, secretStorePermissionPolicy(g.zone.Name, region, account)),
+		GetSecretStoreRolePolicyKey(g.zone.Name):     g.getSecretStoreRolePolicy(roleName, secretStorePermissionPolicy(g.zone.Name, region, account, g.env.ConfigKMSKeyArn)),
 		GetSecretStoreServiceAccountKey(g.zone.Name): g.getSecretStoreServiceAccount(name, namespace, roleArn),
 		GetSecretStoreKey(g.zone.Name):               g.getSecretStore(name, namespace, region),
 	}, nil
@@ -196,41 +196,44 @@ func secretStoreAssumeRolePolicy(account, oidcProvider, namespace, serviceAccoun
 // secretStorePermissionPolicy uses the AWS tag key, not the Kubernetes label key, as a "/" in the
 // key would be read as the separator in an aws:ResourceTag/<key> condition.
 //
-// The DecryptZoneSecrets statement lets the role decrypt secrets encrypted with a customer-managed
-// KMS key, which clients may bring for their own secrets. The key ARNs aren't known here, so it is
-// scoped by kms:ViaService to SecretsManager in this region: the role can only use a key through a
-// SecretsManager call, and GetSecretValue is already tag-gated, so it reaches only the keys guarding
-// this zone's secrets. A customer-managed key must still allow this role in its own key policy.
-func secretStorePermissionPolicy(zone, region, account string) string {
-	doc := map[string]any{
-		"Version": "2012-10-17",
-		"Statement": []any{
-			map[string]any{
-				"Sid":    "ReadZoneSecrets",
-				"Effect": "Allow",
-				"Action": []string{
-					"secretsmanager:GetSecretValue",
-					"secretsmanager:DescribeSecret",
-					"secretsmanager:ListSecretVersionIds",
-					"secretsmanager:GetResourcePolicy",
-				},
-				"Resource": fmt.Sprintf("arn:aws:secretsmanager:%s:%s:secret:*", region, account),
-				"Condition": map[string]any{
-					"StringEquals": map[string]any{"aws:ResourceTag/" + base.TenancyZoneAWSTag: zone},
-				},
+// Secrets under the default aws/secretsmanager key need no kms permission here: that key's own policy
+// lets the account decrypt through SecretsManager. The DecryptZoneSecrets statement is only for the
+// customer-managed config key (infralib's, used for the database master-user secrets), scoped to that
+// one key ARN and, through kms:ViaService, to SecretsManager calls. It is left out where the
+// environment has no config key. The config key's own key policy must still allow this role.
+func secretStorePermissionPolicy(zone, region, account, configKeyArn string) string {
+	statements := []any{
+		map[string]any{
+			"Sid":    "ReadZoneSecrets",
+			"Effect": "Allow",
+			"Action": []string{
+				"secretsmanager:GetSecretValue",
+				"secretsmanager:DescribeSecret",
+				"secretsmanager:ListSecretVersionIds",
+				"secretsmanager:GetResourcePolicy",
 			},
-			map[string]any{
-				"Sid":      "DecryptZoneSecrets",
-				"Effect":   "Allow",
-				"Action":   []string{"kms:Decrypt"},
-				"Resource": "*",
-				"Condition": map[string]any{
-					"StringEquals": map[string]any{
-						"kms:ViaService": fmt.Sprintf("secretsmanager.%s.amazonaws.com", region),
-					},
-				},
+			"Resource": fmt.Sprintf("arn:aws:secretsmanager:%s:%s:secret:*", region, account),
+			"Condition": map[string]any{
+				"StringEquals": map[string]any{"aws:ResourceTag/" + base.TenancyZoneAWSTag: zone},
 			},
 		},
+	}
+	if configKeyArn != "" {
+		statements = append(statements, map[string]any{
+			"Sid":      "DecryptZoneSecrets",
+			"Effect":   "Allow",
+			"Action":   []string{"kms:Decrypt"},
+			"Resource": configKeyArn,
+			"Condition": map[string]any{
+				"StringEquals": map[string]any{
+					"kms:ViaService": fmt.Sprintf("secretsmanager.%s.amazonaws.com", region),
+				},
+			},
+		})
+	}
+	doc := map[string]any{
+		"Version":   "2012-10-17",
+		"Statement": statements,
 	}
 	b, _ := json.Marshal(doc)
 	return string(b)

@@ -17,12 +17,13 @@ import (
 )
 
 const (
-	testClusterArn = "arn:aws:eks:eu-north-1:111111111111:cluster/test-cluster"
-	testOIDCIssuer = "https://oidc.eks.eu-north-1.amazonaws.com/id/ABC123"
-	testOIDC       = "oidc.eks.eu-north-1.amazonaws.com/id/ABC123"
+	testClusterArn   = "arn:aws:eks:eu-north-1:111111111111:cluster/test-cluster"
+	testOIDCIssuer   = "https://oidc.eks.eu-north-1.amazonaws.com/id/ABC123"
+	testOIDC         = "oidc.eks.eu-north-1.amazonaws.com/id/ABC123"
+	testConfigKeyArn = "arn:aws:kms:eu-north-1:111111111111:key/abcd-1234"
 )
 
-var testSecretStoreEnv = apis.Environment{AWSProvider: "aws", SecretStoreNamespace: "external-secrets"}
+var testSecretStoreEnv = apis.Environment{AWSProvider: "aws", SecretStoreNamespace: "external-secrets", ConfigKMSKeyArn: testConfigKeyArn}
 
 func newSecretStoreTestGenerator(env apis.Environment, clusterArn, issuer *string) awsZoneGenerator {
 	var cluster eksv1beta1.Cluster
@@ -121,7 +122,7 @@ func TestGenerateSecretStore(t *testing.T) {
 			"Sid":       "DecryptZoneSecrets",
 			"Effect":    "Allow",
 			"Action":    []any{"kms:Decrypt"},
-			"Resource":  "*",
+			"Resource":  testConfigKeyArn,
 			"Condition": map[string]any{"StringEquals": map[string]any{"kms:ViaService": "secretsmanager.eu-north-1.amazonaws.com"}},
 		},
 	}
@@ -155,6 +156,18 @@ func TestGenerateSecretStore(t *testing.T) {
 	}
 	if diff := cmp.Diff(wantSpec, store.Spec); diff != "" {
 		t.Errorf("store spec mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// Without a config key the policy carries only the SecretsManager read statement; secrets under the
+// default aws/secretsmanager key decrypt without any kms permission.
+func TestSecretStorePermissionPolicyWithoutConfigKey(t *testing.T) {
+	statements := decodeStatements(t, secretStorePermissionPolicy("teama", "eu-north-1", "111111111111", ""))
+	if len(statements) != 1 {
+		t.Fatalf("expected 1 statement without a config key, got %d", len(statements))
+	}
+	if sid := statements[0].(map[string]any)["Sid"]; sid != "ReadZoneSecrets" {
+		t.Errorf("unexpected statement: %v", sid)
 	}
 }
 

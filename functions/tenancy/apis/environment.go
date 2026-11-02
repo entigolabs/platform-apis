@@ -20,6 +20,7 @@ type Environment struct {
 	Cluster                        string             `json:"cluster"`
 	CreateAppsNamespace            bool               `json:"createAppsNamespace"`
 	ComputeSubnetType              string             `json:"computeSubnetType"`
+	ConfigKMSKeyArn                string             `json:"configKMSKeyArn,omitempty"`
 	DataKMSAlias                   string             `json:"dataKMSAlias"`
 	DataKMSKey                     string             `json:"dataKMSKey,omitempty"`
 	GranularEgress                 bool               `json:"granularEgress,omitempty"`

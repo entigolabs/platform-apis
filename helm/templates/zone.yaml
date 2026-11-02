@@ -359,6 +359,9 @@ data:
 {{- if .Values.global.kms.dataAliasArn }}
   dataKMSAlias: {{ .Values.zone.environmentConfig.dataKMSAlias }}
 {{- end }}
+{{- if and (ne .Values.global.cloudProvider "oracle") .Values.global.kms.configKeyArn }}
+  configKMSKeyArn: {{ .Values.global.kms.configKeyArn | quote }}
+{{- end }}
 {{- if and (eq .Values.global.cloudProvider "oracle") .Values.global.kms.oracleDataKeyId }}
   dataKMSKey: {{ .Values.zone.environmentConfig.dataKMSKey }}
 {{- end }}
