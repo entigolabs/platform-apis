@@ -195,6 +195,12 @@ func secretStoreAssumeRolePolicy(account, oidcProvider, namespace, serviceAccoun
 
 // secretStorePermissionPolicy uses the AWS tag key, not the Kubernetes label key, as a "/" in the
 // key would be read as the separator in an aws:ResourceTag/<key> condition.
+//
+// The DecryptZoneSecrets statement lets the role decrypt secrets encrypted with a customer-managed
+// KMS key, which clients may bring for their own secrets. The key ARNs aren't known here, so it is
+// scoped by kms:ViaService to SecretsManager in this region: the role can only use a key through a
+// SecretsManager call, and GetSecretValue is already tag-gated, so it reaches only the keys guarding
+// this zone's secrets. A customer-managed key must still allow this role in its own key policy.
 func secretStorePermissionPolicy(zone, region, account string) string {
 	doc := map[string]any{
 		"Version": "2012-10-17",
@@ -211,6 +217,17 @@ func secretStorePermissionPolicy(zone, region, account string) string {
 				"Resource": fmt.Sprintf("arn:aws:secretsmanager:%s:%s:secret:*", region, account),
 				"Condition": map[string]any{
 					"StringEquals": map[string]any{"aws:ResourceTag/" + base.TenancyZoneAWSTag: zone},
+				},
+			},
+			map[string]any{
+				"Sid":      "DecryptZoneSecrets",
+				"Effect":   "Allow",
+				"Action":   []string{"kms:Decrypt"},
+				"Resource": "*",
+				"Condition": map[string]any{
+					"StringEquals": map[string]any{
+						"kms:ViaService": fmt.Sprintf("secretsmanager.%s.amazonaws.com", region),
+					},
 				},
 			},
 		},

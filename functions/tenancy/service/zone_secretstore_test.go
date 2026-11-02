@@ -104,18 +104,27 @@ func TestGenerateSecretStore(t *testing.T) {
 	if rolePolicy.Spec.ForProvider.RoleRef.Name != "teama-secrets" {
 		t.Errorf("role policy roleRef = %s", rolePolicy.Spec.ForProvider.RoleRef.Name)
 	}
-	wantPermissions := []any{map[string]any{
-		"Sid":    "ReadZoneSecrets",
-		"Effect": "Allow",
-		"Action": []any{
-			"secretsmanager:GetSecretValue",
-			"secretsmanager:DescribeSecret",
-			"secretsmanager:ListSecretVersionIds",
-			"secretsmanager:GetResourcePolicy",
+	wantPermissions := []any{
+		map[string]any{
+			"Sid":    "ReadZoneSecrets",
+			"Effect": "Allow",
+			"Action": []any{
+				"secretsmanager:GetSecretValue",
+				"secretsmanager:DescribeSecret",
+				"secretsmanager:ListSecretVersionIds",
+				"secretsmanager:GetResourcePolicy",
+			},
+			"Resource":  "arn:aws:secretsmanager:eu-north-1:111111111111:secret:*",
+			"Condition": map[string]any{"StringEquals": map[string]any{"aws:ResourceTag/entigo:zone": "teama"}},
 		},
-		"Resource":  "arn:aws:secretsmanager:eu-north-1:111111111111:secret:*",
-		"Condition": map[string]any{"StringEquals": map[string]any{"aws:ResourceTag/entigo:zone": "teama"}},
-	}}
+		map[string]any{
+			"Sid":       "DecryptZoneSecrets",
+			"Effect":    "Allow",
+			"Action":    []any{"kms:Decrypt"},
+			"Resource":  "*",
+			"Condition": map[string]any{"StringEquals": map[string]any{"kms:ViaService": "secretsmanager.eu-north-1.amazonaws.com"}},
+		},
+	}
 	if diff := cmp.Diff(wantPermissions, decodeStatements(t, *rolePolicy.Spec.ForProvider.Policy)); diff != "" {
 		t.Errorf("permission policy mismatch (-want +got):\n%s", diff)
 	}
