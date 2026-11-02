@@ -130,6 +130,7 @@ jobs:
                           cp "$SOURCE/templates/secretstore_source_secret.yaml"   "$TARGET/templates/"
                           cp "$SOURCE/templates/secretstore_pushsecret.yaml"      "$TARGET/templates/"
                           cp "$SOURCE/templates/secretstore_externalsecret.yaml"  "$TARGET/templates/" ;;
+                          cp "$SOURCE/templates/kyverno_pod.yaml"                 "$TARGET/templates/" ;;
             esac
           done
 

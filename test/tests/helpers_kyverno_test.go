@@ -42,6 +42,11 @@ type kyvernoRepositoryData struct {
 	Name, Namespace string
 }
 
+type kyvernoPodData struct {
+	Name, Namespace string
+	NodeSelector    map[string]string
+}
+
 // ensureKyvernoTestNamespace creates the shared kyverno-test namespace if it does not exist,
 // then waits until the zone composition has reconciled the per-namespace Kyverno policies.
 func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions) {
@@ -173,6 +178,12 @@ func configMapYAML(t *testing.T, data kyvernoConfigMapData) string {
 // roleYAML renders the kyverno_role.yaml template.
 func roleYAML(t *testing.T, data kyvernoRoleData) string {
 	return renderTemplate(t, "./templates/kyverno_role.yaml", data)
+}
+
+// podYAML renders the kyverno_pod.yaml template: a restricted-compliant pause pod whose
+// nodeSelector is set verbatim, so the per-namespace nodeSelector policies see the given keys.
+func podYAML(t *testing.T, data kyvernoPodData) string {
+	return renderTemplate(t, "./templates/kyverno_pod.yaml", data)
 }
 
 // ── Assertion helpers ─────────────────────────────────────────────────────────
