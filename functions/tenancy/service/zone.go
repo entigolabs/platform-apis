@@ -551,10 +551,12 @@ func (g zoneGenerator) getClusterRoleBinding(role string) client.Object {
 	}
 }
 
+// escapeJSONPointer escapes a map key for use in a JSON Patch path.
+func escapeJSONPointer(key string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
+}
+
 func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Object {
-	escape := func(key string) string {
-		return strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
-	}
 	// The zone label is set over any value the pod gives, because pool labels of different zones
 	// can be equal: "<zone>-<pool>" of zone "a" and pool "b-c" is that of zone "a-b" and pool "c".
 	// The namespace's pool is only a default.
@@ -572,7 +574,7 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Obje
       value: "%s"
     }
   ]
-)`, zonePoolAnnotation, escape(zonePoolAnnotation), zonePool)
+)`, zonePoolAnnotation, escapeJSONPointer(zonePoolAnnotation), zonePool)
 	}
 	return &policyv1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
@@ -630,7 +632,7 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Obje
     path: "/spec/nodeSelector/%s",
     value: "%s"
   }
-]%s`, initial, escape(base.TenancyZoneLabel), g.zone.Name, poolPatch),
+]%s`, initial, escapeJSONPointer(base.TenancyZoneLabel), g.zone.Name, poolPatch),
 					},
 				},
 			},
