@@ -551,31 +551,16 @@ func (g zoneGenerator) getClusterRoleBinding(role string) client.Object {
 	}
 }
 
-// escapeJSONPointer escapes a map key for use in a JSON Patch path.
-func escapeJSONPointer(key string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
-}
-
 func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Object {
-	// The zone label is set over any value the pod gives, because pool labels of different zones
-	// can be equal: "<zone>-<pool>" of zone "a" and pool "b-c" is that of zone "a-b" and pool "c".
-	// The namespace's pool is only a default.
-	initial := fmt.Sprintf(`"%s": "%s"`, base.TenancyZoneLabel, g.zone.Name)
-	poolPatch := ""
+	var key, value string
 	if pool != "" {
-		zonePool := fmt.Sprintf("%s-%s", g.zone.Name, pool)
-		initial += fmt.Sprintf(`, "%s": "%s"`, zonePoolAnnotation, zonePool)
-		poolPatch = fmt.Sprintf(` + (
-  "%s" in object.spec.nodeSelector ? [] :
-  [
-    JSONPatch{
-      op: "add",
-      path: "/spec/nodeSelector/%s",
-      value: "%s"
-    }
-  ]
-)`, zonePoolAnnotation, escapeJSONPointer(zonePoolAnnotation), zonePool)
+		key = "tenancy.entigo.com/zone-pool"
+		value = fmt.Sprintf("%s-%s", g.zone.Name, pool)
+	} else {
+		key = "tenancy.entigo.com/zone"
+		value = g.zone.Name
 	}
+	escapedKey := strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
 	return &policyv1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
@@ -624,15 +609,18 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Obje
   JSONPatch{
     op: "add",
     path: "/spec/nodeSelector",
-    value: {%s}
+    value: {"%s": "%s"}
   }
-] : [
-  JSONPatch{
-    op: "add",
-    path: "/spec/nodeSelector/%s",
-    value: "%s"
-  }
-]%s`, initial, escapeJSONPointer(base.TenancyZoneLabel), g.zone.Name, poolPatch),
+] : (
+  "%s" in object.spec.nodeSelector ? [] :
+  [
+    JSONPatch{
+      op: "add",
+      path: "/spec/nodeSelector/%s",
+      value: "%s"
+    }
+  ]
+)`, key, value, key, escapedKey, value),
 					},
 				},
 			},
@@ -723,14 +711,14 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) client.Object {
 		poolExprList = append(poolExprList, `"`+g.zone.Name+`-`+pool.Name+`"`)
 		poolMsgList = append(poolMsgList, g.zone.Name+`-`+pool.Name)
 	}
-	expression := fmt.Sprintf(`has(object.spec.nodeSelector) &&
-"tenancy.entigo.com/zone" in object.spec.nodeSelector &&
-object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s" && (
-  !("tenancy.entigo.com/zone-pool" in object.spec.nodeSelector) ||
-  object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [%s]
-)`, g.zone.Name, strings.Join(poolExprList, ", "))
-	message := fmt.Sprintf("Pod nodeSelector must use tenancy.entigo.com/zone with value %s, and"+
-		" tenancy.entigo.com/zone-pool, if set, with a valid value [%s]", g.zone.Name, strings.Join(poolMsgList, ", "))
+	expression := fmt.Sprintf(`has(object.spec.nodeSelector) && (
+  ("tenancy.entigo.com/zone-pool" in object.spec.nodeSelector &&
+   object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [%s]) ||
+  ("tenancy.entigo.com/zone" in object.spec.nodeSelector &&
+   object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s")
+)`, strings.Join(poolExprList, ", "), g.zone.Name)
+	message := fmt.Sprintf("Pod nodeSelector must either use tenancy.entigo.com/zone-pool with a valid value [%s]"+
+		" or tenancy.entigo.com/zone with value %s", strings.Join(poolMsgList, ", "), g.zone.Name)
 	return &policyv1.ValidatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
