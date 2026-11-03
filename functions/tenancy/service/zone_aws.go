@@ -15,6 +15,7 @@ import (
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	ec2v1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/ec2/v1beta1"
 	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
+	eksv1beta2 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta2"
 	iamv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/iam/v1beta1"
 	kmsv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/kms/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +32,7 @@ type awsZoneGenerator struct {
 	vpc            ec2v1beta1.VPC
 	kmsDataAlias   kmsv1beta1.Alias
 	securityGroup  ec2v1beta1.SecurityGroup
-	cluster        eksv1beta1.Cluster
+	cluster        eksv1beta2.Cluster
 	subnets        []*ec2v1beta1.Subnet
 	computeSubnets []*ec2v1beta1.Subnet
 }

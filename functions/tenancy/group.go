@@ -164,7 +164,7 @@ func awsSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
 	}
 	resources[service.ClusterKey] = &fnv1.ResourceSelector{
 		Kind:       "Cluster",
-		ApiVersion: "eks.aws.upbound.io/v1beta1",
+		ApiVersion: "eks.aws.upbound.io/v1beta2",
 		Match:      &fnv1.ResourceSelector_MatchName{MatchName: env.Cluster},
 	}
 	resources[service.SubnetsKey] = &fnv1.ResourceSelector{
