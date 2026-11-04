@@ -321,10 +321,34 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 		}
 		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
 	}
-	objs[GetMutatingPolicyKey(g.zone.Name, name)] = g.getMutatingPolicy(name, pool)
+	mutatingPolicy, err := withoutPodControllerAutogen(g.getMutatingPolicy(name, pool))
+	if err != nil {
+		return err
+	}
+	objs[GetMutatingPolicyKey(g.zone.Name, name)] = mutatingPolicy
 	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = g.getLabelsMutatingPolicy(name)
-	objs[GetValidatingPolicyKey(g.zone.Name, name)] = g.getValidatingPolicy(name)
+	validatingPolicy, err := withoutPodControllerAutogen(g.getValidatingPolicy(name))
+	if err != nil {
+		return err
+	}
+	objs[GetValidatingPolicyKey(g.zone.Name, name)] = validatingPolicy
 	return nil
+}
+
+// withoutPodControllerAutogen stops Kyverno 1.19+ from generating a Pod policy's rules for pod
+// controllers: the generated mutation patches the controller rather than its pod template, so the
+// generated validation would reject every controller. The controllers field is omitempty, so the
+// empty list is set after conversion.
+func withoutPodControllerAutogen(policy client.Object) (client.Object, error) {
+	u, err := base.ToUnstructured(policy)
+	if err != nil {
+		return nil, err
+	}
+	err = unstructured.SetNestedSlice(u.Object, []any{}, "spec", "autogen", "podControllers", "controllers")
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 func (g zoneGenerator) generateAppsNamespace(objs map[string]client.Object, name string) {
