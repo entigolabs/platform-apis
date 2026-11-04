@@ -10,7 +10,7 @@ import (
 	esv1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
 	esmeta "github.com/external-secrets/external-secrets/apis/meta/v1"
 	"github.com/google/go-cmp/cmp"
-	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
+	eksv1beta2 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta2"
 	iamv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/iam/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,11 +26,11 @@ const (
 var testSecretStoreEnv = apis.Environment{AWSProvider: "aws", SecretStoreNamespace: "external-secrets", ConfigKMSKeyArn: testConfigKeyArn}
 
 func newSecretStoreTestGenerator(env apis.Environment, clusterArn, issuer *string) awsZoneGenerator {
-	var cluster eksv1beta1.Cluster
+	var cluster eksv1beta2.Cluster
 	cluster.Status.AtProvider.Arn = clusterArn
 	if issuer != nil {
-		cluster.Status.AtProvider.Identity = []eksv1beta1.IdentityObservation{{
-			Oidc: []eksv1beta1.OidcObservation{{Issuer: issuer}},
+		cluster.Status.AtProvider.Identity = []eksv1beta2.IdentityObservation{{
+			Oidc: []eksv1beta2.OidcObservation{{Issuer: issuer}},
 		}}
 	}
 	return awsZoneGenerator{
