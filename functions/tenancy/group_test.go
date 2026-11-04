@@ -38,7 +38,7 @@ const (
 		"status": {"atProvider": {"id": "sg-123"}}
 	}`
 	requiredClusterJson = `{
-		"apiVersion":"eks.aws.upbound.io/v1beta1","kind":"Cluster",
+		"apiVersion":"eks.aws.upbound.io/v1beta2","kind":"Cluster",
 		"metadata":{"annotations":{"crossplane.io/external-name":"test-cluster"},"name":"test-cluster", "namespace":"aws-provider"},
 		"status": {"atProvider": {"version": "1.34"}}
 	}`
@@ -364,7 +364,7 @@ func TestZoneFunction(t *testing.T) {
 			service.VPCKey:                       {Kind: "VPC", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-vpc"}},
 			service.KMSDataAliasKey:              {Kind: "Alias", ApiVersion: "kms.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "data"}},
 			service.SecurityGroupKey:             {Kind: "SecurityGroup", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "eks-node-sg"}},
-			service.ClusterKey:                   {Kind: "Cluster", ApiVersion: "eks.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-cluster"}},
+			service.ClusterKey:                   {Kind: "Cluster", ApiVersion: "eks.aws.upbound.io/v1beta2", Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-cluster"}},
 			service.SubnetsKey:                   {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
 			service.IngressClassKey:              {Kind: "IngressClass", ApiVersion: "networking.k8s.io/v1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
 			service.IngressClassParamsKey:        {Kind: "IngressClassParams", ApiVersion: "elbv2.k8s.aws/v1beta1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}},
