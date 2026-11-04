@@ -7,6 +7,8 @@ import (
 	"github.com/entigolabs/static-common/crossplane"
 )
 
+const testConfigKeyArn = "arn:aws:kms:eu-north-1:111111111111:key/abcd-1234"
+
 // The store objects are not part of the Zone sequence, so they are expected in the first render.
 func TestZoneSecretStoreRender(t *testing.T) {
 	crossplane.StartCustomFunction(t, function, "9443")
@@ -17,6 +19,7 @@ func TestZoneSecretStoreRender(t *testing.T) {
 	envConfig := crossplane.ParseYamlFileToUnstructured(t, env)
 	crossplane.AppendToResources(t, extra, crossplane.MockByKind(t, envConfig, "EnvironmentConfig", "apiextensions.crossplane.io/v1beta1", false, map[string]interface{}{
 		"data.secretStoreNamespace": "external-secrets",
+		"data.configKMSKeyArn":      testConfigKeyArn,
 	}))
 	for _, res := range crossplane.ParseYamlFileToUnstructured(t, required) {
 		if res.GetKind() == "Cluster" {
@@ -57,9 +60,12 @@ func TestZoneSecretStoreRender(t *testing.T) {
 		"spec.providerConfigRef.name":       "crossplane-aws",
 		"spec.forProvider.assumeRolePolicy": "*",
 	})
+	// The policy is an embedded JSON string; @fromstr descends into it. These two fields prove the
+	// config key ARN is plumbed EnvironmentConfig -> env -> RolePolicy and lands in a kms:Decrypt grant.
 	crossplane.AssertFieldValues(t, resources, "RolePolicy", "iam.aws.upbound.io/v1beta1", map[string]string{
 		"metadata.name":                 "testzone-secrets",
 		"spec.forProvider.roleRef.name": "testzone-secrets",
-		"spec.forProvider.policy":       "*",
+		`spec.forProvider.policy.@fromstr.Statement.#(Sid=="DecryptZoneSecrets").Resource`:  testConfigKeyArn,
+		`spec.forProvider.policy.@fromstr.Statement.#(Sid=="DecryptZoneSecrets").Action.0`: "kms:Decrypt",
 	})
 }
