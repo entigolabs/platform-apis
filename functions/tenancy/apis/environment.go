@@ -20,6 +20,7 @@ type Environment struct {
 	Cluster                        string             `json:"cluster"`
 	CreateAppsNamespace            bool               `json:"createAppsNamespace"`
 	ComputeSubnetType              string             `json:"computeSubnetType"`
+	ConfigKMSKeyArn                string             `json:"configKMSKeyArn,omitempty"`
 	DataKMSAlias                   string             `json:"dataKMSAlias"`
 	DataKMSKey                     string             `json:"dataKMSKey,omitempty"`
 	GranularEgress                 bool               `json:"granularEgress,omitempty"`
@@ -28,6 +29,7 @@ type Environment struct {
 	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
 	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
+	SecretStoreNamespace           string             `json:"secretStoreNamespace,omitempty"`
 	SecurityGroup                  string             `json:"securityGroup"`
 	Tags                           map[string]*string `json:"tags,omitempty"`
 	VPC                            string             `json:"vpc"`

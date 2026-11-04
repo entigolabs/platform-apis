@@ -70,6 +70,11 @@ func (g awsZoneGenerator) generate() (map[string]client.Object, error) {
 		return nil, err
 	}
 	maps.Copy(objs, nodePools)
+	secretStore, err := g.generateSecretStore()
+	if err != nil {
+		return nil, err
+	}
+	maps.Copy(objs, secretStore)
 	networkPolicies, err := g.generateTargetNetworkPolicies()
 	if err != nil {
 		return nil, err
@@ -78,7 +83,21 @@ func (g awsZoneGenerator) generate() (map[string]client.Object, error) {
 	return objs, nil
 }
 
-const albActionAnnotationPrefix = "alb.ingress.kubernetes.io/actions."
+const (
+	albActionAnnotationPrefix = "alb.ingress.kubernetes.io/actions."
+	nodeAssumeRolePolicy      = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}`
+)
 
 type albAction struct {
 	Type          string            `json:"type"`
@@ -241,7 +260,7 @@ func (g awsZoneGenerator) generateLaunchTemplates() map[string]client.Object {
 
 func (g awsZoneGenerator) generateNodePools() (map[string]client.Object, error) {
 	objs := make(map[string]client.Object)
-	objs[GetRoleKey(g.zone.Name)] = g.getIAMRole()
+	objs[GetRoleKey(g.zone.Name)] = g.getIAMRole(g.zone.Name, nodeAssumeRolePolicy)
 	objs[GetRoleWNAttachmentKey(g.zone.Name)] = g.getIAMRolePolicyAttachment(g.zone.Name+"-wn",
 		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy")
 	objs[GetRoleECRROAttachmentKey(g.zone.Name)] = g.getIAMRolePolicyAttachment(g.zone.Name+"-ecr-ro",
@@ -276,14 +295,14 @@ func (g awsZoneGenerator) generateNodePools() (map[string]client.Object, error) 
 	return objs, nil
 }
 
-func (g awsZoneGenerator) getIAMRole() *iamv1beta1.Role {
+func (g awsZoneGenerator) getIAMRole(name, assumeRolePolicy string) *iamv1beta1.Role {
 	return &iamv1beta1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "iam.aws.upbound.io/v1beta1",
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        g.zone.Name,
+			Name:        name,
 			Annotations: g.zoneAnnotations,
 		},
 		Spec: iamv1beta1.RoleSpec{
@@ -294,19 +313,8 @@ func (g awsZoneGenerator) getIAMRole() *iamv1beta1.Role {
 				},
 			},
 			ForProvider: iamv1beta1.RoleParameters{
-				AssumeRolePolicy: base.StringPtr(`{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}`),
-				Tags: g.zoneTags,
+				AssumeRolePolicy: base.StringPtr(assumeRolePolicy),
+				Tags:             g.zoneTags,
 			},
 		},
 	}
