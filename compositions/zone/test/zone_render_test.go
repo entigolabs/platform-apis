@@ -345,9 +345,14 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"rules.0.resources.0":                   "pods",
 		"rules.0.verbs.0":                       "*",
 		"rules.2.apiGroups.0":                   "apps",
-		"rules.8.apiGroups.0":                   "cert-manager.io",
-		"rules.8.resources.0":                   "certificates",
-		"rules.8.resources.1":                   "issuers",
+		"rules.9.apiGroups.0":                   "cert-manager.io",
+		"rules.9.resources.0":                   "certificates",
+		"rules.9.resources.1":                   "certificaterequests",
+		"rules.9.resources.2":                   "issuers",
+		"rules.16.apiGroups.0":                  "rbac.authorization.k8s.io",
+		"rules.16.resources.0":                  "roles",
+		"rules.16.resources.1":                  "rolebindings",
+		"rules.16.verbs.0":                      "get",
 	})
 
 	t.Log("Validating rbac.authorization.k8s.io Role fields")
