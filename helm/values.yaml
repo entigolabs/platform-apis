@@ -539,10 +539,6 @@ functions:
     install: false
     image: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
     tag: v0.11.2
-  function-extra-resources:
-    install: false
-    image: xpkg.upbound.io/crossplane-contrib/function-extra-resources
-    tag: v0.3.0
 
 extraFunctions: []
 #  - name: function-foo
