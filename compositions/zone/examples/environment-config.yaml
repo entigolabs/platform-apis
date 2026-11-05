@@ -7,6 +7,67 @@ data:
   granularEgress: false
   granularEgressExclude: []
   granularNamespaceNetworkPolicy: false
+  namespaceRole:
+    rules:
+      - apiGroups: [""]
+        resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "secrets",
+                    "persistentvolumeclaims", "serviceaccounts", "events"]
+        verbs: ["*"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/attach", "pods/portforward", "pods/eviction", "serviceaccounts/token"]
+        verbs: ["create"]
+      - apiGroups: ["apps", "batch", "autoscaling", "policy"]
+        resources: ["*"]
+        verbs: ["*"]
+      - apiGroups: ["networking.k8s.io"]
+        resources: ["ingresses", "networkpolicies"]
+        verbs: ["*"]
+      - apiGroups: ["gateway.networking.k8s.io"]
+        resources: ["httproutes", "grpcroutes", "tcproutes", "tlsroutes"]
+        verbs: ["*"]
+      - apiGroups: ["networking.istio.io"]
+        resources: ["virtualservices", "destinationrules", "serviceentries"]
+        verbs: ["*"]
+      - apiGroups: ["external-secrets.io"]
+        resources: ["externalsecrets", "secretstores", "pushsecrets"]
+        verbs: ["*"]
+      # every generator kind is namespaced, the cluster-scoped ClusterGenerator is out of reach of a Role
+      - apiGroups: ["generators.external-secrets.io"]
+        resources: ["*"]
+        verbs: ["*"]
+      - apiGroups: ["artifact.entigo.com", "database.entigo.com", "mq.entigo.com",
+                    "networking.entigo.com", "queue.entigo.com", "storage.entigo.com",
+                    "workload.entigo.com"]
+        resources: ["*"]
+        verbs: ["*"]
+      - apiGroups: ["cert-manager.io"]
+        resources: ["certificates", "certificaterequests", "issuers"]
+        verbs: ["*"]
+      # created by cert-manager while it solves a Certificate, read them to see why an issuance is stuck
+      - apiGroups: ["acme.cert-manager.io"]
+        resources: ["orders", "challenges"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: ["monitoring.coreos.com"]
+        resources: ["servicemonitors", "podmonitors", "prometheusrules"]
+        verbs: ["*"]
+      - apiGroups: [""]
+        resources: ["pods/ephemeralcontainers"]
+        verbs: ["get", "update", "patch"]
+      - apiGroups: ["coordination.k8s.io"]
+        resources: ["leases"]
+        verbs: ["*"]
+      - apiGroups: ["metrics.k8s.io"]
+        resources: ["pods"]
+        verbs: ["get", "list"]
+      - apiGroups: ["discovery.k8s.io", "events.k8s.io"]
+        resources: ["endpointslices", "events"]
+        verbs: ["get", "list", "watch"]
+      # Explicit verbs on purpose: "*" would include bind and escalate, which let a user grant more than
+      # they hold. Without them the API server limits a Role or RoleBinding to the permissions of its
+      # creator, so a team can give its ServiceAccounts a subset of this Role and nothing more.
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        resources: ["roles", "rolebindings"]
+        verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
   argoCDNamespace: "argocd"
   awsProvider: "crossplane-aws"
   appProject:

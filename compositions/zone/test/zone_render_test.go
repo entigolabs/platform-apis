@@ -304,7 +304,7 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 8) // 2 zone + 2 ingress target + 4 httproute target
 	crossplane.AssertResourceCount(t, resources, "ValidatingPolicy", 2)
 	crossplane.AssertResourceCount(t, resources, "AccessEntry", 1)
-	crossplane.AssertResourceCount(t, resources, "Role", 7)
+	crossplane.AssertResourceCount(t, resources, "Role", 9)
 	crossplane.AssertResourceCount(t, resources, "RolePolicyAttachment", 4)
 
 	t.Log("Validating rbac.authorization.k8s.io Role fields")
@@ -314,9 +314,10 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
 		"metadata.ownerReferences.0.kind":       "Zone",
 		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "*",
-		"rules.0.resources.0":                   "*",
+		"rules.0.apiGroups.0":                   "",
+		"rules.0.resources.0":                   "pods",
 		"rules.0.verbs.0":                       "*",
+		"rules.2.apiGroups.0":                   "apps",
 	})
 
 	t.Log("Validating rbac.authorization.k8s.io Role fields")
@@ -340,9 +341,29 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
 		"metadata.ownerReferences.0.kind":       "Zone",
 		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "*",
-		"rules.0.resources.0":                   "*",
+		"rules.0.apiGroups.0":                   "",
+		"rules.0.resources.0":                   "pods",
 		"rules.0.verbs.0":                       "*",
+		"rules.2.apiGroups.0":                   "apps",
+		"rules.9.apiGroups.0":                   "cert-manager.io",
+		"rules.9.resources.0":                   "certificates",
+		"rules.9.resources.1":                   "certificaterequests",
+		"rules.9.resources.2":                   "issuers",
+		"rules.16.apiGroups.0":                  "rbac.authorization.k8s.io",
+		"rules.16.resources.0":                  "roles",
+		"rules.16.resources.1":                  "rolebindings",
+		"rules.16.verbs.0":                      "get",
+	})
+
+	t.Log("Validating rbac.authorization.k8s.io Role fields")
+	crossplane.AssertFieldValues(t, resources, "Role", "rbac.authorization.k8s.io/v1", map[string]string{
+		"metadata.name":           "abfe-namespace",
+		"metadata.namespace":      "abfe",
+		"rules.0.resources.0":     "namespaces",
+		"rules.0.resourceNames.0": "abfe",
+		"rules.0.verbs.0":         "update",
+		"rules.0.verbs.1":         "patch",
+		"rules.0.verbs.2":         "delete",
 	})
 
 	t.Log("Validating rbac.authorization.k8s.io Role fields")
@@ -453,9 +474,9 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 8) // 2 zone + 2 ingress target + 4 httproute target
 	crossplane.AssertResourceCount(t, resources, "ValidatingPolicy", 2)
 	crossplane.AssertResourceCount(t, resources, "AccessEntry", 1)
-	crossplane.AssertResourceCount(t, resources, "Role", 7)
+	crossplane.AssertResourceCount(t, resources, "Role", 9)
 	crossplane.AssertResourceCount(t, resources, "RolePolicyAttachment", 4)
-	crossplane.AssertResourceCount(t, resources, "RoleBinding", 9)
+	crossplane.AssertResourceCount(t, resources, "RoleBinding", 15) // 2 namespaces x (3 roles + maintainer namespace + 2 crossplane-view) + 3 apps
 	crossplane.AssertResourceCount(t, resources, "ClusterRoleBinding", 1)
 
 	t.Log("Validating rbac.authorization.k8s.io ClusterRoleRoleBinding fields")
@@ -498,6 +519,21 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
 		"roleRef.kind":                          "Role",
 		"roleRef.name":                          "abfe-all",
+		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
+		"subjects.0.kind":                       "Group",
+		"subjects.0.name":                       "contributor",
+	})
+
+	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
+	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
+		"metadata.name":                         "abbe-contributor-crossplane-view",
+		"metadata.namespace":                    "abbe",
+		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
+		"metadata.ownerReferences.0.kind":       "Zone",
+		"metadata.ownerReferences.0.name":       "testzone",
+		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
+		"roleRef.kind":                          "ClusterRole",
+		"roleRef.name":                          "crossplane-view",
 		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
 		"subjects.0.kind":                       "Group",
 		"subjects.0.name":                       "contributor",

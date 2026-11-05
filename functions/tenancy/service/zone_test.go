@@ -1,6 +1,7 @@
 package service
 
 import (
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,9 +13,13 @@ import (
 	"github.com/google/cel-go/common/types/ref"
 	"github.com/google/go-cmp/cmp"
 	policyv1 "github.com/kyverno/api/api/policies.kyverno.io/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/cel/common"
 	"k8s.io/apiserver/pkg/cel/mutation"
+	"k8s.io/component-helpers/auth/rbac/validation"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 )
 
 func TestMergeRoleMappings(t *testing.T) {
@@ -213,6 +218,230 @@ func TestGetNamespaceIstioInjection(t *testing.T) {
 				t.Fatalf("istio-injection = %q, want %q", value, "enabled")
 			}
 		})
+	}
+}
+
+// TestGetAllRole checks the chart default rules.
+func TestGetAllRole(t *testing.T) {
+	type access struct{ group, resource, verb string }
+	allowed := []access{
+		{"", "pods", "delete"},
+		{"", "pods/log", "get"},
+		{"", "pods/exec", "create"},
+		{"", "pods/attach", "create"},
+		{"", "pods/ephemeralcontainers", "patch"},
+		{"", "serviceaccounts/token", "create"},
+		{"", "pods/portforward", "create"},
+		{"", "pods/eviction", "create"},
+		{"", "services", "create"},
+		{"", "configmaps", "update"},
+		{"", "secrets", "create"},
+		{"", "secrets", "delete"},
+		{"", "persistentvolumeclaims", "create"},
+		{"", "serviceaccounts", "create"},
+		{"", "events", "list"},
+		{"apps", "deployments", "patch"},
+		{"apps", "statefulsets", "create"},
+		{"apps", "deployments/scale", "update"},
+		{"batch", "jobs", "create"},
+		{"batch", "cronjobs", "delete"},
+		{"autoscaling", "horizontalpodautoscalers", "create"},
+		{"policy", "poddisruptionbudgets", "create"},
+		{"networking.k8s.io", "ingresses", "create"},
+		{"networking.k8s.io", "networkpolicies", "create"},
+		{"networking.k8s.io", "networkpolicies", "delete"},
+		{"coordination.k8s.io", "leases", "create"},
+		{"coordination.k8s.io", "leases", "update"},
+		{"metrics.k8s.io", "pods", "list"},
+		{"discovery.k8s.io", "endpointslices", "list"},
+		{"events.k8s.io", "events", "list"},
+		{"rbac.authorization.k8s.io", "roles", "create"},
+		{"rbac.authorization.k8s.io", "rolebindings", "create"},
+		{"rbac.authorization.k8s.io", "rolebindings", "delete"},
+		{"gateway.networking.k8s.io", "httproutes", "create"},
+		{"networking.istio.io", "virtualservices", "create"},
+		{"networking.istio.io", "destinationrules", "update"},
+		{"networking.istio.io", "serviceentries", "create"},
+		{"external-secrets.io", "externalsecrets", "create"},
+		{"external-secrets.io", "secretstores", "create"},
+		{"external-secrets.io", "pushsecrets", "create"},
+		{"generators.external-secrets.io", "passwords", "create"},
+		{"generators.external-secrets.io", "ecrauthorizationtokens", "create"},
+		{"artifact.entigo.com", "repositories", "create"},
+		{"database.entigo.com", "postgresqlinstances", "create"},
+		{"mq.entigo.com", "rabbitmqbrokers", "delete"},
+		{"networking.entigo.com", "webaccesses", "create"},
+		{"queue.entigo.com", "topics", "create"},
+		{"storage.entigo.com", "s3buckets", "create"},
+		{"workload.entigo.com", "webapps", "update"},
+		{"cert-manager.io", "certificates", "create"},
+		{"cert-manager.io", "certificaterequests", "delete"},
+		{"cert-manager.io", "issuers", "create"},
+		{"acme.cert-manager.io", "orders", "list"},
+		{"acme.cert-manager.io", "challenges", "get"},
+		{"monitoring.coreos.com", "servicemonitors", "create"},
+	}
+	denied := []access{
+		// kubernetes/kubernetes#142024
+		{"", "namespaces", "get"},
+		{"", "namespaces", "update"},
+		{"", "namespaces", "patch"},
+		{"", "namespaces", "delete"},
+		{"", "resourcequotas", "update"},
+		{"", "limitranges", "delete"},
+		{"iam.aws.m.upbound.io", "rolepolicyattachments", "create"},
+		{"iam.aws.m.upbound.io", "roles", "create"},
+		{"s3.aws.m.upbound.io", "buckets", "create"},
+		{"iam.aws.upbound.io", "policies", "create"},
+		{"apiextensions.crossplane.io", "compositions", "create"},
+		{"pkg.crossplane.io", "providers", "create"},
+		// bind and escalate would let a user grant more than they hold
+		{"rbac.authorization.k8s.io", "roles", "escalate"},
+		{"rbac.authorization.k8s.io", "roles", "bind"},
+		{"rbac.authorization.k8s.io", "clusterroles", "bind"},
+		{"rbac.authorization.k8s.io", "clusterroles", "create"},
+		{"rbac.authorization.k8s.io", "clusterrolebindings", "create"},
+		{"metrics.k8s.io", "nodes", "list"},
+		{"acme.cert-manager.io", "challenges", "delete"},
+		{"networking.istio.io", "sidecars", "update"},
+		{"security.istio.io", "authorizationpolicies", "create"},
+		{"security.istio.io", "peerauthentications", "create"},
+		{"kyverno.io", "policies", "create"},
+		{"policies.kyverno.io", "policyexceptions", "create"},
+		{"argoproj.io", "applications", "create"},
+		{"tenancy.entigo.com", "zones", "update"},
+	}
+
+	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: chartDefaultRules(t)}}}
+	rules := g.getAllRole("test-app-ns").Rules
+	allows := func(a access) bool {
+		covered, _ := validation.Covers(rules, []rbacv1.PolicyRule{{
+			APIGroups: []string{a.group},
+			Resources: []string{a.resource},
+			Verbs:     []string{a.verb},
+		}})
+		return covered
+	}
+	for _, a := range allowed {
+		if !allows(a) {
+			t.Errorf("want allowed: %s %s (group %q)", a.verb, a.resource, a.group)
+		}
+	}
+	for _, a := range denied {
+		if allows(a) {
+			t.Errorf("want denied: %s %s (group %q)", a.verb, a.resource, a.group)
+		}
+	}
+}
+
+func TestGetNamespaceRole(t *testing.T) {
+	rules := zoneGenerator{}.getNamespaceRole("test-app-ns").Rules
+	allows := func(name, verb string) bool {
+		covered, _ := validation.Covers(rules, []rbacv1.PolicyRule{{
+			APIGroups:     []string{""},
+			Resources:     []string{"namespaces"},
+			ResourceNames: []string{name},
+			Verbs:         []string{verb},
+		}})
+		return covered
+	}
+	for _, verb := range []string{"update", "patch", "delete"} {
+		if !allows("test-app-ns", verb) {
+			t.Errorf("want allowed: %s namespace test-app-ns", verb)
+		}
+		if allows("kube-system", verb) {
+			t.Errorf("want denied: %s namespace kube-system", verb)
+		}
+	}
+	if allows("test-app-ns", "create") {
+		t.Errorf("want denied: create namespace (granted by the maintainer ClusterRole)")
+	}
+}
+
+func TestGetAllRoleUsesEnvironmentRules(t *testing.T) {
+	certificate := []rbacv1.PolicyRule{{
+		APIGroups: []string{"cert-manager.io"},
+		Resources: []string{"certificates"},
+		Verbs:     []string{"create"},
+	}}
+	configured := []rbacv1.PolicyRule{{
+		APIGroups: []string{"cert-manager.io"},
+		Resources: []string{"certificates", "issuers"},
+		Verbs:     []string{"*"},
+	}}
+
+	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: configured}}}
+	if diff := cmp.Diff(configured, g.getAllRole("test-app-ns").Rules); diff != "" {
+		t.Errorf("role rules differ from the configured rules (-want +got):\n%s", diff)
+	}
+
+	empty := zoneGenerator{}.getAllRole("test-app-ns").Rules
+	if covered, _ := validation.Covers(empty, certificate); covered || len(empty) != 0 {
+		t.Errorf("without configured rules the role must grant nothing, got %v", empty)
+	}
+}
+
+func chartDefaultRules(t *testing.T) []rbacv1.PolicyRule {
+	t.Helper()
+	raw, err := os.ReadFile("../../../helm/values.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var values struct {
+		Zone struct {
+			EnvironmentConfig apis.Environment `json:"environmentConfig"`
+		} `json:"zone"`
+	}
+	if err := yaml.Unmarshal(raw, &values); err != nil {
+		t.Fatal(err)
+	}
+	rules := values.Zone.EnvironmentConfig.NamespaceRole.Rules
+	if len(rules) == 0 {
+		t.Fatal("chart values have no zone.environmentConfig.namespaceRole.rules")
+	}
+	return rules
+}
+
+func TestValidateNamespaceRoleRules(t *testing.T) {
+	env := apis.Environment{AWSProvider: "crossplane-aws", VPC: "vpc"}
+	if err := env.ValidateFor(apis.CloudProviderAWS); err == nil {
+		t.Error("missing namespaceRole.rules must be rejected")
+	}
+	env.NamespaceRole.Rules = []rbacv1.PolicyRule{}
+	if err := env.ValidateFor(apis.CloudProviderAWS); err != nil {
+		t.Errorf("an empty namespaceRole.rules list must be accepted: %v", err)
+	}
+}
+
+func TestCrossplaneViewRoleBinding(t *testing.T) {
+	g := zoneGenerator{
+		zone: v1alpha1.Zone{ObjectMeta: metav1.ObjectMeta{Name: "test-zone"}},
+		env:  apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: chartDefaultRules(t)}},
+		roleMappings: map[string][]string{
+			RoleMaintainer:  {"group-maintainer"},
+			RoleContributor: {"group-contributor"},
+			RoleObserver:    {"group-observer"},
+		},
+	}
+	objs := map[string]client.Object{}
+	if err := g.generateNamespace(objs, "test-app-ns", "", false); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range []string{RoleMaintainer, RoleContributor} {
+		obj, ok := objs[GetRBKey("test-zone", "test-app-ns", role+"-crossplane-view")]
+		if !ok {
+			t.Fatalf("no crossplane-view RoleBinding for %s", role)
+		}
+		rb := obj.(*rbacv1.RoleBinding)
+		if rb.RoleRef.Kind != "ClusterRole" || rb.RoleRef.Name != "crossplane-view" {
+			t.Errorf("%s binds %s %s, want ClusterRole crossplane-view", role, rb.RoleRef.Kind, rb.RoleRef.Name)
+		}
+		if rb.Namespace != "test-app-ns" {
+			t.Errorf("%s binding is in %q, must be a namespaced RoleBinding", role, rb.Namespace)
+		}
+	}
+	if _, ok := objs[GetRBKey("test-zone", "test-app-ns", RoleObserver+"-crossplane-view")]; ok {
+		t.Error("observer gets a crossplane-view RoleBinding, the read Role already covers it")
 	}
 }
 
