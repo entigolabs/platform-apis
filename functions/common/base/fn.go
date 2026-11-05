@@ -110,6 +110,15 @@ func getObservedCompositeResource(req *fnv1.RunFunctionRequest) (*resource.Compo
 	return compositeResource, nil
 }
 
+// requiredResourcesPresent reports whether every resource the function requires
+// was delivered in the request, at the apiVersion and kind the selector asks for.
+//
+// Crossplane seeds a request with the resources a previous reconcile required,
+// fetched with the selectors recorded back then. After a selector changes
+// (for example to another apiVersion of the same kind) that seed is stale, and
+// decoding it would fail. Reporting it as absent makes the function answer
+// with its requirements only, so Crossplane refetches with the new selector
+// and calls again.
 func requiredResourcesPresent(requirements *fnv1.Requirements, resources map[string]*fnv1.Resources) bool {
 	if requirements == nil || len(requirements.Resources) == 0 {
 		return true
@@ -117,9 +126,17 @@ func requiredResourcesPresent(requirements *fnv1.Requirements, resources map[str
 	if len(resources) == 0 {
 		return false
 	}
-	for key := range requirements.Resources {
-		if _, ok := resources[key]; !ok {
+	for key, selector := range requirements.Resources {
+		present, ok := resources[key]
+		if !ok {
 			return false
+		}
+		for _, item := range present.GetItems() {
+			fields := item.GetResource().GetFields()
+			if fields["apiVersion"].GetStringValue() != selector.GetApiVersion() ||
+				fields["kind"].GetStringValue() != selector.GetKind() {
+				return false
+			}
 		}
 	}
 	return true

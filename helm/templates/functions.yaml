@@ -306,21 +306,6 @@ spec:
     kind: DeploymentRuntimeConfig
     name: platform-apis-function-patch-and-transform
 {{- end }}
-{{- if (index .Values.functions "function-extra-resources").install }}
----
-apiVersion: pkg.crossplane.io/v1beta1
-kind: Function
-metadata:
-  name: function-extra-resources
-  annotations:
-    argocd.argoproj.io/sync-wave: "-5"
-spec:
-  package: {{ (index .Values.functions "function-extra-resources").image }}:{{ (index .Values.functions "function-extra-resources").tag }}
-  runtimeConfigRef:
-    apiVersion: pkg.crossplane.io/v1beta1
-    kind: DeploymentRuntimeConfig
-    name: platform-apis-function
-{{- end }}
 
 {{- range .Values.extraFunctions }}
 ---

@@ -343,10 +343,34 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 		objs[GetRBKey(g.zone.Name, name, role+"-"+crossplaneViewClusterRole)] =
 			g.getClusterRoleRoleBinding(name, name+"-"+role+"-"+crossplaneViewClusterRole, crossplaneViewClusterRole, groups)
 	}
-	objs[GetMutatingPolicyKey(g.zone.Name, name)] = g.getMutatingPolicy(name, pool)
+	mutatingPolicy, err := withoutPodControllerAutogen(g.getMutatingPolicy(name, pool))
+	if err != nil {
+		return err
+	}
+	objs[GetMutatingPolicyKey(g.zone.Name, name)] = mutatingPolicy
 	objs[GetLabelsMutatingPolicyKey(g.zone.Name, name)] = g.getLabelsMutatingPolicy(name)
-	objs[GetValidatingPolicyKey(g.zone.Name, name)] = g.getValidatingPolicy(name)
+	validatingPolicy, err := withoutPodControllerAutogen(g.getValidatingPolicy(name))
+	if err != nil {
+		return err
+	}
+	objs[GetValidatingPolicyKey(g.zone.Name, name)] = validatingPolicy
 	return nil
+}
+
+// withoutPodControllerAutogen stops Kyverno 1.19+ from generating a Pod policy's rules for pod
+// controllers: the generated mutation patches the controller rather than its pod template, so the
+// generated validation would reject every controller. The controllers field is omitempty, so the
+// empty list is set after conversion.
+func withoutPodControllerAutogen(policy client.Object) (client.Object, error) {
+	u, err := base.ToUnstructured(policy)
+	if err != nil {
+		return nil, err
+	}
+	err = unstructured.SetNestedSlice(u.Object, []any{}, "spec", "autogen", "podControllers", "controllers")
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 func (g zoneGenerator) generateAppsNamespace(objs map[string]client.Object, name string) {
@@ -588,16 +612,31 @@ func (g zoneGenerator) getClusterRoleBinding(role string) client.Object {
 	}
 }
 
+// escapeJSONPointer escapes a map key for use in a JSON Patch path.
+func escapeJSONPointer(key string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
+}
+
 func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Object {
-	var key, value string
+	// The zone label is set over any value the pod gives, because pool labels of different zones
+	// can be equal: "<zone>-<pool>" of zone "a" and pool "b-c" is that of zone "a-b" and pool "c".
+	// The namespace's pool is only a default.
+	initial := fmt.Sprintf(`"%s": "%s"`, base.TenancyZoneLabel, g.zone.Name)
+	poolPatch := ""
 	if pool != "" {
-		key = "tenancy.entigo.com/zone-pool"
-		value = fmt.Sprintf("%s-%s", g.zone.Name, pool)
-	} else {
-		key = "tenancy.entigo.com/zone"
-		value = g.zone.Name
+		zonePool := fmt.Sprintf("%s-%s", g.zone.Name, pool)
+		initial += fmt.Sprintf(`, "%s": "%s"`, zonePoolAnnotation, zonePool)
+		poolPatch = fmt.Sprintf(` + (
+  "%s" in object.spec.nodeSelector ? [] :
+  [
+    JSONPatch{
+      op: "add",
+      path: "/spec/nodeSelector/%s",
+      value: "%s"
+    }
+  ]
+)`, zonePoolAnnotation, escapeJSONPointer(zonePoolAnnotation), zonePool)
 	}
-	escapedKey := strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
 	return &policyv1.MutatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",
@@ -646,18 +685,15 @@ func (g zoneGenerator) getMutatingPolicy(namespaceName, pool string) client.Obje
   JSONPatch{
     op: "add",
     path: "/spec/nodeSelector",
-    value: {"%s": "%s"}
+    value: {%s}
   }
-] : (
-  "%s" in object.spec.nodeSelector ? [] :
-  [
-    JSONPatch{
-      op: "add",
-      path: "/spec/nodeSelector/%s",
-      value: "%s"
-    }
-  ]
-)`, key, value, key, escapedKey, value),
+] : [
+  JSONPatch{
+    op: "add",
+    path: "/spec/nodeSelector/%s",
+    value: "%s"
+  }
+]%s`, initial, escapeJSONPointer(base.TenancyZoneLabel), g.zone.Name, poolPatch),
 					},
 				},
 			},
@@ -748,14 +784,14 @@ func (g zoneGenerator) getValidatingPolicy(namespaceName string) client.Object {
 		poolExprList = append(poolExprList, `"`+g.zone.Name+`-`+pool.Name+`"`)
 		poolMsgList = append(poolMsgList, g.zone.Name+`-`+pool.Name)
 	}
-	expression := fmt.Sprintf(`has(object.spec.nodeSelector) && (
-  ("tenancy.entigo.com/zone-pool" in object.spec.nodeSelector &&
-   object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [%s]) ||
-  ("tenancy.entigo.com/zone" in object.spec.nodeSelector &&
-   object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s")
-)`, strings.Join(poolExprList, ", "), g.zone.Name)
-	message := fmt.Sprintf("Pod nodeSelector must either use tenancy.entigo.com/zone-pool with a valid value [%s]"+
-		" or tenancy.entigo.com/zone with value %s", strings.Join(poolMsgList, ", "), g.zone.Name)
+	expression := fmt.Sprintf(`has(object.spec.nodeSelector) &&
+"tenancy.entigo.com/zone" in object.spec.nodeSelector &&
+object.spec.nodeSelector["tenancy.entigo.com/zone"] == "%s" && (
+  !("tenancy.entigo.com/zone-pool" in object.spec.nodeSelector) ||
+  object.spec.nodeSelector["tenancy.entigo.com/zone-pool"] in [%s]
+)`, g.zone.Name, strings.Join(poolExprList, ", "))
+	message := fmt.Sprintf("Pod nodeSelector must use tenancy.entigo.com/zone with value %s, and"+
+		" tenancy.entigo.com/zone-pool, if set, with a valid value [%s]", g.zone.Name, strings.Join(poolMsgList, ", "))
 	return &policyv1.ValidatingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policies.kyverno.io/v1",

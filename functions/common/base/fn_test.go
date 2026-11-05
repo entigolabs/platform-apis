@@ -585,3 +585,59 @@ func TestAddDesiredSequenceResources(t *testing.T) {
 		})
 	}
 }
+
+func TestRequiredResourcesPresent(t *testing.T) {
+	selector := func(apiVersion, kind string) *fnv1.ResourceSelector {
+		return &fnv1.ResourceSelector{ApiVersion: apiVersion, Kind: kind, Match: &fnv1.ResourceSelector_MatchName{MatchName: "eks"}}
+	}
+	item := func(apiVersion, kind string) *fnv1.Resources {
+		s, err := structpb.NewStruct(map[string]interface{}{"apiVersion": apiVersion, "kind": kind, "metadata": map[string]interface{}{"name": "eks"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: s}}}
+	}
+	cases := map[string]struct {
+		requirements *fnv1.Requirements
+		resources    map[string]*fnv1.Resources
+		want         bool
+	}{
+		"NoRequirements": {
+			requirements: &fnv1.Requirements{},
+			resources:    nil,
+			want:         true,
+		},
+		"MissingKey": {
+			requirements: &fnv1.Requirements{Resources: map[string]*fnv1.ResourceSelector{"Cluster": selector("eks.aws.upbound.io/v1beta2", "Cluster")}},
+			resources:    map[string]*fnv1.Resources{"VPC": item("ec2.aws.upbound.io/v1beta1", "VPC")},
+			want:         false,
+		},
+		"NotFoundIsPresent": {
+			requirements: &fnv1.Requirements{Resources: map[string]*fnv1.ResourceSelector{"Cluster": selector("eks.aws.upbound.io/v1beta2", "Cluster")}},
+			resources:    map[string]*fnv1.Resources{"Cluster": {}},
+			want:         true,
+		},
+		"Matching": {
+			requirements: &fnv1.Requirements{Resources: map[string]*fnv1.ResourceSelector{"Cluster": selector("eks.aws.upbound.io/v1beta2", "Cluster")}},
+			resources:    map[string]*fnv1.Resources{"Cluster": item("eks.aws.upbound.io/v1beta2", "Cluster")},
+			want:         true,
+		},
+		"StaleSeedAtOldVersion": {
+			requirements: &fnv1.Requirements{Resources: map[string]*fnv1.ResourceSelector{"Cluster": selector("eks.aws.upbound.io/v1beta2", "Cluster")}},
+			resources:    map[string]*fnv1.Resources{"Cluster": item("eks.aws.upbound.io/v1beta1", "Cluster")},
+			want:         false,
+		},
+		"WrongKind": {
+			requirements: &fnv1.Requirements{Resources: map[string]*fnv1.ResourceSelector{"Cluster": selector("eks.aws.upbound.io/v1beta2", "Cluster")}},
+			resources:    map[string]*fnv1.Resources{"Cluster": item("eks.aws.upbound.io/v1beta2", "NodeGroup")},
+			want:         false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := requiredResourcesPresent(tc.requirements, tc.resources); got != tc.want {
+				t.Errorf("requiredResourcesPresent() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
