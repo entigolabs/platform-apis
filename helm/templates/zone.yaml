@@ -274,6 +274,13 @@ rules:
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: ["rolebindings", "roles", "clusterrolebindings"]
     verbs: ["*"]
+  # A RoleBinding to a ClusterRole passes the escalation check only when its creator holds every
+  # rule of that ClusterRole or may bind it. crossplane-view aggregates rules Crossplane itself does
+  # not hold, so the Zone's crossplane-view RoleBindings need the bind verb.
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles"]
+    resourceNames: ["crossplane-view"]
+    verbs: ["bind"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies", "ingresses"]
     verbs: ["*"]
