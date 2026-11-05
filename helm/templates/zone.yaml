@@ -165,6 +165,13 @@ rules:
 - apiGroups: ["networking.k8s.io"]
   resources: ["ingressclasses"]
   verbs: ["get", "watch", "list"]
+# cluster-scoped objects a Zone Namespace refers to by name
+- apiGroups: ["cert-manager.io"]
+  resources: ["clusterissuers"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["external-secrets.io", "generators.external-secrets.io"]
+  resources: ["clustersecretstores", "clustergenerators"]
+  verbs: ["get", "watch", "list"]
 {{- if eq .Values.global.cloudProvider "aws" }}
 - apiGroups: ["eks.aws.upbound.io"]
   resources: ["nodegroups"]

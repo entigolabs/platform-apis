@@ -42,16 +42,32 @@ func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			{"create", "virtualservices.networking.istio.io", true},
 			{"create", "serviceentries.networking.istio.io", true},
 			{"create", "externalsecrets.external-secrets.io", true},
+			{"create", "secretstores.external-secrets.io", true},
+			{"create", "passwords.generators.external-secrets.io", true},
 			{"create", "postgresqlinstances.database.entigo.com", true},
 			{"create", "webapps.workload.entigo.com", true},
 			{"create", "certificates.cert-manager.io", true},
+			{"create", "issuers.cert-manager.io", true},
+			{"list", "orders.acme.cert-manager.io", true},
 			{"create", "servicemonitors.monitoring.coreos.com", true},
+			// composed managed resources are readable for debugging, never writable
+			{"get", "instances.rds.aws.m.upbound.io", true},
+			{"list", "keys.kms.aws.m.upbound.io", true},
+			{"watch", "securitygroups.ec2.aws.m.upbound.io", true},
+			{"update", "instances.rds.aws.m.upbound.io", false},
+			{"delete", "keys.kms.aws.m.upbound.io", false},
 			{"create", "rolepolicyattachments.iam.aws.m.upbound.io", false},
 			{"create", "roles.iam.aws.m.upbound.io", false},
 			{"create", "buckets.s3.aws.m.upbound.io", false},
-			{"create", "rolebindings.rbac.authorization.k8s.io", false},
-			{"create", "roles.rbac.authorization.k8s.io", false},
-			{"delete", "networkpolicies.networking.k8s.io", false},
+			{"create", "rolebindings.rbac.authorization.k8s.io", true},
+			{"create", "roles.rbac.authorization.k8s.io", true},
+			{"escalate", "roles.rbac.authorization.k8s.io", false},
+			{"bind", "roles.rbac.authorization.k8s.io", false},
+			{"delete", "networkpolicies.networking.k8s.io", true},
+			{"create", "leases.coordination.k8s.io", true},
+			{"list", "pods.metrics.k8s.io", true},
+			{"create", "pods/attach", true},
+			{"patch", "pods/ephemeralcontainers", true},
 			{"update", "sidecars.networking.istio.io", false},
 			{"create", "authorizationpolicies.security.istio.io", false},
 			{"create", "policyexceptions.policies.kyverno.io", false},
@@ -67,6 +83,7 @@ func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions) {
 		}
 		otherZone := append([]rbacCheck{
 			{"create", "deployments.apps", false},
+			{"get", "instances.rds.aws.m.upbound.io", false},
 			{"delete", "pods", false},
 			{"create", "pods/exec", false},
 			{"get", "secrets", false},
@@ -95,11 +112,45 @@ func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			assertRBAC(t, cluster, zoneMaintainerGroup, KyvernoTestNSName, checks)
 			assertRBAC(t, cluster, zoneMaintainerGroup, "kube-system", outsideZone("kube-system"))
 		})
+		t.Run("rbac-escalation", func(t *testing.T) {
+			t.Parallel()
+			testRBACEscalation(t, cluster)
+		})
 		t.Run("managed-resource-guard", func(t *testing.T) {
 			t.Parallel()
 			testManagedResourceGuard(t, cluster)
 		})
 	})
+}
+
+// testRBACEscalation impersonates a contributor, so the API server's escalation check runs for real:
+// a Role is limited to the permissions its creator holds, a SubjectAccessReview cannot show that.
+func testRBACEscalation(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	as := []string{"--as=zone-rbac-test", "--as-group=" + zoneAContributorGroup, "--as-group=system:authenticated",
+		"-n", KyvernoTestNSName, "--dry-run=server"}
+	create := func(args ...string) (string, error) {
+		return terrak8s.RunKubectlAndGetOutputE(t, cluster, append(append([]string{"create"}, args...), as...)...)
+	}
+	if out, err := create("role", "zone-rbac-subset", "--verb=get,list", "--resource=pods,configmaps"); err != nil {
+		t.Errorf("contributor could not create a Role with a subset of its own permissions: %s", out)
+	}
+	// the Zone's own Role, a dry-run Role does not exist for a RoleBinding to refer to
+	if out, err := create("rolebinding", "zone-rbac-subset", "--role="+KyvernoTestNSName+"-all",
+		"--serviceaccount="+KyvernoTestNSName+":default"); err != nil {
+		t.Errorf("contributor could not bind a Role it holds to a ServiceAccount: %s", out)
+	}
+	const escalation = "attempting to grant RBAC permissions not currently held"
+	if out, err := create("role", "zone-rbac-escalation", "--verb=*", "--resource=*"); err == nil {
+		t.Errorf("contributor created a Role with permissions it does not hold: %s", out)
+	} else if !strings.Contains(out, escalation) {
+		t.Errorf("Role was rejected, but not by the escalation check: %s", out)
+	}
+	if out, err := create("rolebinding", "zone-rbac-escalation", "--clusterrole=cluster-admin",
+		"--serviceaccount="+KyvernoTestNSName+":default"); err == nil {
+		t.Errorf("contributor bound cluster-admin in its Namespace: %s", out)
+	} else if !strings.Contains(out, escalation) {
+		t.Errorf("RoleBinding was rejected, but not by the escalation check: %s", out)
+	}
 }
 
 // testManagedResourceGuard runs as cluster admin, so only the policy can reject the request.
