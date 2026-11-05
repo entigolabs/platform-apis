@@ -161,6 +161,10 @@ func testMariadbInstance(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	require.NoError(t, err)
 	require.Equal(t, "dbadmin", getField(t, mdbNs, ExternalSecretKind, esName, ".spec.target.template.data.username"))
 
+	// It must read the master-user secret through the Zone's own store, not the cluster-wide one.
+	// A Ready ExternalSecret (above) then proves the Zone store can decrypt and read it by its tag.
+	require.Equal(t, ZoneSecretStoreA, getField(t, mdbNs, ExternalSecretKind, esName, ".spec.secretStoreRef.name"))
+
 	// deletionProtection on composite propagates to RDS spec
 	patchResource(t, mdbNs, MariadbInstanceKind, MariadbInstanceName, `{"spec":{"deletionProtection":true}}`)
 	waitFieldEquals(t, mdbNs, RdsInstanceKind, rdsName, ".spec.forProvider.deletionProtection", "true", 30, 10*time.Second)
