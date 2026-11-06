@@ -32,6 +32,12 @@ spec:
                       items:
                         type: string
                         minLength: 1
+                    sourceRepos:
+                      type: array
+                      description: Allow-list of repository URLs (Git/Helm/OCI, glob patterns allowed) that Applications in this Zone's AppProject may deploy from. Overrides the environment-wide default. When unset, the environment default is used.
+                      items:
+                        type: string
+                        minLength: 1
                 granularNamespaceNetworkPolicy:
                     type: boolean
                     description: When false, all Namespaces within the same Zone allow unrestricted network traffic between each other. When true, Namespaces must explicitly define NetworkPolicies to permit cross-Namespace communication. Intra-Namespace traffic is always permitted regardless of this setting.

@@ -172,6 +172,13 @@ func mergeContributorGroups(zone v1alpha1.Zone, groups []string) []string {
 	return append(groups, zone.Spec.AppProject.ContributorGroups...)
 }
 
+func resolveSourceRepos(zone v1alpha1.Zone, envSourceRepos []string) []string {
+	if zone.Spec.AppProject != nil && len(zone.Spec.AppProject.SourceRepos) > 0 {
+		return zone.Spec.AppProject.SourceRepos
+	}
+	return envSourceRepos
+}
+
 func GetUniqueNamespaces(zone v1alpha1.Zone, namespaces []*corev1.Namespace) []string {
 	uqNs := base.NewSet[string]()
 	for _, ns := range namespaces {
@@ -879,7 +886,7 @@ func (g zoneGenerator) getAppProject() client.Object {
 		Spec: argocd.AppProjectSpec{
 			Description:                "Security zone for isolated team deployment",
 			Destinations:               destinations,
-			SourceRepos:                g.env.AppProject.SourceRepos,
+			SourceRepos:                resolveSourceRepos(g.zone, g.env.AppProject.SourceRepos),
 			SourceNamespaces:           g.uqNamespaces,
 			ClusterResourceWhitelist:   whitelist,
 			ClusterResourceBlacklist:   blacklist,
