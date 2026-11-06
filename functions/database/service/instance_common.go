@@ -71,6 +71,7 @@ type rdsInstanceGenerator struct {
 	observed        map[resource.Name]resource.ObservedComposed
 	env             apis.Environment
 	hash            string
+	secretStoreName string
 	// Dependencies
 	vpc          ec2mv1beta1.VPC
 	kmsDataKey   kmsmv1beta1.Key
@@ -87,6 +88,18 @@ func GetEnvironment(required map[string][]resource.Required) (apis.Environment, 
 	var env apis.Environment
 	err := base.GetEnvironment(base.EnvironmentKey, required, &env)
 	return env, err
+}
+
+// resolveSecretStoreName picks the ClusterSecretStore the master-user secret is read through: a
+// Zone's own store (zone-<zone>) for a zoned namespace, otherwise the cluster-wide store. The
+// "zone-" prefix must match the tenancy GetSecretStoreName.
+func resolveSecretStoreName(required map[string][]resource.Required, env apis.Environment) string {
+	if ns := base.GetNamespace(required); ns != nil {
+		if zone := ns.Labels[base.TenancyZoneLabel]; zone != "" {
+			return "zone-" + zone
+		}
+	}
+	return env.EsClusterSecretStore
 }
 
 func newRDSInstanceGenerator(
@@ -130,6 +143,7 @@ func newRDSInstanceGenerator(
 		kmsDataKey:      kmsDataKey,
 		kmsConfigKey:    kmsConfigKey,
 		subnetGroup:     subnetGroup,
+		secretStoreName: resolveSecretStoreName(required, env),
 	}
 
 	g.generateNames()
@@ -506,7 +520,7 @@ func (g *rdsInstanceGenerator) buildExternalSecret(secretARN string, endpoint st
 		Spec: esv1.ExternalSecretSpec{
 			RefreshInterval: &metav1.Duration{Duration: time.Minute * 15},
 			RefreshPolicy:   esv1.ExternalSecretRefreshPolicy("Periodic"),
-			SecretStoreRef:  esv1.SecretStoreRef{Name: g.env.EsClusterSecretStore, Kind: "ClusterSecretStore"},
+			SecretStoreRef:  esv1.SecretStoreRef{Name: g.secretStoreName, Kind: "ClusterSecretStore"},
 			Target: esv1.ExternalSecretTarget{
 				Name:           targetName,
 				CreationPolicy: esv1.ExternalSecretCreationPolicy("Owner"),
