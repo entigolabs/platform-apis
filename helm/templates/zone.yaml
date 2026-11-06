@@ -343,6 +343,10 @@ data:
   namespaceRole:
     rules:
       {{- toYaml .rules | nindent 6 }}
+    {{- with .additionalRules }}
+    additionalRules:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
   {{- end }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}

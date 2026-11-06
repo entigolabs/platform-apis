@@ -381,6 +381,25 @@ func TestGetAllRoleUsesEnvironmentRules(t *testing.T) {
 	}
 }
 
+func TestGetAllRoleAppendsAdditionalRules(t *testing.T) {
+	base := []rbacv1.PolicyRule{{
+		APIGroups: []string{""},
+		Resources: []string{"pods"},
+		Verbs:     []string{"*"},
+	}}
+	additional := []rbacv1.PolicyRule{{
+		APIGroups: []string{"example.entigo.com"},
+		Resources: []string{"widgets"},
+		Verbs:     []string{"*"},
+	}}
+	want := []rbacv1.PolicyRule{base[0], additional[0]}
+
+	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: base, AdditionalRules: additional}}}
+	if diff := cmp.Diff(want, g.getAllRole("test-app-ns").Rules); diff != "" {
+		t.Errorf("role must be rules followed by additionalRules (-want +got):\n%s", diff)
+	}
+}
+
 func chartDefaultRules(t *testing.T) []rbacv1.PolicyRule {
 	t.Helper()
 	raw, err := os.ReadFile("../../../helm/values.yaml")

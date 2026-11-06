@@ -47,6 +47,8 @@ type AppProject struct {
 // NamespaceRole configures the Role bound to maintainers and contributors in Zone Namespaces.
 type NamespaceRole struct {
 	Rules []rbacv1.PolicyRule `json:"rules,omitempty"`
+	// AdditionalRules are appended to Rules, extending the default set without restating it.
+	AdditionalRules []rbacv1.PolicyRule `json:"additionalRules,omitempty"`
 }
 
 type RoleMapping struct {
