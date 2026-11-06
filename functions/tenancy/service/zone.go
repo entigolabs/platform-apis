@@ -506,7 +506,8 @@ func (g zoneGenerator) getNetworkPolicy(nsName string, granularNetwork bool) *ne
 }
 
 func (g zoneGenerator) getAllRole(nsName string) *rbacv1.Role {
-	return g.getRole(nsName, nsName+"-all", g.env.NamespaceRole.Rules)
+	rules := slices.Concat(g.env.NamespaceRole.Rules, g.env.NamespaceRole.AdditionalRules)
+	return g.getRole(nsName, nsName+"-all", rules)
 }
 
 // getNamespaceRole lets maintainers manage the zone namespace object itself.
