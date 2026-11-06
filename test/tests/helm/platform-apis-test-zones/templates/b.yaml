@@ -3,6 +3,10 @@ kind: Zone
 metadata:
   name: b
 spec:
+  appProject:
+    # Restrict zone b to the test chart registry; exercises per-zone sourceRepos.
+    sourceRepos:
+      - ghcr.io/entigolabs
   granularNamespaceNetworkPolicy: true
   namespaces:
     - name: b1

@@ -61,18 +61,19 @@ const (
 
 	// ── Zone ─────────────────────────────────────────────────────────────────
 
-	ZoneApplicationName  = "app-of-zones"
-	ZoneKind             = "zone.tenancy.entigo.com"
-	NodeGroupKind        = "nodegroup.eks.aws.upbound.io"
-	ZoneAName            = "a"
-	ZoneBName            = "b"
-	ZoneAPool            = "default"
-	ZoneBPool            = "default-a"
-	ZoneBPoolNamespace   = "b1"
-	AAppsNamespace       = "a-apps"
-	BAppsNamespace       = "b-apps"
-	AAppsApplicationName = "a-apps"
-	BAppsApplicationName = "b-apps"
+	ZoneApplicationName    = "app-of-zones"
+	ZoneKind               = "zone.tenancy.entigo.com"
+	NodeGroupKind          = "nodegroup.eks.aws.upbound.io"
+	ZoneAName              = "a"
+	ZoneBName              = "b"
+	ZoneAPool              = "default"
+	ZoneBPool              = "default-a"
+	ZoneBPoolNamespace     = "b1"
+	AAppsNamespace         = "a-apps"
+	BAppsNamespace         = "b-apps"
+	AAppsApplicationName   = "a-apps"
+	BAppsApplicationName   = "b-apps"
+	BDeniedApplicationName = "b-denied"
 
 	// ── Zone secret store ────────────────────────────────────────────────────
 

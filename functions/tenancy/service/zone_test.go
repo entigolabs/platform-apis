@@ -163,6 +163,49 @@ func TestMergeRoleMappings(t *testing.T) {
 	}
 }
 
+func TestResolveSourceRepos(t *testing.T) {
+	envDefault := []string{"https://env.example/*"}
+	tests := map[string]struct {
+		zone v1alpha1.Zone
+		env  []string
+		want []string
+	}{
+		"zone override takes precedence": {
+			zone: v1alpha1.Zone{
+				Spec: v1alpha1.ZoneSpec{
+					AppProject: &v1alpha1.AppProject{
+						SourceRepos: []string{"oci://zone.example/*"},
+					},
+				},
+			},
+			env:  envDefault,
+			want: []string{"oci://zone.example/*"},
+		},
+		"nil AppProject falls back to env default": {
+			zone: v1alpha1.Zone{},
+			env:  envDefault,
+			want: envDefault,
+		},
+		"empty zone sourceRepos falls back to env default": {
+			zone: v1alpha1.Zone{
+				Spec: v1alpha1.ZoneSpec{
+					AppProject: &v1alpha1.AppProject{SourceRepos: []string{}},
+				},
+			},
+			env:  envDefault,
+			want: envDefault,
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := resolveSourceRepos(tc.zone, tc.env)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("resolveSourceRepos() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestGetNamespaceIstioInjection(t *testing.T) {
 	tests := map[string]struct {
 		granularEgress bool

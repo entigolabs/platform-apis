@@ -44,6 +44,9 @@ type ZoneSpec struct {
 type AppProject struct {
 	// OIDC groups with full access to applications
 	ContributorGroups []string `json:"contributorGroups,omitempty"`
+
+	// Allow-list of repository URLs (Git/Helm/OCI, globs allowed) Applications may deploy from; overrides the environment default when set.
+	SourceRepos []string `json:"sourceRepos,omitempty"`
 }
 
 type Namespace struct {
