@@ -120,6 +120,7 @@ jobs:
                           cp "$SOURCE/templates/oci_zone_namespace.yaml"          "$TARGET/templates/"
                           cp "$SOURCE/templates/oci_zone_pod.yaml"                "$TARGET/templates/"
                           cp "$SOURCE/templates/b_test_application.yaml"          "$TARGET/templates/"
+                          cp "$SOURCE/templates/b_denied_application.yaml"        "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_namespace.yaml"           "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_zone.yaml"                "$TARGET/templates/"
                           cp "$SOURCE/templates/kyverno_argoapp.yaml"             "$TARGET/templates/"
