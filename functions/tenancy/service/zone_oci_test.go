@@ -111,7 +111,7 @@ func flexRequirements() []v1alpha1.Requirement {
 
 func TestGenerateZoneObjectsOCI(t *testing.T) {
 	zone := ociZone("team-a", flexRequirements()...)
-	objs, err := GenerateZoneObjects(zone, ociRequired("ocid1.image.tools"), nil, logging.NewNopLogger(), apis.CloudProviderOCI)
+	objs, err := GenerateZoneObjects(zone, ociRequired("ocid1.image.tools"), nil, logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{})
 	if err != nil {
 		t.Fatalf("GenerateZoneObjects: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestOCINodePoolExternalName(t *testing.T) {
 				}
 			}
 			objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...),
-				ociRequired("ocid1.image.tools"), observed, logging.NewNopLogger(), apis.CloudProviderOCI)
+				ociRequired("ocid1.image.tools"), observed, logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{})
 			if err != nil {
 				t.Fatalf("GenerateZoneObjects: %v", err)
 			}
@@ -281,7 +281,7 @@ func TestGetOCINodePool(t *testing.T) {
 				requirements = tc.override
 			}
 			objs, err := GenerateZoneObjects(ociZone(zoneName, requirements...),
-				ociRequired(templateImage(tc.noTemplate)), nil, logging.NewNopLogger(), apis.CloudProviderOCI)
+				ociRequired(templateImage(tc.noTemplate)), nil, logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{})
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("error = %v, want containing %q", err, tc.wantErr)
@@ -403,7 +403,7 @@ func TestOCITargetNetworkPolicies(t *testing.T) {
 	zone := ociZone("team-a", flexRequirements()...)
 	zone.Spec.Namespaces = []v1alpha1.Namespace{{Name: "app"}}
 
-	objs, err := GenerateZoneObjects(zone, required, nil, logging.NewNopLogger(), apis.CloudProviderOCI)
+	objs, err := GenerateZoneObjects(zone, required, nil, logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{})
 	if err != nil {
 		t.Fatalf("GenerateZoneObjects: %v", err)
 	}

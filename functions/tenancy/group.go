@@ -10,6 +10,7 @@ import (
 	"github.com/crossplane/function-sdk-go/resource/composite"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
+	"github.com/entigolabs/platform-apis/apis/authz"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +33,7 @@ const (
 type GroupImpl struct {
 	log           logging.Logger
 	cloudProvider apis.CloudProvider
+	authz         apis.Authz
 }
 
 var _ base.GroupService = &GroupImpl{}
@@ -54,7 +56,7 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 }
 
 func (g *GroupImpl) generateZone(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
-	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed, g.log, g.cloudProvider)
+	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed, g.log, g.cloudProvider, g.authz)
 }
 
 func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
@@ -107,6 +109,9 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			maps.Copy(resources, ociSelectors(env))
 		} else {
 			maps.Copy(resources, awsSelectors(env))
+			if g.authz.Enabled() {
+				maps.Copy(resources, authzSelectors())
+			}
 		}
 		resources[service.IngressClassKey] = &fnv1.ResourceSelector{
 			Kind:       "IngressClass",
@@ -183,6 +188,21 @@ func awsSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
 		Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 	}
 	return resources
+}
+
+func authzSelectors() map[string]*fnv1.ResourceSelector {
+	return map[string]*fnv1.ResourceSelector{
+		service.RoleDefinitionKey: {
+			Kind:       "RoleDefinition",
+			ApiVersion: authz.APIVersion,
+			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		},
+		service.RoleGrantKey: {
+			Kind:       "RoleGrant",
+			ApiVersion: authz.APIVersion,
+			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
+		},
+	}
 }
 
 func ociSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {

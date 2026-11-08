@@ -27,10 +27,10 @@ type Environment struct {
 	GranularEgress                 bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude          []string           `json:"granularEgressExclude,omitempty"`
 	GranularNamespaceNetworkPolicy bool               `json:"granularNamespaceNetworkPolicy,omitempty"`
-	NamespaceRole                  NamespaceRole      `json:"namespaceRole,omitempty"`
+	NamespaceRole                  NamespaceRole      `json:"namespaceRole,omitempty"` // TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
 	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
-	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"`
+	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"` // TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
 	SecretStoreNamespace           string             `json:"secretStoreNamespace,omitempty"`
 	SecurityGroup                  string             `json:"securityGroup"`
 	Tags                           map[string]*string `json:"tags,omitempty"`
@@ -44,14 +44,25 @@ type AppProject struct {
 	SourceRepos                []string           `json:"sourceRepos,omitempty"`
 }
 
+// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
 // NamespaceRole configures the Role bound to maintainers and contributors in Zone Namespaces.
 type NamespaceRole struct {
 	Rules []rbacv1.PolicyRule `json:"rules,omitempty"`
 }
 
+// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
 type RoleMapping struct {
 	RoleRef string   `json:"roleRef"`
 	Groups  []string `json:"groups"`
+}
+
+type Authz struct {
+	Organization string
+	Workspace    string
+}
+
+func (a Authz) Enabled() bool {
+	return a.Organization != ""
 }
 
 func (e Environment) ValidateFor(provider CloudProvider) error {

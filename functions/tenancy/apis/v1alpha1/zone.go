@@ -38,10 +38,14 @@ type ZoneSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	Pools []Pool `json:"pools"`
 
+	// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
+
 	RoleMapping []RoleMapping `json:"roleMapping,omitempty"`
 }
 
 type AppProject struct {
+	// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
+
 	// OIDC groups with full access to applications
 	ContributorGroups []string `json:"contributorGroups,omitempty"`
 }

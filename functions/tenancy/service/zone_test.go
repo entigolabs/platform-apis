@@ -312,7 +312,7 @@ func TestGetAllRole(t *testing.T) {
 		{"tenancy.entigo.com", "zones", "update"},
 	}
 
-	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: chartDefaultRules(t)}}}
+	g := ociZoneGenerator{zoneGenerator: zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: chartDefaultRules(t)}}}}
 	rules := g.getAllRole("test-app-ns").Rules
 	allows := func(a access) bool {
 		covered, _ := validation.Covers(rules, []rbacv1.PolicyRule{{
@@ -335,7 +335,7 @@ func TestGetAllRole(t *testing.T) {
 }
 
 func TestGetNamespaceRole(t *testing.T) {
-	rules := zoneGenerator{}.getNamespaceRole("test-app-ns").Rules
+	rules := ociZoneGenerator{}.getNamespaceRole("test-app-ns").Rules
 	allows := func(name, verb string) bool {
 		covered, _ := validation.Covers(rules, []rbacv1.PolicyRule{{
 			APIGroups:     []string{""},
@@ -370,12 +370,12 @@ func TestGetAllRoleUsesEnvironmentRules(t *testing.T) {
 		Verbs:     []string{"*"},
 	}}
 
-	g := zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: configured}}}
+	g := ociZoneGenerator{zoneGenerator: zoneGenerator{env: apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: configured}}}}
 	if diff := cmp.Diff(configured, g.getAllRole("test-app-ns").Rules); diff != "" {
 		t.Errorf("role rules differ from the configured rules (-want +got):\n%s", diff)
 	}
 
-	empty := zoneGenerator{}.getAllRole("test-app-ns").Rules
+	empty := ociZoneGenerator{}.getAllRole("test-app-ns").Rules
 	if covered, _ := validation.Covers(empty, certificate); covered || len(empty) != 0 {
 		t.Errorf("without configured rules the role must grant nothing, got %v", empty)
 	}
@@ -414,9 +414,11 @@ func TestValidateNamespaceRoleRules(t *testing.T) {
 }
 
 func TestCrossplaneViewRoleBinding(t *testing.T) {
-	g := zoneGenerator{
-		zone: v1alpha1.Zone{ObjectMeta: metav1.ObjectMeta{Name: "test-zone"}},
-		env:  apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: chartDefaultRules(t)}},
+	g := ociZoneGenerator{
+		zoneGenerator: zoneGenerator{
+			zone: v1alpha1.Zone{ObjectMeta: metav1.ObjectMeta{Name: "test-zone"}},
+			env:  apis.Environment{NamespaceRole: apis.NamespaceRole{Rules: chartDefaultRules(t)}},
+		},
 		roleMappings: map[string][]string{
 			RoleMaintainer:  {"group-maintainer"},
 			RoleContributor: {"group-contributor"},
@@ -424,9 +426,7 @@ func TestCrossplaneViewRoleBinding(t *testing.T) {
 		},
 	}
 	objs := map[string]client.Object{}
-	if err := g.generateNamespace(objs, "test-app-ns", "", false); err != nil {
-		t.Fatal(err)
-	}
+	g.addNamespaceRoles(objs, "test-app-ns")
 	for _, role := range []string{RoleMaintainer, RoleContributor} {
 		obj, ok := objs[GetRBKey("test-zone", "test-app-ns", role+"-crossplane-view")]
 		if !ok {
