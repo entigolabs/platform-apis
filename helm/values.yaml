@@ -15,6 +15,10 @@ global:
 
 workspace: ""
 
+authz:
+  organization: ""
+  workspace: ""
+
 database:
   function:
     image: ghcr.io/entigolabs/platform-apis-database-fn

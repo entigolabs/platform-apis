@@ -23,99 +23,101 @@ type rbacCheck struct {
 func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Run("zone-rbac", func(t *testing.T) {
 		ensureKyvernoTestNamespace(t, cluster)
-		waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
-		waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "maintainer")
+		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; AWS zones no longer get group RBAC
+		// waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
+		// waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "maintainer")
 		if t.Failed() {
 			return
 		}
-		ns := "namespaces/" + KyvernoTestNSName
+		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; AWS zones no longer get group RBAC
+		// ns := "namespaces/" + KyvernoTestNSName
 
-		shared := []rbacCheck{
-			{"create", "deployments.apps", true},
-			{"delete", "pods", true},
-			{"create", "pods/exec", true},
-			{"get", "pods/log", true},
-			{"create", "secrets", true},
-			{"update", "configmaps", true},
-			{"create", "cronjobs.batch", true},
-			{"create", "ingresses.networking.k8s.io", true},
-			{"create", "virtualservices.networking.istio.io", true},
-			{"create", "serviceentries.networking.istio.io", true},
-			{"create", "externalsecrets.external-secrets.io", true},
-			{"create", "secretstores.external-secrets.io", true},
-			{"create", "passwords.generators.external-secrets.io", true},
-			{"create", "postgresqlinstances.database.entigo.com", true},
-			{"create", "webapps.workload.entigo.com", true},
-			{"create", "certificates.cert-manager.io", true},
-			{"create", "issuers.cert-manager.io", true},
-			{"list", "orders.acme.cert-manager.io", true},
-			{"create", "servicemonitors.monitoring.coreos.com", true},
-			// composed managed resources are readable for debugging, never writable
-			{"get", "instances.rds.aws.m.upbound.io", true},
-			{"list", "keys.kms.aws.m.upbound.io", true},
-			{"watch", "securitygroups.ec2.aws.m.upbound.io", true},
-			{"update", "instances.rds.aws.m.upbound.io", false},
-			{"delete", "keys.kms.aws.m.upbound.io", false},
-			{"create", "rolepolicyattachments.iam.aws.m.upbound.io", false},
-			{"create", "roles.iam.aws.m.upbound.io", false},
-			{"create", "buckets.s3.aws.m.upbound.io", false},
-			{"create", "rolebindings.rbac.authorization.k8s.io", true},
-			{"create", "roles.rbac.authorization.k8s.io", true},
-			{"escalate", "roles.rbac.authorization.k8s.io", false},
-			{"bind", "roles.rbac.authorization.k8s.io", false},
-			{"delete", "networkpolicies.networking.k8s.io", true},
-			{"create", "leases.coordination.k8s.io", true},
-			{"list", "pods.metrics.k8s.io", true},
-			{"create", "pods/attach", true},
-			{"patch", "pods/ephemeralcontainers", true},
-			{"update", "sidecars.networking.istio.io", false},
-			{"create", "authorizationpolicies.security.istio.io", false},
-			{"create", "policyexceptions.policies.kyverno.io", false},
-			{"update", "resourcequotas", false},
-		}
+		// shared := []rbacCheck{
+		// 	{"create", "deployments.apps", true},
+		// 	{"delete", "pods", true},
+		// 	{"create", "pods/exec", true},
+		// 	{"get", "pods/log", true},
+		// 	{"create", "secrets", true},
+		// 	{"update", "configmaps", true},
+		// 	{"create", "cronjobs.batch", true},
+		// 	{"create", "ingresses.networking.k8s.io", true},
+		// 	{"create", "virtualservices.networking.istio.io", true},
+		// 	{"create", "serviceentries.networking.istio.io", true},
+		// 	{"create", "externalsecrets.external-secrets.io", true},
+		// 	{"create", "secretstores.external-secrets.io", true},
+		// 	{"create", "passwords.generators.external-secrets.io", true},
+		// 	{"create", "postgresqlinstances.database.entigo.com", true},
+		// 	{"create", "webapps.workload.entigo.com", true},
+		// 	{"create", "certificates.cert-manager.io", true},
+		// 	{"create", "issuers.cert-manager.io", true},
+		// 	{"list", "orders.acme.cert-manager.io", true},
+		// 	{"create", "servicemonitors.monitoring.coreos.com", true},
+		// 	// composed managed resources are readable for debugging, never writable
+		// 	{"get", "instances.rds.aws.m.upbound.io", true},
+		// 	{"list", "keys.kms.aws.m.upbound.io", true},
+		// 	{"watch", "securitygroups.ec2.aws.m.upbound.io", true},
+		// 	{"update", "instances.rds.aws.m.upbound.io", false},
+		// 	{"delete", "keys.kms.aws.m.upbound.io", false},
+		// 	{"create", "rolepolicyattachments.iam.aws.m.upbound.io", false},
+		// 	{"create", "roles.iam.aws.m.upbound.io", false},
+		// 	{"create", "buckets.s3.aws.m.upbound.io", false},
+		// 	{"create", "rolebindings.rbac.authorization.k8s.io", true},
+		// 	{"create", "roles.rbac.authorization.k8s.io", true},
+		// 	{"escalate", "roles.rbac.authorization.k8s.io", false},
+		// 	{"bind", "roles.rbac.authorization.k8s.io", false},
+		// 	{"delete", "networkpolicies.networking.k8s.io", true},
+		// 	{"create", "leases.coordination.k8s.io", true},
+		// 	{"list", "pods.metrics.k8s.io", true},
+		// 	{"create", "pods/attach", true},
+		// 	{"patch", "pods/ephemeralcontainers", true},
+		// 	{"update", "sidecars.networking.istio.io", false},
+		// 	{"create", "authorizationpolicies.security.istio.io", false},
+		// 	{"create", "policyexceptions.policies.kyverno.io", false},
+		// 	{"update", "resourcequotas", false},
+		// }
 
-		outsideZone := func(namespace string) []rbacCheck {
-			return []rbacCheck{
-				{"update", "namespaces/" + namespace, false},
-				{"patch", "namespaces/" + namespace, false},
-				{"delete", "namespaces/" + namespace, false},
-			}
-		}
-		otherZone := append([]rbacCheck{
-			{"create", "deployments.apps", false},
-			{"get", "instances.rds.aws.m.upbound.io", false},
-			{"delete", "pods", false},
-			{"create", "pods/exec", false},
-			{"get", "secrets", false},
-			{"update", "configmaps", false},
-			{"create", "webapps.workload.entigo.com", false},
-		}, outsideZone(zoneBNamespace)...)
+		// outsideZone := func(namespace string) []rbacCheck {
+		// 	return []rbacCheck{
+		// 		{"update", "namespaces/" + namespace, false},
+		// 		{"patch", "namespaces/" + namespace, false},
+		// 		{"delete", "namespaces/" + namespace, false},
+		// 	}
+		// }
+		// otherZone := append([]rbacCheck{
+		// 	{"create", "deployments.apps", false},
+		// 	{"get", "instances.rds.aws.m.upbound.io", false},
+		// 	{"delete", "pods", false},
+		// 	{"create", "pods/exec", false},
+		// 	{"get", "secrets", false},
+		// 	{"update", "configmaps", false},
+		// 	{"create", "webapps.workload.entigo.com", false},
+		// }, outsideZone(zoneBNamespace)...)
 
-		t.Run("contributor", func(t *testing.T) {
-			t.Parallel()
-			checks := append([]rbacCheck{
-				{"update", ns, false},
-				{"patch", ns, false},
-				{"delete", ns, false},
-			}, shared...)
-			assertRBAC(t, cluster, zoneAContributorGroup, KyvernoTestNSName, checks)
-			assertRBAC(t, cluster, zoneAContributorGroup, zoneBNamespace, otherZone)
-			assertRBAC(t, cluster, zoneAContributorGroup, "kube-system", outsideZone("kube-system"))
-		})
-		t.Run("maintainer", func(t *testing.T) {
-			t.Parallel()
-			checks := append([]rbacCheck{
-				{"update", ns, true},
-				{"patch", ns, true},
-				{"delete", ns, true},
-			}, shared...)
-			assertRBAC(t, cluster, zoneMaintainerGroup, KyvernoTestNSName, checks)
-			assertRBAC(t, cluster, zoneMaintainerGroup, "kube-system", outsideZone("kube-system"))
-		})
-		t.Run("rbac-escalation", func(t *testing.T) {
-			t.Parallel()
-			testRBACEscalation(t, cluster)
-		})
+		// t.Run("contributor", func(t *testing.T) {
+		// 	t.Parallel()
+		// 	checks := append([]rbacCheck{
+		// 		{"update", ns, false},
+		// 		{"patch", ns, false},
+		// 		{"delete", ns, false},
+		// 	}, shared...)
+		// 	assertRBAC(t, cluster, zoneAContributorGroup, KyvernoTestNSName, checks)
+		// 	assertRBAC(t, cluster, zoneAContributorGroup, zoneBNamespace, otherZone)
+		// 	assertRBAC(t, cluster, zoneAContributorGroup, "kube-system", outsideZone("kube-system"))
+		// })
+		// t.Run("maintainer", func(t *testing.T) {
+		// 	t.Parallel()
+		// 	checks := append([]rbacCheck{
+		// 		{"update", ns, true},
+		// 		{"patch", ns, true},
+		// 		{"delete", ns, true},
+		// 	}, shared...)
+		// 	assertRBAC(t, cluster, zoneMaintainerGroup, KyvernoTestNSName, checks)
+		// 	assertRBAC(t, cluster, zoneMaintainerGroup, "kube-system", outsideZone("kube-system"))
+		// })
+		// t.Run("rbac-escalation", func(t *testing.T) {
+		// 	t.Parallel()
+		// 	testRBACEscalation(t, cluster)
+		// })
 		t.Run("managed-resource-guard", func(t *testing.T) {
 			t.Parallel()
 			testManagedResourceGuard(t, cluster)
