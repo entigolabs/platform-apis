@@ -282,7 +282,6 @@ rules:
     resources: ["rolebindings", "roles", "clusterrolebindings"]
     verbs: ["*"]
   {{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-  {{- if ne .Values.global.cloudProvider "aws" }}
   # A RoleBinding to a ClusterRole passes the escalation check only when its creator holds every
   # rule of that ClusterRole or may bind it. crossplane-view aggregates rules Crossplane itself does
   # not hold, so the Zone's crossplane-view RoleBindings need the bind verb.
@@ -290,7 +289,6 @@ rules:
     resources: ["clusterroles"]
     resourceNames: ["crossplane-view"]
     verbs: ["bind"]
-  {{- end }}
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies", "ingresses"]
     verbs: ["*"]
