@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +36,7 @@ func testZoneApps(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	deployAndVerifyApp(t, cluster, aApps, "./templates/a_test_application.yaml", AAppsApplicationName)
 	deployAndVerifyApp(t, cluster, bApps, "./templates/b_test_application.yaml", BAppsApplicationName)
 
+	verifySourceReposAllowList(t, cluster)
 	verifyAppsRunning(t, cluster)
 	verifyNetworkPolicies(t, cluster)
 }
@@ -63,6 +65,33 @@ func deployAndVerifyApp(t *testing.T, cluster, appOpts *terrak8s.KubectlOptions,
 	applyFile(t, cluster, templatePath)
 	syncWithRetry(t, appOpts, appName)
 	waitApplicationHealthy(t, appOpts, appName)
+}
+
+// verifySourceReposAllowList checks the environment-wide AppProject sourceRepos allow-list
+// (global.sourceRepos, set to ghcr.io/entigolabs for these tests). The allowed-repo case is
+// already covered above: every test app (repoURL ghcr.io/entigolabs) only syncs because that
+// repo is in the list. Here we assert the negative: an Application pointing at a repo outside
+// the list is rejected by ArgoCD and never deploys.
+func verifySourceReposAllowList(t *testing.T, cluster *terrak8s.KubectlOptions) {
+	t.Run("sourcerepos-allow-list", func(t *testing.T) {
+		bApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, BAppsNamespace)
+		applyFile(t, cluster, "./templates/b_denied_application.yaml")
+		defer func() {
+			_, _ = terrak8s.RunKubectlAndGetOutputE(t, bApps, "delete", "application", BDeniedApplicationName, "--ignore-not-found")
+		}()
+		_, err := retry.DoWithRetryE(t, fmt.Sprintf("Application %q rejected by project", BDeniedApplicationName),
+			healthRetries, healthInterval, func() (string, error) {
+				msg, err := getAppField(t, bApps, BDeniedApplicationName, ".status.conditions[*].message")
+				if err != nil {
+					return "", err
+				}
+				if !strings.Contains(msg, "is not permitted in project") {
+					return "", fmt.Errorf("conditions=%q", msg)
+				}
+				return msg, nil
+			})
+		require.NoError(t, err, "Application %q using a repo outside the allow-list was not rejected", BDeniedApplicationName)
+	})
 }
 
 func verifyAppsRunning(t *testing.T, cluster *terrak8s.KubectlOptions) {
