@@ -337,7 +337,12 @@ metadata:
 data:
   createAppsNamespace: {{ .Values.zone.environmentConfig.createAppsNamespace }}
   granularEgress: {{ .Values.zone.environmentConfig.granularEgress }}
-  granularEgressExclude: {{ .Values.zone.environmentConfig.granularEgressExclude }}
+  {{- with .Values.zone.environmentConfig.granularEgressExclude }}
+  granularEgressExclude:
+    {{- toYaml . | nindent 4 }}
+  {{- else }}
+  granularEgressExclude: []
+  {{- end }}
   granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
   {{- with .Values.zone.environmentConfig.namespaceRole }}
   namespaceRole:
