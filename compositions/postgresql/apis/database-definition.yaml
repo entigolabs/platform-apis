@@ -58,6 +58,7 @@ spec:
                       - postgis_tiger_geocoder
                       - uuid-ossp
                       - btree_gist
+                      - vector
                 extensionConfig:
                   description: Per-extension configuration. Key is the extension name, value is a configuration object.
                   type: object
