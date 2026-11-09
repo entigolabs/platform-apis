@@ -184,6 +184,8 @@ zone:
     # also lets them delete the NetworkPolicy the Zone creates, which the Zone restores on its next
     # reconcile.
     namespaceRole:
+      # additionalRules are appended to rules, extending the default set without restating it.
+      # Additive and namespace-scoped; avoid wildcards for the reasons above.
       rules:
         - apiGroups: [""]
           resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "secrets",

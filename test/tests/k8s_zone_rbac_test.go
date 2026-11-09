@@ -72,6 +72,11 @@ func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			{"create", "authorizationpolicies.security.istio.io", false},
 			{"create", "policyexceptions.policies.kyverno.io", false},
 			{"update", "resourcequotas", false},
+			// granted via namespaceRole.additionalRules; the ungranted verb and resource stay denied
+			{"create", "widgets.example.entigo.com", true},
+			{"get", "widgets.example.entigo.com", true},
+			{"delete", "widgets.example.entigo.com", false},
+			{"create", "gadgets.example.entigo.com", false},
 		}
 
 		outsideZone := func(namespace string) []rbacCheck {
