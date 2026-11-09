@@ -185,14 +185,13 @@ const (
 	authzZoneName            = "main"
 	readEverythingRuleJson   = `{"apiGroups":["*"],"resources":["*"],"verbs":["get","list","watch"]}`
 	zoneReadonlyRole         = "zone-readonly"
-	zoneReadonlyPoliciesJson = `["p, proj:main:zone-readonly, applications, get, main/*, allow","p, proj:main:zone-readonly, applicationsets, get, main/*, allow","p, proj:main:zone-readonly, clusters, get, main/*, allow","p, proj:main:zone-readonly, exec, get, main/*, allow","p, proj:main:zone-readonly, logs, get, main/*, allow","p, proj:main:zone-readonly, projects, get, main, allow","p, proj:main:zone-readonly, repositories, get, main/*, allow"]`
+	zoneReadonlyPoliciesJson = `["p, proj:main:zone-readonly, applications, get, main/*, allow","p, proj:main:zone-readonly, applicationsets, get, main/*, allow","p, proj:main:zone-readonly, clusters, get, main/*, allow","p, proj:main:zone-readonly, exec, get, main/*, allow","p, proj:main:zone-readonly, logs, get, main/*, allow","p, proj:main:zone-readonly, repositories, get, main/*, allow"]`
 
 	contractRolesJson = `[` +
 		`{"name":"ct-n1","description":"RoleDefinition ct-n1","groups":["ct-n1@jev/jev"],"policies":["p, proj:main:ct-n1, applications, get, main/*, allow"]},` +
-		`{"name":"ct-n10","description":"RoleDefinition ct-n10","groups":["ct-n10@jev/jev"],"policies":["p, proj:main:ct-n10, applications, *, main/*, allow","p, proj:main:ct-n10, applicationsets, *, main/*, allow","p, proj:main:ct-n10, clusters, *, main/*, allow","p, proj:main:ct-n10, exec, *, main/*, allow","p, proj:main:ct-n10, logs, *, main/*, allow","p, proj:main:ct-n10, projects, *, main, allow","p, proj:main:ct-n10, repositories, *, main/*, allow"]},` +
+		`{"name":"ct-n10","description":"RoleDefinition ct-n10","groups":["ct-n10@jev/jev"],"policies":["p, proj:main:ct-n10, applications, *, main/*, allow","p, proj:main:ct-n10, applicationsets, *, main/*, allow","p, proj:main:ct-n10, clusters, *, main/*, allow","p, proj:main:ct-n10, exec, *, main/*, allow","p, proj:main:ct-n10, logs, *, main/*, allow","p, proj:main:ct-n10, repositories, *, main/*, allow"]},` +
 		`{"name":"ct-n2","description":"RoleDefinition ct-n2","groups":["ct-n2@jev/jev"],"policies":["p, proj:main:ct-n2, applications, update, main/*, allow"]},` +
 		`{"name":"ct-n3","description":"RoleDefinition ct-n3","groups":["ct-n3@jev/jev"],"policies":["p, proj:main:ct-n3, applicationsets, sync, main/*, allow"]},` +
-		`{"name":"ct-n4","description":"RoleDefinition ct-n4","groups":["ct-n4@jev/jev"],"policies":["p, proj:main:ct-n4, projects, get, main, allow"]},` +
 		`{"name":"ct-n5","description":"RoleDefinition ct-n5","groups":["ct-n5@jev/jev"],"policies":["p, proj:main:ct-n5, logs, get, main/*, allow"]},` +
 		`{"name":"ct-n6","description":"RoleDefinition ct-n6","groups":["ct-n6@jev/jev"],"policies":["p, proj:main:ct-n6, exec, create, main/*, allow"]},` +
 		`{"name":"ct-n7","description":"RoleDefinition ct-n7","groups":["ct-n7@jev/jev"],"policies":["p, proj:main:ct-n7, repositories, *, main/*, allow"]},` +

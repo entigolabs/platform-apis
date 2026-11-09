@@ -12,12 +12,11 @@ const (
 	argoApplicationGroup = "argoproj.io"
 	argoMetaGroup        = "argocd.meta.entigo.com"
 	argoWildcard         = "*"
-	argoProjects         = "projects"
 )
 
 var (
 	projectResources = map[string]map[string]string{
-		argoApplicationGroup: {"applications": "applications", "applicationsets": "applicationsets", "appprojects": argoProjects},
+		argoApplicationGroup: {"applications": "applications", "applicationsets": "applicationsets"},
 		argoMetaGroup:        {"logs": "logs", "exec": "exec", "repositories": "repositories", "clusters": "clusters"},
 	}
 	argoVerbActions = map[string]string{"get": "get", "list": "get", "watch": "get", "create": "create",
@@ -35,7 +34,7 @@ func ProjectPolicies(zone, role string, rules []authz.Rule) ([]string, error) {
 		}
 		for _, resource := range projectResourcesOf(rule) {
 			for _, action := range argoActions(rule.Verbs) {
-				line, err := casbinLine(subject, resource, action, projectObject(zone, resource))
+				line, err := casbinLine(subject, resource, action, fmt.Sprintf("%s/*", zone))
 				if err != nil {
 					return nil, fmt.Errorf("%w in role %s", err, role)
 				}
@@ -74,13 +73,6 @@ func argoActions(verbs []string) []string {
 		}
 	}
 	return mapped
-}
-
-func projectObject(zone, resource string) string {
-	if resource == argoProjects {
-		return zone
-	}
-	return fmt.Sprintf("%s/*", zone)
 }
 
 func casbinLine(subject, resource, action, object string) (string, error) {
