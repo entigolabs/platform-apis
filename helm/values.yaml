@@ -12,6 +12,9 @@ global:
     # OCID of the environment's data key on Oracle. Empty means the environment has no KMS
     # module, and the Zone's node pools fall back to Oracle-managed keys.
     oracleDataKeyId: ""
+  # ArgoCD repository allow-list (Git/Helm/OCI, globs allowed) applied to every Zone's
+  # AppProject. "*" allows any source; set an explicit list to restrict deployments.
+  sourceRepos: ["*"]
 
 workspace: ""
 
@@ -261,7 +264,6 @@ zone:
     appProject:
       maintainerGroups: []
       observerGroups: []
-      sourceRepos: ["*"]
       namespaceResourceBlacklist:
         - group: "*.m.upbound.io"
           kind: "*"

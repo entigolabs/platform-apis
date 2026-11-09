@@ -359,7 +359,7 @@ data:
   {{- end }}
   appProject:
     sourceRepos:
-    {{- range .Values.zone.environmentConfig.appProject.sourceRepos }}
+    {{- range .Values.global.sourceRepos }}
       - {{ . | quote }}
     {{- end }}
     namespaceResourceBlacklist:
@@ -424,13 +424,9 @@ spec:
   namespaceResourceBlacklist:
     - group: '*'
       kind: '*'
-  {{- $sourceRepos := list -}}
-  {{- if hasKey .Values.zone.environmentConfig.appProject "sourceRepos" -}}
-    {{- $sourceRepos = .Values.zone.environmentConfig.appProject.sourceRepos -}}
-  {{- end }}
-  {{- if $sourceRepos }}
+  {{- if .Values.global.sourceRepos }}
   sourceRepos:
-    {{- range $sourceRepos }}
+    {{- range .Values.global.sourceRepos }}
     - {{ . | quote }}
     {{- end }}
   {{- end }}
