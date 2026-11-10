@@ -12,7 +12,6 @@ import (
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
-	"github.com/entigolabs/platform-apis/apis/argocd"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -41,7 +40,6 @@ const (
 	RoleContributor = "contributor"
 	RoleMaintainer  = "maintainer"
 	RoleObserver    = "observer"
-	RoleCICD        = "cicd"
 	// crossplaneViewClusterRole is aggregated by the Crossplane rbac-manager from every installed
 	// provider, so bound in a Namespace it reads the managed resources the platform APIs compose
 	// there (kms, rds, ec2, ...) without the Zone having to know their API groups. Nothing is granted
@@ -122,7 +120,7 @@ func firstRequired(required map[string][]resource.Required, key string) *unstruc
 }
 
 func (g ociZoneGenerator) generate() (map[string]client.Object, error) {
-	objs, err := g.generateCommon(g.legacyProjectRoles())
+	objs, err := g.generateCommon()
 	if err != nil {
 		return nil, err
 	}
@@ -641,56 +639,6 @@ func (g ociZoneGenerator) addAppsNamespaceRoles(objs map[string]client.Object, n
 			roleName = readRole.Name
 		}
 		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
-	}
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) legacyProjectRoles() []argocd.ProjectRole {
-	return []argocd.ProjectRole{
-		{
-			Name:        RoleMaintainer,
-			Description: "Maintainer permissions",
-			Groups:      g.roleMappings[RoleMaintainer],
-			Policies: []string{
-				fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, repositories, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, applicationsets, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, logs, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, exec, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-			},
-		},
-		{
-			Name:        RoleObserver,
-			Description: "Observer permissions",
-			Groups:      g.roleMappings[RoleObserver],
-			Policies: []string{
-				fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", g.zone.Name, RoleObserver, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", g.zone.Name, RoleObserver, g.zone.Name),
-			},
-		},
-		{
-			Name:        RoleContributor,
-			Description: "Contributor permissions",
-			Groups:      g.roleMappings[RoleContributor],
-			Policies: []string{
-				fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, repositories, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, applicationsets, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, logs, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, exec, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-			},
-		},
-		{
-			Name:        RoleCICD,
-			Description: "Use this role for your CI/CD pipelines",
-			Groups:      g.roleMappings[RoleMaintainer],
-			Policies: []string{
-				fmt.Sprintf("p, proj:%s:%s, applications, sync, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, applicationsets, sync, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
-				fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
-			},
-		},
 	}
 }
 

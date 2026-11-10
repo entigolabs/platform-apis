@@ -108,10 +108,9 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 			maps.Copy(resources, ociSelectors(env))
 		} else {
 			maps.Copy(resources, awsSelectors(env))
-			if g.authz.Enabled() {
-				maps.Copy(resources, service.AuthzSelectors())
-			}
 		}
+		maps.Copy(resources, service.AuthzSelectors(g.authz))
+
 		resources[service.IngressClassKey] = &fnv1.ResourceSelector{
 			Kind:       "IngressClass",
 			ApiVersion: "networking.k8s.io/v1",

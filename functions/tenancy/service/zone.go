@@ -75,6 +75,7 @@ type zoneGenerator struct {
 	zoneTags        map[string]*string
 	egressExclude   base.Set[string]
 	uqNamespaces    []string
+	projectRoles    []argocd.ProjectRole
 }
 
 func GenerateZoneObjects(
@@ -103,6 +104,12 @@ func GenerateZoneObjects(
 	tags := make(map[string]*string)
 	maps.Copy(tags, env.Tags)
 	tags[base.TenancyZoneLabel] = &zone.Name
+
+	projectRoles, err := projectRolesFrom(zone.Name, settings, required, log)
+	if err != nil {
+		return nil, err
+	}
+
 	generator := zoneGenerator{
 		log:            log,
 		zone:           zone,
@@ -117,6 +124,7 @@ func GenerateZoneObjects(
 		zoneTags:      tags,
 		egressExclude: base.NewSet(env.GranularEgressExclude...),
 		uqNamespaces:  GetUniqueNamespaces(zone, namespaces),
+		projectRoles:  projectRoles,
 	}
 	if cloudProvider == apis.CloudProviderOCI {
 		oci, err := newOCIZoneGenerator(generator)
@@ -125,7 +133,7 @@ func GenerateZoneObjects(
 		}
 		return oci.generate()
 	}
-	aws, err := newAWSZoneGenerator(generator, settings)
+	aws, err := newAWSZoneGenerator(generator)
 	if err != nil {
 		return nil, err
 	}
@@ -149,14 +157,14 @@ func GetUniqueNamespaces(zone v1alpha1.Zone, namespaces []*corev1.Namespace) []s
 	return list
 }
 
-func (g zoneGenerator) generateCommon(projectRoles []argocd.ProjectRole) (map[string]client.Object, error) {
+func (g zoneGenerator) generateCommon() (map[string]client.Object, error) {
 	objs := make(map[string]client.Object)
 	namespaces, err := g.generateNamespaces()
 	if err != nil {
 		return nil, err
 	}
 	maps.Copy(objs, namespaces)
-	objs[GetAppProjectKey(g.zone.Name)] = g.getAppProject(projectRoles)
+	objs[GetAppProjectKey(g.zone.Name)] = g.getAppProject()
 	return objs, nil
 }
 
@@ -634,7 +642,7 @@ func getIntOrFloat(value intstr.IntOrString) (float64, error) {
 	return strconv.ParseFloat(value.StrVal, 64)
 }
 
-func (g zoneGenerator) getAppProject(roles []argocd.ProjectRole) client.Object {
+func (g zoneGenerator) getAppProject() client.Object {
 	var destinations []argocd.ApplicationDestination
 	for _, ns := range g.uqNamespaces {
 		destinations = append(destinations, argocd.ApplicationDestination{
@@ -671,7 +679,7 @@ func (g zoneGenerator) getAppProject(roles []argocd.ProjectRole) client.Object {
 			ClusterResourceBlacklist:   blacklist,
 			NamespaceResourceBlacklist: g.env.AppProject.NamespaceResourceBlacklist,
 			NamespaceResourceWhitelist: g.env.AppProject.NamespaceResourceWhitelist,
-			Roles:                      roles,
+			Roles:                      g.projectRoles,
 		},
 	}
 }

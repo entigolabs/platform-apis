@@ -36,7 +36,10 @@ var (
 	casbinField = regexp.MustCompile(`^[A-Za-z0-9_.:/*@-]+$`)
 )
 
-func AuthzSelectors() map[string]*fnv1.ResourceSelector {
+func AuthzSelectors(settings apis.Authz) map[string]*fnv1.ResourceSelector {
+	if !settings.Enabled() {
+		return nil
+	}
 	return map[string]*fnv1.ResourceSelector{
 		RoleDefinitionKey: {
 			Kind:       "RoleDefinition",
@@ -49,6 +52,46 @@ func AuthzSelectors() map[string]*fnv1.ResourceSelector {
 			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 		},
 	}
+}
+
+func projectRolesFrom(zone string, settings apis.Authz, required map[string][]resource.Required,
+	log logging.Logger) ([]argocd.ProjectRole, error) {
+	if !settings.Enabled() {
+		return nil, nil
+	}
+	definitions, err := extractRoleDefinitions(required)
+	if err != nil {
+		return nil, err
+	}
+	grants, err := extractRoleGrants(required)
+	if err != nil {
+		return nil, err
+	}
+	return ProjectRoles(zone, settings, definitions, grants, log), nil
+}
+
+func extractRoleDefinitions(required map[string][]resource.Required) ([]authz.RoleDefinition, error) {
+	definitions := make([]authz.RoleDefinition, 0, len(required[RoleDefinitionKey]))
+	for _, item := range required[RoleDefinitionKey] {
+		var definition authz.RoleDefinition
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Resource.Object, &definition); err != nil {
+			return nil, fmt.Errorf("cannot convert required resource %s: %w", RoleDefinitionKey, err)
+		}
+		definitions = append(definitions, definition)
+	}
+	return definitions, nil
+}
+
+func extractRoleGrants(required map[string][]resource.Required) ([]authz.RoleGrant, error) {
+	grants := make([]authz.RoleGrant, 0, len(required[RoleGrantKey]))
+	for _, item := range required[RoleGrantKey] {
+		var grant authz.RoleGrant
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Resource.Object, &grant); err != nil {
+			return nil, fmt.Errorf("cannot convert required resource %s: %w", RoleGrantKey, err)
+		}
+		grants = append(grants, grant)
+	}
+	return grants, nil
 }
 
 func ProjectRoles(zone string, settings apis.Authz, definitions []authz.RoleDefinition, grants []authz.RoleGrant,
@@ -111,43 +154,6 @@ func targetNames(grant authz.RoleGrant, group, kind string) []string {
 		}
 	}
 	return names
-}
-
-func extractRoleDefinitions(required map[string][]resource.Required) ([]authz.RoleDefinition, error) {
-	definitions := make([]authz.RoleDefinition, 0, len(required[RoleDefinitionKey]))
-	for _, item := range required[RoleDefinitionKey] {
-		var definition authz.RoleDefinition
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Resource.Object, &definition); err != nil {
-			return nil, fmt.Errorf("cannot convert required resource %s: %w", RoleDefinitionKey, err)
-		}
-		definitions = append(definitions, definition)
-	}
-	return definitions, nil
-}
-
-func extractRoleGrants(required map[string][]resource.Required) ([]authz.RoleGrant, error) {
-	grants := make([]authz.RoleGrant, 0, len(required[RoleGrantKey]))
-	for _, item := range required[RoleGrantKey] {
-		var grant authz.RoleGrant
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Resource.Object, &grant); err != nil {
-			return nil, fmt.Errorf("cannot convert required resource %s: %w", RoleGrantKey, err)
-		}
-		grants = append(grants, grant)
-	}
-	return grants, nil
-}
-
-func projectRolesFrom(zone string, settings apis.Authz, required map[string][]resource.Required,
-	log logging.Logger) ([]argocd.ProjectRole, error) {
-	definitions, err := extractRoleDefinitions(required)
-	if err != nil {
-		return nil, err
-	}
-	grants, err := extractRoleGrants(required)
-	if err != nil {
-		return nil, err
-	}
-	return ProjectRoles(zone, settings, definitions, grants, log), nil
 }
 
 func ProjectPolicies(zone, role string, rules []authz.Rule) ([]string, error) {

@@ -12,8 +12,6 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
-	"github.com/entigolabs/platform-apis/apis"
-	"github.com/entigolabs/platform-apis/apis/argocd"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	ec2v1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/ec2/v1beta1"
 	eksv1beta1 "github.com/upbound/provider-aws/v2/apis/cluster/eks/v1beta1"
@@ -37,10 +35,9 @@ type awsZoneGenerator struct {
 	cluster        eksv1beta2.Cluster
 	subnets        []*ec2v1beta1.Subnet
 	computeSubnets []*ec2v1beta1.Subnet
-	projectRoles   []argocd.ProjectRole
 }
 
-func newAWSZoneGenerator(common zoneGenerator, settings apis.Authz) (awsZoneGenerator, error) {
+func newAWSZoneGenerator(common zoneGenerator) (awsZoneGenerator, error) {
 	g := awsZoneGenerator{zoneGenerator: common}
 	if err := base.ExtractRequiredResource(g.required, VPCKey, &g.vpc); err != nil {
 		return g, err
@@ -60,18 +57,11 @@ func newAWSZoneGenerator(common zoneGenerator, settings apis.Authz) (awsZoneGene
 	}
 	g.subnets = subnets
 	g.computeSubnets = filterSubnetsByType(subnets, g.env.ComputeSubnetType)
-	if settings.Enabled() {
-		roles, err := projectRolesFrom(g.zone.Name, settings, g.required, g.log)
-		if err != nil {
-			return g, err
-		}
-		g.projectRoles = roles
-	}
 	return g, nil
 }
 
 func (g awsZoneGenerator) generate() (map[string]client.Object, error) {
-	objs, err := g.generateCommon(g.projectRoles)
+	objs, err := g.generateCommon()
 	if err != nil {
 		return nil, err
 	}

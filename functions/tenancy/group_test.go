@@ -9,6 +9,7 @@ import (
 
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
+	"github.com/crossplane/function-sdk-go/resource/composite"
 	"github.com/crossplane/function-sdk-go/response"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/authz"
@@ -1032,4 +1033,41 @@ func TestZoneAppProjectRoles(t *testing.T) {
 		return &GroupImpl{cloudProvider: apis.CloudProviderAWS, authz: apis.Authz{Organization: "Jev", Workspace: "Jev"}}
 	}
 	test.RunFunctionCases(t, newService, cases)
+}
+
+func TestOCIZoneRequiresRoleGrantsOnlyWhenAuthzIsOn(t *testing.T) {
+	xr := composite.New()
+	if err := json.Unmarshal([]byte(authzZoneJson), &xr.Object); err != nil {
+		t.Fatal(err)
+	}
+	required := map[string][]resource.Required{
+		base.EnvironmentKey: {{Resource: &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apiextensions.crossplane.io/v1beta1",
+			"kind":       "EnvironmentConfig",
+			"metadata":   map[string]any{"name": environmentName},
+			"data": map[string]any{
+				"oracleProvider":    "crossplane-oracle",
+				"argoCDNamespace":   "argocd",
+				"cluster":           "oke",
+				"securityGroup":     "node",
+				"computeSubnetType": "private",
+				"podSecurity":       "baseline",
+				"namespaceRole":     map[string]any{"rules": []any{}},
+			},
+		}}}},
+	}
+	for name, settings := range map[string]apis.Authz{"on": {Organization: "Jev", Workspace: "Jev"}, "off": {}} {
+		t.Run(name, func(t *testing.T) {
+			g := &GroupImpl{cloudProvider: apis.CloudProviderOCI, authz: settings}
+			selectors, err := g.GetRequiredResources(xr, required)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, definitions := selectors[service.RoleDefinitionKey]
+			_, grants := selectors[service.RoleGrantKey]
+			if definitions != settings.Enabled() || grants != settings.Enabled() {
+				t.Errorf("authz %v: RoleDefinitions requested %v, RoleGrants requested %v", settings.Enabled(), definitions, grants)
+			}
+		})
+	}
 }

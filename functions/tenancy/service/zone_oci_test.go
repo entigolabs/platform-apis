@@ -9,6 +9,8 @@ import (
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
+	"github.com/entigolabs/platform-apis/apis/argocd"
+	"github.com/entigolabs/platform-apis/apis/authz"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -463,4 +465,54 @@ func templateImage(none bool) string {
 		return ""
 	}
 	return "ocid1.image.tools"
+}
+
+func TestOCIZoneAppProjectGetsRolesFromRoleGrants(t *testing.T) {
+	required := ociRequired("ocid1.image.tools")
+	required[RoleDefinitionKey] = []resource.Required{{Resource: &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": authz.APIVersion,
+		"kind":       "RoleDefinition",
+		"metadata":   map[string]any{"name": "zone-readonly"},
+		"spec": map[string]any{"rules": []any{map[string]any{
+			"apiGroups": []any{"argoproj.io"}, "resources": []any{"applications"}, "verbs": []any{"get"},
+		}}},
+	}}}}
+	required[RoleGrantKey] = []resource.Required{{Resource: &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": authz.APIVersion,
+		"kind":       "RoleGrant",
+		"metadata":   map[string]any{"name": "readers"},
+		"spec":       map[string]any{"roleRef": "zone-readonly"},
+	}}}}
+
+	objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...), required, nil, logging.NewNopLogger(),
+		apis.CloudProviderOCI, apis.Authz{Organization: "Jev", Workspace: "Jev"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	project, ok := objs[GetAppProjectKey("team-a")].(*argocd.AppProject)
+	if !ok {
+		t.Fatalf("AppProject not generated, got keys %v", keys(objs))
+	}
+	want := []argocd.ProjectRole{{
+		Name:        "zone-readonly",
+		Description: "RoleDefinition zone-readonly",
+		Groups:      []string{"zone-readonly@jev/jev"},
+		Policies:    []string{"p, proj:team-a:zone-readonly, applications, get, team-a/*, allow"},
+	}}
+	if diff := cmp.Diff(want, project.Spec.Roles); diff != "" {
+		t.Errorf("AppProject roles (-want +got):\n%s", diff)
+	}
+}
+
+func TestOCIZoneWithoutAuthzHasNoAppProjectRoles(t *testing.T) {
+	objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...), ociRequired("ocid1.image.tools"), nil,
+		logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	project := objs[GetAppProjectKey("team-a")].(*argocd.AppProject)
+	if len(project.Spec.Roles) != 0 {
+		t.Errorf("without an organization the AppProject must have no roles, got %v", project.Spec.Roles)
+	}
 }
