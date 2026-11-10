@@ -144,6 +144,7 @@ jobs:
               - 'helm/templates/mariadb.yaml'
               - 'helm/templates/database.yaml'
               - 'test/tests/helm/platform-apis-test-mariadb/**'
+              - 'test/tests/k8s_mariadb_test.go'
             webaccess:
               - 'compositions/webaccess/**'
               - 'functions/networking/**'
