@@ -358,13 +358,22 @@ metadata:
 data:
   createAppsNamespace: {{ .Values.zone.environmentConfig.createAppsNamespace }}
   granularEgress: {{ .Values.zone.environmentConfig.granularEgress }}
-  granularEgressExclude: {{ .Values.zone.environmentConfig.granularEgressExclude }}
+  {{- with .Values.zone.environmentConfig.granularEgressExclude }}
+  granularEgressExclude:
+    {{- toYaml . | nindent 4 }}
+  {{- else }}
+  granularEgressExclude: []
+  {{- end }}
   granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
   {{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
   {{- with .Values.zone.environmentConfig.namespaceRole }}
   namespaceRole:
     rules:
       {{- toYaml .rules | nindent 6 }}
+    {{- with .additionalRules }}
+    additionalRules:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
   {{- end }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
@@ -382,7 +391,7 @@ data:
   {{- end }}
   appProject:
     sourceRepos:
-    {{- range .Values.zone.environmentConfig.appProject.sourceRepos }}
+    {{- range .Values.global.sourceRepos }}
       - {{ . | quote }}
     {{- end }}
     namespaceResourceBlacklist:
@@ -447,13 +456,9 @@ spec:
   namespaceResourceBlacklist:
     - group: '*'
       kind: '*'
-  {{- $sourceRepos := list -}}
-  {{- if hasKey .Values.zone.environmentConfig.appProject "sourceRepos" -}}
-    {{- $sourceRepos = .Values.zone.environmentConfig.appProject.sourceRepos -}}
-  {{- end }}
-  {{- if $sourceRepos }}
+  {{- if .Values.global.sourceRepos }}
   sourceRepos:
-    {{- range $sourceRepos }}
+    {{- range .Values.global.sourceRepos }}
     - {{ . | quote }}
     {{- end }}
   {{- end }}
