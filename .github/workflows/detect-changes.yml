@@ -121,6 +121,7 @@ jobs:
               - 'helm/templates/rabbitmq.yaml'
               - 'helm/templates/mq.yaml'
               - 'test/tests/helm/platform-apis-test-rabbitmq/**'
+              - 'test/tests/k8s_rabbitmq_test.go'
             repository:
               - 'compositions/repository/**'
               - 'functions/artifact/**'

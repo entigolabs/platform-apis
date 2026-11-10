@@ -126,6 +126,19 @@ func testRabbitMQConfigLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 		return
 	}
 
+	// Amazon MQ applies the new revision with a broker reboot (applyImmediately). Let the provider finish
+	// that update before bumping the engine version: when the bump lands while the broker update is still
+	// in flight, the provider has sent the engine upgrade to AWS with the stale Configuration id and then
+	// needed a third reboot after the upgrade to switch the broker to the new Configuration (~6 min extra,
+	// seen in CloudTrail as UpdateBroker with the old configuration id followed later by another
+	// UpdateBroker+RebootBroker once the id resolved).
+	latestRevision := getField(t, mqNs, RabbitMQAwsConfigKind, oldConfig, ".status.atProvider.latestRevision")
+	require.NotEmpty(t, latestRevision)
+	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".status.atProvider.configuration.revision", latestRevision, 60, 15*time.Second)
+	if t.Failed() {
+		return
+	}
+
 	// 5-6: Bumping the engine version creates a new version-scoped Configuration (engineVersion immutable).
 	patchResource(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, `{"spec":{"engineVersion":"`+RabbitMQUpgradeVersion+`"}}`)
 	newConfig := waitSyncedAndReadyByLabelWhere(t, mqNs, RabbitMQAwsConfigKind, RabbitMQBrokerName, ".spec.forProvider.engineVersion", RabbitMQUpgradeVersion, 120, 15*time.Second)
