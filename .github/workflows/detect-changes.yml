@@ -115,6 +115,7 @@ jobs:
               - 'helm/templates/postgresql.yaml'
               - 'helm/templates/database.yaml'
               - 'test/tests/helm/platform-apis-test-postgresql/**'
+              - 'test/tests/k8s_postgresql_test.go'
             rabbitmq:
               - 'compositions/rabbitmq/**'
               - 'functions/mq/**'

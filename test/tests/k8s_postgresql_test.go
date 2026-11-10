@@ -14,7 +14,9 @@ import (
 
 func testPostgresql(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
-	defer cleanupPostgresql(t, cluster, argocd)
+	// The Application goes last, once every instance has removed its own composites. t.Cleanup,
+	// not defer: it must not fire before the parallel subtests have run.
+	t.Cleanup(func() { cleanupPostgresqlApplication(t, argocd) })
 
 	if ctx.Err() != nil {
 		return
@@ -25,10 +27,24 @@ func testPostgresql(t *testing.T, ctx context.Context, cluster, argocd *terrak8s
 		return
 	}
 
+	// Three independent instances the chart creates at once. Each chain deletes its own resources
+	// as soon as it is done, while the others may still be running.
 	t.Run("Instances", func(t *testing.T) {
-		t.Run("Main", func(t *testing.T) { t.Parallel(); testPostgresqlMainInstance(t, pgNs) })
-		t.Run("Lifecycle", func(t *testing.T) { t.Parallel(); testPostgresqlLifecycle(t, pgNs) })
-		t.Run("AvailabilityZone", func(t *testing.T) { t.Parallel(); testPostgresqlAvailabilityZone(t, pgNs) })
+		t.Run("Main", func(t *testing.T) {
+			t.Parallel()
+			defer cleanupPostgresqlMain(t, pgNs)
+			testPostgresqlMainInstance(t, pgNs)
+		})
+		t.Run("Lifecycle", func(t *testing.T) {
+			t.Parallel()
+			defer cleanupPostgresqlLifecycle(t, pgNs)
+			testPostgresqlLifecycle(t, pgNs)
+		})
+		t.Run("AvailabilityZone", func(t *testing.T) {
+			t.Parallel()
+			defer cleanupPostgresqlAvailabilityZone(t, pgNs)
+			testPostgresqlAvailabilityZone(t, pgNs)
+		})
 	})
 }
 
@@ -494,11 +510,12 @@ func testDatabaseExtensions(t *testing.T, pgNs *terrak8s.KubectlOptions, composi
 	}
 }
 
-func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+// cleanupPostgresqlMain removes the main instance and what is composed on top of it, in dependency
+// order: Roles and Grants protect the Databases and the Instance from deletion.
+func cleanupPostgresqlMain(t *testing.T, pgNs *terrak8s.KubectlOptions) {
 	if t.Failed() {
 		return // leave resources in place for debugging
 	}
-	pgNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, PostgresqlNamespaceName)
 
 	cleanupDisableDeletionProtectionOnDatabases(t, pgNs)
 	cleanupDeleteParallel(t, pgNs, PostgresqlDatabaseKind, 30, DatabaseOneName, DatabaseTwoName, MinimalDatabaseName)
@@ -506,8 +523,29 @@ func cleanupPostgresql(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	cleanupDeleteParallel(t, pgNs, PostgresqlUserKind, 30, PostgresqlRegularUserName, PostgresqlAdminUserName)
 
 	cleanupDisableDeletionProtectionOnInstance(t, pgNs)
-	cleanupDeleteParallel(t, pgNs, PostgresqlInstanceKind, 180, PostgresqlInstanceName, PostgresqlLifecycleName, PostgresqlAvailabilityZoneName)
+	cleanupDeleteParallel(t, pgNs, PostgresqlInstanceKind, 180, PostgresqlInstanceName)
+}
 
+// cleanupPostgresqlLifecycle and cleanupPostgresqlAvailabilityZone remove an instance nothing is
+// composed on top of; the chart creates both without deletion protection.
+func cleanupPostgresqlLifecycle(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	if t.Failed() {
+		return // leave resources in place for debugging
+	}
+	cleanupDeleteParallel(t, pgNs, PostgresqlInstanceKind, 180, PostgresqlLifecycleName)
+}
+
+func cleanupPostgresqlAvailabilityZone(t *testing.T, pgNs *terrak8s.KubectlOptions) {
+	if t.Failed() {
+		return // leave resources in place for debugging
+	}
+	cleanupDeleteParallel(t, pgNs, PostgresqlInstanceKind, 180, PostgresqlAvailabilityZoneName)
+}
+
+func cleanupPostgresqlApplication(t *testing.T, argocd *terrak8s.KubectlOptions) {
+	if t.Failed() {
+		return // a failed instance left its resources behind for debugging; keep the app with them
+	}
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", PostgresqlApplicationName, "--ignore-not-found")
 }
 
