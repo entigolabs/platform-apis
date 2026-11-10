@@ -10,7 +10,6 @@ import (
 	"github.com/crossplane/function-sdk-go/resource/composite"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
-	"github.com/entigolabs/platform-apis/apis/authz"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/entigolabs/platform-apis/service"
 	corev1 "k8s.io/api/core/v1"
@@ -110,7 +109,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		} else {
 			maps.Copy(resources, awsSelectors(env))
 			if g.authz.Enabled() {
-				maps.Copy(resources, authzSelectors())
+				maps.Copy(resources, service.AuthzSelectors())
 			}
 		}
 		resources[service.IngressClassKey] = &fnv1.ResourceSelector{
@@ -188,21 +187,6 @@ func awsSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
 		Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
 	}
 	return resources
-}
-
-func authzSelectors() map[string]*fnv1.ResourceSelector {
-	return map[string]*fnv1.ResourceSelector{
-		service.RoleDefinitionKey: {
-			Kind:       "RoleDefinition",
-			ApiVersion: authz.APIVersion,
-			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
-		},
-		service.RoleGrantKey: {
-			Kind:       "RoleGrant",
-			ApiVersion: authz.APIVersion,
-			Match:      &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}},
-		},
-	}
 }
 
 func ociSelectors(env apis.Environment) map[string]*fnv1.ResourceSelector {
