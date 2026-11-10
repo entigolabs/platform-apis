@@ -9,5 +9,8 @@ spec:
   instanceType: db.t3.micro
   allowMajorVersionUpgrade: true
   autoMinorVersionUpgrade: true
+  # No automated backups: RDS snapshots a backed-up instance before and after a major version
+  # upgrade, which doubles the upgrade time this test waits on (measured 7 min vs 3 min on db.t3.micro).
+  backupRetentionPeriod: 0
   deletionProtection: false
   multiAZ: false
