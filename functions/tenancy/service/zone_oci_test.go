@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -38,7 +39,6 @@ func ociRequired(templateImage string) map[string][]resource.Required {
 				"dataKMSKey":        "data",
 				"podSecurity":       "baseline",
 				"tags":              map[string]any{"env": "test"},
-				"namespaceRole":     map[string]any{"rules": []any{}},
 			},
 		}),
 		ClusterKey: obj(map[string]any{
@@ -514,5 +514,21 @@ func TestOCIZoneWithoutAuthzHasNoAppProjectRoles(t *testing.T) {
 	project := objs[GetAppProjectKey("team-a")].(*argocd.AppProject)
 	if len(project.Spec.Roles) != 0 {
 		t.Errorf("without an organization the AppProject must have no roles, got %v", project.Spec.Roles)
+	}
+}
+
+func TestOCIZoneGetsNoGroupRBAC(t *testing.T) {
+	zone := ociZone("team-a", flexRequirements()...)
+	zone.Spec.Namespaces = []v1alpha1.Namespace{{Name: "team-a-ns"}}
+	objs, err := GenerateZoneObjects(zone, ociRequired("ocid1.image.tools"), nil,
+		logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, obj := range objs {
+		switch obj.(type) {
+		case *rbacv1.Role, *rbacv1.RoleBinding, *rbacv1.ClusterRoleBinding:
+			t.Errorf("unexpected RBAC object %s: access comes from RoleGrants", key)
+		}
 	}
 }

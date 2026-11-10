@@ -3,7 +3,6 @@ package apis
 import (
 	"errors"
 
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -27,10 +26,8 @@ type Environment struct {
 	GranularEgress                 bool               `json:"granularEgress,omitempty"`
 	GranularEgressExclude          []string           `json:"granularEgressExclude,omitempty"`
 	GranularNamespaceNetworkPolicy bool               `json:"granularNamespaceNetworkPolicy,omitempty"`
-	NamespaceRole                  NamespaceRole      `json:"namespaceRole,omitempty"` // TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
 	OCIProvider                    string             `json:"oracleProvider,omitempty"`
 	PodSecurity                    string             `json:"podSecurity"`
-	RoleMapping                    []RoleMapping      `json:"roleMapping,omitempty"` // TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
 	SecretStoreNamespace           string             `json:"secretStoreNamespace,omitempty"`
 	SecurityGroup                  string             `json:"securityGroup"`
 	Tags                           map[string]*string `json:"tags,omitempty"`
@@ -44,20 +41,6 @@ type AppProject struct {
 	SourceRepos                []string           `json:"sourceRepos,omitempty"`
 }
 
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-// NamespaceRole configures the Role bound to maintainers and contributors in Zone Namespaces.
-type NamespaceRole struct {
-	Rules []rbacv1.PolicyRule `json:"rules,omitempty"`
-	// AdditionalRules are appended to Rules, extending the default set without restating it.
-	AdditionalRules []rbacv1.PolicyRule `json:"additionalRules,omitempty"`
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-type RoleMapping struct {
-	RoleRef string   `json:"roleRef"`
-	Groups  []string `json:"groups"`
-}
-
 type Authz struct {
 	Organization string
 	Workspace    string
@@ -68,10 +51,6 @@ func (a Authz) Enabled() bool {
 }
 
 func (e Environment) ValidateFor(provider CloudProvider) error {
-	// stop instead of emptying every Zone Namespace Role, e.g. when an upgrade applies the function first
-	if e.NamespaceRole.Rules == nil {
-		return errors.New("namespaceRole.rules is required")
-	}
 	switch provider {
 	case CloudProviderOCI:
 		if e.OCIProvider == "" {

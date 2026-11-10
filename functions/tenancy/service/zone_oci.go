@@ -11,11 +11,9 @@ import (
 
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/entigolabs/function-base/base"
-	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,16 +33,6 @@ const (
 	ociIngressClassParamsGroup = "ingress.oraclecloud.com"
 	ociIngressClassParamsKind  = "IngressClassParameters"
 	gatewayNameLabel           = "gateway.networking.k8s.io/gateway-name"
-
-	// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-	RoleContributor = "contributor"
-	RoleMaintainer  = "maintainer"
-	RoleObserver    = "observer"
-	// crossplaneViewClusterRole is aggregated by the Crossplane rbac-manager from every installed
-	// provider, so bound in a Namespace it reads the managed resources the platform APIs compose
-	// there (kms, rds, ec2, ...) without the Zone having to know their API groups. Nothing is granted
-	// while the rbac-manager is disabled, as the ClusterRole then does not exist.
-	crossplaneViewClusterRole = "crossplane-view"
 )
 
 type ociZoneGenerator struct {
@@ -54,8 +42,6 @@ type ociZoneGenerator struct {
 	dataKeyID    string
 	subnetIDs    []string
 	templatePool *unstructured.Unstructured
-	// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-	roleMappings map[string][]string
 }
 
 type ociPoolSpec struct {
@@ -75,7 +61,7 @@ func GetOCINodePoolKey(poolName string) string {
 }
 
 func newOCIZoneGenerator(common zoneGenerator) (ociZoneGenerator, error) {
-	g := ociZoneGenerator{zoneGenerator: common, roleMappings: mergeRoleMappings(common.zone, common.env)}
+	g := ociZoneGenerator{zoneGenerator: common}
 	g.cluster = firstRequired(g.required, ClusterKey)
 	if g.cluster == nil {
 		return g, fmt.Errorf("%s not found in required resources", ClusterKey)
@@ -124,7 +110,6 @@ func (g ociZoneGenerator) generate() (map[string]client.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	maps.Copy(objs, g.generateLegacyRBAC())
 	nodePools, err := g.generateNodePools()
 	if err != nil {
 		return nil, err
@@ -570,245 +555,4 @@ func (g ociZoneGenerator) getGatewayBlocks() map[string][]networkingv1.NetworkPo
 		}}
 	}
 	return gatewayBlocks
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) generateLegacyRBAC() map[string]client.Object {
-	objs := make(map[string]client.Object)
-	if crb := g.getClusterRoleBinding(RoleContributor); crb != nil {
-		objs[GetClusterRoleBindingKey(g.zone.Name, RoleContributor)] = crb
-	}
-	appsNamespace := ""
-	if g.env.CreateAppsNamespace {
-		appsNamespace = g.zone.Name + "-apps"
-		g.addAppsNamespaceRoles(objs, appsNamespace)
-	}
-	for _, name := range g.uqNamespaces {
-		if name != appsNamespace {
-			g.addNamespaceRoles(objs, name)
-		}
-	}
-	return objs
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) addNamespaceRoles(objs map[string]client.Object, name string) {
-	allRole := g.getAllRole(name)
-	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
-	readRole := g.getReadRole(name)
-	objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
-	for role, groups := range g.roleMappings {
-		roleName := allRole.Name
-		if role == RoleObserver {
-			roleName = readRole.Name
-		}
-		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
-	}
-	if groups, ok := g.roleMappings[RoleMaintainer]; ok {
-		nsRole := g.getNamespaceRole(name)
-		objs[GetRBACRoleNamespaceKey(g.zone.Name, name)] = nsRole
-		objs[GetRBKey(g.zone.Name, name, RoleMaintainer+"-namespace")] =
-			g.getRoleBinding(name, name+"-"+RoleMaintainer+"-namespace", nsRole.Name, groups)
-	}
-	for role, groups := range g.roleMappings {
-		if role == RoleObserver {
-			continue // the read Role already covers every kind in the Namespace
-		}
-		objs[GetRBKey(g.zone.Name, name, role+"-"+crossplaneViewClusterRole)] =
-			g.getClusterRoleRoleBinding(name, name+"-"+role+"-"+crossplaneViewClusterRole, crossplaneViewClusterRole, groups)
-	}
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) addAppsNamespaceRoles(objs map[string]client.Object, name string) {
-	allRole := g.getRole(name, name+"-all", []rbacv1.PolicyRule{{
-		APIGroups: []string{"argoproj.io"},
-		Resources: []string{"applications", "applicationsets"},
-		Verbs:     []string{"*"},
-	}})
-	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
-	readRole := g.getRole(name, name+"-read", []rbacv1.PolicyRule{{
-		APIGroups: []string{"argoproj.io"},
-		Resources: []string{"applications", "applicationsets"},
-		Verbs:     []string{"get", "watch", "list"},
-	}})
-	objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
-	for role, groups := range g.roleMappings {
-		roleName := allRole.Name
-		if role == RoleObserver {
-			roleName = readRole.Name
-		}
-		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
-	}
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func mergeRoleMappings(zone v1alpha1.Zone, env apis.Environment) map[string][]string {
-	merged := make(map[string][]string)
-	for _, rm := range zone.Spec.RoleMapping {
-		merged[rm.RoleRef] = append(merged[rm.RoleRef], rm.Groups...)
-	}
-
-	for _, rm := range env.RoleMapping {
-		merged[rm.RoleRef] = append(merged[rm.RoleRef], rm.Groups...)
-	}
-
-	for roleRef, groups := range merged {
-		if roleRef == RoleContributor {
-			groups = mergeContributorGroups(zone, groups)
-		}
-		uqGroups := base.ToSet(groups).ToSlice()
-		slices.Sort(uqGroups)
-		merged[roleRef] = uqGroups
-	}
-	return merged
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func mergeContributorGroups(zone v1alpha1.Zone, groups []string) []string {
-	if zone.Spec.AppProject == nil || len(zone.Spec.AppProject.ContributorGroups) == 0 {
-		return groups
-	}
-	return append(groups, zone.Spec.AppProject.ContributorGroups...)
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func GetRBACRoleAllKey(zone, namespace string) string {
-	return "rbacrole-all-" + zone + "-" + namespace
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func GetRBACRoleReadKey(zone, namespace string) string {
-	return "rbacrole-read-" + zone + "-" + namespace
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func GetRBACRoleNamespaceKey(zone, namespace string) string {
-	return "rbacrole-namespace-" + zone + "-" + namespace
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func GetRBKey(zone, namespace, roleRef string) string {
-	return "rb-" + roleRef + "-" + zone + "-" + namespace
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func GetClusterRoleBindingKey(zone, role string) string {
-	return "crb-" + zone + "-" + role
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) getAllRole(nsName string) *rbacv1.Role {
-	rules := slices.Concat(g.env.NamespaceRole.Rules, g.env.NamespaceRole.AdditionalRules)
-	return g.getRole(nsName, nsName+"-all", rules)
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-// getNamespaceRole lets maintainers manage the zone namespace object itself.
-func (g ociZoneGenerator) getNamespaceRole(nsName string) *rbacv1.Role {
-	rules := []rbacv1.PolicyRule{{
-		APIGroups:     []string{""},
-		Resources:     []string{"namespaces"},
-		ResourceNames: []string{nsName},
-		Verbs:         []string{"update", "patch", "delete"},
-	}}
-	return g.getRole(nsName, nsName+"-namespace", rules)
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) getReadRole(nsName string) *rbacv1.Role {
-	rules := []rbacv1.PolicyRule{{
-		APIGroups: []string{"*"},
-		Resources: []string{"*"},
-		Verbs:     []string{"get", "watch", "list"},
-	}}
-	return g.getRole(nsName, nsName+"-read", rules)
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) getRole(nsName, roleName string, rules []rbacv1.PolicyRule) *rbacv1.Role {
-	return &rbacv1.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        roleName,
-			Namespace:   nsName,
-			Annotations: g.zoneAnnotations,
-		},
-		Rules: rules,
-	}
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) getRoleBinding(nsName, bindingName, roleName string, groups []string) *rbacv1.RoleBinding {
-	return g.getRoleBindingRef(nsName, bindingName, "Role", roleName, groups)
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-// getClusterRoleRoleBinding binds a ClusterRole in one Namespace, which scopes its rules to that Namespace.
-func (g ociZoneGenerator) getClusterRoleRoleBinding(nsName, bindingName, clusterRoleName string, groups []string) *rbacv1.RoleBinding {
-	return g.getRoleBindingRef(nsName, bindingName, "ClusterRole", clusterRoleName, groups)
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) getRoleBindingRef(nsName, bindingName, roleKind, roleName string, groups []string) *rbacv1.RoleBinding {
-	subjects := make([]rbacv1.Subject, len(groups))
-	for i, group := range groups {
-		subjects[i] = rbacv1.Subject{
-			Kind:     "Group",
-			APIGroup: "rbac.authorization.k8s.io",
-			Name:     group,
-		}
-	}
-	return &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        bindingName,
-			Namespace:   nsName,
-			Annotations: g.zoneAnnotations,
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     roleKind,
-			Name:     roleName,
-		},
-		Subjects: subjects,
-	}
-}
-
-// TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this
-func (g ociZoneGenerator) getClusterRoleBinding(role string) client.Object {
-	groups := g.roleMappings[role]
-	if len(groups) == 0 {
-		return nil
-	}
-	subjects := make([]rbacv1.Subject, len(groups))
-	for i, group := range groups {
-		subjects[i] = rbacv1.Subject{
-			Kind:     "Group",
-			APIGroup: "rbac.authorization.k8s.io",
-			Name:     group,
-		}
-	}
-	return &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        g.zone.Name + "-" + role,
-			Annotations: g.zoneAnnotations,
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     "zone-tenancy-c-read",
-		},
-		Subjects: subjects,
-	}
 }
