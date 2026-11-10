@@ -80,6 +80,12 @@ const (
 	// Broker desired with an explicitly wired Configuration (args: name, name, configuration id, configuration name, revision, engineVersion, sg, credentials secret, connection secret).
 	brokerWiredResJson = `{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"applyImmediately":true,"autoMinorVersionUpgrade":true,"brokerName":"%s","configuration":{"id":"%s","idRef":{"name":"%s","namespace":"testspace","policy":{"resolve":"Always"}},"revision":%d},"deploymentMode":"SINGLE_INSTANCE","encryptionOptions":{"kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","useAwsOwnedKey":false},"engineType":"RabbitMQ","engineVersion":"%s","hostInstanceType":"mq.m7g.medium","maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"publiclyAccessible":false,"region":"eu-north-1","securityGroupRefs":[{"name":"%s"}],"subnetIds":["subnet-aaa111"],"tags":{"entigo:zone":"zone-a"}},"initProvider":{"user":[{"consoleAccess":true,"passwordSecretRef":{"key":"password","name":"%s"},"username":"mqadmin"}]},"managementPolicies":["*"],"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s"}},"status":{"atProvider":{}}}`
 
+	// Observed SecurityGroup MR carrying its AWS id (args: name, name, sg id); wrap with withReadyStatus.
+	sgObservedWithIDResJson = `{"apiVersion":"ec2.aws.m.upbound.io/v1beta1","kind":"SecurityGroup","metadata":{"annotations":{"crossplane.io/external-name":"%[3]s"},"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%[1]s","namespace":"testspace"},"spec":{"forProvider":{"description":"allow traffic from vpc","region":"eu-north-1","tags":{"Name":"%[2]s","entigo:zone":"zone-a"},"vpcIdRef":{"name":"test-net-vpc","namespace":"aws-provider"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{"id":"%[3]s"}}}`
+
+	// Broker desired with the SecurityGroup id set explicitly next to its ref (args: name, name, config name, sg id, sg name, credentials secret, connection secret).
+	brokerWithSGIDResJson = `{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"applyImmediately":true,"autoMinorVersionUpgrade":true,"brokerName":"%s","configuration":{"idRef":{"name":"%s","namespace":"testspace","policy":{"resolve":"Always"}},"revision":1},"deploymentMode":"SINGLE_INSTANCE","encryptionOptions":{"kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","useAwsOwnedKey":false},"engineType":"RabbitMQ","engineVersion":"4.2","hostInstanceType":"mq.m7g.medium","maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"publiclyAccessible":false,"region":"eu-north-1","securityGroups":["%s"],"securityGroupRefs":[{"name":"%s"}],"subnetIds":["subnet-aaa111"],"tags":{"entigo:zone":"zone-a"}},"initProvider":{"user":[{"consoleAccess":true,"passwordSecretRef":{"key":"password","name":"%s"},"username":"mqadmin"}]},"managementPolicies":["*"],"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s"}},"status":{"atProvider":{}}}`
+
 	// New version-scoped Configuration MR desired after an engineVersion bump to 4.3 (args: name, name).
 	configV43ResJson = `{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Configuration","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"data":"consumer_timeout = 1800000\n","engineType":"RabbitMQ","engineVersion":"4.3","name":"%s","region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 
@@ -328,6 +334,44 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							newConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(configV43ResJson, newConfigName, newConfigName)), Ready: 1},
 							oldConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(staleConfigResJson, oldConfigName, oldConfigName)), Ready: 1},
 							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(brokerWiredResJson, brokerName, brokerName, "c-new-config", newConfigName, 2, "4.3", sgName, credentialsSecretName, connectionSecretName)), Ready: 1},
+						},
+					},
+					Requirements: expectedRequirements(),
+				},
+			},
+		},
+		"RabbitMQBroker/SecurityGroup id is set explicitly once the SecurityGroup is observed": {
+			Reason: "The provider's reference resolver persists resolved values with a partial server-side-apply patch and drops any field only it owns when it re-resolves another reference, so the broker must carry the SecurityGroup id itself next to securityGroupRefs as soon as the observed SecurityGroup reports its AWS id. The stale SecurityGroup desired spec stays unchanged.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(rabbitmqInputJson)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:               withReadyStatus(fmt.Sprintf(sgObservedWithIDResJson, sgName, sgName, "sg-0123456789abcdef0")),
+							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
+							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
+							configName:           withReadyStatus(fmt.Sprintf(configObservedResJson, configName, configName)),
+						},
+					},
+					RequiredResources: requiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
+							configName:           {Resource: resource.MustStructJSON(fmt.Sprintf(configResJson, configName, configName)), Ready: 1},
+							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(brokerWithSGIDResJson, brokerName, brokerName, configName, "sg-0123456789abcdef0", sgName, credentialsSecretName, connectionSecretName))},
 						},
 					},
 					Requirements: expectedRequirements(),
