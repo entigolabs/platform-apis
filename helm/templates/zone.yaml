@@ -1,154 +1,5 @@
 {{- if .Values.zone.install }}
 
-{{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-{{/* For backwards compatibility, merge together app project groups into role mappings */}}
-{{- $mergedRoleMapping := dict }}
-{{- range .Values.zone.environmentConfig.roleMapping }}
-  {{- $_ := set $mergedRoleMapping .roleRef (default list .groups) }}
-{{- end }}
-
-{{- with .Values.zone.environmentConfig.appProject }}
-  {{- if .maintainerGroups }}
-    {{- $existing := default list (get $mergedRoleMapping "maintainer") }}
-    {{- $_ := set $mergedRoleMapping "maintainer" (concat $existing .maintainerGroups | uniq) }}
-  {{- end }}
-  {{- if .observerGroups }}
-    {{- $existing := default list (get $mergedRoleMapping "observer") }}
-    {{- $_ := set $mergedRoleMapping "observer" (concat $existing .observerGroups | uniq) }}
-  {{- end }}
-{{- end }}
-
-{{- $maintainerGroups := default list (get $mergedRoleMapping "maintainer") }}
-{{- $observerGroups := default list (get $mergedRoleMapping "observer") }}
-{{- $contributorGroups := default list (get $mergedRoleMapping "contributor") }}
-
-{{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-{{- if ne .Values.global.cloudProvider "aws" }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: zone-tenancy-c-maintainer
-rules:
-- apiGroups: [""]
-  resources: ["namespaces"]
-  verbs: ["create"]
-- apiGroups: ["tenancy.entigo.com"]
-  resources: ["zones"]
-  verbs: ["*"]
-- apiGroups: ["admissionregistration.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["apiextensions.crossplane.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["apiextensions.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["external-secrets.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["generators.external-secrets.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["kyverno.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["policies.kyverno.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["reports.kyverno.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["pkg.crossplane.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["ria.ee"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: [""]
-  resources: ["configmaps", "pods", "persistentvolumes", "endpoints", "events", "serviceaccounts", "services", "resourcequotas", "limitranges"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["discovery.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["events.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["apps"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["policy"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["argoproj.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["artifact.entigo.com"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["database.entigo.com"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["batch"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["coordination.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["externaldns.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["networking.istio.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["security.istio.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["telemetry.istio.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["networking.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["rbac.authorization.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-{{- if eq .Values.global.cloudProvider "aws" }}
-- apiGroups: ["ec2.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["eks.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["iam.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["kms.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["networkfirewall.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["ram.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["elbv2.k8s.aws"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-{{- end }}
-{{- if eq .Values.global.cloudProvider "oracle" }}
-- apiGroups: ["containerengine.oci.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["kms.oci.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["networking.oci.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-{{- end }}
-{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -192,76 +43,6 @@ rules:
 - apiGroups: ["metrics.k8s.io"]
   resources: ["nodes"]
   verbs: ["get", "watch", "list"]
-{{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-{{- if and (ne .Values.global.cloudProvider "aws") $maintainerGroups }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: zone-tenancy-maintainer
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: zone-tenancy-c-maintainer
-subjects:
-{{- range $maintainerGroups }}
-  - kind: Group
-    name: {{ . }}
-    apiGroup: rbac.authorization.k8s.io
-{{- end }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: zone-tenancy-maintainer-c-read
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: zone-tenancy-c-read
-subjects:
-{{- range $maintainerGroups }}
-  - kind: Group
-    name: {{ . }}
-    apiGroup: rbac.authorization.k8s.io
-{{- end }}
-{{- end }}
-
-{{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-{{- if and (ne .Values.global.cloudProvider "aws") $observerGroups }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: zone-tenancy-observer
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: zone-tenancy-c-read
-subjects:
-{{- range $observerGroups }}
-- kind: Group
-  name: {{ . }}
-  apiGroup: rbac.authorization.k8s.io
-{{- end }}
-{{- end }}
-{{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-{{- if and (ne .Values.global.cloudProvider "aws") $contributorGroups }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: zone-tenancy-contributor
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: zone-tenancy-c-read
-subjects:
-{{- range $contributorGroups }}
-- kind: Group
-  name: {{ . }}
-  apiGroup: rbac.authorization.k8s.io
-{{- end }}
-{{- end }}
 
 
 ---
@@ -281,7 +62,7 @@ rules:
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: ["rolebindings", "roles", "clusterrolebindings"]
     verbs: ["*"]
-  {{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
+  {{- /* TODO: remove once no cluster has crossplane-view RoleBindings from Zones left */}}
   # A RoleBinding to a ClusterRole passes the escalation check only when its creator holds every
   # rule of that ClusterRole or may bind it. crossplane-view aggregates rules Crossplane itself does
   # not hold, so the Zone's crossplane-view RoleBindings need the bind verb.
@@ -307,8 +88,6 @@ rules:
   - apiGroups: ["external-secrets.io"]
     resources: ["clustersecretstores"]
     verbs: ["*"]
-{{- /* TODO: drop the condition once every cloud is on RoleDefinition/RoleGrant */}}
-{{- if eq .Values.global.cloudProvider "aws" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -320,7 +99,6 @@ rules:
   - apiGroups: ["authz.entigo.com"]
     resources: ["roledefinitions", "rolegrants"]
     verbs: ["get", "watch", "list"]
-{{- end }}
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
@@ -365,30 +143,11 @@ data:
   granularEgressExclude: []
   {{- end }}
   granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
-  {{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-  {{- with .Values.zone.environmentConfig.namespaceRole }}
-  namespaceRole:
-    rules:
-      {{- toYaml .rules | nindent 6 }}
-    {{- with .additionalRules }}
-    additionalRules:
-      {{- toYaml . | nindent 6 }}
-    {{- end }}
-  {{- end }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
 {{- if eq .Values.global.cloudProvider "oracle" }}
   oracleProvider: {{ .Values.zone.environmentConfig.oracleProvider }}
 {{- end }}
-  {{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-  {{- if and (ne .Values.global.cloudProvider "aws") $mergedRoleMapping }}
-  roleMapping:
-    {{- range $role, $groups := $mergedRoleMapping }}
-    - roleRef: {{ $role }}
-      groups:
-        {{- toYaml $groups | nindent 8 }}
-    {{- end }}
-  {{- end }}
   appProject:
     sourceRepos:
     {{- range .Values.global.sourceRepos }}
@@ -462,35 +221,6 @@ spec:
     - {{ . | quote }}
     {{- end }}
   {{- end }}
-  {{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-  {{- if ne .Values.global.cloudProvider "aws" }}
-  roles:
-    - description: Maintainer permissions
-    {{- if $maintainerGroups }}
-      groups:
-    {{- range $maintainerGroups }}
-        - {{ . }}
-    {{- end }}
-    {{- else }}
-      groups: []
-    {{- end }}
-      name: maintainer
-      policies:
-        - p, proj:zone:maintainer, applications, *, zone/*, allow
-        - p, proj:zone:maintainer, repositories, *, zone/*, allow
-    - description: Observer permissions
-    {{- if $observerGroups }}
-      groups:
-    {{- range $observerGroups }}
-        - {{ . }}
-    {{- end }}
-    {{- else }}
-      groups: []
-    {{- end }}
-      name: observer
-      policies:
-        - p, proj:zone:observer, applications, get, zone/*, allow
-  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -518,12 +248,9 @@ rules:
 - apiGroups: ["queue.entigo.com"]
   resources: ["topics", "kafkausers"]
   verbs: ["get", "list", "watch"]
-{{- /* TODO: drop the condition once every cloud is on RoleDefinition/RoleGrant */}}
-{{- if eq .Values.global.cloudProvider "aws" }}
 - apiGroups: ["authorization.k8s.io"]
   resources: ["subjectaccessreviews"]
   verbs: ["create"]
-{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -804,7 +531,6 @@ spec:
         apiVersions: ["v1"]
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["namespaces"]
-{{- if eq .Values.global.cloudProvider "aws" }}
   matchConditions:
     - name: oidc-users
       expression: 'request.userInfo.username.startsWith("oidc:")'
@@ -835,15 +561,6 @@ spec:
   validations:
     - expression: 'variables.wide || (variables.keepsOld && variables.takesNew)'
       message: "namespaces can only be changed within zones you maintain"
-{{- else }}
-{{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-  matchConditions:
-    - name: "check-user-group"
-      expression: '"contributor" in request.userInfo.groups'
-  validations:
-    - expression: "false"
-      message: "contributor cannot modify namespaces."
-{{- end }}
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
@@ -866,7 +583,6 @@ spec:
         apiVersions: ["v1"]
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["namespaces"]
-{{- if eq .Values.global.cloudProvider "aws" }}
   matchConditions:
     - name: oidc-users
       expression: 'request.userInfo.username.startsWith("oidc:")'
@@ -885,19 +601,6 @@ spec:
   validations:
     - expression: variables.wide
       message: "infralib namespaces are reserved for cluster administrators"
-{{- else }}
-{{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-  matchConditions:
-    - name: "exclude-delete"
-      expression: 'request.operation != "DELETE"'
-    - name: "check-user-group"
-      expression: '"maintainer" in request.userInfo.groups'
-    - name: "has-infralib-zone-label"
-      expression: "has(object.metadata.labels) && ('tenancy.entigo.com/zone' in object.metadata.labels) && object.metadata.labels['tenancy.entigo.com/zone'] == 'infralib'"
-  validations:
-    - expression: "false"
-      message: "cannot use infralib zone."
-{{- end }}
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
@@ -920,7 +623,6 @@ spec:
         apiVersions: ["v1alpha1"]
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["zones"]
-{{- if eq .Values.global.cloudProvider "aws" }}
   matchConditions:
     - name: oidc-users
       expression: 'request.userInfo.username.startsWith("oidc:")'
@@ -937,21 +639,6 @@ spec:
   validations:
     - expression: variables.wide
       message: "zone infralib is reserved for cluster administrators"
-{{- else }}
-{{- /* TODO: remove once every cloud is on RoleDefinition/RoleGrant; only non-AWS clouds still use this */}}
-  matchConditions:
-    - name: "exclude-delete"
-      expression: 'request.operation != "DELETE"'
-    - name: "check-user-group"
-      expression: '"maintainer" in request.userInfo.groups'
-    - name: "is-infralib-zone"
-      expression: "(has(object.metadata) && object.metadata.name == 'infralib') || (has(oldObject.metadata) && oldObject.metadata.name == 'infralib')"
-  validations:
-    - expression: "false"
-      message: "infralib zone is reserved."
-{{- end }}
-{{- /* TODO: drop the condition once every cloud is on RoleDefinition/RoleGrant */}}
-{{- if eq .Values.global.cloudProvider "aws" }}
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
@@ -989,7 +676,6 @@ spec:
         "resourceAttributes": dyn({"group": "rbac.authorization.k8s.io", "resource": "clusterrolebindings",
         "verb": "create"})})}).status.allowed == true
       message: "changing spec.clusterPermissions needs the right to create ClusterRoleBindings"
-{{- end }}
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy

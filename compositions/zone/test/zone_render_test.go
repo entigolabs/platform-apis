@@ -1,10 +1,15 @@
 package test
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/entigolabs/static-common/crossplane"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -15,6 +20,27 @@ const (
 	required        = "../examples/required-resources.yaml"
 	zoneResource    = "../examples/zone.yaml"
 )
+
+type renderedRule struct {
+	APIGroups     []string `yaml:"apiGroups"`
+	Resources     []string `yaml:"resources"`
+	ResourceNames []string `yaml:"resourceNames"`
+	Verbs         []string `yaml:"verbs"`
+}
+
+type renderedObject struct {
+	Kind     string `yaml:"kind"`
+	Metadata struct {
+		Name string `yaml:"name"`
+	} `yaml:"metadata"`
+	Rules []renderedRule `yaml:"rules"`
+	Data  map[string]any `yaml:"data"`
+	Spec  struct {
+		MatchConditions []struct {
+			Name string `yaml:"name"`
+		} `yaml:"matchConditions"`
+	} `yaml:"spec"`
+}
 
 func TestZoneCrossplaneRender(t *testing.T) {
 	t.Logf("Starting tenancy function. Function path %s", function)
@@ -373,4 +399,73 @@ func TestZoneCrossplaneRender(t *testing.T) {
 
 	t.Log("Asserting tenancy.entigo.com Zone Ready Status")
 	crossplane.AssertResourceReady(t, resources, "Zone", "tenancy.entigo.com/v1alpha1")
+}
+
+func TestZoneAuthzRendersTheSameOnEveryCloud(t *testing.T) {
+	t.Parallel()
+	for _, cloud := range []string{"aws", "oracle"} {
+		t.Run(cloud, func(t *testing.T) {
+			t.Parallel()
+			objects := renderedObjects(t, "global.cloudProvider="+cloud)
+
+			for _, gone := range []string{"ClusterRole/zone-tenancy-c-maintainer",
+				"ClusterRoleBinding/zone-tenancy-maintainer", "ClusterRoleBinding/zone-tenancy-maintainer-c-read",
+				"ClusterRoleBinding/zone-tenancy-observer", "ClusterRoleBinding/zone-tenancy-contributor"} {
+				if _, found := objects[gone]; found {
+					t.Errorf("%s is rendered, group RBAC is gone", gone)
+				}
+			}
+			for _, kept := range []string{"ClusterRole/zone-tenancy-c-read", "ClusterRole/platform-apis-zone-authz-read",
+				"ValidatingPolicy/platform-apis-zone-cluster-permissions"} {
+				if _, found := objects[kept]; !found {
+					t.Errorf("%s is not rendered", kept)
+				}
+			}
+			if !hasRule(objects["ClusterRole/platform-apis-zone"], "rbac.authorization.k8s.io", "clusterroles", "crossplane-view", "bind") {
+				t.Error("platform-apis-zone lost bind on crossplane-view, Crossplane cannot clean up the old RoleBindings")
+			}
+			if !hasRule(objects["ClusterRole/kyverno-zone-access"], "authorization.k8s.io", "subjectaccessreviews", "", "create") {
+				t.Error("kyverno-zone-access cannot create SubjectAccessReviews the zone policies send")
+			}
+			for _, policy := range []string{"platform-apis-zone-namespace-contributor-deny",
+				"platform-apis-zone-namespace-maintainer-deny", "platform-apis-zone-maintainer-infralib-zone-deny"} {
+				conditions := objects["ValidatingPolicy/"+policy].Spec.MatchConditions
+				if len(conditions) == 0 || conditions[0].Name != "oidc-users" {
+					t.Errorf("%s does not judge oidc users by SubjectAccessReview: %+v", policy, conditions)
+				}
+			}
+			environment := objects["EnvironmentConfig/platform-apis-zone"].Data
+			for _, key := range []string{"namespaceRole", "roleMapping"} {
+				if _, found := environment[key]; found {
+					t.Errorf("EnvironmentConfig still carries %s", key)
+				}
+			}
+		})
+	}
+}
+
+func renderedObjects(t *testing.T, values ...string) map[string]renderedObject {
+	t.Helper()
+	decoder := yaml.NewDecoder(bytes.NewBufferString(helmTemplate(t, values...)))
+	objects := make(map[string]renderedObject)
+	for {
+		var obj renderedObject
+		err := decoder.Decode(&obj)
+		if errors.Is(err, io.EOF) {
+			return objects
+		}
+		if err != nil {
+			t.Fatalf("decode rendered chart: %v", err)
+		}
+		if obj.Kind != "" {
+			objects[obj.Kind+"/"+obj.Metadata.Name] = obj
+		}
+	}
+}
+
+func hasRule(obj renderedObject, group, resource, name, verb string) bool {
+	return slices.ContainsFunc(obj.Rules, func(rule renderedRule) bool {
+		return slices.Contains(rule.APIGroups, group) && slices.Contains(rule.Resources, resource) &&
+			(name == "" || slices.Contains(rule.ResourceNames, name)) && slices.Contains(rule.Verbs, verb)
+	})
 }
