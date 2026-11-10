@@ -23,13 +23,13 @@ type rbacCheck struct {
 func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Run("zone-rbac", func(t *testing.T) {
 		ensureKyvernoTestNamespace(t, cluster)
-		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; AWS zones no longer get group RBAC
+		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; zones no longer get group RBAC
 		// waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 		// waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "maintainer")
 		if t.Failed() {
 			return
 		}
-		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; AWS zones no longer get group RBAC
+		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; zones no longer get group RBAC
 		// ns := "namespaces/" + KyvernoTestNSName
 
 		// shared := []rbacCheck{
@@ -74,11 +74,6 @@ func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions) {
 		// 	{"create", "authorizationpolicies.security.istio.io", false},
 		// 	{"create", "policyexceptions.policies.kyverno.io", false},
 		// 	{"update", "resourcequotas", false},
-		// 	// granted via namespaceRole.additionalRules; the ungranted verb and resource stay denied
-		// 	{"create", "widgets.example.entigo.com", true},
-		// 	{"get", "widgets.example.entigo.com", true},
-		// 	{"delete", "widgets.example.entigo.com", false},
-		// 	{"create", "gadgets.example.entigo.com", false},
 		// }
 
 		// outsideZone := func(namespace string) []rbacCheck {

@@ -23,7 +23,7 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			return
 		}
 
-		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; AWS zones no longer get group RBAC
+		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; zones no longer get group RBAC
 		// contributorKeyID := os.Getenv(ContributorKeyIDEnv)
 		// contributorSecret := os.Getenv(ContributorSecretEnv)
 		// maintainerKeyID := os.Getenv(MaintainerKeyIDEnv)
@@ -61,7 +61,7 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			t.Parallel()
 			testKyvernoPodNodeSelector(t, cluster)
 		})
-		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; AWS zones no longer get group RBAC
+		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; zones no longer get group RBAC
 		// if contributorKeyID != "" && contributorSecret != "" {
 		// 	waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 		// 	t.Run("ContributorDeny", func(t *testing.T) {
