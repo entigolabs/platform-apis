@@ -183,7 +183,7 @@ func (g *rabbitMQBrokerGenerator) brokerSwitchedToConfiguration(configName resou
 	if !ok {
 		return false
 	}
-	return configurationID(configObserved) == appliedID
+	return observedAWSID(configObserved) == appliedID
 }
 
 func staleConfiguration(observed resource.ObservedComposed) client.Object {
@@ -244,7 +244,7 @@ func (g *rabbitMQBrokerGenerator) brokerConfigurationTarget() brokerConfiguratio
 	}
 	if observed, ok := g.observed[g.names.configuration]; ok {
 		desired.revision = latestRevision(observed)
-		if id := configurationID(observed); id != "" {
+		if id := observedAWSID(observed); id != "" {
 			desired.id = &id
 			return desired
 		}
@@ -254,7 +254,7 @@ func (g *rabbitMQBrokerGenerator) brokerConfigurationTarget() brokerConfiguratio
 	if !ok {
 		return desired
 	}
-	appliedID := configurationID(applied)
+	appliedID := observedAWSID(applied)
 	target := brokerConfigurationTarget{
 		name:          appliedName,
 		id:            &appliedID,
@@ -282,16 +282,16 @@ func (g *rabbitMQBrokerGenerator) appliedConfiguration() (string, resource.Obser
 		if observed.Resource.GetKind() != "Configuration" {
 			continue
 		}
-		if configurationID(observed) == appliedID {
+		if observedAWSID(observed) == appliedID {
 			return string(name), observed, true
 		}
 	}
 	return "", resource.ObservedComposed{}, false
 }
 
-// configurationID is the AWS id of an observed Configuration: status.atProvider.id, falling back to the
+// observedAWSID is the AWS id of an observed managed resource: status.atProvider.id, falling back to the
 // crossplane external-name annotation the provider sets right after creation.
-func configurationID(observed resource.ObservedComposed) string {
+func observedAWSID(observed resource.ObservedComposed) string {
 	if id, found, _ := unstructured.NestedString(observed.Resource.Object, "status", "atProvider", "id"); found && id != "" {
 		return id
 	}
@@ -574,6 +574,16 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 
 	if !g.rabbitMQBroker.Spec.PubliclyAccessible {
 		broker.Spec.ForProvider.SecurityGroupRefs = []xpv2v1.NamespacedReference{{Name: string(g.names.sg)}}
+		// Also set the resolved id once the SecurityGroup is observed. The provider's reference resolver
+		// persists resolved values with a server-side-apply patch that carries only the fields it changed,
+		// so a field only it owns is dropped whenever it re-resolves another reference on the broker (it
+		// cleared securityGroups when configuration.id changed on an engine bump, and the next update went
+		// to Amazon MQ with an empty security-group list). Owning the value here as well keeps it in place.
+		if sgObserved, ok := g.observed[g.names.sg]; ok {
+			if id := observedAWSID(sgObserved); id != "" {
+				broker.Spec.ForProvider.SecurityGroups = []*string{&id}
+			}
+		}
 	}
 
 	if g.rabbitMQBroker.Spec.Configuration != nil {
