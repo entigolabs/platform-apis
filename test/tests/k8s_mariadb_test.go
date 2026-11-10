@@ -14,7 +14,9 @@ import (
 
 func testMariadb(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	mdbNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, MariadbNamespaceName)
-	defer cleanupMariadb(t, cluster, argocd)
+	// The Application goes last, once every component has removed its own composites. t.Cleanup,
+	// not defer: the parallel subtests below only start after this function returns.
+	t.Cleanup(func() { cleanupMariadbApplication(t, argocd) })
 
 	if ctx.Err() != nil {
 		return
@@ -25,19 +27,32 @@ func testMariadb(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Ku
 		return
 	}
 
-	t.Run("Instance", func(t *testing.T) { testMariadbInstance(t, mdbNs) })
-	if t.Failed() {
-		return
-	}
+	// Main and Lifecycle are two independent instances the chart creates at once, so their
+	// chains run side by side and each deletes its own resources as soon as it is done, while
+	// the other may still be running.
+	t.Run("Main", func(t *testing.T) {
+		t.Parallel()
+		defer cleanupMariadbMain(t, mdbNs)
 
-	t.Run("Database", func(t *testing.T) { testMariadbDatabase(t, mdbNs) })
-	if t.Failed() {
-		return
-	}
+		t.Run("Instance", func(t *testing.T) { testMariadbInstance(t, mdbNs) })
+		if t.Failed() {
+			return
+		}
 
-	t.Run("User", func(t *testing.T) { testMariadbUser(t, mdbNs) })
+		t.Run("Database", func(t *testing.T) { testMariadbDatabase(t, mdbNs) })
+		if t.Failed() {
+			return
+		}
 
-	t.Run("Lifecycle", func(t *testing.T) { testMariadbLifecycle(t, mdbNs) })
+		t.Run("User", func(t *testing.T) { testMariadbUser(t, mdbNs) })
+	})
+
+	t.Run("Lifecycle", func(t *testing.T) {
+		t.Parallel()
+		defer cleanupMariadbLifecycle(t, mdbNs)
+
+		testMariadbLifecycle(t, mdbNs)
+	})
 }
 
 func testMariadbDatabase(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
@@ -271,11 +286,12 @@ func waitMariadbExternalSecretReady(t *testing.T, mdbNs *terrak8s.KubectlOptions
 	require.NoError(t, err)
 }
 
-func cleanupMariadb(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+// cleanupMariadbMain removes the main instance and what is composed on top of it, in dependency
+// order: the User's Grant and Role protect the Database and the Instance from deletion.
+func cleanupMariadbMain(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
 	if t.Failed() {
 		return // leave resources in place for debugging
 	}
-	mdbNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, MariadbNamespaceName)
 
 	cleanupDeleteParallel(t, mdbNs, MariadbUserKind, 120, MariadbUserName)
 
@@ -283,8 +299,23 @@ func cleanupMariadb(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
 	cleanupDeleteParallel(t, mdbNs, MariadbDatabaseKind, 120, MariadbUserDatabaseName)
 
 	cleanupDisableDeletionProtectionOnMariadbInstance(t, mdbNs)
-	cleanupDeleteParallel(t, mdbNs, MariadbInstanceKind, 180, MariadbInstanceName, MariadbLifecycleName)
+	cleanupDeleteParallel(t, mdbNs, MariadbInstanceKind, 180, MariadbInstanceName)
+}
 
+// cleanupMariadbLifecycle removes the lifecycle instance; nothing is composed on top of it and
+// the chart creates it without deletion protection.
+func cleanupMariadbLifecycle(t *testing.T, mdbNs *terrak8s.KubectlOptions) {
+	if t.Failed() {
+		return // leave resources in place for debugging
+	}
+
+	cleanupDeleteParallel(t, mdbNs, MariadbInstanceKind, 180, MariadbLifecycleName)
+}
+
+func cleanupMariadbApplication(t *testing.T, argocd *terrak8s.KubectlOptions) {
+	if t.Failed() {
+		return // a failed component left its resources behind for debugging; keep the app with them
+	}
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", MariadbApplicationName, "--ignore-not-found")
 }
 
