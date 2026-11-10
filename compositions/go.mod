@@ -2,7 +2,10 @@ module test
 
 go 1.25.7
 
-require github.com/entigolabs/static-common v0.0.0
+require (
+	github.com/entigolabs/static-common v0.0.0
+	k8s.io/apimachinery v0.35.3
+)
 
 require (
 	cel.dev/expr v0.25.1 // indirect
@@ -113,7 +116,6 @@ require (
 	gotest.tools/v3 v3.5.2 // indirect
 	k8s.io/api v0.35.3 // indirect
 	k8s.io/apiextensions-apiserver v0.35.3 // indirect
-	k8s.io/apimachinery v0.35.3 // indirect
 	k8s.io/apiserver v0.35.3 // indirect
 	k8s.io/client-go v0.35.3 // indirect
 	k8s.io/code-generator v0.35.3 // indirect
