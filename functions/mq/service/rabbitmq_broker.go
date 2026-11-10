@@ -183,7 +183,7 @@ func (g *rabbitMQBrokerGenerator) brokerSwitchedToConfiguration(configName resou
 	if !ok {
 		return false
 	}
-	return configObserved.Resource.GetAnnotations()["crossplane.io/external-name"] == appliedID
+	return configurationID(configObserved) == appliedID
 }
 
 func staleConfiguration(observed resource.ObservedComposed) client.Object {
@@ -220,11 +220,85 @@ func (g *rabbitMQBrokerGenerator) buildConfiguration() client.Object {
 	}
 }
 
-func (g *rabbitMQBrokerGenerator) observedConfigurationRevision() *float64 {
-	observed, ok := g.observed[g.names.configuration]
-	if !ok {
-		return nil
+// brokerConfigurationTarget is the Configuration the broker gets wired to and the engine version that goes
+// with it.
+type brokerConfigurationTarget struct {
+	name          string
+	id            *string
+	revision      *float64
+	engineVersion *string
+}
+
+// brokerConfigurationTarget picks the Configuration for the broker. The Configuration for the desired
+// engine version is wired, with its AWS id set explicitly, as soon as it is observed with that id. Until
+// then the broker stays on the Configuration it currently has applied, at that Configuration's engine
+// version, so an engine-version bump reaches Amazon MQ as one UpdateBroker carrying both the new engine
+// version and the new Configuration id. Relying on the provider's reference resolution alone sent the
+// engine upgrade with the previous Configuration id and cost a second reboot after the upgrade to switch.
+// On first creation nothing is observed yet and the broker is left to the provider's reference
+// resolution, as before.
+func (g *rabbitMQBrokerGenerator) brokerConfigurationTarget() brokerConfigurationTarget {
+	desired := brokerConfigurationTarget{
+		name:          string(g.names.configuration),
+		engineVersion: g.rabbitMQBroker.Spec.EngineVersion,
 	}
+	if observed, ok := g.observed[g.names.configuration]; ok {
+		desired.revision = latestRevision(observed)
+		if id := configurationID(observed); id != "" {
+			desired.id = &id
+			return desired
+		}
+	}
+
+	appliedName, applied, ok := g.appliedConfiguration()
+	if !ok {
+		return desired
+	}
+	appliedID := configurationID(applied)
+	target := brokerConfigurationTarget{
+		name:          appliedName,
+		id:            &appliedID,
+		revision:      latestRevision(applied),
+		engineVersion: desired.engineVersion,
+	}
+	if appliedVersion, found, _ := unstructured.NestedString(applied.Resource.Object, "spec", "forProvider", "engineVersion"); found && appliedVersion != "" {
+		target.engineVersion = &appliedVersion
+	}
+	return target
+}
+
+// appliedConfiguration returns the observed Configuration whose AWS id the broker currently reports as
+// applied, if both are observed.
+func (g *rabbitMQBrokerGenerator) appliedConfiguration() (string, resource.ObservedComposed, bool) {
+	brokerObserved, ok := g.observed[g.names.broker]
+	if !ok {
+		return "", resource.ObservedComposed{}, false
+	}
+	appliedID, found, _ := unstructured.NestedString(brokerObserved.Resource.Object, "status", "atProvider", "configuration", "id")
+	if !found || appliedID == "" {
+		return "", resource.ObservedComposed{}, false
+	}
+	for name, observed := range g.observed {
+		if observed.Resource.GetKind() != "Configuration" {
+			continue
+		}
+		if configurationID(observed) == appliedID {
+			return string(name), observed, true
+		}
+	}
+	return "", resource.ObservedComposed{}, false
+}
+
+// configurationID is the AWS id of an observed Configuration: status.atProvider.id, falling back to the
+// crossplane external-name annotation the provider sets right after creation.
+func configurationID(observed resource.ObservedComposed) string {
+	if id, found, _ := unstructured.NestedString(observed.Resource.Object, "status", "atProvider", "id"); found && id != "" {
+		return id
+	}
+	return observed.Resource.GetAnnotations()["crossplane.io/external-name"]
+}
+
+func latestRevision(observed resource.ObservedComposed) *float64 {
 	revision, found, err := unstructured.NestedFloat64(observed.Resource.Object, "status", "atProvider", "latestRevision")
 	if err != nil || !found {
 		return nil
@@ -503,15 +577,18 @@ func (g *rabbitMQBrokerGenerator) buildBroker() client.Object {
 	}
 
 	if g.rabbitMQBroker.Spec.Configuration != nil {
+		target := g.brokerConfigurationTarget()
 		resolveAlways := xpv2v1.ResolvePolicyAlways
 		broker.Spec.ForProvider.Configuration = &mqv1beta1.ConfigurationParameters{
+			ID: target.id,
 			IDRef: &xpv2v1.NamespacedReference{
-				Name:      string(g.names.configuration),
+				Name:      target.name,
 				Namespace: g.rabbitMQBroker.Namespace,
 				Policy:    &xpv2v1.Policy{Resolve: &resolveAlways},
 			},
-			Revision: g.observedConfigurationRevision(),
+			Revision: target.revision,
 		}
+		broker.Spec.ForProvider.EngineVersion = target.engineVersion
 	}
 	if g.rabbitMQBroker.Spec.MaintenanceWindowStartTime != nil {
 		broker.Spec.ForProvider.MaintenanceWindowStartTime = &mqv1beta1.MaintenanceWindowStartTimeParameters{

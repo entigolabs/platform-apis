@@ -74,6 +74,12 @@ const (
 	// Observed Configuration MR carrying a latestRevision (args: name, name); wrap with withReadyStatus.
 	configObservedResJson = `{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Configuration","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"data":"consumer_timeout = 1800000\n","engineType":"RabbitMQ","engineVersion":"4.2","name":"%s","region":"eu-north-1","tags":{"entigo:zone":"zone-a"}}},"status":{"atProvider":{"latestRevision":1}}}`
 
+	// Observed Configuration MR carrying its AWS id and latestRevision (args: name, engineVersion, name, id, revision); wrap with withReadyStatus.
+	configObservedWithIDResJson = `{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Configuration","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"data":"consumer_timeout = 1800000\n","engineType":"RabbitMQ","engineVersion":"%s","name":"%s","region":"eu-north-1","tags":{"entigo:zone":"zone-a"}}},"status":{"atProvider":{"id":"%s","latestRevision":%d}}}`
+
+	// Broker desired with an explicitly wired Configuration (args: name, name, configuration id, configuration name, revision, engineVersion, sg, credentials secret, connection secret).
+	brokerWiredResJson = `{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"applyImmediately":true,"autoMinorVersionUpgrade":true,"brokerName":"%s","configuration":{"id":"%s","idRef":{"name":"%s","namespace":"testspace","policy":{"resolve":"Always"}},"revision":%d},"deploymentMode":"SINGLE_INSTANCE","encryptionOptions":{"kmsKeyId":"arn:aws:kms:eu-north-1:111111111111:key/mrk-data123","useAwsOwnedKey":false},"engineType":"RabbitMQ","engineVersion":"%s","hostInstanceType":"mq.m7g.medium","maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"publiclyAccessible":false,"region":"eu-north-1","securityGroupRefs":[{"name":"%s"}],"subnetIds":["subnet-aaa111"],"tags":{"entigo:zone":"zone-a"}},"initProvider":{"user":[{"consoleAccess":true,"passwordSecretRef":{"key":"password","name":"%s"},"username":"mqadmin"}]},"managementPolicies":["*"],"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"},"writeConnectionSecretToRef":{"name":"%s"}},"status":{"atProvider":{}}}`
+
 	// New version-scoped Configuration MR desired after an engineVersion bump to 4.3 (args: name, name).
 	configV43ResJson = `{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Configuration","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{"data":"consumer_timeout = 1800000\n","engineType":"RabbitMQ","engineVersion":"4.3","name":"%s","region":"eu-north-1","tags":{"entigo:zone":"zone-a"}},"initProvider":{},"providerConfigRef":{"kind":"ClusterProviderConfig","name":"aws-provider"}},"status":{"atProvider":{}}}`
 
@@ -241,6 +247,87 @@ func TestRabbitMQBrokerFunction(t *testing.T) {
 							newConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(configV43ResJson, newConfigName, newConfigName))},
 							oldConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(staleConfigResJson, oldConfigName, oldConfigName)), Ready: 1},
 							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(brokerV43ResJson, brokerName, brokerName, newConfigName, sgName, credentialsSecretName, connectionSecretName)), Ready: 1},
+						},
+					},
+					Requirements: expectedRequirements(),
+				},
+			},
+		},
+		"RabbitMQBroker/Version bump: broker stays on the applied Configuration until the new one has an AWS id": {
+			Reason: "The new version-scoped Configuration has no AWS id yet, so the broker must keep the Configuration it currently applies (explicit id, its revision) and that Configuration's engine version. Sending the engine bump before the new Configuration can be wired makes Amazon MQ upgrade with the old Configuration and reboot a second time to switch.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"configuration":{"data":"consumer_timeout = 1800000\n"},"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.3","instanceType":"mq.m7g.medium","maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"publiclyAccessible":false}}`)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
+							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
+							oldConfigName:        withReadyStatus(fmt.Sprintf(configObservedWithIDResJson, oldConfigName, "4.2", oldConfigName, "c-old-config", 1)),
+							brokerName:           withReadyStatus(fmt.Sprintf(`{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{}},"status":{"atProvider":{"id":"b-1234","configuration":{"id":"c-old-config","revision":1}}}}`, brokerName)),
+						},
+					},
+					RequiredResources: requiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
+							newConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(configV43ResJson, newConfigName, newConfigName))},
+							oldConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(staleConfigResJson, oldConfigName, oldConfigName)), Ready: 1},
+							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(brokerWiredResJson, brokerName, brokerName, "c-old-config", oldConfigName, 1, "4.2", sgName, credentialsSecretName, connectionSecretName)), Ready: 1},
+						},
+					},
+					Requirements: expectedRequirements(),
+				},
+			},
+		},
+		"RabbitMQBroker/Version bump: broker switches to the new Configuration with its id once observed": {
+			Reason: "Once the new version-scoped Configuration is observed with its AWS id, the broker is wired to it with the id set explicitly together with the new engine version, so the upgrade and the Configuration switch reach Amazon MQ in one UpdateBroker. The old Configuration is still re-emitted because the broker has not reported the switch yet.",
+			Args: test.Args{
+				Req: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: resource.MustStructJSON(`{"apiVersion":"mq.entigo.com/v1alpha1","kind":"RabbitMQBroker","metadata":{"name":"test-mq","namespace":"testspace"},"spec":{"autoMinorVersionUpgrade":true,"configuration":{"data":"consumer_timeout = 1800000\n"},"deploymentMode":"SINGLE_INSTANCE","engineType":"RabbitMQ","engineVersion":"4.3","instanceType":"mq.m7g.medium","maintenanceWindowStartTime":{"dayOfWeek":"MONDAY","timeOfDay":"02:00","timeZone":"CET"},"publiclyAccessible":false}}`)},
+						Resources: map[string]*fnv1.Resource{
+							sgName:               withReadyStatus(fmt.Sprintf(sgResJson, sgName, sgName)),
+							sgIngressName:        withReadyStatus(fmt.Sprintf(ingressResJson, sgIngressName, sgName)),
+							sgConsoleIngressName: withReadyStatus(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)),
+							sgMgmtIngressName:    withReadyStatus(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)),
+							sgEgressName:         withReadyStatus(fmt.Sprintf(egressResJson, sgEgressName, sgName)),
+							"credentials":        withReadyStatus(observedCredentialsSecretJSON(credentialsSecretName, fixedPassword)),
+							oldConfigName:        withReadyStatus(fmt.Sprintf(configObservedWithIDResJson, oldConfigName, "4.2", oldConfigName, "c-old-config", 1)),
+							newConfigName:        withReadyStatus(fmt.Sprintf(configObservedWithIDResJson, newConfigName, "4.3", newConfigName, "c-new-config", 2)),
+							brokerName:           withReadyStatus(fmt.Sprintf(`{"apiVersion":"mq.aws.m.upbound.io/v1beta1","kind":"Broker","metadata":{"labels":{"tenancy.entigo.com/zone":"zone-a"},"name":"%s","namespace":"testspace"},"spec":{"forProvider":{}},"status":{"atProvider":{"id":"b-1234","configuration":{"id":"c-old-config","revision":1}}}}`, brokerName)),
+						},
+					},
+					RequiredResources: requiredResources(),
+				},
+			},
+			Want: test.Want{
+				Rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+					Desired: &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							sgName:               {Resource: resource.MustStructJSON(fmt.Sprintf(sgResJson, sgName, sgName)), Ready: 1},
+							sgIngressName:        {Resource: resource.MustStructJSON(fmt.Sprintf(ingressResJson, sgIngressName, sgName)), Ready: 1},
+							sgConsoleIngressName: {Resource: resource.MustStructJSON(fmt.Sprintf(consoleIngressResJson, sgConsoleIngressName, sgName)), Ready: 1},
+							sgMgmtIngressName:    {Resource: resource.MustStructJSON(fmt.Sprintf(mgmtIngressResJson, sgMgmtIngressName, sgName)), Ready: 1},
+							sgEgressName:         {Resource: resource.MustStructJSON(fmt.Sprintf(egressResJson, sgEgressName, sgName)), Ready: 1},
+							"credentials":        {Resource: resource.MustStructJSON(fmt.Sprintf(credentialsResJson, credentialsSecretName, fixedPassword)), Ready: 1},
+							newConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(configV43ResJson, newConfigName, newConfigName)), Ready: 1},
+							oldConfigName:        {Resource: resource.MustStructJSON(fmt.Sprintf(staleConfigResJson, oldConfigName, oldConfigName)), Ready: 1},
+							brokerName:           {Resource: resource.MustStructJSON(fmt.Sprintf(brokerWiredResJson, brokerName, brokerName, "c-new-config", newConfigName, 2, "4.3", sgName, credentialsSecretName, connectionSecretName)), Ready: 1},
 						},
 					},
 					Requirements: expectedRequirements(),
