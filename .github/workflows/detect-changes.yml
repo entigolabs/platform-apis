@@ -140,6 +140,7 @@ jobs:
               - 'functions/database/**'
               - 'helm/templates/valkey.yaml'
               - 'test/tests/helm/platform-apis-test-valkey/**'
+              - 'test/tests/k8s_valkey_test.go'
             mariadb:
               - 'compositions/mariadb/**'
               - 'functions/database/**'
