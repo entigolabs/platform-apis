@@ -58,13 +58,15 @@ GCP takes the cluster's total vCPU and memory and chooses the brokers itself. Th
 in each cloud's block (`aws.instanceType`, `oci.instanceType` with `oci.ocpus`, `gcp.vcpus` and
 `gcp.memoryGB`), and `brokers` is Extended. No cloud offers a maintenance window.
 
-| Field              | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                         | OCI (`KafkaCluster`)                                                                |
-| ------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `version`          | `kafkaVersion`                                              | `kafka_version`                                                                                    | `kafkaVersion`                                                                      |
-| `brokers`          | `numberOfBrokerNodes`                                       | rejected; chosen by the service                                                                    | `brokerShape.nodeCount`                                                             |
-| `storage.sizeGB`   | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                             | `brokerShape.storageSizeInGbs`                                                      |
-| `highAvailability` | always; `false` rejected                                    | always three zones; `false` rejected                                                               | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
-| `parameters`       | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones wait for a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
+In the table below, Level is the field's support level (rule 1).
+
+| Field              | Level                                      | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                         | OCI (`KafkaCluster`)                                                                |
+| ------------------ | ------------------------------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `version`          | Core                                       | `kafkaVersion`                                              | `kafka_version`                                                                                    | `kafkaVersion`                                                                      |
+| `brokers`          | Extended: AWS, OCI                         | `numberOfBrokerNodes`                                       | rejected; chosen by the service                                                                    | `brokerShape.nodeCount`                                                             |
+| `storage.sizeGB`   | Core                                       | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                             | `brokerShape.storageSizeInGbs`                                                      |
+| `highAvailability` | Core for `true`; Extended for `false`: OCI | always; `false` rejected                                    | always three zones; `false` rejected                                                               | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
+| `parameters`       | Core                                       | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones wait for a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
 
 The cloud-specific fields:
 
