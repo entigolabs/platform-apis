@@ -30,11 +30,11 @@ Not every cloud supports every field, so each field has a support level per clou
 also apply to a single value of a field, such as `storage.autoGrow: false`, which OCI does not
 support.
 
-| Level    | On That Cloud                                                                                      |
-| -------- | -------------------------------------------------------------------------------------------------- |
-| Core     | supported on every cloud                                                                           |
-| Extended | supported on some clouds, with the same meaning; on the others, reported as `CloudAccepted: False` |
-| Ignored  | accepted but has no effect, because the cloud already gives what it asks for                       |
+| Level    | Meaning                                                                                                                                              |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Core     | Works on every cloud.                                                                                                                                |
+| Extended | Works on the clouds listed in the field's description, with the same meaning on each; on any other cloud, the object reports `CloudAccepted: False`. |
+| Ignored  | Accepted on a cloud but has no effect there, because that cloud already does what the field asks for.                                                |
 
 In a schema, a field's description ends with `Extended` and the clouds that support it. A field
 without that mark is Core.
