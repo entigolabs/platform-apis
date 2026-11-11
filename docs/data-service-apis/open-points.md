@@ -12,12 +12,20 @@ to a virtual host, topic or database with what it may do there, and would let th
 object grant another team's user access to it within the Zone (rule 11). The choice changes the user
 kinds of all four services.
 
-#### 2 Should One Manifest Work on Every Cloud, or Only Apply There?
+#### 2 What Happens to a Field on a Cloud That Lacks It?
 
-A field that some clouds lack, such as `storage.iops` on Azure, is Extended today: written once in
-the common spec, it works where the cloud supports it and reports `CloudAccepted: False` elsewhere,
-as Gateway API does with its Extended features. A manifest therefore applies on every cloud but
-works everywhere only if it avoids Extended fields. Dropping Extended would move every such field
-into the cloud blocks (`aws.iops`, `gcp.iops`, `oci.iops`), which other clouds ignore by design
-(rule 2), so any manifest works everywhere; the cost is writing a value once per cloud. The choice
-changes about 25 fields and values across six schemas.
+Some common fields exist on only some clouds, such as `storage.iops`, which Azure lacks. Today such
+a field is Extended: on a cloud without it, the object reports `CloudAccepted: False` and nothing is
+created, as Gateway API does with its Extended features, so a manifest that uses it applies
+everywhere but works only where the field is supported. Two other answers make every manifest work
+everywhere:
+
+- The cloud ignores the field and creates the resource anyway, with a warning condition naming
+  what it ignored. The manifest keeps working, but the resource can differ from what was asked,
+  such as a slower disk, and fields that protect data or change behaviour, such as
+  `immutableTags` or `cors`, would need to stay Extended.
+- The field moves into the cloud blocks (`aws.iops`, `gcp.iops`, `oci.iops`), which other clouds
+  ignore by design (rule 2). Nothing is lost silently, since the value was written for that
+  cloud, but it is written once per cloud.
+
+The choice affects about 25 fields and values across six schemas.
