@@ -31,6 +31,12 @@ spec:
             env:
               - name: CLOUD_PROVIDER
                 value: {{ .Values.global.cloudProvider }}
+            {{- if .Values.authz.organization }}
+              - name: AUTHZ_ORGANIZATION
+                value: {{ .Values.authz.organization | quote }}
+              - name: AUTHZ_WORKSPACE
+                value: {{ .Values.authz.workspace | quote }}
+            {{- end }}
             {{- if .Values.workspace }}
               - name: WORKSPACE
                 value: {{ .Values.workspace }}

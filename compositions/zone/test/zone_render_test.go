@@ -1,10 +1,15 @@
 package test
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/entigolabs/static-common/crossplane"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -15,6 +20,27 @@ const (
 	required        = "../examples/required-resources.yaml"
 	zoneResource    = "../examples/zone.yaml"
 )
+
+type renderedRule struct {
+	APIGroups     []string `yaml:"apiGroups"`
+	Resources     []string `yaml:"resources"`
+	ResourceNames []string `yaml:"resourceNames"`
+	Verbs         []string `yaml:"verbs"`
+}
+
+type renderedObject struct {
+	Kind     string `yaml:"kind"`
+	Metadata struct {
+		Name string `yaml:"name"`
+	} `yaml:"metadata"`
+	Rules []renderedRule `yaml:"rules"`
+	Data  map[string]any `yaml:"data"`
+	Spec  struct {
+		MatchConditions []struct {
+			Name string `yaml:"name"`
+		} `yaml:"matchConditions"`
+	} `yaml:"spec"`
+}
 
 func TestZoneCrossplaneRender(t *testing.T) {
 	t.Logf("Starting tenancy function. Function path %s", function)
@@ -58,10 +84,6 @@ func TestZoneCrossplaneRender(t *testing.T) {
 		"spec.clusterResourceBlacklist.0.kind":  "*",
 		"spec.destinations.0.namespace":         "abbe",
 		"spec.destinations.1.namespace":         "abfe",
-		"spec.roles.0.name":                     "maintainer",
-		"spec.roles.1.name":                     "observer",
-		"spec.roles.2.name":                     "contributor",
-		"spec.roles.3.name":                     "cicd",
 		"spec.sourceNamespaces.0":               "abbe",
 		"spec.sourceNamespaces.1":               "abfe",
 		"spec.sourceRepos.0":                    "*",
@@ -304,109 +326,8 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 8) // 2 zone + 2 ingress target + 4 httproute target
 	crossplane.AssertResourceCount(t, resources, "ValidatingPolicy", 2)
 	crossplane.AssertResourceCount(t, resources, "AccessEntry", 1)
-	crossplane.AssertResourceCount(t, resources, "Role", 9)
+	crossplane.AssertResourceCount(t, resources, "Role", 1)
 	crossplane.AssertResourceCount(t, resources, "RolePolicyAttachment", 4)
-
-	t.Log("Validating rbac.authorization.k8s.io Role fields")
-	crossplane.AssertFieldValues(t, resources, "Role", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abbe-all",
-		"metadata.namespace":                    "abbe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "",
-		"rules.0.resources.0":                   "pods",
-		"rules.0.verbs.0":                       "*",
-		"rules.2.apiGroups.0":                   "apps",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io Role fields")
-	crossplane.AssertFieldValues(t, resources, "Role", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abbe-read",
-		"metadata.namespace":                    "abbe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "*",
-		"rules.0.resources.0":                   "*",
-		"rules.0.verbs.0":                       "get",
-		"rules.0.verbs.1":                       "watch",
-		"rules.0.verbs.2":                       "list",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io Role fields")
-	crossplane.AssertFieldValues(t, resources, "Role", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abfe-all",
-		"metadata.namespace":                    "abfe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "",
-		"rules.0.resources.0":                   "pods",
-		"rules.0.verbs.0":                       "*",
-		"rules.2.apiGroups.0":                   "apps",
-		"rules.9.apiGroups.0":                   "cert-manager.io",
-		"rules.9.resources.0":                   "certificates",
-		"rules.9.resources.1":                   "certificaterequests",
-		"rules.9.resources.2":                   "issuers",
-		"rules.16.apiGroups.0":                  "rbac.authorization.k8s.io",
-		"rules.16.resources.0":                  "roles",
-		"rules.16.resources.1":                  "rolebindings",
-		"rules.16.verbs.0":                      "get",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io Role fields")
-	crossplane.AssertFieldValues(t, resources, "Role", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":           "abfe-namespace",
-		"metadata.namespace":      "abfe",
-		"rules.0.resources.0":     "namespaces",
-		"rules.0.resourceNames.0": "abfe",
-		"rules.0.verbs.0":         "update",
-		"rules.0.verbs.1":         "patch",
-		"rules.0.verbs.2":         "delete",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io Role fields")
-	crossplane.AssertFieldValues(t, resources, "Role", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abfe-read",
-		"metadata.namespace":                    "abfe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "*",
-		"rules.0.resources.0":                   "*",
-		"rules.0.verbs.0":                       "get",
-		"rules.0.verbs.1":                       "watch",
-		"rules.0.verbs.2":                       "list",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io Role fields")
-	crossplane.AssertFieldValues(t, resources, "Role", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "testzone-apps-all",
-		"metadata.namespace":                    "testzone-apps",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "argoproj.io",
-		"rules.0.resources.0":                   "applications",
-		"rules.0.resources.1":                   "applicationsets",
-		"rules.0.verbs.0":                       "*",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io Role fields")
-	crossplane.AssertFieldValues(t, resources, "Role", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "testzone-apps-read",
-		"metadata.namespace":                    "testzone-apps",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"rules.0.apiGroups.0":                   "argoproj.io",
-		"rules.0.resources.0":                   "applications",
-		"rules.0.resources.1":                   "applicationsets",
-		"rules.0.verbs.0":                       "get",
-		"rules.0.verbs.1":                       "watch",
-		"rules.0.verbs.2":                       "list",
-	})
 
 	t.Log("Validating iam.aws.upbound.io RolePolicyAttachment fields")
 	crossplane.AssertFieldValues(t, resources, "RolePolicyAttachment", "iam.aws.upbound.io/v1beta1", map[string]string{
@@ -451,14 +372,8 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	t.Log("Mocking observed resources")
 	crossplane.AppendToResources(t, observed, crossplane.MockByKind(t, resources, "AccessEntry", "eks.aws.upbound.io/v1beta1", true, nil))
 	for _, res := range resources {
-		if res.GetKind() == "Role" && res.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
-			crossplane.AppendToResources(t, observed, res)
-		}
 		if res.GetKind() == "RolePolicyAttachment" {
 			crossplane.AppendToResources(t, observed, crossplane.Mock(t, res, true, nil))
-		}
-		if res.GetKind() == "ClusterRoleBinding" {
-			crossplane.AppendToResources(t, observed, res)
 		}
 	}
 
@@ -474,186 +389,83 @@ func TestZoneCrossplaneRender(t *testing.T) {
 	crossplane.AssertResourceCount(t, resources, "NetworkPolicy", 8) // 2 zone + 2 ingress target + 4 httproute target
 	crossplane.AssertResourceCount(t, resources, "ValidatingPolicy", 2)
 	crossplane.AssertResourceCount(t, resources, "AccessEntry", 1)
-	crossplane.AssertResourceCount(t, resources, "Role", 9)
+	crossplane.AssertResourceCount(t, resources, "Role", 1)
 	crossplane.AssertResourceCount(t, resources, "RolePolicyAttachment", 4)
-	crossplane.AssertResourceCount(t, resources, "RoleBinding", 15) // 2 namespaces x (3 roles + maintainer namespace + 2 crossplane-view) + 3 apps
-	crossplane.AssertResourceCount(t, resources, "ClusterRoleBinding", 1)
-
-	t.Log("Validating rbac.authorization.k8s.io ClusterRoleRoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "ClusterRoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "testzone-contributor",
-		"metadata.namespace":                    "",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "ClusterRole",
-		"roleRef.name":                          "zone-tenancy-c-read",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "contributor",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abbe-contributor",
-		"metadata.namespace":                    "abbe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "abbe-all",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "contributor",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abfe-contributor",
-		"metadata.namespace":                    "abfe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "abfe-all",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "contributor",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abbe-contributor-crossplane-view",
-		"metadata.namespace":                    "abbe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "ClusterRole",
-		"roleRef.name":                          "crossplane-view",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "contributor",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abbe-maintainer",
-		"metadata.namespace":                    "abbe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "abbe-all",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "maintainer",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abfe-maintainer",
-		"metadata.namespace":                    "abfe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "abfe-all",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "maintainer",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abbe-observer",
-		"metadata.namespace":                    "abbe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "abbe-read",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "observer",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "abfe-observer",
-		"metadata.namespace":                    "abfe",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "abfe-read",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "observer",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "testzone-apps-maintainer",
-		"metadata.namespace":                    "testzone-apps",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "testzone-apps-all",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "maintainer",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "testzone-apps-contributor",
-		"metadata.namespace":                    "testzone-apps",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "testzone-apps-all",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "contributor",
-	})
-
-	t.Log("Validating rbac.authorization.k8s.io RoleBinding fields")
-	crossplane.AssertFieldValues(t, resources, "RoleBinding", "rbac.authorization.k8s.io/v1", map[string]string{
-		"metadata.name":                         "testzone-apps-observer",
-		"metadata.namespace":                    "testzone-apps",
-		"metadata.ownerReferences.0.apiVersion": "tenancy.entigo.com/v1alpha1",
-		"metadata.ownerReferences.0.kind":       "Zone",
-		"metadata.ownerReferences.0.name":       "testzone",
-		"roleRef.apiGroup":                      "rbac.authorization.k8s.io",
-		"roleRef.kind":                          "Role",
-		"roleRef.name":                          "testzone-apps-read",
-		"subjects.0.apiGroup":                   "rbac.authorization.k8s.io",
-		"subjects.0.kind":                       "Group",
-		"subjects.0.name":                       "observer",
-	})
-
-	t.Log("Mocking observed resources")
-	for _, res := range resources {
-		if res.GetKind() == "RoleBinding" {
-			crossplane.AppendToResources(t, observed, res)
-		}
-	}
+	crossplane.AssertResourceCount(t, resources, "RoleBinding", 0)
+	crossplane.AssertResourceCount(t, resources, "ClusterRoleBinding", 0)
 
 	t.Log("Rendering...")
 	resources = crossplane.CrossplaneRender(t, zoneResource, composition, functionsConfig, crossplane.Ptr(extra), crossplane.Ptr(observed))
 
 	t.Log("Asserting tenancy.entigo.com Zone Ready Status")
 	crossplane.AssertResourceReady(t, resources, "Zone", "tenancy.entigo.com/v1alpha1")
+}
+
+func TestZoneAuthzRendersTheSameOnEveryCloud(t *testing.T) {
+	t.Parallel()
+	for _, cloud := range []string{"aws", "oracle"} {
+		t.Run(cloud, func(t *testing.T) {
+			t.Parallel()
+			objects := renderedObjects(t, "global.cloudProvider="+cloud)
+
+			for _, gone := range []string{"ClusterRole/zone-tenancy-c-maintainer",
+				"ClusterRoleBinding/zone-tenancy-maintainer", "ClusterRoleBinding/zone-tenancy-maintainer-c-read",
+				"ClusterRoleBinding/zone-tenancy-observer", "ClusterRoleBinding/zone-tenancy-contributor"} {
+				if _, found := objects[gone]; found {
+					t.Errorf("%s is rendered, group RBAC is gone", gone)
+				}
+			}
+			for _, kept := range []string{"ClusterRole/zone-tenancy-c-read", "ClusterRole/platform-apis-zone-authz-read",
+				"ValidatingPolicy/platform-apis-zone-cluster-permissions"} {
+				if _, found := objects[kept]; !found {
+					t.Errorf("%s is not rendered", kept)
+				}
+			}
+			if !hasRule(objects["ClusterRole/platform-apis-zone"], "rbac.authorization.k8s.io", "clusterroles", "crossplane-view", "bind") {
+				t.Error("platform-apis-zone lost bind on crossplane-view, Crossplane cannot clean up the old RoleBindings")
+			}
+			if !hasRule(objects["ClusterRole/kyverno-zone-access"], "authorization.k8s.io", "subjectaccessreviews", "", "create") {
+				t.Error("kyverno-zone-access cannot create SubjectAccessReviews the zone policies send")
+			}
+			for _, policy := range []string{"platform-apis-zone-namespace-contributor-deny",
+				"platform-apis-zone-namespace-maintainer-deny", "platform-apis-zone-maintainer-infralib-zone-deny"} {
+				conditions := objects["ValidatingPolicy/"+policy].Spec.MatchConditions
+				if len(conditions) == 0 || conditions[0].Name != "oidc-users" {
+					t.Errorf("%s does not judge oidc users by SubjectAccessReview: %+v", policy, conditions)
+				}
+			}
+			environment := objects["EnvironmentConfig/platform-apis-zone"].Data
+			for _, key := range []string{"namespaceRole", "roleMapping"} {
+				if _, found := environment[key]; found {
+					t.Errorf("EnvironmentConfig still carries %s", key)
+				}
+			}
+		})
+	}
+}
+
+func renderedObjects(t *testing.T, values ...string) map[string]renderedObject {
+	t.Helper()
+	decoder := yaml.NewDecoder(bytes.NewBufferString(helmTemplate(t, values...)))
+	objects := make(map[string]renderedObject)
+	for {
+		var obj renderedObject
+		err := decoder.Decode(&obj)
+		if errors.Is(err, io.EOF) {
+			return objects
+		}
+		if err != nil {
+			t.Fatalf("decode rendered chart: %v", err)
+		}
+		if obj.Kind != "" {
+			objects[obj.Kind+"/"+obj.Metadata.Name] = obj
+		}
+	}
+}
+
+func hasRule(obj renderedObject, group, resource, name, verb string) bool {
+	return slices.ContainsFunc(obj.Rules, func(rule renderedRule) bool {
+		return slices.Contains(rule.APIGroups, group) && slices.Contains(rule.Resources, resource) &&
+			(name == "" || slices.Contains(rule.ResourceNames, name)) && slices.Contains(rule.Verbs, verb)
+	})
 }

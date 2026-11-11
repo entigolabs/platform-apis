@@ -22,13 +22,13 @@ spec:
                 clusterPermissions:
                   type: boolean
                   default: false
-                  description: Enable cluster-level permissions for the zone. Value true will allow users in spec.appProject.contributorGroups to escalate privileges to Kubernetes administrator.
+                  description: Enable cluster-level permissions for the zone. Value true lets the Zone's AppProject deploy cluster-scoped resources; changing it needs the right to create ClusterRoleBindings.
                 appProject:
                   type: object
                   properties:
                     contributorGroups:
                       type: array
-                      description: Deprecated, use roleMapping instead. OIDC groups with full access to applications
+                      description: Deprecated and ignored, access to a Zone comes from RoleGrants.
                       items:
                         type: string
                         minLength: 1
@@ -37,7 +37,7 @@ spec:
                     description: When false, all Namespaces within the same Zone allow unrestricted network traffic between each other. When true, Namespaces must explicitly define NetworkPolicies to permit cross-Namespace communication. Intra-Namespace traffic is always permitted regardless of this setting.
                 roleMapping:
                   type: array
-                  description: List of role mappings
+                  description: Deprecated and ignored, access to a Zone comes from RoleGrants.
                   items:
                     type: object
                     properties:

@@ -32,6 +32,7 @@ const (
 type GroupImpl struct {
 	log           logging.Logger
 	cloudProvider apis.CloudProvider
+	authz         apis.Authz
 }
 
 var _ base.GroupService = &GroupImpl{}
@@ -54,14 +55,14 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 }
 
 func (g *GroupImpl) generateZone(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
-	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed, g.log, g.cloudProvider)
+	return service.GenerateZoneObjects(*obj.(*v1alpha1.Zone), required, observed, g.log, g.cloudProvider, g.authz)
 }
 
 func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 	switch object.GetObjectKind().GroupVersionKind().Kind {
 	case apis.XRKindZone:
 		return base.NewSequence(true, []string{"namespace-.*", "launchtemplate-.*", "kyverno-mutate-.*"}, []string{"netpol-.*", "role-.*", "sidecar-.*", "kyverno-validate-.*"},
-			[]string{"rbacrole-.*", "rpa-.*", "ae-.*", "crb-.*"}, []string{"rb-.*", "nodepool-.*"})
+			[]string{"rpa-.*", "ae-.*"}, []string{"nodepool-.*"})
 	default:
 		return base.Sequence{}
 	}
@@ -108,6 +109,8 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		} else {
 			maps.Copy(resources, awsSelectors(env))
 		}
+		maps.Copy(resources, service.AuthzSelectors(g.authz))
+
 		resources[service.IngressClassKey] = &fnv1.ResourceSelector{
 			Kind:       "IngressClass",
 			ApiVersion: "networking.k8s.io/v1",

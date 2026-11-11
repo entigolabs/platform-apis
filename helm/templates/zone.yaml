@@ -1,150 +1,5 @@
 {{- if .Values.zone.install }}
 
-{{/* For backwards compatibility, merge together app project groups into role mappings */}}
-{{- $mergedRoleMapping := dict }}
-{{- range .Values.zone.environmentConfig.roleMapping }}
-  {{- $_ := set $mergedRoleMapping .roleRef (default list .groups) }}
-{{- end }}
-
-{{- with .Values.zone.environmentConfig.appProject }}
-  {{- if .maintainerGroups }}
-    {{- $existing := default list (get $mergedRoleMapping "maintainer") }}
-    {{- $_ := set $mergedRoleMapping "maintainer" (concat $existing .maintainerGroups | uniq) }}
-  {{- end }}
-  {{- if .observerGroups }}
-    {{- $existing := default list (get $mergedRoleMapping "observer") }}
-    {{- $_ := set $mergedRoleMapping "observer" (concat $existing .observerGroups | uniq) }}
-  {{- end }}
-{{- end }}
-
-{{- $maintainerGroups := default list (get $mergedRoleMapping "maintainer") }}
-{{- $observerGroups := default list (get $mergedRoleMapping "observer") }}
-{{- $contributorGroups := default list (get $mergedRoleMapping "contributor") }}
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: zone-tenancy-c-maintainer
-rules:
-- apiGroups: [""]
-  resources: ["namespaces"]
-  verbs: ["create"]
-- apiGroups: ["tenancy.entigo.com"]
-  resources: ["zones"]
-  verbs: ["*"]
-- apiGroups: ["admissionregistration.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["apiextensions.crossplane.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["apiextensions.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["external-secrets.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["generators.external-secrets.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["kyverno.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["policies.kyverno.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["reports.kyverno.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["pkg.crossplane.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["ria.ee"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: [""]
-  resources: ["configmaps", "pods", "persistentvolumes", "endpoints", "events", "serviceaccounts", "services", "resourcequotas", "limitranges"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["discovery.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["events.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["apps"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["policy"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["argoproj.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["artifact.entigo.com"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["database.entigo.com"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["batch"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["coordination.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["externaldns.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["networking.istio.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["security.istio.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["telemetry.istio.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["networking.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["rbac.authorization.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-{{- if eq .Values.global.cloudProvider "aws" }}
-- apiGroups: ["ec2.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["eks.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["iam.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["kms.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["networkfirewall.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["ram.aws.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["elbv2.k8s.aws"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-{{- end }}
-{{- if eq .Values.global.cloudProvider "oracle" }}
-- apiGroups: ["containerengine.oci.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["kms.oci.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["networking.oci.upbound.io"]
-  resources: ["*"]
-  verbs: ["get", "watch", "list"]
-{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -188,73 +43,6 @@ rules:
 - apiGroups: ["metrics.k8s.io"]
   resources: ["nodes"]
   verbs: ["get", "watch", "list"]
-{{- if $maintainerGroups }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: zone-tenancy-maintainer
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: zone-tenancy-c-maintainer
-subjects:
-{{- range $maintainerGroups }}
-  - kind: Group
-    name: {{ . }}
-    apiGroup: rbac.authorization.k8s.io
-{{- end }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: zone-tenancy-maintainer-c-read
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: zone-tenancy-c-read
-subjects:
-{{- range $maintainerGroups }}
-  - kind: Group
-    name: {{ . }}
-    apiGroup: rbac.authorization.k8s.io
-{{- end }}
-{{- end }}
-
-{{- if $observerGroups }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: zone-tenancy-observer
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: zone-tenancy-c-read
-subjects:
-{{- range $observerGroups }}
-- kind: Group
-  name: {{ . }}
-  apiGroup: rbac.authorization.k8s.io
-{{- end }}
-{{- end }}
-{{- if $contributorGroups }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: zone-tenancy-contributor
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: zone-tenancy-c-read
-subjects:
-{{- range $contributorGroups }}
-- kind: Group
-  name: {{ . }}
-  apiGroup: rbac.authorization.k8s.io
-{{- end }}
-{{- end }}
 
 
 ---
@@ -274,6 +62,7 @@ rules:
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: ["rolebindings", "roles", "clusterrolebindings"]
     verbs: ["*"]
+  {{- /* TODO: remove once no cluster has crossplane-view RoleBindings from Zones left */}}
   # A RoleBinding to a ClusterRole passes the escalation check only when its creator holds every
   # rule of that ClusterRole or may bind it. crossplane-view aggregates rules Crossplane itself does
   # not hold, so the Zone's crossplane-view RoleBindings need the bind verb.
@@ -299,7 +88,17 @@ rules:
   - apiGroups: ["external-secrets.io"]
     resources: ["clustersecretstores"]
     verbs: ["*"]
-
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+  name: platform-apis-zone-authz-read
+rules:
+  - apiGroups: ["authz.entigo.com"]
+    resources: ["roledefinitions", "rolegrants"]
+    verbs: ["get", "watch", "list"]
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
@@ -344,28 +143,11 @@ data:
   granularEgressExclude: []
   {{- end }}
   granularNamespaceNetworkPolicy: {{ .Values.zone.environmentConfig.granularNamespaceNetworkPolicy }}
-  {{- with .Values.zone.environmentConfig.namespaceRole }}
-  namespaceRole:
-    rules:
-      {{- toYaml .rules | nindent 6 }}
-    {{- with .additionalRules }}
-    additionalRules:
-      {{- toYaml . | nindent 6 }}
-    {{- end }}
-  {{- end }}
   argoCDNamespace: {{ .Values.zone.environmentConfig.argoCDNamespace }}
   awsProvider: {{ .Values.zone.environmentConfig.awsProvider }}
 {{- if eq .Values.global.cloudProvider "oracle" }}
   oracleProvider: {{ .Values.zone.environmentConfig.oracleProvider }}
 {{- end }}
-  {{- if $mergedRoleMapping }}
-  roleMapping:
-    {{- range $role, $groups := $mergedRoleMapping }}
-    - roleRef: {{ $role }}
-      groups:
-        {{- toYaml $groups | nindent 8 }}
-    {{- end }}
-  {{- end }}
   appProject:
     sourceRepos:
     {{- range .Values.global.sourceRepos }}
@@ -439,32 +221,6 @@ spec:
     - {{ . | quote }}
     {{- end }}
   {{- end }}
-  roles:
-    - description: Maintainer permissions
-    {{- if $maintainerGroups }}
-      groups:
-    {{- range $maintainerGroups }}
-        - {{ . }}
-    {{- end }}
-    {{- else }}
-      groups: []
-    {{- end }}
-      name: maintainer
-      policies:
-        - p, proj:zone:maintainer, applications, *, zone/*, allow
-        - p, proj:zone:maintainer, repositories, *, zone/*, allow
-    - description: Observer permissions
-    {{- if $observerGroups }}
-      groups:
-    {{- range $observerGroups }}
-        - {{ . }}
-    {{- end }}
-    {{- else }}
-      groups: []
-    {{- end }}
-      name: observer
-      policies:
-        - p, proj:zone:observer, applications, get, zone/*, allow
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -492,6 +248,9 @@ rules:
 - apiGroups: ["queue.entigo.com"]
   resources: ["topics", "kafkausers"]
   verbs: ["get", "list", "watch"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -773,11 +532,35 @@ spec:
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["namespaces"]
   matchConditions:
-    - name: "check-user-group"
-      expression: '"contributor" in request.userInfo.groups'
+    - name: oidc-users
+      expression: 'request.userInfo.username.startsWith("oidc:")'
+  variables:
+    - name: groups
+      expression: 'has(request.userInfo.groups) ? request.userInfo.groups : []'
+    - name: wide
+      expression: >-
+        resource.Post("authorization.k8s.io/v1", "subjectaccessreviews", "", {"apiVersion": dyn("authorization.k8s.io/v1"),
+        "kind": dyn("SubjectAccessReview"), "spec": dyn({"user": dyn(request.userInfo.username), "groups": dyn(variables.groups),
+        "resourceAttributes": dyn({"resource": "namespaces", "verb": "update"})})}).status.allowed == true
+    - name: oldZone
+      expression: 'request.operation != "CREATE" && has(oldObject.metadata.labels) && "tenancy.entigo.com/zone" in oldObject.metadata.labels ? oldObject.metadata.labels["tenancy.entigo.com/zone"] : ""'
+    - name: newZone
+      expression: 'request.operation != "DELETE" && has(object.metadata.labels) && "tenancy.entigo.com/zone" in object.metadata.labels ? object.metadata.labels["tenancy.entigo.com/zone"] : ""'
+    - name: keepsOld
+      expression: >-
+        variables.oldZone == "" || resource.Post("authorization.k8s.io/v1", "subjectaccessreviews", "",
+        {"apiVersion": dyn("authorization.k8s.io/v1"), "kind": dyn("SubjectAccessReview"), "spec": dyn({"user": dyn(request.userInfo.username),
+        "groups": dyn(variables.groups), "resourceAttributes": dyn({"group": "tenancy.entigo.com", "resource": "zones",
+        "name": string(variables.oldZone), "verb": "update"})})}).status.allowed == true
+    - name: takesNew
+      expression: >-
+        request.operation == "DELETE" || (variables.newZone != "" && resource.Post("authorization.k8s.io/v1",
+        "subjectaccessreviews", "", {"apiVersion": dyn("authorization.k8s.io/v1"), "kind": dyn("SubjectAccessReview"),
+        "spec": dyn({"user": dyn(request.userInfo.username), "groups": dyn(variables.groups), "resourceAttributes":
+        dyn({"group": "tenancy.entigo.com", "resource": "zones", "name": string(variables.newZone), "verb": "update"})})}).status.allowed == true)
   validations:
-    - expression: "false"
-      message: "contributor cannot modify namespaces."
+    - expression: 'variables.wide || (variables.keepsOld && variables.takesNew)'
+      message: "namespaces can only be changed within zones you maintain"
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
@@ -801,15 +584,23 @@ spec:
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["namespaces"]
   matchConditions:
-    - name: "exclude-delete"
-      expression: 'request.operation != "DELETE"'
-    - name: "check-user-group"
-      expression: '"maintainer" in request.userInfo.groups'
-    - name: "has-infralib-zone-label"
-      expression: "has(object.metadata.labels) && ('tenancy.entigo.com/zone' in object.metadata.labels) && object.metadata.labels['tenancy.entigo.com/zone'] == 'infralib'"
+    - name: oidc-users
+      expression: 'request.userInfo.username.startsWith("oidc:")'
+    - name: infralib-namespace
+      expression: >-
+        (request.operation != "CREATE" && has(oldObject.metadata.labels) && oldObject.metadata.labels[?"tenancy.entigo.com/zone"].orValue("") == "infralib") ||
+        (request.operation != "DELETE" && has(object.metadata.labels) && object.metadata.labels[?"tenancy.entigo.com/zone"].orValue("") == "infralib")
+  variables:
+    - name: groups
+      expression: 'has(request.userInfo.groups) ? request.userInfo.groups : []'
+    - name: wide
+      expression: >-
+        resource.Post("authorization.k8s.io/v1", "subjectaccessreviews", "", {"apiVersion": dyn("authorization.k8s.io/v1"),
+        "kind": dyn("SubjectAccessReview"), "spec": dyn({"user": dyn(request.userInfo.username), "groups": dyn(variables.groups),
+        "resourceAttributes": dyn({"resource": "namespaces", "verb": "update"})})}).status.allowed == true
   validations:
-    - expression: "false"
-      message: "cannot use infralib zone."
+    - expression: variables.wide
+      message: "infralib namespaces are reserved for cluster administrators"
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
@@ -833,15 +624,58 @@ spec:
         operations: ["CREATE", "UPDATE", "DELETE"]
         resources: ["zones"]
   matchConditions:
-    - name: "exclude-delete"
-      expression: 'request.operation != "DELETE"'
-    - name: "check-user-group"
-      expression: '"maintainer" in request.userInfo.groups'
-    - name: "is-infralib-zone"
-      expression: "(has(object.metadata) && object.metadata.name == 'infralib') || (has(oldObject.metadata) && oldObject.metadata.name == 'infralib')"
+    - name: oidc-users
+      expression: 'request.userInfo.username.startsWith("oidc:")'
+    - name: infralib
+      expression: 'request.name == "infralib"'
+  variables:
+    - name: groups
+      expression: 'has(request.userInfo.groups) ? request.userInfo.groups : []'
+    - name: wide
+      expression: >-
+        resource.Post("authorization.k8s.io/v1", "subjectaccessreviews", "", {"apiVersion": dyn("authorization.k8s.io/v1"),
+        "kind": dyn("SubjectAccessReview"), "spec": dyn({"user": dyn(request.userInfo.username), "groups": dyn(variables.groups),
+        "resourceAttributes": dyn({"resource": "namespaces", "verb": "update"})})}).status.allowed == true
   validations:
-    - expression: "false"
-      message: "infralib zone is reserved."
+    - expression: variables.wide
+      message: "zone infralib is reserved for cluster administrators"
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-apis-zone-cluster-permissions
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  validationActions:
+    - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["tenancy.entigo.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["zones"]
+  matchConditions:
+    - name: oidc-users
+      expression: 'request.userInfo.username.startsWith("oidc:")'
+    - name: changes-cluster-permissions
+      expression: '(has(object.spec.clusterPermissions) && object.spec.clusterPermissions) != (request.operation == "UPDATE" && has(oldObject.spec.clusterPermissions) && oldObject.spec.clusterPermissions)'
+  variables:
+    - name: groups
+      expression: 'has(request.userInfo.groups) ? request.userInfo.groups : []'
+  validations:
+    - expression: >-
+        resource.Post("authorization.k8s.io/v1", "subjectaccessreviews", "", {"apiVersion": dyn("authorization.k8s.io/v1"),
+        "kind": dyn("SubjectAccessReview"), "spec": dyn({"user": dyn(request.userInfo.username), "groups": dyn(variables.groups),
+        "resourceAttributes": dyn({"group": "rbac.authorization.k8s.io", "resource": "clusterrolebindings",
+        "verb": "create"})})}).status.allowed == true
+      message: "changing spec.clusterPermissions needs the right to create ClusterRoleBindings"
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy

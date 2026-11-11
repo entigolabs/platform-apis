@@ -8,6 +8,8 @@ import (
 
 const chartDir = "../../../helm"
 
+var onOracle = map[string]string{"global.cloudProvider": "oracle"}
+
 func TestKyvernoPolicies(t *testing.T) {
 	t.Run("NamespacePodSecurity", testNamespacePodSecurity)
 	t.Run("ContributorDeny", testContributorDeny)
@@ -99,7 +101,7 @@ metadata:
 }
 
 // testContributorDeny covers platform-apis-zone-namespace-contributor-deny (ValidatingPolicy).
-// Contributors are denied all namespace operations regardless of operation type.
+// Only oidc users are judged, by SubjectAccessReview, which the CLI cannot answer offline.
 func testContributorDeny(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -107,29 +109,20 @@ func testContributorDeny(t *testing.T) {
 		scenario kyverno.TestScenario
 	}{
 		{
-			name: "fail: contributor cannot create a namespace",
+			name: "pass: a user outside oidc is not judged",
 			scenario: kyverno.TestScenario{
-				ExpectedAction: "fail",
+				ExpectedAction: "pass",
 				ResourceYAML:   kyverno.GenerateNamespace("some-ns", "my-zone", "restricted", "restricted"),
 				UserInfoYAML:   kyverno.GenerateUserInfo("contributor"),
 			},
 		},
 		{
-			name: "fail: contributor cannot update a namespace",
+			name: "pass: on oracle a user outside oidc is not judged as well",
 			scenario: kyverno.TestScenario{
-				ExpectedAction: "fail",
+				HelmValues:     onOracle,
+				ExpectedAction: "pass",
 				ResourceYAML:   kyverno.GenerateNamespace("some-ns", "my-zone", "restricted", "restricted"),
 				UserInfoYAML:   kyverno.GenerateUserInfo("contributor"),
-				VariablesYAML:  kyverno.GenerateOperationValues("UPDATE"),
-			},
-		},
-		{
-			name: "fail: contributor cannot delete a namespace",
-			scenario: kyverno.TestScenario{
-				ExpectedAction: "fail",
-				ResourceYAML:   kyverno.GenerateNamespace("some-ns", "my-zone", "restricted", "restricted"),
-				UserInfoYAML:   kyverno.GenerateUserInfo("contributor"),
-				VariablesYAML:  kyverno.GenerateOperationValues("DELETE"),
 			},
 		},
 	}
@@ -137,7 +130,7 @@ func testContributorDeny(t *testing.T) {
 }
 
 // testMaintainerNamespaceDeny covers platform-apis-zone-namespace-maintainer-deny (ValidatingPolicy).
-// Maintainers cannot create or update namespaces that carry the infralib zone label.
+// Only oidc users are judged, by SubjectAccessReview, which the CLI cannot answer offline.
 func testMaintainerNamespaceDeny(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -145,27 +138,19 @@ func testMaintainerNamespaceDeny(t *testing.T) {
 		scenario kyverno.TestScenario
 	}{
 		{
-			name: "fail: maintainer cannot create namespace with infralib zone",
-			scenario: kyverno.TestScenario{
-				ExpectedAction: "fail",
-				ResourceYAML:   kyverno.GenerateNamespace("some-ns", "infralib", "restricted", "restricted"),
-				UserInfoYAML:   kyverno.GenerateUserInfo("maintainer"),
-			},
-		},
-		{
-			name: "fail: maintainer cannot update namespace with infralib zone",
-			scenario: kyverno.TestScenario{
-				ExpectedAction: "fail",
-				ResourceYAML:   kyverno.GenerateNamespace("some-ns", "infralib", "restricted", "restricted"),
-				UserInfoYAML:   kyverno.GenerateUserInfo("maintainer"),
-				VariablesYAML:  kyverno.GenerateOperationValues("UPDATE"),
-			},
-		},
-		{
-			name: "pass: maintainer can create namespace without infralib zone",
+			name: "pass: a user outside oidc is not judged",
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",
-				ResourceYAML:   kyverno.GenerateNamespace("some-ns", "my-zone", "restricted", "restricted"),
+				ResourceYAML:   kyverno.GenerateNamespace("some-ns", "infralib", "restricted", "restricted"),
+				UserInfoYAML:   kyverno.GenerateUserInfo("maintainer"),
+			},
+		},
+		{
+			name: "pass: on oracle a user outside oidc is not judged as well",
+			scenario: kyverno.TestScenario{
+				HelmValues:     onOracle,
+				ExpectedAction: "pass",
+				ResourceYAML:   kyverno.GenerateNamespace("some-ns", "infralib", "restricted", "restricted"),
 				UserInfoYAML:   kyverno.GenerateUserInfo("maintainer"),
 			},
 		},
@@ -244,7 +229,7 @@ func testZoneNamespaceOwnership(t *testing.T) {
 }
 
 // testMaintainerInfralibZoneDeny covers platform-apis-zone-maintainer-infralib-zone-deny (ValidatingPolicy).
-// Maintainers cannot create or update the Zone named "infralib".
+// Only oidc users are judged, by SubjectAccessReview, which the CLI cannot answer offline.
 func testMaintainerInfralibZoneDeny(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -252,27 +237,19 @@ func testMaintainerInfralibZoneDeny(t *testing.T) {
 		scenario kyverno.TestScenario
 	}{
 		{
-			name: "fail: maintainer cannot create the infralib zone",
-			scenario: kyverno.TestScenario{
-				ExpectedAction: "fail",
-				ResourceYAML:   kyverno.GenerateZone("infralib"),
-				UserInfoYAML:   kyverno.GenerateUserInfo("maintainer"),
-			},
-		},
-		{
-			name: "fail: maintainer cannot update the infralib zone",
-			scenario: kyverno.TestScenario{
-				ExpectedAction: "fail",
-				ResourceYAML:   kyverno.GenerateZone("infralib"),
-				UserInfoYAML:   kyverno.GenerateUserInfo("maintainer"),
-				VariablesYAML:  kyverno.GenerateOperationValues("UPDATE"),
-			},
-		},
-		{
-			name: "pass: maintainer can create a non-infralib zone",
+			name: "pass: a user outside oidc is not judged",
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",
-				ResourceYAML:   kyverno.GenerateZone("maintainer-zone"),
+				ResourceYAML:   kyverno.GenerateZone("infralib"),
+				UserInfoYAML:   kyverno.GenerateUserInfo("maintainer"),
+			},
+		},
+		{
+			name: "pass: on oracle a user outside oidc is not judged as well",
+			scenario: kyverno.TestScenario{
+				HelmValues:     onOracle,
+				ExpectedAction: "pass",
+				ResourceYAML:   kyverno.GenerateZone("infralib"),
 				UserInfoYAML:   kyverno.GenerateUserInfo("maintainer"),
 			},
 		},
