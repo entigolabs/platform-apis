@@ -1,8 +1,26 @@
 ---
+# Lifecycle instance: provisioning, the engine-version bump and the ParameterGroup family switch that
+# comes with it. It starts with a ParameterGroup so the bump has one to recreate.
 apiVersion: database.entigo.com/v1alpha1
 kind: ValkeyInstance
 metadata:
   name: test-valkey-lifecycle
+  namespace: {{ .Release.Namespace }}
+spec:
+  deletionProtection: false
+  engineVersion: "7.2"
+  instanceType: cache.t4g.medium
+  numCacheClusters: 2
+  snapshotRetentionLimit: 3
+  parameterGroupParameters:
+    notify-keyspace-events: "Ex"
+---
+# Parameters instance: the parameterGroupParameters set / change in place / remove lifecycle, run beside
+# the Lifecycle instance's upgrade instead of in front of it.
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
+metadata:
+  name: test-valkey-parameters
   namespace: {{ .Release.Namespace }}
 spec:
   deletionProtection: false
