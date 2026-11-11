@@ -9,9 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testRabbitMQ drives two brokers side by side. The private broker carries the slow path: provisioning,
+// then the engine-version bump with its Configuration switch (one broker reboot). The public broker
+// carries the public-access assertions and the in-place Configuration data change (its own reboot), so
+// that reboot no longer sits in front of the private broker's upgrade. Each broker is deleted as soon
+// as its own chain is done; the Application goes once both are finished.
 func testRabbitMQ(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	mqNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, RabbitMQNamespaceName)
-	defer cleanupRabbitMQ(t, cluster, argocd)
+	t.Cleanup(func() { cleanupRabbitMQApplication(t, argocd) })
 
 	if ctx.Err() != nil {
 		return
@@ -22,25 +27,27 @@ func testRabbitMQ(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.K
 		return
 	}
 
-	t.Run("broker", func(t *testing.T) {
+	t.Run("Private", func(t *testing.T) {
+		t.Parallel()
+		defer cleanupRabbitMQBroker(t, mqNs, RabbitMQBrokerName)
 		t.Run("RabbitMQLifecycle", func(t *testing.T) { testRabbitMQLifecycle(t, mqNs) })
+		if t.Failed() {
+			return
+		}
+		t.Run("RabbitMQConfigUpgrade", func(t *testing.T) { testRabbitMQConfigUpgrade(t, mqNs) })
 	})
 
-	if t.Failed() {
-		return
-	}
-
-	t.Run("configuration", func(t *testing.T) {
-		t.Run("RabbitMQConfigLifecycle", func(t *testing.T) { testRabbitMQConfigLifecycle(t, mqNs) })
-	})
-
-	if t.Failed() {
-		return
-	}
-
-	t.Run("publicAccess", func(t *testing.T) {
+	t.Run("Public", func(t *testing.T) {
+		t.Parallel()
+		defer cleanupRabbitMQBroker(t, mqNs, RabbitMQPublicBrokerName)
 		t.Run("RabbitMQPublicAccessImmutable", func(t *testing.T) { testRabbitMQPublicAccessImmutable(t, mqNs) })
 		t.Run("RabbitMQPublicBroker", func(t *testing.T) { testRabbitMQPublicBroker(t, mqNs) })
+		if t.Failed() {
+			return
+		}
+		t.Run("RabbitMQConfigDataChange", func(t *testing.T) {
+			testRabbitMQConfigDataChange(t, mqNs, RabbitMQPublicBrokerName, RabbitMQUpgradeVersion)
+		})
 	})
 }
 
@@ -93,47 +100,64 @@ func testRabbitMQLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 		"composite amazonMQBrokerID should be populated")
 }
 
-// testRabbitMQConfigLifecycle exercises the broker Configuration lifecycle: created & wired at the
-// starting engine version, edited in place on a data change (new revision), then on an engine-version
-// bump a new version-scoped Configuration is created, wired to the broker, and the old one removed.
-func testRabbitMQConfigLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
+// waitRabbitMQConfigWired waits for the Configuration of the given engine version to be Ready and wired
+// to the broker composed for the composite, and returns both names.
+func waitRabbitMQConfigWired(t *testing.T, mqNs *terrak8s.KubectlOptions, composite, engineVersion string) (brokerName, configName string) {
 	t.Helper()
 
-	brokerName := waitSyncedAndReadyByLabel(t, mqNs, RabbitMQAwsBrokerKind, RabbitMQBrokerName, 120, 15*time.Second)
+	brokerName = waitSyncedAndReadyByLabel(t, mqNs, RabbitMQAwsBrokerKind, composite, 120, 15*time.Second)
 	require.NotEmpty(t, brokerName)
 	if t.Failed() {
-		return
+		return "", ""
 	}
 
-	// 1-2: Configuration for the starting version is created, Ready, and wired to the broker.
-	oldConfig := waitSyncedAndReadyByLabelWhere(t, mqNs, RabbitMQAwsConfigKind, RabbitMQBrokerName, ".spec.forProvider.engineVersion", RabbitMQStartVersion, 120, 15*time.Second)
-	require.NotEmpty(t, oldConfig)
-	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name", oldConfig, 60, 10*time.Second)
+	configName = waitSyncedAndReadyByLabelWhere(t, mqNs, RabbitMQAwsConfigKind, composite, ".spec.forProvider.engineVersion", engineVersion, 120, 15*time.Second)
+	require.NotEmpty(t, configName)
+	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name", configName, 60, 10*time.Second)
 	waitFieldNonEmpty(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.revision", 120, 15*time.Second)
+	return brokerName, configName
+}
+
+// testRabbitMQConfigDataChange exercises the in-place half of the Configuration lifecycle on the broker
+// composed for the given composite: the Configuration for its engine version is created and wired, and a
+// data change edits that same Configuration in place (new revision) instead of recreating it. The
+// provider applies the new revision with a broker reboot; the test does not wait for it.
+func testRabbitMQConfigDataChange(t *testing.T, mqNs *terrak8s.KubectlOptions, composite, engineVersion string) {
+	t.Helper()
+
+	brokerName, configName := waitRabbitMQConfigWired(t, mqNs, composite, engineVersion)
 	if t.Failed() {
 		return
 	}
 
-	// 3-4: Changing data edits the same Configuration in place (new revision), still wired to the broker.
 	// Assert the data actually propagated (revision numbers are not deterministic - the provider may
 	// create extra revisions on create/normalization) and the Configuration name did not change.
-	patchResource(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, `{"spec":{"configuration":{"data":"consumer_timeout = 3600000\n"}}}`)
-	waitFieldContains(t, mqNs, RabbitMQAwsConfigKind, oldConfig, ".status.atProvider.data", "3600000", 120, 15*time.Second)
-	require.Equal(t, oldConfig, getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name"),
+	patchResource(t, mqNs, RabbitMQBrokerKind, composite, `{"spec":{"configuration":{"data":"consumer_timeout = 3600000\n"}}}`)
+	waitFieldContains(t, mqNs, RabbitMQAwsConfigKind, configName, ".status.atProvider.data", "3600000", 120, 15*time.Second)
+	require.Equal(t, configName, getField(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name"),
 		"Configuration must be edited in place, not recreated, on a data change")
 	waitFieldNonEmpty(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.revision", 120, 15*time.Second)
+}
+
+// testRabbitMQConfigUpgrade exercises the engine-version half of the Configuration lifecycle on the
+// private broker: bumping the engine version creates a new version-scoped Configuration, the broker
+// upgrades and switches to it in one update, and the old Configuration is removed afterwards.
+func testRabbitMQConfigUpgrade(t *testing.T, mqNs *terrak8s.KubectlOptions) {
+	t.Helper()
+
+	brokerName, oldConfig := waitRabbitMQConfigWired(t, mqNs, RabbitMQBrokerName, RabbitMQStartVersion)
 	if t.Failed() {
 		return
 	}
 
-	// 5-6: Bumping the engine version creates a new version-scoped Configuration (engineVersion immutable).
+	// Bumping the engine version creates a new version-scoped Configuration (engineVersion immutable).
 	patchResource(t, mqNs, RabbitMQBrokerKind, RabbitMQBrokerName, `{"spec":{"engineVersion":"`+RabbitMQUpgradeVersion+`"}}`)
 	newConfig := waitSyncedAndReadyByLabelWhere(t, mqNs, RabbitMQAwsConfigKind, RabbitMQBrokerName, ".spec.forProvider.engineVersion", RabbitMQUpgradeVersion, 120, 15*time.Second)
 	require.NotEmpty(t, newConfig)
 	require.NotEqual(t, oldConfig, newConfig, "a new Configuration must be created for the new engine version")
 
-	// 7: The broker upgrades to the new version and switches its association to the new Configuration.
-	//    The engine upgrade is slow, so allow a long window.
+	// The broker upgrades to the new version and switches its association to the new Configuration.
+	// The engine upgrade is slow, so allow a long window.
 	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.configuration.idRef.name", newConfig, 240, 15*time.Second)
 	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".spec.forProvider.engineVersion", RabbitMQUpgradeVersion, 240, 15*time.Second)
 	waitFieldEquals(t, mqNs, RabbitMQAwsBrokerKind, brokerName, ".status.atProvider.engineVersion", RabbitMQUpgradeVersion, 240, 15*time.Second)
@@ -142,7 +166,7 @@ func testRabbitMQConfigLifecycle(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 		return
 	}
 
-	// 8: Once the broker has switched, the old-version Configuration is removed.
+	// Once the broker has switched, the old-version Configuration is removed.
 	cleanupWaitGone(t, mqNs, RabbitMQAwsConfigKind, oldConfig, 120)
 
 	// Post-upgrade the broker stays healthy: connection secret and composite status still hold.
@@ -204,12 +228,18 @@ func testRabbitMQPublicBroker(t *testing.T, mqNs *terrak8s.KubectlOptions) {
 		"composite amazonMQBrokerID should be populated")
 }
 
-func cleanupRabbitMQ(t *testing.T, cluster, argocd *terrak8s.KubectlOptions) {
+// cleanupRabbitMQBroker deletes one broker composite as soon as its own chain is done.
+func cleanupRabbitMQBroker(t *testing.T, mqNs *terrak8s.KubectlOptions, name string) {
 	if t.Failed() {
 		return // leave resources in place for debugging
 	}
-	mqNs := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, RabbitMQNamespaceName)
-	cleanupDeleteParallel(t, mqNs, RabbitMQBrokerKind, 180, RabbitMQBrokerName, RabbitMQPublicBrokerName)
+	cleanupDeleteParallel(t, mqNs, RabbitMQBrokerKind, 180, name)
+}
 
+// cleanupRabbitMQApplication removes the ArgoCD Application once both broker chains have finished.
+func cleanupRabbitMQApplication(t *testing.T, argocd *terrak8s.KubectlOptions) {
+	if t.Failed() {
+		return
+	}
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, argocd, "delete", "application", RabbitMQApplicationName, "--ignore-not-found")
 }

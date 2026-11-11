@@ -27,3 +27,8 @@ spec:
   deploymentMode: SINGLE_INSTANCE
   autoMinorVersionUpgrade: true
   publiclyAccessible: true
+  # The public broker carries the in-place Configuration data-change test, so its reboot runs beside
+  # the private broker's engine upgrade instead of in front of it.
+  configuration:
+    data: |
+      consumer_timeout = 1800000
