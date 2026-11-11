@@ -231,9 +231,6 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
     pitr = from_backup if pitr is None else pitr
     common = {
         "version": field("string", version_text, minor_ext, DEPLOY, sc, pattern=version_pattern),
-        "instanceType": field("string", "The RDS instance class, such as db.t4g.small." if sc
-                              else "The cloud's own size name, such as db.t4g.small on AWS or "
-                              "a shape on OCI.", default=DEPLOY),
         "storage": obj({
             "sizeGB": size_field(from_backup),
             "autoGrow": field("boolean", "Grow the disk as it fills.",
@@ -301,7 +298,6 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
     spec = resource_spec(common, blocks, "database instance", rules + list(extra_rules))
     status = obj({
         "version": field("string"),
-        "instanceType": field("string"),
         "storage": obj({"sizeGB": field("integer", "The actual disk size.") if from_backup
                         else field("integer"), "autoGrow": field("boolean"),
                         "maxSizeGB": field("integer"), "iops": field("integer"),
@@ -325,16 +321,19 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
 S = lambda: field("string")
 STATUS_BLOCKS = {
     "PostgreSQLInstance": {
-        "aws": obj({"identifier": S(), "resourceId": S(), "engineVersionActual": S(),
+        "aws": obj({"instanceType": S(), "identifier": S(), "resourceId": S(),
+                    "engineVersionActual": S(),
                     "latestRestorableTime": field("string", format="date-time"),
                     "status": S()}),
-        "gcp": obj({"id": S(), "connectionName": S(), "maintenanceVersion": S()}),
-        "oci": obj({"id": S(), "instanceOcpuCount": field("number"),
+        "gcp": obj({"instanceType": S(), "id": S(), "connectionName": S(),
+                    "maintenanceVersion": S()}),
+        "oci": obj({"instanceType": S(), "id": S(), "instanceOcpuCount": field("number"),
                     "instanceMemorySizeInGbs": field("integer"), "state": S()}),
-        "azure": obj({"id": S()}),
+        "azure": obj({"instanceType": S(), "id": S()}),
     },
     "MariaDBInstance": {
-        "aws": obj({"identifier": S(), "resourceId": S(), "engineVersionActual": S(),
+        "aws": obj({"instanceType": S(), "identifier": S(), "resourceId": S(),
+                    "engineVersionActual": S(),
                     "latestRestorableTime": field("string", format="date-time"),
                     "status": S()}),
     },
@@ -346,22 +345,31 @@ write("postgresqlinstance", db_instance(
     "full version, such as \"17.7\".", "^[0-9]+(\\.[0-9]+)?$",
     {
         "aws": {
+            "instanceType": field("string", "The RDS instance class, such as db.t4g.small.",
+                                  default=DEPLOY),
             "parameterGroupName": field("string", "An existing RDS parameter group to use, in "
                                         "place of parameters."),
         },
         "gcp": {
+            "instanceType": field("string", "The Cloud SQL machine tier, such as "
+                                  "db-custom-2-7680, which belongs to gcp.edition.",
+                                  default=DEPLOY),
             "edition": field("string", "Cloud SQL edition, such as ENTERPRISE.",
                              default=DEPLOY),
             "diskType": field("string", "Cloud SQL disk type, such as PD_SSD.",
                               default=DEPLOY),
         },
         "oci": {
+            "instanceType": field("string", "The DB system shape. A .Flex shape needs "
+                                  "oci.ocpus and oci.memoryGB.", default=DEPLOY),
             "ocpus": field("number", "Required with a .Flex shape.", default=DEPLOY,
                            minimum=1),
             "memoryGB": field("integer", "Required with a .Flex shape.", default=DEPLOY,
                               minimum=1),
         },
         "azure": {
+            "instanceType": field("string", "The flexible server SKU, such as "
+                                  "GP_Standard_D2ds_v5.", default=DEPLOY),
             "storageTier": field("string", "The disk tier, such as P10, which sets its IOPS.",
                                  default=DEPLOY),
         },
@@ -389,7 +397,9 @@ write("mariadbinstance", db_instance(
     "The major version, which has two numbers, such as \"11.4\". With "
     "maintenance.autoMinorVersionUpgrade false, the full version, such as \"11.4.10\".",
     "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
-    {"aws": {"parameterGroupName": field("string", "An existing RDS parameter group to use, in "
+    {"aws": {"instanceType": field("string", "The RDS instance class, such as db.t4g.small.",
+                                   default=DEPLOY),
+             "parameterGroupName": field("string", "An existing RDS parameter group to use, in "
                                          "place of parameters.")}},
     sc=True, extra_rules=[
         ("!has(self.aws) || !has(self.aws.parameterGroupName) || !has(self.parameters)",
@@ -505,9 +515,6 @@ write("valkeyinstance", xrd(
                          "maintenance.autoMinorVersionUpgrade, the cloud can move the cache "
                          "past it; the status shows the running version.",
                          default=DEPLOY, pattern="^[0-9]+\\.[0-9]+$"),
-        "instanceType": field("string", "The cloud's own node type, such as cache.t4g.small.",
-                              "Extended: AWS, GCP. OCI sizes nodes with oci.memoryGB.",
-                              DEPLOY),
         "highAvailability": field("boolean", "A replica in another zone, with automatic "
                                   "failover. Needs replicas of at least 1.", default=DEPLOY),
         "replicas": field("integer", "Read replicas besides the primary, within the cloud's "
@@ -532,9 +539,11 @@ write("valkeyinstance", xrd(
         "parameters": string_map("Valkey settings, by name. Keys outside the cloud's allowlist "
                                  "are rejected."),
     }, {
-        "aws": {"parameterGroupName": field("string", "An existing ElastiCache parameter group "
+        "aws": {"instanceType": field("string", "The ElastiCache node type, such as "
+                                      "cache.t4g.small.", default=DEPLOY),
+                "parameterGroupName": field("string", "An existing ElastiCache parameter group "
                                             "to use, in place of parameters.")},
-        "gcp": None,
+        "gcp": {"instanceType": field("string", "The Memorystore node type.", default=DEPLOY)},
         "oci": {"memoryGB": field("integer", "Memory per node, within OCI's own range "
                                   "(rule 10).", default=DEPLOY, minimum=1)},
     }, "cache", [
@@ -558,7 +567,6 @@ write("valkeyinstance", xrd(
     ]),
     obj({
         "version": field("string"),
-        "instanceType": field("string"),
         "highAvailability": field("boolean"),
         "replicas": field("integer"),
         "endpoint": endpoint("The primary's address."),
@@ -566,9 +574,10 @@ write("valkeyinstance", xrd(
         "connectionSecret": field("string", "The Secret <instance>-credentials (rule 6)."),
         "finalBackup": field("string", "The ID the final backup gets when the cache is "
                              "deleted. Empty where the cloud takes none."),
-        "aws": obj({"id": S(), "engineVersionActual": S()}),
-        "gcp": obj({"id": S()}),
-        "oci": obj({"id": S(), "state": S(), "softwareVersion": S()}),
+        "aws": obj({"instanceType": S(), "id": S(), "engineVersionActual": S()}),
+        "gcp": obj({"instanceType": S(), "id": S()}),
+        "oci": obj({"memoryGB": field("integer"), "id": S(), "state": S(),
+                    "softwareVersion": S()}),
     })))
 
 # --- Kafka --------------------------------------------------------------------------------
@@ -578,10 +587,6 @@ write("kafkacluster", xrd(
     resource_spec({
         "version": field("string", "The Kafka version, such as \"3.9\". Each cloud accepts "
                          "the versions it offers.", default=DEPLOY),
-        "instanceType": field("string", "The broker size: the cloud's instance type, or the "
-                              "shape on OCI.",
-                              "Extended: AWS, OCI. GCP sizes the cluster with gcp.vcpus and "
-                              "gcp.memoryGB.", DEPLOY),
         "brokers": field("integer", "The number of brokers.",
                          "Extended: AWS, OCI. GCP chooses its own.", DEPLOY, minimum=1),
         "storage": obj({"sizeGB": field("integer", "Disk per broker, in GB.", default=DEPLOY,
@@ -593,25 +598,27 @@ write("kafkacluster", xrd(
         "parameters": string_map("Broker settings, by name. Keys outside the cloud's "
                                  "allowlist are rejected."),
     }, {
-        "aws": None,
+        "aws": {"instanceType": field("string", "The MSK broker instance type, such as "
+                                      "kafka.m7g.large.", default=DEPLOY)},
         "gcp": {
             "vcpus": field("integer", "The whole cluster's vCPUs.", default=DEPLOY, minimum=1),
             "memoryGB": field("integer", "The whole cluster's memory, within GCP's range per vCPU (rule 10).",
                               default=DEPLOY, minimum=1),
         },
-        "oci": {"ocpus": field("number", "OCPUs per broker. Required with a .Flex shape.",
+        "oci": {"instanceType": field("string", "The broker shape. A .Flex shape needs "
+                                      "oci.ocpus.", default=DEPLOY),
+                "ocpus": field("number", "OCPUs per broker. Required with a .Flex shape.",
                                default=DEPLOY, minimum=1)},
     }, "Kafka cluster"),
     obj({
         "version": field("string"),
-        "instanceType": field("string"),
         "brokers": field("integer"),
         "storage": obj({"sizeGB": field("integer")}),
         "highAvailability": field("boolean"),
         "bootstrapServers": field("string", "The listener applications connect to, as host:port pairs."),
-        "aws": obj({"arn": S(), "kafkaVersion": S()}),
-        "gcp": obj({"id": S()}),
-        "oci": obj({"id": S(), "state": S()}),
+        "aws": obj({"instanceType": S(), "arn": S(), "kafkaVersion": S()}),
+        "gcp": obj({"vcpus": field("integer"), "memoryGB": field("integer"), "id": S()}),
+        "oci": obj({"instanceType": S(), "id": S(), "state": S()}),
     })))
 
 CLUSTER_REF = parent_ref("KafkaCluster", "clusterRef")
@@ -662,8 +669,6 @@ write("rabbitmqbroker", xrd(
     resource_spec({
         "version": field("string", "RabbitMQ's release line, such as \"4.2\". The cloud "
                          "manages the patch.", default=DEPLOY, pattern="^[0-9]+\\.[0-9]+$"),
-        "instanceType": field("string", "The cloud's own size name, such as mq.m7g.medium.",
-                              default=DEPLOY),
         "highAvailability": field("boolean", "A three-node cluster across zones.",
                                   default=DEPLOY),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
@@ -674,19 +679,20 @@ write("rabbitmqbroker", xrd(
         "secretName": secret_name("<broker>-credentials"),
         "parameters": string_map("rabbitmq.conf settings, by name. Keys outside the cloud's "
                                  "allowlist are rejected."),
-    }, {"aws": {"publiclyAccessible": field(
+    }, {"aws": {"instanceType": field("string", "The Amazon MQ host instance type, such as "
+                                      "mq.m7g.medium.", default=DEPLOY),
+                "publiclyAccessible": field(
         "boolean", "Reachable from the internet, without the platform's security group. Amazon "
         "MQ replaces the broker to change it, so it is set at creation only.",
         default="fixed, false",
         **{"x-kubernetes-validations": IMMUTABLE_MSG("aws.publiclyAccessible")})}}, "broker"),
     obj({
         "version": field("string"),
-        "instanceType": field("string"),
         "highAvailability": field("boolean"),
         "endpoint": endpoint("The AMQPS address."),
         "managementEndpoint": field("string", "The management console URL."),
         "connectionSecret": field("string", "The Secret <broker>-credentials (rule 6)."),
-        "aws": obj({"id": S(), "engineVersion": S()}),
+        "aws": obj({"instanceType": S(), "id": S(), "engineVersion": S()}),
     })))
 
 BROKER_REF = parent_ref("RabbitMQBroker", "brokerRef")

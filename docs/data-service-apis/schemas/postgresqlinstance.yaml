@@ -34,11 +34,6 @@ spec:
                   Extended for a minor: AWS.
                   Default: per deployment.
                 pattern: ^[0-9]+(\.[0-9]+)?$
-              instanceType:
-                type: string
-                description: |-
-                  The cloud's own size name, such as db.t4g.small on AWS or a shape on OCI.
-                  Default: per deployment.
               storage:
                 type: object
                 properties:
@@ -224,6 +219,11 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
+                  instanceType:
+                    type: string
+                    description: |-
+                      The RDS instance class, such as db.t4g.small.
+                      Default: per deployment.
                   parameterGroupName:
                     type: string
                     description: |-
@@ -241,6 +241,12 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
+                  instanceType:
+                    type: string
+                    description: |-
+                      The Cloud SQL machine tier, such as db-custom-2-7680, which belongs to
+                      gcp.edition.
+                      Default: per deployment.
                   edition:
                     type: string
                     description: |-
@@ -264,6 +270,11 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
+                  instanceType:
+                    type: string
+                    description: |-
+                      The DB system shape. A .Flex shape needs oci.ocpus and oci.memoryGB.
+                      Default: per deployment.
                   ocpus:
                     type: number
                     description: |-
@@ -289,6 +300,11 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
+                  instanceType:
+                    type: string
+                    description: |-
+                      The flexible server SKU, such as GP_Standard_D2ds_v5.
+                      Default: per deployment.
                   storageTier:
                     type: string
                     description: |-
@@ -337,8 +353,6 @@ spec:
             type: object
             properties:
               version:
-                type: string
-              instanceType:
                 type: string
               storage:
                 type: object
@@ -399,6 +413,8 @@ spec:
               aws:
                 type: object
                 properties:
+                  instanceType:
+                    type: string
                   identifier:
                     type: string
                   resourceId:
@@ -413,6 +429,8 @@ spec:
               gcp:
                 type: object
                 properties:
+                  instanceType:
+                    type: string
                   id:
                     type: string
                   connectionName:
@@ -422,6 +440,8 @@ spec:
               oci:
                 type: object
                 properties:
+                  instanceType:
+                    type: string
                   id:
                     type: string
                   instanceOcpuCount:
@@ -433,6 +453,8 @@ spec:
               azure:
                 type: object
                 properties:
+                  instanceType:
+                    type: string
                   id:
                     type: string
         required:

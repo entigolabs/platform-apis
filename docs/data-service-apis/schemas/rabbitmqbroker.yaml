@@ -32,11 +32,6 @@ spec:
                   RabbitMQ's release line, such as "4.2". The cloud manages the patch.
                   Default: per deployment.
                 pattern: ^[0-9]+\.[0-9]+$
-              instanceType:
-                type: string
-                description: |-
-                  The cloud's own size name, such as mq.m7g.medium.
-                  Default: per deployment.
               highAvailability:
                 type: boolean
                 description: |-
@@ -97,6 +92,11 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
+                  instanceType:
+                    type: string
+                    description: |-
+                      The Amazon MQ host instance type, such as mq.m7g.medium.
+                      Default: per deployment.
                   publiclyAccessible:
                     type: boolean
                     description: |-
@@ -117,8 +117,6 @@ spec:
             type: object
             properties:
               version:
-                type: string
-              instanceType:
                 type: string
               highAvailability:
                 type: boolean
@@ -142,6 +140,8 @@ spec:
               aws:
                 type: object
                 properties:
+                  instanceType:
+                    type: string
                   id:
                     type: string
                   engineVersion:

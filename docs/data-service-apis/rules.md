@@ -11,10 +11,16 @@ The draft schemas are in [schemas/](schemas/). They are written by
 
 #### 1 Common Fields
 
+An object applies unchanged on every cloud where its kind exists, as a Gateway API route does on
+every implementation. Its Core fields work everywhere, its Extended fields work where the cloud
+supports them and report `CloudAccepted: False` elsewhere, and everything cloud-specific lives in
+the cloud blocks (rule 2).
+
 The common spec describes what the user needs, not which cloud product provides it: a version, a
 size, high availability, backups. A field belongs there when a user can choose it without knowing
-which cloud runs underneath. Where no fair cloud-neutral value exists, the field takes the cloud's
-own value; `instanceType`, for example, takes the cloud's size name.
+which cloud runs underneath. Where no fair cloud-neutral value exists, the setting goes into the
+cloud blocks instead: a size, for example, is `aws.instanceType` on AWS and `oci.instanceType` with
+`oci.ocpus` on OCI.
 
 The fields are checked against the managed services of every cloud infralib deploys to (AWS, GCP,
 OCI and Azure), even where no Crossplane provider supports the service yet. As a result, a cloud
@@ -24,11 +30,11 @@ Not every cloud supports every field, so each field has a support level per clou
 also apply to a single value of a field, such as `storage.autoGrow: false`, which OCI does not
 support.
 
-| Level    | On That Cloud                                                                 |
-|----------|-------------------------------------------------------------------------------|
-| Core     | supported on every cloud                                                      |
-| Extended | supported on some clouds, with the same meaning; rejected on the others       |
-| Ignored  | accepted but has no effect, because the cloud already gives what it asks for  |
+| Level    | On That Cloud                                                                |
+| -------- | ---------------------------------------------------------------------------- |
+| Core     | supported on every cloud                                                     |
+| Extended | supported on some clouds, with the same meaning; rejected on the others      |
+| Ignored  | accepted but has no effect, because the cloud already gives what it asks for |
 
 In a schema, a field's description ends with `Extended` and the clouds that support it. A field
 without that mark is Core.
@@ -67,10 +73,10 @@ service's page says so.
 Most fields are optional. When a user leaves one out, the platform fills in a default when the
 object is created. There are two kinds:
 
-| Kind               | Set By                                                  | Example                    |
-|--------------------|---------------------------------------------------------|----------------------------|
-| Fixed              | the platform, the same on every deployment              | `deletionProtection: true` |
-| Deployment default | the deployment's operator, per cloud, through infralib  | `version`, `instanceType`  |
+| Kind               | Set By                                                 | Example                       |
+| ------------------ | ------------------------------------------------------ | ----------------------------- |
+| Fixed              | the platform, the same on every deployment             | `deletionProtection: true`    |
+| Deployment default | the deployment's operator, per cloud, through infralib | `version`, `aws.instanceType` |
 
 Safety settings, such as deletion protection, are fixed. Cost, size and availability are
 deployment defaults, because only the operator knows what suits their cloud and budget. In a
@@ -181,7 +187,7 @@ Designs that were weighed and rejected, each with the reason.
 
 #### 1 Every Field Required
 
-The user writes every common field, including a cloud-native `instanceType`.
+The user writes every field, including each cloud's `instanceType`.
 
 **Rejected:** Every user then needs to know the cloud's size names and versions, which is the
 cloud knowledge infralib exists to abstract. Deployment defaults keep the same schema and let a

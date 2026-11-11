@@ -31,12 +31,6 @@ spec:
                 description: |-
                   The Kafka version, such as "3.9". Each cloud accepts the versions it offers.
                   Default: per deployment.
-              instanceType:
-                type: string
-                description: |-
-                  The broker size: the cloud's instance type, or the shape on OCI.
-                  Extended: AWS, OCI. GCP sizes the cluster with gcp.vcpus and gcp.memoryGB.
-                  Default: per deployment.
               brokers:
                 type: integer
                 description: |-
@@ -82,6 +76,11 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
+                  instanceType:
+                    type: string
+                    description: |-
+                      The MSK broker instance type, such as kafka.m7g.large.
+                      Default: per deployment.
               gcp:
                 type: object
                 description: |-
@@ -118,6 +117,11 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
+                  instanceType:
+                    type: string
+                    description: |-
+                      The broker shape. A .Flex shape needs oci.ocpus.
+                      Default: per deployment.
                   ocpus:
                     type: number
                     description: |-
@@ -139,8 +143,6 @@ spec:
             properties:
               version:
                 type: string
-              instanceType:
-                type: string
               brokers:
                 type: integer
               storage:
@@ -157,6 +159,8 @@ spec:
               aws:
                 type: object
                 properties:
+                  instanceType:
+                    type: string
                   arn:
                     type: string
                   kafkaVersion:
@@ -164,11 +168,17 @@ spec:
               gcp:
                 type: object
                 properties:
+                  vcpus:
+                    type: integer
+                  memoryGB:
+                    type: integer
                   id:
                     type: string
               oci:
                 type: object
                 properties:
+                  instanceType:
+                    type: string
                   id:
                     type: string
                   state:

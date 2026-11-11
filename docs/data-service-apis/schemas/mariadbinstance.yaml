@@ -33,11 +33,6 @@ spec:
                   maintenance.autoMinorVersionUpgrade false, the full version, such as "11.4.10".
                   Default: per deployment.
                 pattern: ^[0-9]+\.[0-9]+(\.[0-9]+)?$
-              instanceType:
-                type: string
-                description: |-
-                  The RDS instance class, such as db.t4g.small.
-                  Default: per deployment.
               storage:
                 type: object
                 properties:
@@ -199,6 +194,11 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
+                  instanceType:
+                    type: string
+                    description: |-
+                      The RDS instance class, such as db.t4g.small.
+                      Default: per deployment.
                   parameterGroupName:
                     type: string
                     description: |-
@@ -243,8 +243,6 @@ spec:
             type: object
             properties:
               version:
-                type: string
-              instanceType:
                 type: string
               storage:
                 type: object
@@ -303,6 +301,8 @@ spec:
               aws:
                 type: object
                 properties:
+                  instanceType:
+                    type: string
                   identifier:
                     type: string
                   resourceId:

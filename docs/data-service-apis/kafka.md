@@ -35,7 +35,6 @@ metadata:
 spec:
   # Common
   version: "3.9"                       # each cloud accepts the versions it offers
-  instanceType: kafka.m7g.large        # OCI: the shape, with oci.ocpus
   brokers: 3
   storage:
     sizeGB: 100                        # per broker
@@ -44,21 +43,24 @@ spec:
   parameters:                          # broker settings, within each cloud's allowlist
     auto.create.topics.enable: "false"
   # Cloud-specific; every block also takes id (rule 9)
+  aws:
+    instanceType: kafka.m7g.large      # the broker instance type
   gcp:
     vcpus: 3                           # GCP sizes the whole cluster by vCPU and memory
     memoryGB: 12                       # within GCP's range per vCPU
   oci:
+    instanceType: VM.Standard.E5.Flex  # the broker shape
     ocpus: 2                           # per broker, required with a .Flex shape
 ```
 
 A cluster's size is its brokers times each broker's size. AWS and OCI take a broker size and count;
-GCP takes the cluster's total vCPU and memory and chooses the brokers itself, so `instanceType` and
-`brokers` are Extended and GCP's form is its block. No cloud offers a maintenance window.
+GCP takes the cluster's total vCPU and memory and chooses the brokers itself. The size is therefore
+in each cloud's block (`aws.instanceType`, `oci.instanceType` with `oci.ocpus`, `gcp.vcpus` and
+`gcp.memoryGB`), and `brokers` is Extended. No cloud offers a maintenance window.
 
 | Field              | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                         | OCI (`KafkaCluster`)                                                                |
 | ------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `version`          | `kafkaVersion`                                              | `kafka_version`                                                                                    | `kafkaVersion`                                                                      |
-| `instanceType`     | `brokerNodeGroupInfo.instanceType`                          | rejected; `gcp.vcpus` and `gcp.memoryGB`                                                           | `brokerShape.nodeShape`                                                             |
 | `brokers`          | `numberOfBrokerNodes`                                       | rejected; chosen by the service                                                                    | `brokerShape.nodeCount`                                                             |
 | `storage.sizeGB`   | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                             | `brokerShape.storageSizeInGbs`                                                      |
 | `highAvailability` | always; `false` rejected                                    | always three zones; `false` rejected                                                               | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
@@ -66,14 +68,16 @@ GCP takes the cluster's total vCPU and memory and chooses the brokers itself, so
 
 The cloud-specific fields:
 
-| Field          | Maps To                                                   |
-| -------------- | --------------------------------------------------------- |
-| `aws.id`       | the cluster ARN                                           |
-| `gcp.id`       | rejected; provider-upjet-gcp v3.1.0 has no Kafka resource |
-| `oci.id`       | the cluster's OCID                                        |
-| `gcp.vcpus`    | `capacity_config.vcpu_count`                              |
-| `gcp.memoryGB` | `capacity_config.memory_bytes`, in bytes                  |
-| `oci.ocpus`    | `brokerShape.ocpuCount`                                   |
+| Field              | Maps To                                                   |
+| ------------------ | --------------------------------------------------------- |
+| `aws.id`           | the cluster ARN                                           |
+| `gcp.id`           | rejected; provider-upjet-gcp v3.1.0 has no Kafka resource |
+| `oci.id`           | the cluster's OCID                                        |
+| `aws.instanceType` | `brokerNodeGroupInfo.instanceType`                        |
+| `oci.instanceType` | `brokerShape.nodeShape`                                   |
+| `gcp.vcpus`        | `capacity_config.vcpu_count`                              |
+| `gcp.memoryGB`     | `capacity_config.memory_bytes`, in bytes                  |
+| `oci.ocpus`        | `brokerShape.ocpuCount`                                   |
 
 The status adds `bootstrapServers`, the listener applications use (`bootstrapBrokersSaslScram` on
 AWS, `bootstrap_address` on GCP, `kafkaBootstrapUrls` on OCI). `brokers` stays empty on GCP.

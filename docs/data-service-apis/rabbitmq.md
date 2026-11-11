@@ -33,7 +33,6 @@ metadata:
   namespace: shop
 spec:
   version: "4.2"                       # RabbitMQ's release line; the cloud manages the patch
-  instanceType: mq.m7g.medium          # the cloud's own size name
   highAvailability: false              # true: a three-node cluster across zones
   deletionProtection: true
   maintenance:
@@ -43,6 +42,7 @@ spec:
   parameters:                          # rabbitmq.conf settings, within the cloud's allowlist
     consumer_timeout: "1800000"
   aws:                                 # also takes id (rule 9)
+    instanceType: mq.m7g.medium        # the Amazon MQ host instance type
     publiclyAccessible: false          # set at creation only
 ```
 
@@ -62,7 +62,7 @@ Crossplane provider.
 | Field                    | AWS (Amazon MQ `Broker`)                                                 |
 | ------------------------ | ------------------------------------------------------------------------ |
 | `version`                | `engineVersion`                                                          |
-| `instanceType`           | `hostInstanceType`                                                       |
+| `aws.instanceType`       | `hostInstanceType`                                                       |
 | `highAvailability`       | `deploymentMode`: `CLUSTER_MULTI_AZ` or `SINGLE_INSTANCE`                |
 | `deletionProtection`     | platform blocks deletion                                                 |
 | `maintenance.window`     | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |

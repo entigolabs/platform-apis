@@ -78,12 +78,12 @@ Crossplane provider.
 
 Observing (rule 9):
 
-| Field      | Maps To                                                        |
-| ---------- | -------------------------------------------------------------- |
-| `aws.id`   | the repository name, the whole path                            |
-| `gcp.id`   | the repository ID                                              |
-| `oci.id`   | the repository's OCID                                          |
-| `azure.id` | rejected; an Azure repository has no resource of its own       |
+| Field      | Maps To                                                  |
+| ---------- | -------------------------------------------------------- |
+| `aws.id`   | the repository name, the whole path                      |
+| `gcp.id`   | the repository ID                                        |
+| `oci.id`   | the repository's OCID                                    |
+| `azure.id` | rejected; an Azure repository has no resource of its own |
 
 A separate Artifact Registry repository per application on GCP keeps immutability and cleanup per
 application, as on ECR and OCIR. On Azure, a registry per application would be one billed SKU each,

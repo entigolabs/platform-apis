@@ -31,7 +31,6 @@ metadata:
   namespace: shop
 spec:
   version: "11.4"                      # the full "11.4.10" with minor upgrades off
-  instanceType: db.t4g.small           # the RDS instance class
   storage:
     sizeGB: 20
     autoGrow: true
@@ -57,6 +56,7 @@ spec:
     pointInTime: "2026-11-01T10:00:00Z"
     fromBackup: orders-final           # an RDS snapshot ID, in place of fromInstance
   aws:                                 # also takes id (rule 9)
+    instanceType: db.t4g.small         # the RDS instance class
     parameterGroupName: orders-mariadb114  # not with parameters
 ```
 
@@ -86,7 +86,7 @@ Crossplane provider.
 | `observe`                              | `managementPolicies: [Observe]` on every managed resource                   |
 | `aws.id`                               | the console's Resource ID (`db-...`)                                        |
 | `version`                              | `engineVersion`; the full version with minor upgrades off                   |
-| `instanceType`                         | `instanceClass`                                                             |
+| `aws.instanceType`                     | `instanceClass`                                                             |
 | `storage.sizeGB`                       | `allocatedStorage`; below 20 rounded up to 20                               |
 | `storage.autoGrow`                     | on with `maxAllocatedStorage`                                               |
 | `storage.maxSizeGB`                    | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      |

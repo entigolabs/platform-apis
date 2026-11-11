@@ -32,7 +32,6 @@ metadata:
 spec:
   # Common
   version: "17"                        # the full "17.7" with minor upgrades off
-  instanceType: db.t4g.small           # the cloud's own size name
   storage:
     sizeGB: 20
     autoGrow: true
@@ -60,23 +59,27 @@ spec:
     fromBackup: orders-final           # a cloud backup ID, in place of fromInstance
   # Cloud-specific; every block also takes id (rule 9)
   aws:
+    instanceType: db.t4g.small         # the RDS instance class
     parameterGroupName: orders-pg17    # not with parameters
   gcp:
+    instanceType: db-custom-2-7680     # the Cloud SQL tier
     edition: ENTERPRISE                # or ENTERPRISE_PLUS
     diskType: PD_SSD                   # PD_HDD, HYPERDISK_BALANCED
   oci:
+    instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
     ocpus: 2                           # required with a .Flex shape
     memoryGB: 32                       # required with a .Flex shape
   azure:
+    instanceType: GP_Standard_D2ds_v5  # the flexible server SKU
     storageTier: P10                   # P4 to P80; sets the disk's IOPS
 ```
 
-`instanceType` takes the cloud's own name because RDS has fixed classes while OCI and GCP take CPU
-and memory, which no neutral size expresses. With deployment defaults, a user without a size
-requirement can omit it. On GCP the size belongs to an edition: `db-custom-*` to `ENTERPRISE`,
-`db-perf-optimized-*` to `ENTERPRISE_PLUS`, which Cloud SQL picks by default from PostgreSQL 16. The
-platform therefore always sets `gcp.edition`, and a deployment's defaults for `gcp.edition` and
-`instanceType` must belong together.
+The size is in the cloud blocks, as `instanceType` with the cloud's own name, because RDS has fixed
+classes while OCI and GCP take CPU and memory, which no neutral size expresses. With deployment
+defaults, a user without a size requirement can omit it. On GCP the size belongs to an edition:
+`db-custom-*` to `ENTERPRISE`, `db-perf-optimized-*` to `ENTERPRISE_PLUS`, which Cloud SQL picks by
+default from PostgreSQL 16. The platform therefore always sets `gcp.edition`, and a deployment's
+defaults for `gcp.edition` and `gcp.instanceType` must belong together.
 
 `version` is the major version, such as `"17"`, and the cloud applies minor versions in the
 maintenance window. Only RDS can turn minor upgrades off, and it then needs a full version
@@ -108,7 +111,6 @@ Crossplane provider.
 | Field                                  | AWS (RDS `Instance`)                                                        | GCP (Cloud SQL `DatabaseInstance`)                                                                                                       | OCI (`PsqlDbSystem`)                                                      | Azure (`FlexibleServer`)                                 |
 | -------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `version`                              | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`                                                                                                           | `dbVersion: "17"`                                                         | `version: "17"`                                          |
-| `instanceType`                         | `instanceClass: db.t4g.small`                                               | `settings.tier: db-custom-2-7680`                                                                                                        | `shape`; a `.Flex` shape without `oci.ocpus` and `oci.memoryGB` rejected  | `skuName: GP_Standard_D2ds_v5`                           |
 | `storage.sizeGB`                       | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows on its own                                         | `storageMb`, rounded up to the next of its 12 sizes      |
 | `storage.autoGrow`                     | on with `maxAllocatedStorage`                                               | `settings.diskAutoresize`                                                                                                                | always on; `false` rejected                                               | `autoGrowEnabled`                                        |
 | `storage.maxSizeGB`                    | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      | `settings.diskAutoresizeLimit`                                                                                                           | rejected                                                                  | rejected                                                 |
@@ -137,6 +139,10 @@ Observing (rule 9) and the cloud-specific fields:
 | `gcp.id`                 | the instance name                                                         |
 | `oci.id`                 | the DB system's OCID                                                      |
 | `azure.id`               | the server's resource ID; the function takes the name and resource group  |
+| `aws.instanceType`       | `instanceClass`                                                           |
+| `gcp.instanceType`       | `settings.tier`                                                           |
+| `oci.instanceType`       | `shape`; a `.Flex` shape without `oci.ocpus` and `oci.memoryGB` rejected  |
+| `azure.instanceType`     | `skuName`                                                                 |
 | `aws.parameterGroupName` | `parameterGroupName`                                                      |
 | `gcp.edition`            | `settings.edition`                                                        |
 | `gcp.diskType`           | `settings.diskType`                                                       |
@@ -266,7 +272,7 @@ Designs that were weighed and rejected, each with the reason.
 
 #### 1 Catalog of Fixed OCI Shapes
 
-Allow only OCI's fixed shapes, so `instanceType` is one name on OCI as on the other
+Allow only OCI's fixed shapes, so `oci.instanceType` is one name, as on the other
 clouds.
 
 **Rejected:** The platform would have to keep the catalog current, and a customer needing a custom

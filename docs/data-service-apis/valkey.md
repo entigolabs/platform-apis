@@ -33,7 +33,6 @@ metadata:
 spec:
   # Common
   version: "8.1"                      # the least version; raising it upgrades
-  instanceType: cache.t4g.small
   highAvailability: true               # a replica in another zone, with automatic failover
   replicas: 1
   deletionProtection: true
@@ -49,6 +48,7 @@ spec:
     maxmemory-policy: allkeys-lru
   # Cloud-specific; every block also takes id (rule 9)
   aws:
+    instanceType: cache.t4g.small      # the ElastiCache node type
     parameterGroupName: orders-valkey8 # not with parameters
   oci:
     memoryGB: 16                       # per node
@@ -77,7 +77,6 @@ Crossplane provider.
 | Field                                 | AWS (ElastiCache replication group)           | GCP (Memorystore `Instance`), no password auth in provider                                                              | OCI (OCI Cache `RedisCluster`)                                             |
 | ------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `version`                             | `engineVersion`                               | `engineVersion: VALKEY_8_1`                                                                                             | `softwareVersion: VALKEY_8_1`                                              |
-| `instanceType`                        | `nodeType`                                    | `nodeType`                                                                                                              | rejected; `oci.memoryGB` sets `nodeMemoryInGbs`                            |
 | `highAvailability`                    | `multiAzEnabled`, automatic failover          | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                               | the service spreads nodes on its own; `false` ignored; failover unverified |
 | `replicas`                            | `numCacheClusters` = replicas + 1             | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends                      | `nodeCount` = replicas + 1                                                 |
 | `deletionProtection`                  | platform blocks deletion                      | `deletionProtectionEnabled`                                                                                             | platform blocks deletion                                                   |
@@ -94,6 +93,8 @@ Observing (rule 9) and the cloud-specific fields:
 | `observe`                | `managementPolicies: [Observe]` on every managed resource, on every cloud |
 | `aws.id`                 | the replication group ID                                                  |
 | `gcp.id`                 | the instance ID                                                           |
+| `aws.instanceType`       | `nodeType`                                                                |
+| `gcp.instanceType`       | `nodeType`                                                                |
 | `oci.id`                 | the cluster's OCID                                                        |
 | `aws.parameterGroupName` | `parameterGroupName`                                                      |
 | `oci.memoryGB`           | `nodeMemoryInGbs`                                                         |

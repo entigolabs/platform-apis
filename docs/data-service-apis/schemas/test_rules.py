@@ -81,7 +81,7 @@ def update(label, kind, spec, new_spec, expect_ok=True, msg=None):
     check(label, code, out, expect_ok, msg)
 
 
-PG = {"version": "17", "instanceType": "db.t4g.small",
+PG = {"version": "17", "aws": {"instanceType": "db.t4g.small"},
       "storage": {"sizeGB": 20, "autoGrow": True, "maxSizeGB": 100},
       "highAvailability": False, "deletionProtection": True,
       "maintenance": {"window": {"day": "Sun", "hourUTC": 3}, "autoMinorVersionUpgrade": True,
@@ -136,13 +136,13 @@ update("major version change rejected", "PostgreSQLInstance", PG, w(PG, version=
 up = w(PG, maintenance={"allowMajorVersionUpgrade": True})
 update("major version change with allowMajorVersionUpgrade accepted", "PostgreSQLInstance", up,
        w(up, version="18"))
-update("other field change accepted", "PostgreSQLInstance", PG, w(PG, instanceType="db.m7g.large"))
+update("other field change accepted", "PostgreSQLInstance", PG, w(PG, aws={"instanceType": "db.m7g.large"}))
 rs = w(PG, restore={"fromInstance": "old-db"})
 update("adding restore rejected", "PostgreSQLInstance", PG, rs, False, "restore is set")
 update("removing restore rejected", "PostgreSQLInstance", rs, PG, False, "restore is set")
 update("changing restore rejected", "PostgreSQLInstance", rs,
        w(rs, restore={"fromInstance": "other"}), False, "restore is set")
-update("unchanged restore accepted", "PostgreSQLInstance", rs, w(rs, instanceType="db.m7g.large"))
+update("unchanged restore accepted", "PostgreSQLInstance", rs, w(rs, aws={"instanceType": "db.m7g.large"}))
 ob = {"observe": True, "aws": {"id": "arn:aws:rds:x"}}
 update("changing observe rejected", "PostgreSQLInstance", ob, w(ob, observe=False), False,
        "observe is immutable")
@@ -367,6 +367,24 @@ update("changing path rejected", "ArtifactRepository", CR, w(CR, path="x"), Fals
 update("adding path later rejected", "ArtifactRepository", w(CR, path=None), CR, False, "path is immutable")
 update("removing name rejected", "ArtifactRepository", CR, w(CR, name=None), False, "name is immutable")
 
+
+print("\n# Portability: one object applies on every cloud")
+SIZES = {"PostgreSQLInstance": {"aws": {"instanceType": "db.t4g.small"},
+                                "gcp": {"instanceType": "db-custom-2-7680"},
+                                "oci": {"instanceType": "PostgreSQL.VM.Standard.E5.Flex",
+                                        "ocpus": 2, "memoryGB": 32},
+                                "azure": {"instanceType": "GP_Standard_D2ds_v5"}},
+         "MariaDBInstance": {"aws": {"instanceType": "db.t4g.small"}},
+         "ValkeyInstance": {"aws": {"instanceType": "cache.t4g.small"},
+                            "gcp": {"instanceType": "SHARED_CORE_NANO"}, "oci": {"memoryGB": 16}},
+         "KafkaCluster": {"aws": {"instanceType": "kafka.m7g.large"},
+                          "gcp": {"vcpus": 3, "memoryGB": 12},
+                          "oci": {"instanceType": "VM.Standard.E5.Flex", "ocpus": 2}},
+         "RabbitMQBroker": {"aws": {"instanceType": "mq.m7g.medium"}}}
+for kind, spec in SIZES.items():
+    create(f"{kind}: a size for every cloud in one object accepted", kind, spec)
+    create(f"{kind}: instanceType outside the cloud blocks rejected", kind,
+           {"instanceType": "db.t4g.small"}, False, "unknown field")
 
 print("\n# Shared rules on every resource kind")
 BLOCKS = {"PostgreSQLInstance": ["aws", "gcp", "oci", "azure"], "MariaDBInstance": ["aws"],
