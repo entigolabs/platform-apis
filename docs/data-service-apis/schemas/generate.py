@@ -108,12 +108,13 @@ def cloud_block(cloud, kind_noun, settings=None):
     return obj(props, f"Settings for {CLOUD_NAMES[cloud]} only (rule 2).")
 
 
-def resource_spec(common, blocks, kind_noun, rules=None):
+def resource_spec(common, blocks, kind_noun, rules=None, observe_ext=None):
     """Spec of a kind that stands for a cloud resource: observe, common fields, cloud blocks."""
     props = {"observe": field(
         "boolean",
         "true observes an existing resource, named by the cloud block's id, and never changes "
-        "or deletes it. Every other field is then rejected (rule 9). Set at creation only.")}
+        "or deletes it. Every other field is then rejected (rule 9). Set at creation only.",
+        observe_ext)}
     props.update(common)
     props.update({c: cloud_block(c, kind_noun, s) for c, s in blocks.items()})
     has = [f"has(self.{c})" for c in blocks]
@@ -824,7 +825,7 @@ write("artifactrepository", xrd(
          "name is immutable"),
         ("(has(self.path) ? self.path : '') == (has(oldSelf.path) ? oldSelf.path : '')",
          "path is immutable"),
-    ]),
+    ], observe_ext="Extended: AWS, GCP, OCI. An Azure repository has no resource of its own."),
     obj({
         "uri": field("string", "The image URI, such as "
                      "123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/orders-api."),

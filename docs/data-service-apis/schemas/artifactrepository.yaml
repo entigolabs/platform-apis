@@ -26,6 +26,7 @@ spec:
                   true observes an existing resource, named by the cloud block's id, and never
                   changes or deletes it. Every other field is then rejected (rule 9). Set at
                   creation only.
+                  Extended: AWS, GCP, OCI. An Azure repository has no resource of its own.
               name:
                 type: string
                 description: |-

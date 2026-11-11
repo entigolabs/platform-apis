@@ -76,6 +76,7 @@ Crossplane provider. Level is the field's support level (rule 1).
 
 | Field                                 | Level                                      | AWS (ElastiCache replication group)           | GCP (Memorystore `Instance`), no password auth in provider                                                              | OCI (OCI Cache `RedisCluster`)                                             |
 | ------------------------------------- | ------------------------------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `observe`                             | Core                                       | `managementPolicies: [Observe]`               | `managementPolicies: [Observe]`                                                                                         | `managementPolicies: [Observe]`                                            |
 | `version`                             | Core                                       | `engineVersion`                               | `engineVersion: VALKEY_8_1`                                                                                             | `softwareVersion: VALKEY_8_1`                                              |
 | `highAvailability`                    | Core                                       | `multiAzEnabled`, automatic failover          | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                               | the service spreads nodes on its own; `false` ignored; failover unverified |
 | `replicas`                            | Core                                       | `numCacheClusters` = replicas + 1             | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends                      | `nodeCount` = replicas + 1                                                 |
@@ -86,18 +87,17 @@ Crossplane provider. Level is the field's support level (rule 1).
 | `backup.startHourUTC`                 | Extended: AWS, GCP                         | `snapshotWindow`                              | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                          | rejected                                                                   |
 | `parameters`                          | Core                                       | parameter group                               | `engineConfigs`, allowlist of 7                                                                                         | config set, allowlist of about 15 keys                                     |
 
-Observing (rule 9) and the cloud-specific fields:
+The cloud-specific fields:
 
-| Field                    | Maps To                                                                   |
-| ------------------------ | ------------------------------------------------------------------------- |
-| `observe`                | `managementPolicies: [Observe]` on every managed resource, on every cloud |
-| `aws.id`                 | the replication group ID                                                  |
-| `gcp.id`                 | the instance ID                                                           |
-| `aws.instanceType`       | `nodeType`                                                                |
-| `gcp.instanceType`       | `nodeType`                                                                |
-| `oci.id`                 | the cluster's OCID                                                        |
-| `aws.parameterGroupName` | `parameterGroupName`                                                      |
-| `oci.memoryGB`           | `nodeMemoryInGbs`                                                         |
+| Field                    | Maps To                  |
+| ------------------------ | ------------------------ |
+| `aws.id`                 | the replication group ID |
+| `gcp.id`                 | the instance ID          |
+| `aws.instanceType`       | `nodeType`               |
+| `gcp.instanceType`       | `nodeType`               |
+| `oci.id`                 | the cluster's OCID       |
+| `aws.parameterGroupName` | `parameterGroupName`     |
+| `oci.memoryGB`           | `nodeMemoryInGbs`        |
 
 ## Platform Decisions
 

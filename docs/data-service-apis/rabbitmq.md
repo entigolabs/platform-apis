@@ -61,6 +61,7 @@ Crossplane provider.
 
 | Field                    | AWS (Amazon MQ `Broker`)                                                 |
 | ------------------------ | ------------------------------------------------------------------------ |
+| `observe`                | `managementPolicies: [Observe]` on every managed resource                |
 | `version`                | `engineVersion`                                                          |
 | `aws.instanceType`       | `hostInstanceType`                                                       |
 | `highAvailability`       | `deploymentMode`: `CLUSTER_MULTI_AZ` or `SINGLE_INSTANCE`                |
