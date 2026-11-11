@@ -12,20 +12,13 @@ to a virtual host, topic or database with what it may do there, and would let th
 object grant another team's user access to it within the Zone (rule 11). The choice changes the user
 kinds of all four services.
 
-#### 2 What Happens to a Field on a Cloud That Lacks It?
+#### 2 Should Extended Fields Fail or Be Ignored on a Cloud That Lacks Them?
 
 Some common fields exist on only some clouds, such as `storage.iops`, which Azure lacks. Today such
 a field is Extended: on a cloud without it, the object reports `CloudAccepted: False` and nothing is
-created, as Gateway API does with its Extended features, so a manifest that uses it applies
-everywhere but works only where the field is supported. Two other answers make every manifest work
-everywhere:
-
-- The cloud ignores the field and creates the resource anyway, with a warning condition naming
-  what it ignored. The manifest keeps working, but the resource can differ from what was asked,
-  such as a slower disk, and fields that protect data or change behaviour, such as
-  `immutableTags` or `cors`, would need to stay Extended.
-- The field moves into the cloud blocks (`aws.iops`, `gcp.iops`, `oci.iops`), which other clouds
-  ignore by design (rule 2). Nothing is lost silently, since the value was written for that
-  cloud, but it is written once per cloud.
-
-The choice affects about 25 fields and values across six schemas.
+created, as Gateway API does with its Extended features. A manifest that uses it therefore works on
+some clouds and fails on others. Dropping Extended would make these fields Ignored on the clouds
+that lack them: the resource is created without the setting, so every manifest works on every
+cloud, but what runs can differ from what was asked, such as a slower disk, and the Ignored level
+would no longer mean that nothing is lost. The choice affects about 25 fields and values across six
+schemas.
