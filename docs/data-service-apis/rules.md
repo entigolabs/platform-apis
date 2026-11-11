@@ -30,11 +30,11 @@ Not every cloud supports every field, so each field has a support level per clou
 also apply to a single value of a field, such as `storage.autoGrow: false`, which OCI does not
 support.
 
-| Level    | On That Cloud                                                                |
-| -------- | ---------------------------------------------------------------------------- |
-| Core     | supported on every cloud                                                     |
-| Extended | supported on some clouds, with the same meaning; rejected on the others      |
-| Ignored  | accepted but has no effect, because the cloud already gives what it asks for |
+| Level    | On That Cloud                                                                                      |
+| -------- | -------------------------------------------------------------------------------------------------- |
+| Core     | supported on every cloud                                                                           |
+| Extended | supported on some clouds, with the same meaning; on the others, reported as `CloudAccepted: False` |
+| Ignored  | accepted but has no effect, because the cloud already gives what it asks for                       |
 
 In a schema, a field's description ends with `Extended` and the clouds that support it. A field
 without that mark is Core.
@@ -161,15 +161,16 @@ cloud resource.
 #### 10 Validation
 
 The schema checks only what the API itself knows: field types, fields that cannot change, fields
-that cannot be combined, fields a cloud does not support, and the API's own minimums, such as a
-disk that cannot shrink. It does not copy the limits each cloud has for values, such as how many
-days of backups it keeps. Those limits change, and a Kubernetes schema rule can never be loosened
-once released. The cloud rejects such values itself, and each service's page lists the known
-limits under Cloud Limits.
+that cannot be combined, and the API's own minimums, such as a disk that cannot shrink. It does not
+copy the limits each cloud has for values, such as how many days of backups it keeps. Those limits
+change, and a Kubernetes schema rule can never be loosened once released. The cloud rejects such
+values itself, and each service's page lists the known limits under Cloud Limits.
 
 When the cloud rejects a value, the error appears only on the provider's own object, not on the
 user's. The platform therefore also shows it on the user's object, as the condition `CloudAccepted:
-False` and as a warning event.
+False` and as a warning event. A field or value the running cloud does not support (an Extended
+one, rule 1) is reported the same way, without reaching the cloud, so one manifest still applies on
+every cloud.
 
 #### 11 References
 
