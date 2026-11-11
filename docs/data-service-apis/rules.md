@@ -11,10 +11,11 @@ The draft schemas are in [schemas/](schemas/). They are written by
 
 #### 1 Common Fields
 
-An object applies unchanged on every cloud where its kind exists, as a Gateway API route does on
-every implementation. Its Core fields work everywhere, its Extended fields work where the cloud
-supports them and report `CloudAccepted: False` elsewhere, and everything cloud-specific lives in
-the cloud blocks (rule 2).
+A manifest applies unchanged on every cloud where its kind exists. With Core fields and cloud blocks
+only, it also works on every cloud; an Extended field works where the cloud supports it and reports
+`CloudAccepted: False` elsewhere, as an Extended feature does in Gateway API. Everything
+cloud-specific lives in the cloud blocks (rule 2). Whether a manifest should instead work on every
+cloud is an open point ([open-points.md](open-points.md)).
 
 The common spec describes what the user needs, not which cloud product provides it: a version, a
 size, high availability, backups. A field belongs there when a user can choose it without knowing
