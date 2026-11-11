@@ -1,0 +1,439 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: pginstances.database.entigo.com
+spec:
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: PostgreSQLInstance
+    plural: pginstances
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the cloud block's id, and never
+                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  creation only.
+              version:
+                type: string
+                description: |-
+                  The major version, such as "17". With maintenance.autoMinorVersionUpgrade false,
+                  the full version, such as "17.7".
+                  Extended for a minor: AWS.
+                  Default: per deployment.
+                pattern: ^[0-9]+(\.[0-9]+)?$
+              instanceType:
+                type: string
+                description: |-
+                  The cloud's own size name, such as db.t4g.small on AWS or a shape on OCI.
+                  Default: per deployment.
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      Disk size in GB at creation, and its floor after: raising it grows the disk,
+                      lowering it is rejected. The disk can end up larger: it is rounded up to a size
+                      the cloud accepts, and autoGrow can take it further. The status shows the real
+                      size.
+                      Default: per deployment.
+                    minimum: 1
+                    x-kubernetes-validations:
+                    - rule: self >= oldSelf
+                      message: storage.sizeGB cannot decrease
+                  autoGrow:
+                    type: boolean
+                    description: |-
+                      Grow the disk as it fills.
+                      Extended for false: AWS, GCP, Azure.
+                      Default: fixed, true.
+                  maxSizeGB:
+                    type: integer
+                    description: |-
+                      The size autoGrow stops at.
+                      Extended: AWS, GCP.
+                      Default: per deployment.
+                    minimum: 1
+                  iops:
+                    type: integer
+                    description: |-
+                      Provisioned IOPS.
+                      Extended: AWS, GCP with Hyperdisk, OCI.
+                    minimum: 1
+                  throughputMBps:
+                    type: integer
+                    description: |-
+                      Provisioned throughput in MB/s.
+                      Extended: AWS, GCP with Hyperdisk.
+                    minimum: 1
+                x-kubernetes-validations:
+                - rule: |-
+                    !has(self.maxSizeGB)
+                    || !has(self.sizeGB)
+                    || self.maxSizeGB >= self.sizeGB
+                  message: maxSizeGB must be at least sizeGB
+              highAvailability:
+                type: boolean
+                description: |-
+                  A standby in another zone, with automatic failover.
+                  Default: per deployment.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              maintenance:
+                type: object
+                properties:
+                  window:
+                    type: object
+                    description: |-
+                      The weekly hour, in UTC, in which the cloud applies updates.
+                    properties:
+                      day:
+                        type: string
+                        enum:
+                        - Mon
+                        - Tue
+                        - Wed
+                        - Thu
+                        - Fri
+                        - Sat
+                        - Sun
+                      hourUTC:
+                        type: integer
+                        minimum: 0
+                        maximum: 23
+                    required:
+                    - day
+                    - hourUTC
+                  autoMinorVersionUpgrade:
+                    type: boolean
+                    description: |-
+                      Apply new minor versions in the maintenance window. false keeps the minor
+                      written in version.
+                      Extended for false: AWS.
+                      Default: per deployment.
+                  allowMajorVersionUpgrade:
+                    type: boolean
+                    description: |-
+                      Allow version to change to a later major.
+                      Extended for true: AWS, GCP, Azure.
+                      Default: fixed, false.
+              backup:
+                type: object
+                properties:
+                  retentionDays:
+                    type: integer
+                    description: |-
+                      Days automated backups are kept, within the cloud's own range, which the cloud
+                      checks (rule 10). 0 turns automated backups and point-in-time restore off.
+                      Extended for 0: AWS, GCP, OCI.
+                      Default: per deployment.
+                    minimum: 0
+                  pointInTimeDays:
+                    type: integer
+                    description: |-
+                      Days back restore.pointInTime can reach, within the cloud's own range. AWS and
+                      Azure keep one window for both, so above retentionDays is rejected there.
+                      Default: fixed, the lower of retentionDays and the cloud's maximum; none with retentionDays 0.
+                    minimum: 1
+                  startHourUTC:
+                    type: integer
+                    description: |-
+                      The hour, in UTC, the daily backup starts.
+                      Extended: AWS, GCP, OCI.
+                    minimum: 0
+                    maximum: 23
+                x-kubernetes-validations:
+                - rule: |-
+                    !has(self.pointInTimeDays)
+                    || !has(self.retentionDays)
+                    || self.retentionDays > 0
+                  message: pointInTimeDays needs backups, which retentionDays 0 turns off
+              parameters:
+                type: object
+                description: |-
+                  PostgreSQL settings, by name. Keys outside the cloud's allowlist are rejected.
+                additionalProperties:
+                  type: string
+              parameterApplyMethod:
+                type: string
+                description: |-
+                  When changed parameters take effect. Immediate restarts the instance where a
+                  setting needs it; RDS rejects such settings with Immediate.
+                  Extended for NextRestart: AWS.
+                  Default: fixed, Immediate.
+                enum:
+                - Immediate
+                - NextRestart
+              restore:
+                type: object
+                description: |-
+                  Create the instance from another instance or from a backup. Create time only.
+                properties:
+                  fromInstance:
+                    type: string
+                    description: |-
+                      A PostgreSQLInstance in this namespace.
+                  pointInTime:
+                    type: string
+                    description: |-
+                      The time to restore fromInstance to. Unset, the latest restorable time.
+                    format: date-time
+                  fromBackup:
+                    type: string
+                    description: |-
+                      The cloud's ID of a backup to create the instance from: an RDS snapshot on AWS,
+                      <instance>/<backup run ID> on GCP, a DB system backup OCID on OCI.
+                      Extended: AWS, GCP, OCI.
+                x-kubernetes-validations:
+                - rule: has(self.fromInstance) != has(self.fromBackup)
+                  message: exactly one of fromInstance and fromBackup
+                - rule: "!has(self.pointInTime) || has(self.fromInstance)"
+                  message: pointInTime needs fromInstance
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <instance>-dbadmin.
+              aws:
+                type: object
+                description: |-
+                  Settings for AWS only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The AWS ID of an existing database instance to observe (rule 9). Only with
+                      observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  parameterGroupName:
+                    type: string
+                    description: |-
+                      An existing RDS parameter group to use, in place of parameters.
+              gcp:
+                type: object
+                description: |-
+                  Settings for GCP only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The GCP ID of an existing database instance to observe (rule 9). Only with
+                      observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  edition:
+                    type: string
+                    description: |-
+                      Cloud SQL edition, such as ENTERPRISE.
+                      Default: per deployment.
+                  diskType:
+                    type: string
+                    description: |-
+                      Cloud SQL disk type, such as PD_SSD.
+                      Default: per deployment.
+              oci:
+                type: object
+                description: |-
+                  Settings for OCI only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The OCI ID of an existing database instance to observe (rule 9). Only with
+                      observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  ocpus:
+                    type: number
+                    description: |-
+                      Required with a .Flex shape.
+                      Default: per deployment.
+                    minimum: 1
+                  memoryGB:
+                    type: integer
+                    description: |-
+                      Required with a .Flex shape.
+                      Default: per deployment.
+                    minimum: 1
+              azure:
+                type: object
+                description: |-
+                  Settings for Azure only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The Azure ID of an existing database instance to observe (rule 9). Only with
+                      observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  storageTier:
+                    type: string
+                    description: |-
+                      The disk tier, such as P10, which sets its IOPS.
+                      Default: per deployment.
+            x-kubernetes-validations:
+            - rule: |-
+                [(has(self.aws) && has(self.aws.id)), (has(self.gcp) && has(self.gcp.id)), (has(self.oci) && has(self.oci.id)), (has(self.azure) && has(self.azure.id))].filter(b, b).size() <= 1
+              message: at most one cloud block may hold an id
+            - rule: |-
+                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)) || (has(self.gcp) && has(self.gcp.id)) || (has(self.oci) && has(self.oci.id)) || (has(self.azure) && has(self.azure.id)))
+              message: observe and the cloud block's id go together
+            - rule: |-
+                (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
+              message: observe is immutable
+            - rule: |-
+                has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || self.restore == oldSelf.restore)
+              message: restore is set at creation only
+            - rule: |-
+                !has(self.version)
+                || !has(oldSelf.version)
+                || self.version.split('.')[0] == oldSelf.version.split('.')[0]
+                || (has(self.maintenance) && has(self.maintenance.allowMajorVersionUpgrade) && self.maintenance.allowMajorVersionUpgrade)
+              message: a major version change needs maintenance.allowMajorVersionUpgrade
+            - rule: |-
+                !has(self.aws)
+                || !has(self.aws.parameterGroupName)
+                || !has(self.parameters)
+              message: aws.parameterGroupName and parameters cannot be used together
+            - rule: |-
+                !has(oldSelf.aws)
+                || !has(oldSelf.aws.parameterGroupName)
+                || !has(self.version)
+                || !has(oldSelf.version)
+                || self.version.split('.')[0] == oldSelf.version.split('.')[0]
+                || !has(self.aws)
+                || !has(self.aws.parameterGroupName)
+                || self.aws.parameterGroupName != oldSelf.aws.parameterGroupName
+              message: a major version change needs a new aws.parameterGroupName, since a parameter group
+                fits one major version
+            - rule: |-
+                !has(self.version)
+                || self.version.contains('.') == (has(self.maintenance) && has(self.maintenance.autoMinorVersionUpgrade) && !self.maintenance.autoMinorVersionUpgrade)
+              message: version takes a minor exactly when maintenance.autoMinorVersionUpgrade is false
+          status:
+            type: object
+            properties:
+              version:
+                type: string
+              instanceType:
+                type: string
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      The actual disk size.
+                  autoGrow:
+                    type: boolean
+                  maxSizeGB:
+                    type: integer
+                  iops:
+                    type: integer
+                  throughputMBps:
+                    type: integer
+              highAvailability:
+                type: boolean
+              maintenance:
+                type: object
+                properties:
+                  window:
+                    type: object
+                    properties:
+                      day:
+                        type: string
+                      hourUTC:
+                        type: integer
+                  autoMinorVersionUpgrade:
+                    type: boolean
+              backup:
+                type: object
+                properties:
+                  retentionDays:
+                    type: integer
+                  pointInTimeDays:
+                    type: integer
+                  startHourUTC:
+                    type: integer
+              endpoint:
+                type: object
+                description: |-
+                  The address applications connect to.
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: integer
+              connectionSecret:
+                type: string
+                description: |-
+                  The admin Secret, <instance>-dbadmin (rule 6).
+              finalBackup:
+                type: string
+                description: |-
+                  The ID the final backup gets when the instance is deleted, for
+                  restore.fromBackup. Empty where the cloud does not tell it in advance.
+              aws:
+                type: object
+                properties:
+                  identifier:
+                    type: string
+                  resourceId:
+                    type: string
+                  engineVersionActual:
+                    type: string
+                  latestRestorableTime:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+              gcp:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  connectionName:
+                    type: string
+                  maintenanceVersion:
+                    type: string
+              oci:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  instanceOcpuCount:
+                    type: number
+                  instanceMemorySizeInGbs:
+                    type: integer
+                  state:
+                    type: string
+              azure:
+                type: object
+                properties:
+                  id:
+                    type: string
+        required:
+        - spec

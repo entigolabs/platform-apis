@@ -1,0 +1,67 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: rabbitmqvirtualhosts.mq.entigo.com
+spec:
+  group: mq.entigo.com
+  scope: Namespaced
+  names:
+    kind: RabbitMQVirtualHost
+    plural: rabbitmqvirtualhosts
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              name:
+                type: string
+                description: |-
+                  The virtual host's name in the engine, which may hold what a Kubernetes name
+                  cannot. Unset, metadata.name. Set at creation only.
+              brokerRef:
+                type: object
+                description: |-
+                  The RabbitMQBroker this object lives in.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      The RabbitMQBroker.
+                  namespace:
+                    type: string
+                    description: |-
+                      The RabbitMQBroker's namespace, which must be in this object's Zone (rule 11).
+                      Unset, this object's namespace.
+                required:
+                - name
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: brokerRef is immutable
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object, and with it the virtual host's queues and messages, is
+                  denied while true.
+                  Default: fixed, true.
+            x-kubernetes-validations:
+            - rule: |-
+                (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
+              message: name is immutable
+            required:
+            - brokerRef
+          status:
+            type: object
+            properties:
+              name:
+                type: string
+                description: |-
+                  The virtual host's name in RabbitMQ.
+        required:
+        - spec

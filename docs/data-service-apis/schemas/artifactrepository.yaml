@@ -1,0 +1,188 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: artifactrepositories.artifact.entigo.com
+spec:
+  group: artifact.entigo.com
+  scope: Namespaced
+  names:
+    kind: ArtifactRepository
+    plural: artifactrepositories
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the cloud block's id, and never
+                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  creation only.
+              name:
+                type: string
+                description: |-
+                  The image name. Unset, the object's name. Set at creation only.
+              path:
+                type: string
+                description: |-
+                  A prefix between the namespace and the name: the image path is
+                  <namespace>/<path>/<name>, or <namespace>/<name> unset. Set at creation only.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              immutableTags:
+                type: boolean
+                description: |-
+                  A pushed tag cannot be pushed again.
+                  Extended: AWS, GCP, OCI.
+                  Default: per deployment.
+              lifecycleRules:
+                type: array
+                description: |-
+                  Delete old images. Set, it replaces the deployment's rules.
+                  Extended: AWS, GCP.
+                  Default: per deployment.
+                items:
+                  type: object
+                  description: |-
+                    One selector, or none for every image, and one bound.
+                  properties:
+                    tagPrefixes:
+                      type: array
+                      description: |-
+                        Images with a tag starting with one of these.
+                      items:
+                        type: string
+                    tagPatterns:
+                      type: array
+                      description: |-
+                        Images with a tag matching one of these wildcards.
+                        Extended: AWS.
+                      items:
+                        type: string
+                    untagged:
+                      type: boolean
+                      description: |-
+                        Images without a tag.
+                    keepCount:
+                      type: integer
+                      description: |-
+                        Keep this many newest images. With tagPrefixes or untagged, only on AWS; GCP
+                        keeps the newest only of all images.
+                        Extended with a selector: AWS.
+                      minimum: 1
+                    expireAfterDays:
+                      type: integer
+                      description: |-
+                        Delete images this long after their push.
+                      minimum: 1
+                  x-kubernetes-validations:
+                  - rule: |-
+                      (has(self.tagPrefixes) ? 1 : 0) + (has(self.tagPatterns) ? 1 : 0) + (has(self.untagged) ? 1 : 0) <= 1
+                    message: at most one selector
+                  - rule: has(self.keepCount) != has(self.expireAfterDays)
+                    message: exactly one of keepCount and expireAfterDays
+              aws:
+                type: object
+                description: |-
+                  Settings for AWS only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The AWS ID of an existing repository to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+              gcp:
+                type: object
+                description: |-
+                  Settings for GCP only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The GCP ID of an existing repository to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+              oci:
+                type: object
+                description: |-
+                  Settings for OCI only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The OCI ID of an existing repository to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+              azure:
+                type: object
+                description: |-
+                  Settings for Azure only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The Azure ID of an existing repository to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+            x-kubernetes-validations:
+            - rule: |-
+                [(has(self.aws) && has(self.aws.id)), (has(self.gcp) && has(self.gcp.id)), (has(self.oci) && has(self.oci.id)), (has(self.azure) && has(self.azure.id))].filter(b, b).size() <= 1
+              message: at most one cloud block may hold an id
+            - rule: |-
+                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)) || (has(self.gcp) && has(self.gcp.id)) || (has(self.oci) && has(self.oci.id)) || (has(self.azure) && has(self.azure.id)))
+              message: observe and the cloud block's id go together
+            - rule: |-
+                (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
+              message: observe is immutable
+            - rule: |-
+                (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
+              message: name is immutable
+            - rule: |-
+                (has(self.path) ? self.path : '') == (has(oldSelf.path) ? oldSelf.path : '')
+              message: path is immutable
+          status:
+            type: object
+            properties:
+              uri:
+                type: string
+                description: |-
+                  The image URI, such as 123456789012.dkr.ecr.eu-
+                  north-1.amazonaws.com/shop/orders-api.
+              aws:
+                type: object
+                properties:
+                  arn:
+                    type: string
+              gcp:
+                type: object
+                properties:
+                  id:
+                    type: string
+              oci:
+                type: object
+                properties:
+                  id:
+                    type: string
+              azure:
+                type: object
+                properties:
+                  registryId:
+                    type: string
+        required:
+        - spec

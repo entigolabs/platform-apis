@@ -1,0 +1,134 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: mariadbusers.database.entigo.com
+spec:
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: MariaDBUser
+    plural: mariadbusers
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              name:
+                type: string
+                description: |-
+                  The user's name in the engine, which may hold what a Kubernetes name cannot.
+                  Unset, metadata.name. Set at creation only.
+              instanceRef:
+                type: object
+                description: |-
+                  The MariaDBInstance this object lives in.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      The MariaDBInstance.
+                  namespace:
+                    type: string
+                    description: |-
+                      The MariaDBInstance's namespace, which must be in this object's Zone (rule 11).
+                      Unset, this object's namespace.
+                required:
+                - name
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: instanceRef is immutable
+              databaseRef:
+                type: object
+                description: |-
+                  The MariaDBDatabase this object lives in.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      The MariaDBDatabase.
+                  namespace:
+                    type: string
+                    description: |-
+                      The MariaDBDatabase's namespace, which must be in this object's Zone (rule 11).
+                      Unset, this object's namespace.
+                required:
+                - name
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: databaseRef is immutable
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <instance>-<user>.
+              table:
+                type: string
+                description: |-
+                  The tables the privileges apply to.
+                  Default: fixed, *.
+              privileges:
+                type: array
+                description: |-
+                  Privileges granted on the database, such as SELECT.
+                items:
+                  type: string
+                  pattern: ^([A-Z0-9_ ]+|[A-Z_ ]+ [(]`[^`]+`(, `[^`]+`)*[)])$
+                minItems: 1
+              maxConnectionsPerHour:
+                type: integer
+                description: |-
+                  Connections allowed per hour; 0 is unlimited.
+                  Default: fixed, 0.
+                minimum: 0
+              maxQueriesPerHour:
+                type: integer
+                description: |-
+                  Queries allowed per hour; 0 is unlimited.
+                  Default: fixed, 0.
+                minimum: 0
+              maxUpdatesPerHour:
+                type: integer
+                description: |-
+                  Updates allowed per hour; 0 is unlimited.
+                  Default: fixed, 0.
+                minimum: 0
+              maxUserConnections:
+                type: integer
+                description: |-
+                  Connections allowed at once; 0 means the server's max_connections.
+                  Default: fixed, 0.
+                minimum: 0
+              grant:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    description: |-
+                      Users granted to this user.
+                    items:
+                      type: string
+            x-kubernetes-validations:
+            - rule: |-
+                (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
+              message: name is immutable
+            required:
+            - instanceRef
+            - databaseRef
+            - privileges
+          status:
+            type: object
+            properties:
+              connectionSecret:
+                type: string
+                description: |-
+                  The Secret with this user's login (rule 6).
+        required:
+        - spec

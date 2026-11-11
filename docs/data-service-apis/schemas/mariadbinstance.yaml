@@ -1,0 +1,318 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: mariadbinstances.database.entigo.com
+spec:
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: MariaDBInstance
+    plural: mariadbinstances
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the cloud block's id, and never
+                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  creation only.
+              version:
+                type: string
+                description: |-
+                  The major version, which has two numbers, such as "11.4". With
+                  maintenance.autoMinorVersionUpgrade false, the full version, such as "11.4.10".
+                  Default: per deployment.
+                pattern: ^[0-9]+\.[0-9]+(\.[0-9]+)?$
+              instanceType:
+                type: string
+                description: |-
+                  The RDS instance class, such as db.t4g.small.
+                  Default: per deployment.
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      Disk size in GB at creation, and its floor after: raising it grows the disk,
+                      lowering it is rejected. The disk can end up larger: it is rounded up to a size
+                      the cloud accepts, and autoGrow can take it further. The status shows the real
+                      size.
+                      Default: per deployment.
+                    minimum: 1
+                    x-kubernetes-validations:
+                    - rule: self >= oldSelf
+                      message: storage.sizeGB cannot decrease
+                  autoGrow:
+                    type: boolean
+                    description: |-
+                      Grow the disk as it fills.
+                      Default: fixed, true.
+                  maxSizeGB:
+                    type: integer
+                    description: |-
+                      The size autoGrow stops at.
+                      Default: per deployment.
+                    minimum: 1
+                  iops:
+                    type: integer
+                    description: |-
+                      Provisioned IOPS.
+                    minimum: 1
+                  throughputMBps:
+                    type: integer
+                    description: |-
+                      Provisioned throughput in MB/s.
+                    minimum: 1
+                x-kubernetes-validations:
+                - rule: |-
+                    !has(self.maxSizeGB)
+                    || !has(self.sizeGB)
+                    || self.maxSizeGB >= self.sizeGB
+                  message: maxSizeGB must be at least sizeGB
+              highAvailability:
+                type: boolean
+                description: |-
+                  A standby in another zone, with automatic failover.
+                  Default: per deployment.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              maintenance:
+                type: object
+                properties:
+                  window:
+                    type: object
+                    description: |-
+                      The weekly hour, in UTC, in which the cloud applies updates.
+                    properties:
+                      day:
+                        type: string
+                        enum:
+                        - Mon
+                        - Tue
+                        - Wed
+                        - Thu
+                        - Fri
+                        - Sat
+                        - Sun
+                      hourUTC:
+                        type: integer
+                        minimum: 0
+                        maximum: 23
+                    required:
+                    - day
+                    - hourUTC
+                  autoMinorVersionUpgrade:
+                    type: boolean
+                    description: |-
+                      Apply new minor versions in the maintenance window. false keeps the minor
+                      written in version.
+                      Default: per deployment.
+                  allowMajorVersionUpgrade:
+                    type: boolean
+                    description: |-
+                      Allow version to change to a later major.
+                      Default: fixed, false.
+              backup:
+                type: object
+                properties:
+                  retentionDays:
+                    type: integer
+                    description: |-
+                      Days automated backups are kept, within the cloud's own range, which the cloud
+                      checks (rule 10). 0 turns automated backups and point-in-time restore off.
+                      Default: per deployment.
+                    minimum: 0
+                  startHourUTC:
+                    type: integer
+                    description: |-
+                      The hour, in UTC, the daily backup starts.
+                    minimum: 0
+                    maximum: 23
+              parameters:
+                type: object
+                description: |-
+                  MariaDB settings, by name. Keys outside the cloud's allowlist are rejected.
+                additionalProperties:
+                  type: string
+              parameterApplyMethod:
+                type: string
+                description: |-
+                  When changed parameters take effect. Immediate restarts the instance where a
+                  setting needs it; RDS rejects such settings with Immediate.
+                  Default: fixed, Immediate.
+                enum:
+                - Immediate
+                - NextRestart
+              restore:
+                type: object
+                description: |-
+                  Create the instance from another instance or from a backup. Create time only.
+                properties:
+                  fromInstance:
+                    type: string
+                    description: |-
+                      A MariaDBInstance in this namespace.
+                  pointInTime:
+                    type: string
+                    description: |-
+                      The time to restore fromInstance to. Unset, the latest restorable time.
+                    format: date-time
+                  fromBackup:
+                    type: string
+                    description: |-
+                      The ID of an RDS snapshot to create the instance from.
+                x-kubernetes-validations:
+                - rule: has(self.fromInstance) != has(self.fromBackup)
+                  message: exactly one of fromInstance and fromBackup
+                - rule: "!has(self.pointInTime) || has(self.fromInstance)"
+                  message: pointInTime needs fromInstance
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <instance>-dbadmin.
+              aws:
+                type: object
+                description: |-
+                  Settings for AWS only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The AWS ID of an existing database instance to observe (rule 9). Only with
+                      observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  parameterGroupName:
+                    type: string
+                    description: |-
+                      An existing RDS parameter group to use, in place of parameters.
+            x-kubernetes-validations:
+            - rule: |-
+                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)))
+              message: observe and the cloud block's id go together
+            - rule: |-
+                (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
+              message: observe is immutable
+            - rule: |-
+                has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || self.restore == oldSelf.restore)
+              message: restore is set at creation only
+            - rule: |-
+                !has(self.version)
+                || !has(oldSelf.version)
+                || (self.version.split('.')[0] + '.' + self.version.split('.')[1]) == (oldSelf.version.split('.')[0] + '.' + oldSelf.version.split('.')[1])
+                || (has(self.maintenance) && has(self.maintenance.allowMajorVersionUpgrade) && self.maintenance.allowMajorVersionUpgrade)
+              message: a major version change needs maintenance.allowMajorVersionUpgrade
+            - rule: |-
+                !has(self.aws)
+                || !has(self.aws.parameterGroupName)
+                || !has(self.parameters)
+              message: aws.parameterGroupName and parameters cannot be used together
+            - rule: |-
+                !has(oldSelf.aws)
+                || !has(oldSelf.aws.parameterGroupName)
+                || !has(self.version)
+                || !has(oldSelf.version)
+                || (self.version.split('.')[0] + '.' + self.version.split('.')[1]) == (oldSelf.version.split('.')[0] + '.' + oldSelf.version.split('.')[1])
+                || !has(self.aws)
+                || !has(self.aws.parameterGroupName)
+                || self.aws.parameterGroupName != oldSelf.aws.parameterGroupName
+              message: a major version change needs a new aws.parameterGroupName, since a parameter group
+                fits one major version
+            - rule: |-
+                !has(self.version)
+                || (self.version.split('.').size() == 3) == (has(self.maintenance) && has(self.maintenance.autoMinorVersionUpgrade) && !self.maintenance.autoMinorVersionUpgrade)
+              message: version takes a minor exactly when maintenance.autoMinorVersionUpgrade is false
+          status:
+            type: object
+            properties:
+              version:
+                type: string
+              instanceType:
+                type: string
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      The actual disk size.
+                  autoGrow:
+                    type: boolean
+                  maxSizeGB:
+                    type: integer
+                  iops:
+                    type: integer
+                  throughputMBps:
+                    type: integer
+              highAvailability:
+                type: boolean
+              maintenance:
+                type: object
+                properties:
+                  window:
+                    type: object
+                    properties:
+                      day:
+                        type: string
+                      hourUTC:
+                        type: integer
+                  autoMinorVersionUpgrade:
+                    type: boolean
+              backup:
+                type: object
+                properties:
+                  retentionDays:
+                    type: integer
+                  startHourUTC:
+                    type: integer
+              endpoint:
+                type: object
+                description: |-
+                  The address applications connect to.
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: integer
+              connectionSecret:
+                type: string
+                description: |-
+                  The admin Secret, <instance>-dbadmin (rule 6).
+              finalBackup:
+                type: string
+                description: |-
+                  The ID the final backup gets when the instance is deleted, for
+                  restore.fromBackup. Empty where the cloud does not tell it in advance.
+              aws:
+                type: object
+                properties:
+                  identifier:
+                    type: string
+                  resourceId:
+                    type: string
+                  engineVersionActual:
+                    type: string
+                  latestRestorableTime:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+        required:
+        - spec

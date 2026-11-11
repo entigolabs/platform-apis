@@ -1,0 +1,70 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: mariadbdatabases.database.entigo.com
+spec:
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: MariaDBDatabase
+    plural: mariadbdatabases
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              name:
+                type: string
+                description: |-
+                  The database's name in the engine, which may hold what a Kubernetes name cannot.
+                  Unset, metadata.name. Set at creation only.
+              instanceRef:
+                type: object
+                description: |-
+                  The MariaDBInstance this object lives in.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      The MariaDBInstance.
+                  namespace:
+                    type: string
+                    description: |-
+                      The MariaDBInstance's namespace, which must be in this object's Zone (rule 11).
+                      Unset, this object's namespace.
+                required:
+                - name
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: instanceRef is immutable
+              defaultCharacterSet:
+                type: string
+                description: |-
+                  The default character set.
+              defaultCollation:
+                type: string
+                description: |-
+                  The default collation.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+            x-kubernetes-validations:
+            - rule: |-
+                (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
+              message: name is immutable
+            required:
+            - instanceRef
+          status:
+            type: object
+            properties: {}
+        required:
+        - spec

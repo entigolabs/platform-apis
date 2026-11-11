@@ -1,0 +1,177 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: kafkaclusters.queue.entigo.com
+spec:
+  group: queue.entigo.com
+  scope: Namespaced
+  names:
+    kind: KafkaCluster
+    plural: kafkaclusters
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the cloud block's id, and never
+                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  creation only.
+              version:
+                type: string
+                description: |-
+                  The Kafka version, such as "3.9". Each cloud accepts the versions it offers.
+                  Default: per deployment.
+              instanceType:
+                type: string
+                description: |-
+                  The broker size: the cloud's instance type, or the shape on OCI.
+                  Extended: AWS, OCI. GCP sizes the cluster with gcp.vcpus and gcp.memoryGB.
+                  Default: per deployment.
+              brokers:
+                type: integer
+                description: |-
+                  The number of brokers.
+                  Extended: AWS, OCI. GCP chooses its own.
+                  Default: per deployment.
+                minimum: 1
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      Disk per broker, in GB.
+                      Default: per deployment.
+                    minimum: 1
+              highAvailability:
+                type: boolean
+                description: |-
+                  Survive the loss of one zone.
+                  Extended for false: OCI.
+                  Default: per deployment.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              parameters:
+                type: object
+                description: |-
+                  Broker settings, by name. Keys outside the cloud's allowlist are rejected.
+                additionalProperties:
+                  type: string
+              aws:
+                type: object
+                description: |-
+                  Settings for AWS only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The AWS ID of an existing Kafka cluster to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+              gcp:
+                type: object
+                description: |-
+                  Settings for GCP only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The GCP ID of an existing Kafka cluster to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  vcpus:
+                    type: integer
+                    description: |-
+                      The whole cluster's vCPUs.
+                      Default: per deployment.
+                    minimum: 1
+                  memoryGB:
+                    type: integer
+                    description: |-
+                      The whole cluster's memory, within GCP's range per vCPU (rule 10).
+                      Default: per deployment.
+                    minimum: 1
+              oci:
+                type: object
+                description: |-
+                  Settings for OCI only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The OCI ID of an existing Kafka cluster to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  ocpus:
+                    type: number
+                    description: |-
+                      OCPUs per broker. Required with a .Flex shape.
+                      Default: per deployment.
+                    minimum: 1
+            x-kubernetes-validations:
+            - rule: |-
+                [(has(self.aws) && has(self.aws.id)), (has(self.gcp) && has(self.gcp.id)), (has(self.oci) && has(self.oci.id))].filter(b, b).size() <= 1
+              message: at most one cloud block may hold an id
+            - rule: |-
+                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)) || (has(self.gcp) && has(self.gcp.id)) || (has(self.oci) && has(self.oci.id)))
+              message: observe and the cloud block's id go together
+            - rule: |-
+                (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
+              message: observe is immutable
+          status:
+            type: object
+            properties:
+              version:
+                type: string
+              instanceType:
+                type: string
+              brokers:
+                type: integer
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+              highAvailability:
+                type: boolean
+              bootstrapServers:
+                type: string
+                description: |-
+                  The listener applications connect to, as host:port pairs.
+              aws:
+                type: object
+                properties:
+                  arn:
+                    type: string
+                  kafkaVersion:
+                    type: string
+              gcp:
+                type: object
+                properties:
+                  id:
+                    type: string
+              oci:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  state:
+                    type: string
+        required:
+        - spec

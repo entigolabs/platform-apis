@@ -1,0 +1,88 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: kafkausers.queue.entigo.com
+spec:
+  group: queue.entigo.com
+  scope: Namespaced
+  names:
+    kind: KafkaUser
+    plural: kafkausers
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              clusterRef:
+                type: object
+                description: |-
+                  The KafkaCluster this object lives in.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      The KafkaCluster.
+                  namespace:
+                    type: string
+                    description: |-
+                      The KafkaCluster's namespace, which must be in this object's Zone (rule 11).
+                      Unset, this object's namespace.
+                required:
+                - name
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: clusterRef is immutable
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <cluster>-<user>.
+              consumerGroups:
+                type: array
+                description: |-
+                  Consumer groups the user may join.
+                items:
+                  type: string
+              acls:
+                type: array
+                description: |-
+                  Kafka ACLs that allow this user an operation on a topic.
+                items:
+                  type: object
+                  properties:
+                    topic:
+                      type: string
+                    operation:
+                      type: string
+                      enum:
+                      - Read
+                      - Write
+                      - Create
+                      - Delete
+                      - Alter
+                      - Describe
+                      - DescribeConfigs
+                      - AlterConfigs
+                      - All
+                  required:
+                  - topic
+                  - operation
+            required:
+            - clusterRef
+          status:
+            type: object
+            properties:
+              connectionSecret:
+                type: string
+                description: |-
+                  The Secret <cluster>-<user> (rule 6).
+        required:
+        - spec

@@ -1,0 +1,89 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: kafkatopics.queue.entigo.com
+spec:
+  group: queue.entigo.com
+  scope: Namespaced
+  names:
+    kind: KafkaTopic
+    plural: kafkatopics
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              clusterRef:
+                type: object
+                description: |-
+                  The KafkaCluster this object lives in.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      The KafkaCluster.
+                  namespace:
+                    type: string
+                    description: |-
+                      The KafkaCluster's namespace, which must be in this object's Zone (rule 11).
+                      Unset, this object's namespace.
+                required:
+                - name
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: clusterRef is immutable
+              name:
+                type: string
+                description: |-
+                  The Kafka topic's name. Unset, metadata.name. The function rejects a name
+                  another KafkaTopic on the same cluster already claims; the older one keeps it.
+                  Kafka cannot rename a topic, so it is immutable.
+                minLength: 1
+                maxLength: 249
+                pattern: ^[a-zA-Z0-9._-]+$
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: name is immutable
+              partitions:
+                type: integer
+                description: |-
+                  Kafka cannot remove partitions, so this only grows.
+                  Default: per deployment.
+                minimum: 1
+                x-kubernetes-validations:
+                - rule: self >= oldSelf
+                  message: partitions cannot decrease
+              replicationFactor:
+                type: integer
+                description: |-
+                  Copies of each partition, at most the broker count.
+                  Default: per deployment.
+                minimum: 1
+              parameters:
+                type: object
+                description: |-
+                  Topic settings, by name, such as retention.ms.
+                additionalProperties:
+                  type: string
+            required:
+            - clusterRef
+          status:
+            type: object
+            properties:
+              name:
+                type: string
+                description: |-
+                  The Kafka topic's name.
+              partitions:
+                type: integer
+              replicationFactor:
+                type: integer
+        required:
+        - spec

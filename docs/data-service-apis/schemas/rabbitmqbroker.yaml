@@ -1,0 +1,150 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: rabbitmqbrokers.mq.entigo.com
+spec:
+  group: mq.entigo.com
+  scope: Namespaced
+  names:
+    kind: RabbitMQBroker
+    plural: rabbitmqbrokers
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the cloud block's id, and never
+                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  creation only.
+              version:
+                type: string
+                description: |-
+                  RabbitMQ's release line, such as "4.2". The cloud manages the patch.
+                  Default: per deployment.
+                pattern: ^[0-9]+\.[0-9]+$
+              instanceType:
+                type: string
+                description: |-
+                  The cloud's own size name, such as mq.m7g.medium.
+                  Default: per deployment.
+              highAvailability:
+                type: boolean
+                description: |-
+                  A three-node cluster across zones.
+                  Default: per deployment.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              maintenance:
+                type: object
+                properties:
+                  window:
+                    type: object
+                    description: |-
+                      The weekly hour, in UTC, in which the cloud applies updates.
+                    properties:
+                      day:
+                        type: string
+                        enum:
+                        - Mon
+                        - Tue
+                        - Wed
+                        - Thu
+                        - Fri
+                        - Sat
+                        - Sun
+                      hourUTC:
+                        type: integer
+                        minimum: 0
+                        maximum: 23
+                    required:
+                    - day
+                    - hourUTC
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <broker>-credentials.
+              parameters:
+                type: object
+                description: |-
+                  rabbitmq.conf settings, by name. Keys outside the cloud's allowlist are
+                  rejected.
+                additionalProperties:
+                  type: string
+              aws:
+                type: object
+                description: |-
+                  Settings for AWS only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The AWS ID of an existing broker to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  publiclyAccessible:
+                    type: boolean
+                    description: |-
+                      Reachable from the internet, without the platform's security group. Amazon MQ
+                      replaces the broker to change it, so it is set at creation only.
+                      Default: fixed, false.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: aws.publiclyAccessible is immutable
+            x-kubernetes-validations:
+            - rule: |-
+                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)))
+              message: observe and the cloud block's id go together
+            - rule: |-
+                (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
+              message: observe is immutable
+          status:
+            type: object
+            properties:
+              version:
+                type: string
+              instanceType:
+                type: string
+              highAvailability:
+                type: boolean
+              endpoint:
+                type: object
+                description: |-
+                  The AMQPS address.
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: integer
+              managementEndpoint:
+                type: string
+                description: |-
+                  The management console URL.
+              connectionSecret:
+                type: string
+                description: |-
+                  The Secret <broker>-credentials (rule 6).
+              aws:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  engineVersion:
+                    type: string
+        required:
+        - spec

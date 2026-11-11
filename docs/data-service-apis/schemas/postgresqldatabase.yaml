@@ -1,0 +1,107 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: postgresqldatabases.database.entigo.com
+spec:
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: PostgreSQLDatabase
+    plural: postgresqldatabases
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              name:
+                type: string
+                description: |-
+                  The database's name in the engine, which may hold what a Kubernetes name cannot.
+                  Unset, metadata.name. Set at creation only.
+              instanceRef:
+                type: object
+                description: |-
+                  The PostgreSQLInstance this object lives in.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      The PostgreSQLInstance.
+                  namespace:
+                    type: string
+                    description: |-
+                      The PostgreSQLInstance's namespace, which must be in this object's Zone (rule
+                      11). Unset, this object's namespace.
+                required:
+                - name
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: instanceRef is immutable
+              owner:
+                type: string
+                description: |-
+                  The owning role's name in PostgreSQL.
+              encoding:
+                type: string
+                description: |-
+                  The character set encoding, such as UTF8.
+              lcCType:
+                type: string
+                description: |-
+                  The character classification (LC_CTYPE).
+              lcCollate:
+                type: string
+                description: |-
+                  The collation order (LC_COLLATE).
+              dbTemplate:
+                type: string
+                description: |-
+                  The template database to create it from.
+              extensions:
+                type: array
+                description: |-
+                  PostgreSQL extensions to create in the database.
+                items:
+                  type: string
+                  enum:
+                  - postgis
+                  - postgis_topology
+                  - fuzzystrmatch
+                  - postgis_tiger_geocoder
+                  - uuid-ossp
+                  - btree_gist
+              extensionConfig:
+                type: object
+                description: |-
+                  Per-extension settings, by extension name.
+                additionalProperties:
+                  type: object
+                  properties:
+                    schema:
+                      type: string
+                      description: |-
+                        The schema to create the extension's objects in.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+            x-kubernetes-validations:
+            - rule: |-
+                (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
+              message: name is immutable
+            required:
+            - instanceRef
+            - owner
+          status:
+            type: object
+            properties: {}
+        required:
+        - spec

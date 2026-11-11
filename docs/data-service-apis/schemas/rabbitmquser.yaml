@@ -1,0 +1,98 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: rabbitmqusers.mq.entigo.com
+spec:
+  group: mq.entigo.com
+  scope: Namespaced
+  names:
+    kind: RabbitMQUser
+    plural: rabbitmqusers
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              name:
+                type: string
+                description: |-
+                  The user's name in the engine, which may hold what a Kubernetes name cannot.
+                  Unset, metadata.name. Set at creation only.
+              brokerRef:
+                type: object
+                description: |-
+                  The RabbitMQBroker this object lives in.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      The RabbitMQBroker.
+                  namespace:
+                    type: string
+                    description: |-
+                      The RabbitMQBroker's namespace, which must be in this object's Zone (rule 11).
+                      Unset, this object's namespace.
+                required:
+                - name
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: brokerRef is immutable
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <broker>-<user>.
+              permissions:
+                type: array
+                description: |-
+                  RabbitMQ permissions, one entry per virtual host.
+                items:
+                  type: object
+                  properties:
+                    virtualHost:
+                      type: string
+                      description: |-
+                        The virtual host's name in RabbitMQ.
+                    configure:
+                      type: string
+                      description: |-
+                        A regular expression over the names of queues and exchanges the user may create
+                        and delete. Unset or empty allows none.
+                    write:
+                      type: string
+                      description: |-
+                        A regular expression over the names the user may publish to. Unset or empty
+                        allows none.
+                    read:
+                      type: string
+                      description: |-
+                        A regular expression over the names the user may consume from. Unset or empty
+                        allows none.
+                  required:
+                  - virtualHost
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - virtualHost
+            x-kubernetes-validations:
+            - rule: |-
+                (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
+              message: name is immutable
+            required:
+            - brokerRef
+          status:
+            type: object
+            properties:
+              connectionSecret:
+                type: string
+                description: |-
+                  The Secret <broker>-<user> (rule 6).
+        required:
+        - spec

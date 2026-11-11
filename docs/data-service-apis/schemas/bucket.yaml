@@ -1,0 +1,236 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: buckets.storage.entigo.com
+spec:
+  group: storage.entigo.com
+  scope: Namespaced
+  names:
+    kind: Bucket
+    plural: buckets
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the cloud block's id, and never
+                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  creation only.
+              versioning:
+                type: boolean
+                description: |-
+                  Keep replaced and deleted objects as versions.
+                  Default: per deployment.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              lifecycleRules:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    prefix:
+                      type: string
+                      description: |-
+                        Objects whose key starts with this. Unset, every object.
+                    expireAfterDays:
+                      type: integer
+                      description: |-
+                        Delete objects this old.
+                      minimum: 1
+                    deleteNoncurrentAfterDays:
+                      type: integer
+                      description: |-
+                        Delete replaced versions this old.
+                      minimum: 1
+                    transitions:
+                      type: array
+                      description: |-
+                        Move objects to a colder tier.
+                      items:
+                        type: object
+                        properties:
+                          afterDays:
+                            type: integer
+                            minimum: 1
+                          tier:
+                            type: string
+                            description: |-
+                              One of the two cold tiers every cloud has.
+                            enum:
+                            - Infrequent
+                            - Archive
+                        required:
+                        - afterDays
+                        - tier
+              retention:
+                type: object
+                description: |-
+                  Objects cannot be changed or deleted for this many days.
+                properties:
+                  days:
+                    type: integer
+                    minimum: 1
+                  locked:
+                    type: boolean
+                    description: |-
+                      true cannot be undone on any cloud.
+                    x-kubernetes-validations:
+                    - rule: "!oldSelf || self"
+                      message: a locked retention cannot be unlocked
+                required:
+                - days
+              cors:
+                type: array
+                description: |-
+                  Cross-origin requests browsers may make.
+                  Extended: AWS, GCP, Azure.
+                items:
+                  type: object
+                  properties:
+                    origins:
+                      type: array
+                      items:
+                        type: string
+                    methods:
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                        - GET
+                        - PUT
+                        - POST
+                        - DELETE
+                        - HEAD
+                    maxAgeSeconds:
+                      type: integer
+                      minimum: 0
+                  required:
+                  - origins
+                  - methods
+              aws:
+                type: object
+                description: |-
+                  Settings for AWS only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The AWS ID of an existing bucket to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+              gcp:
+                type: object
+                description: |-
+                  Settings for GCP only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The GCP ID of an existing bucket to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  softDeleteDays:
+                    type: integer
+                    description: |-
+                      Days deleted objects can be recovered.
+                      Default: per deployment.
+                    minimum: 0
+              oci:
+                type: object
+                description: |-
+                  Settings for OCI only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The OCI ID of an existing bucket to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+              azure:
+                type: object
+                description: |-
+                  Settings for Azure only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The Azure ID of an existing bucket to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  softDeleteDays:
+                    type: integer
+                    description: |-
+                      Days deleted objects can be recovered.
+                      Default: per deployment.
+                    minimum: 0
+            x-kubernetes-validations:
+            - rule: |-
+                [(has(self.aws) && has(self.aws.id)), (has(self.gcp) && has(self.gcp.id)), (has(self.oci) && has(self.oci.id)), (has(self.azure) && has(self.azure.id))].filter(b, b).size() <= 1
+              message: at most one cloud block may hold an id
+            - rule: |-
+                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)) || (has(self.gcp) && has(self.gcp.id)) || (has(self.oci) && has(self.oci.id)) || (has(self.azure) && has(self.azure.id)))
+              message: observe and the cloud block's id go together
+            - rule: |-
+                (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
+              message: observe is immutable
+            - rule: |-
+                !has(oldSelf.retention)
+                || !has(oldSelf.retention.locked)
+                || !oldSelf.retention.locked
+                || (has(self.retention) && has(self.retention.locked) && self.retention.locked)
+              message: a locked retention cannot be unlocked or removed
+          status:
+            type: object
+            properties:
+              url:
+                type: string
+              bucketName:
+                type: string
+              region:
+                type: string
+              aws:
+                type: object
+                properties:
+                  arn:
+                    type: string
+              gcp:
+                type: object
+                properties:
+                  selfLink:
+                    type: string
+              oci:
+                type: object
+                properties:
+                  namespace:
+                    type: string
+                  retentionLockedFrom:
+                    type: string
+                    description: |-
+                      When a locked retention takes effect.
+                    format: date-time
+              azure:
+                type: object
+                properties:
+                  accountId:
+                    type: string
+                  containerId:
+                    type: string
+        required:
+        - spec

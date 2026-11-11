@@ -1,0 +1,268 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: valkeyinstances.database.entigo.com
+spec:
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: ValkeyInstance
+    plural: valkeyinstances
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the cloud block's id, and never
+                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  creation only.
+              version:
+                type: string
+                description: |-
+                  Valkey's major and minor, such as "8.1", and the floor after: raising it
+                  upgrades the cache, lowering it is rejected. With
+                  maintenance.autoMinorVersionUpgrade, the cloud can move the cache past it; the
+                  status shows the running version.
+                  Default: per deployment.
+                pattern: ^[0-9]+\.[0-9]+$
+              instanceType:
+                type: string
+                description: |-
+                  The cloud's own node type, such as cache.t4g.small.
+                  Extended: AWS, GCP. OCI sizes nodes with oci.memoryGB.
+                  Default: per deployment.
+              highAvailability:
+                type: boolean
+                description: |-
+                  A replica in another zone, with automatic failover. Needs replicas of at least
+                  1.
+                  Default: per deployment.
+              replicas:
+                type: integer
+                description: |-
+                  Read replicas besides the primary, within the cloud's own limit (rule 10).
+                  Default: per deployment.
+                minimum: 0
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              maintenance:
+                type: object
+                properties:
+                  window:
+                    type: object
+                    description: |-
+                      The weekly hour, in UTC, in which the cloud applies updates.
+                      Extended: AWS, GCP.
+                    properties:
+                      day:
+                        type: string
+                        enum:
+                        - Mon
+                        - Tue
+                        - Wed
+                        - Thu
+                        - Fri
+                        - Sat
+                        - Sun
+                      hourUTC:
+                        type: integer
+                        minimum: 0
+                        maximum: 23
+                    required:
+                    - day
+                    - hourUTC
+                  autoMinorVersionUpgrade:
+                    type: boolean
+                    description: |-
+                      Let the cloud upgrade to newer minor versions on its schedule. false keeps the
+                      cache at version.
+                      Extended for false: AWS.
+                      Default: per deployment.
+              backup:
+                type: object
+                description: |-
+                  Automated daily backups.
+                  Extended: AWS, GCP.
+                properties:
+                  retentionDays:
+                    type: integer
+                    description: |-
+                      Days automated backups are kept, within the cloud's own range (rule 10). 0 turns
+                      automated backups off.
+                      Default: per deployment.
+                    minimum: 0
+                  startHourUTC:
+                    type: integer
+                    description: |-
+                      The hour, in UTC, the daily backup starts.
+                    minimum: 0
+                    maximum: 23
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <instance>-credentials.
+              parameters:
+                type: object
+                description: |-
+                  Valkey settings, by name. Keys outside the cloud's allowlist are rejected.
+                additionalProperties:
+                  type: string
+              aws:
+                type: object
+                description: |-
+                  Settings for AWS only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The AWS ID of an existing cache to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  parameterGroupName:
+                    type: string
+                    description: |-
+                      An existing ElastiCache parameter group to use, in place of parameters.
+              gcp:
+                type: object
+                description: |-
+                  Settings for GCP only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The GCP ID of an existing cache to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+              oci:
+                type: object
+                description: |-
+                  Settings for OCI only (rule 2).
+                properties:
+                  id:
+                    type: string
+                    description: |-
+                      The OCI ID of an existing cache to observe (rule 9). Only with observe.
+                    x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: id is immutable
+                  memoryGB:
+                    type: integer
+                    description: |-
+                      Memory per node, within OCI's own range (rule 10).
+                      Default: per deployment.
+                    minimum: 1
+            x-kubernetes-validations:
+            - rule: |-
+                [(has(self.aws) && has(self.aws.id)), (has(self.gcp) && has(self.gcp.id)), (has(self.oci) && has(self.oci.id))].filter(b, b).size() <= 1
+              message: at most one cloud block may hold an id
+            - rule: |-
+                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)) || (has(self.gcp) && has(self.gcp.id)) || (has(self.oci) && has(self.oci.id)))
+              message: observe and the cloud block's id go together
+            - rule: |-
+                (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
+              message: observe is immutable
+            - rule: |-
+                !has(self.highAvailability)
+                || !self.highAvailability
+                || (has(self.replicas) && self.replicas >= 1)
+              message: highAvailability needs replicas of at least 1
+            - rule: |-
+                !has(self.version)
+                || !has(oldSelf.version)
+                || int(self.version.split('.')[0]) > int(oldSelf.version.split('.')[0])
+                || (int(self.version.split('.')[0]) == int(oldSelf.version.split('.')[0]) && int(self.version.split('.')[1]) >= int(oldSelf.version.split('.')[1]))
+              message: version cannot decrease
+            - rule: |-
+                !has(self.aws)
+                || !has(self.aws.parameterGroupName)
+                || !has(self.parameters)
+              message: aws.parameterGroupName and parameters cannot be used together
+            - rule: |-
+                !has(oldSelf.aws)
+                || !has(oldSelf.aws.parameterGroupName)
+                || !has(self.version)
+                || !has(oldSelf.version)
+                || self.version.split('.')[0] == oldSelf.version.split('.')[0]
+                || !has(self.aws)
+                || !has(self.aws.parameterGroupName)
+                || self.aws.parameterGroupName != oldSelf.aws.parameterGroupName
+              message: a major version change needs a new aws.parameterGroupName, since a parameter group
+                fits one major version
+          status:
+            type: object
+            properties:
+              version:
+                type: string
+              instanceType:
+                type: string
+              highAvailability:
+                type: boolean
+              replicas:
+                type: integer
+              endpoint:
+                type: object
+                description: |-
+                  The primary's address.
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: integer
+              readerEndpoint:
+                type: object
+                description: |-
+                  The address that spreads reads over the replicas.
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: integer
+              connectionSecret:
+                type: string
+                description: |-
+                  The Secret <instance>-credentials (rule 6).
+              finalBackup:
+                type: string
+                description: |-
+                  The ID the final backup gets when the cache is deleted. Empty where the cloud
+                  takes none.
+              aws:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  engineVersionActual:
+                    type: string
+              gcp:
+                type: object
+                properties:
+                  id:
+                    type: string
+              oci:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  state:
+                    type: string
+                  softwareVersion:
+                    type: string
+        required:
+        - spec
