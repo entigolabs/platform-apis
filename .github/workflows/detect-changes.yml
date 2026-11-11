@@ -115,12 +115,14 @@ jobs:
               - 'helm/templates/postgresql.yaml'
               - 'helm/templates/database.yaml'
               - 'test/tests/helm/platform-apis-test-postgresql/**'
+              - 'test/tests/k8s_postgresql_test.go'
             rabbitmq:
               - 'compositions/rabbitmq/**'
               - 'functions/mq/**'
               - 'helm/templates/rabbitmq.yaml'
               - 'helm/templates/mq.yaml'
               - 'test/tests/helm/platform-apis-test-rabbitmq/**'
+              - 'test/tests/k8s_rabbitmq_test.go'
             repository:
               - 'compositions/repository/**'
               - 'functions/artifact/**'
@@ -144,6 +146,7 @@ jobs:
               - 'helm/templates/mariadb.yaml'
               - 'helm/templates/database.yaml'
               - 'test/tests/helm/platform-apis-test-mariadb/**'
+              - 'test/tests/k8s_mariadb_test.go'
             webaccess:
               - 'compositions/webaccess/**'
               - 'functions/networking/**'
