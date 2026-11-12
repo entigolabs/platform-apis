@@ -4,10 +4,8 @@ The rules every data service API follows, and the alternatives weighed against t
 
 ## Rules
 
-These rules apply to every data service API, and each service's page shows how it applies them.
-The draft schemas are in [schemas/](schemas/). They are written by
-[schemas/generate.py](schemas/generate.py) and tested by
-[schemas/test_rules.py](schemas/test_rules.py).
+These rules apply to every data service API, and each service's page shows how it applies them. The
+draft schemas are in [schemas/](schemas/).
 
 #### 1 Common Fields
 
