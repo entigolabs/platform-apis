@@ -21,10 +21,3 @@ allow a team to narrow it, at the cost of a second list to manage.
 MSK Serverless has a different capacity model (throughput limits, no brokers), IAM login only and no
 Kafka ACLs, so no `KafkaUser` can work on it. Observing one is possible; creating one is not
 designed.
-
-#### 4 Separate grant objects
-
-A grant object per permission (`KafkaGrant`, `MariaDBGrant`, `RabbitMQGrant`) would let access be
-added or removed without editing the user, and let the owner of a topic, database or virtual host
-grant access to another team's user within the Zone (rule 11). Each would hold one entry of
-today's permission list and a `userRef`, mapping one to one onto the engine's own grant entry.
