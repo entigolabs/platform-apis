@@ -183,10 +183,13 @@ within the team's boundary, which the Zone already defines.
 
 #### 12 A user object holds its own permissions
 
-`KafkaUser` holds its ACLs, `MariaDBUser` its privileges and `RabbitMQUser` its permissions per
-virtual host, so a user's access is read from one object. A set of permissions shared by several
-users exists only where the engine has one, as roles: a `PostgreSQLUser` with `login: false` is a
-role, and `grant.roles` grants it. The platform adds no permission mechanism that no engine has.
+A user is one application's identity on one instance of the engine: its login, its Secret and its
+permissions there. It is not shared between applications or instances; access for people is not
+covered by these kinds. `KafkaUser` holds its ACLs, `MariaDBUser` its privileges and `RabbitMQUser`
+its permissions per virtual host, so a user's access is read from one object. A set of permissions
+shared by several users exists only where the engine has one, as roles: a `PostgreSQLUser` with
+`login: false` is a role, and `grant.roles` grants it. The platform adds no permission mechanism
+that no engine has.
 
 ## Alternatives Considered
 
