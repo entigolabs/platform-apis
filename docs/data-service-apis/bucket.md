@@ -61,7 +61,7 @@ cloud has.
 Today's `S3Bucket` also creates an IAM role, a service account annotated with it, and an IAM user
 with an access key. Those are identities of the applications that use the bucket, not part of the
 bucket, so they leave `Bucket`; an application's own identity is granted access to the buckets it
-names (Follow-Up Work 3, Application identity, in [follow-up-work.md](follow-up-work.md)).
+names (Follow-Up Work 3, Cloud identity for applications, in [follow-up-work.md](follow-up-work.md)).
 
 ## Mapping
 

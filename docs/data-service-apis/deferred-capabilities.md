@@ -16,7 +16,7 @@ can create it. The design sets it to the platform's whole allowlist on every Azu
 databases behave as on the other clouds ([postgresql.md](postgresql.md)); a per-instance list would
 allow a team to narrow it, at the cost of a second list to manage.
 
-#### 3 MSK Serverless
+#### 3 MSK Serverless support
 
 MSK Serverless has a different capacity model (throughput limits, no brokers), IAM login only and no
 Kafka ACLs, so no `KafkaUser` can work on it. Observing one is possible; creating one is not

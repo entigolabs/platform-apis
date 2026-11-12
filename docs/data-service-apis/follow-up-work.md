@@ -2,7 +2,7 @@
 
 Work outside the design that it depends on or leads to.
 
-#### 1 Per-cloud implementation
+#### 1 Implementation on each cloud
 
 The implementation of the design on each cloud. Known so far:
 
@@ -34,7 +34,7 @@ The path from today's kinds to the design. Known so far:
   topics without ACLs, such as FleetComplete's, lose access at the switch, which is therefore agreed
   with that team first.
 
-#### 3 Application identity
+#### 3 Cloud identity for applications
 
 An application's cloud identity, through which applications gain access to buckets, artifact
 repositories and other cloud services. The identity belongs to the application, not to the
@@ -52,7 +52,7 @@ resource it uses. Known so far:
   OCIR accepts a user's auth token or an instance principal through Oracle's
   docker-credential-ocir.
 
-#### 4 Zone allow list for Argo CD
+#### 4 Allow list of kinds in Zone Argo CD projects
 
 A Zone's AppProject blocks `*.m.upbound.io` but allows every other namespaced kind, so a namespaced
 provider outside it, such as provider-sql or provider-kubernetes, can be synced past the platform's

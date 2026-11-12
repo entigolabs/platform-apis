@@ -185,7 +185,7 @@ within the team's boundary, which the Zone already defines.
 
 Designs that were weighed and rejected, each with the reason.
 
-#### 1 Every field required
+#### 1 Users write every field
 
 The user writes every field, including each cloud's `instanceType`.
 
