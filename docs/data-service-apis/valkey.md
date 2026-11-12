@@ -15,6 +15,7 @@ and a 25 GB limit without clustering.
 - [Platform Decisions](#platform-decisions)
 - [Connection Secret](#connection-secret)
 - [Status](#status)
+- [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
@@ -133,6 +134,17 @@ status:
     state: ACTIVE
     softwareVersion: VALKEY_8_1
 ```
+
+## Ignored Settings
+
+Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
+means there.
+
+| Setting                                      | Ignored On | Effect                                                  |
+| -------------------------------------------- | ---------- | ------------------------------------------------------- |
+| `maintenance.window`                         | OCI        | OCI patches on its own schedule.                        |
+| `maintenance.autoMinorVersionUpgrade: false` | GCP, OCI   | New minor versions are applied on the cloud's schedule. |
+| `backup`                                     | OCI        | The cache has no automated backups.                     |
 
 ## Cloud Limits
 

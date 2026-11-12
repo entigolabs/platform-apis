@@ -18,6 +18,7 @@ the Kafka admin API and no broker settings.
 - [KafkaUser](#kafkauser)
 - [KafkaTopic](#kafkatopic)
 - [Platform Decisions](#platform-decisions)
+- [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
@@ -166,6 +167,16 @@ has no customer key), the admin login provider-kafka uses (IAM on AWS, the super
 on OCI), and deny by default: a topic or group is reachable only by users with an ACL on it and by
 the admin. MSK and OCI set `allow.everyone.if.no.acl.found=false` in the cluster configuration, with
 the admin as a superuser; GCP needs explicit ALLOW ACLs for the admin on every resource.
+
+## Ignored Settings
+
+Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
+means there.
+
+| Setting                   | Ignored On | Effect                                |
+| ------------------------- | ---------- | ------------------------------------- |
+| `brokers`                 | GCP        | GCP chooses the broker count.         |
+| `highAvailability: false` | AWS, GCP   | The cluster runs across zones anyway. |
 
 ## Cloud Limits
 

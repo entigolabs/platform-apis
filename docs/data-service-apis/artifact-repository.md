@@ -16,6 +16,7 @@ their own. The API's unit is the image path, because that is what an application
 - [Mapping](#mapping)
 - [Platform Decisions](#platform-decisions)
 - [Status](#status)
+- [Ignored Settings](#ignored-settings)
 - [Notes](#notes)
 
 ## Spec
@@ -115,6 +116,17 @@ status:
   azure:
     registryId: ...
 ```
+
+## Ignored Settings
+
+Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
+means there.
+
+| Setting                                                       | Ignored On | Effect                                                       |
+| ------------------------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| `immutableTags`                                               | Azure      | Tags can be overwritten.                                     |
+| `lifecycleRules`                                              | OCI, Azure | Old images are not cleaned up.                               |
+| A rule with `tagPatterns`, or with `keepCount` and a selector | GCP        | The whole rule is skipped, so the images it covers are kept. |
 
 ## Notes
 

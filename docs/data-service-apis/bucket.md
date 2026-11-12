@@ -12,6 +12,7 @@ decided by the user's own identity, not by the bucket.
 - [Mapping](#mapping)
 - [Platform Decisions](#platform-decisions)
 - [Status](#status)
+- [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
@@ -124,6 +125,15 @@ status:
     accountId: ...
     containerId: ...
 ```
+
+## Ignored Settings
+
+Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
+means there.
+
+| Setting | Ignored On | Effect                                                                             |
+| ------- | ---------- | ---------------------------------------------------------------------------------- |
+| `cors`  | OCI        | Browsers may call the bucket from every origin; requests still need authorization. |
 
 ## Cloud Limits
 

@@ -14,6 +14,7 @@ Schemas: [postgresqlinstance.yaml](schemas/postgresqlinstance.yaml),
 - [Platform Decisions](#platform-decisions)
 - [Status](#status)
 - [Users and Databases](#users-and-databases)
+- [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Alternatives Considered](#alternatives-considered)
 
@@ -249,6 +250,22 @@ spec:
       schema: gis
   deletionProtection: true
 ```
+
+## Ignored Settings
+
+Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
+means there.
+
+| Setting                                                        | Ignored On                        | Effect                                                                    |
+| -------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------- |
+| `storage.autoGrow: false`                                      | OCI                               | The storage keeps growing.                                                |
+| `storage.maxSizeGB`                                            | OCI, Azure                        | Growth has no ceiling.                                                    |
+| `storage.iops`                                                 | Azure; GCP without Hyperdisk      | The disk keeps its default IOPS; on Azure, `azure.storageTier` sets them. |
+| `storage.throughputMBps`                                       | OCI, Azure; GCP without Hyperdisk | The disk keeps its default throughput.                                    |
+| `maintenance.autoMinorVersionUpgrade: false`, a full `version` | GCP, OCI, Azure                   | New minor versions are applied in the maintenance window.                 |
+| `backup.retentionDays: 0`                                      | Azure                             | Automated backups stay on.                                                |
+| `backup.startHourUTC`                                          | Azure                             | Azure picks the backup hour.                                              |
+| `parameterApplyMethod: NextRestart`                            | GCP, OCI, Azure                   | A setting change that needs a restart restarts the instance at once.      |
 
 ## Cloud Limits
 
