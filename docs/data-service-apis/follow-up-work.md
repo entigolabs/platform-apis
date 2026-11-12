@@ -22,16 +22,11 @@ The implementation of the design on each cloud. Known so far:
 
 #### 2 Migration from current APIs
 
-The path from today's kinds to the design. Known so far:
+The path from today's kinds to the design, whose differences are listed in
+[changes.md](changes.md). Known so far for the migration itself:
 
-- `MariaDBUser`'s `databaseRef`, `table` and `privileges` move into one entry of its `databases`
-  list.
-- The renamed kinds need new XRDs. `MSK` is cluster-scoped today, while `KafkaCluster` is
-  namespaced and shared within its Zone (rule 11).
-- Some secrets change form: Valkey's `AUTH_TOKEN`, `PORT` and `credentials.json` keys; the bucket's
-  `AWS_*` and `credentials.json` keys, which leave `Bucket` together with its access (see
-  [bucket.md](bucket.md)); and the Kafka user secret's name (`<cluster>-<user>-k8s`) and single
-  JSON value.
+- The renamed and changed kinds need new XRDs. `MSK` is cluster-scoped today, while `KafkaCluster`
+  is namespaced and shared within its Zone (rule 11).
 - Kafka clusters switch to deny by default. Today's clusters are open, so applications that use
   topics without ACLs, such as FleetComplete's, lose access at the switch, which is therefore agreed
   with that team first.
