@@ -270,7 +270,7 @@ validating them be decided later.
 
 Designs that were weighed and rejected, each with the reason.
 
-#### 1 Catalog of Fixed OCI Shapes
+#### 1 Catalog of fixed OCI shapes
 
 Allow only OCI's fixed shapes, so `oci.instanceType` is one name, as on the other
 clouds.

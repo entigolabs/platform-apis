@@ -7,7 +7,7 @@ The rules every data service API follows, and the alternatives weighed against t
 These rules apply to every data service API, and each service's page shows how it applies them. The
 draft schemas are in [schemas/](schemas/).
 
-#### 1 Common Fields
+#### 1 Common fields
 
 A manifest applies unchanged on every cloud where its kind exists. With Core fields and cloud blocks
 only, it also works on every cloud; an Extended field works where the cloud supports it and reports
@@ -38,7 +38,7 @@ support.
 In a schema, a field's description ends with `Extended` and the clouds that support it. A field
 without that mark is Core.
 
-#### 2 Cloud-Specific Settings
+#### 2 Cloud-specific settings
 
 A setting that exists on only one cloud goes into a block named after that cloud: `spec.aws`,
 `spec.gcp`, `spec.oci` or `spec.azure`. For example, the name of an existing RDS parameter group
@@ -50,7 +50,7 @@ observing (rule 9), since a resource exists on one cloud.
 Everything that is neither a common field nor in a cloud's block, such as network placement and
 encryption keys, is decided by the platform.
 
-#### 3 Adding a Cloud
+#### 3 Adding a cloud
 
 When a cloud's implementation is added, the schema gains that cloud's blocks, `spec.<cloud>` and
 `status.<cloud>`. The common fields never change for a new cloud, so nothing a user wrote before
@@ -90,7 +90,7 @@ portal and from Argo CD. Observed resources (rule 9) receive no defaults.
 Deletion protection works as today: a `ValidatingAdmissionPolicy` refuses to delete an object
 whose `deletionProtection` is true.
 
-#### 6 Connection Secret
+#### 6 Connection secret
 
 Each credential is one Kubernetes Secret in the object's namespace, with the same keys on every
 cloud: `endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint` already
@@ -105,7 +105,7 @@ or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second 
 object holds the name, and `secretName` resolves it. It also allows a team to use a name its
 application already expects.
 
-#### 7 Services Missing on a Cloud
+#### 7 Services missing on a cloud
 
 An API is installed on a cloud only if that cloud has a managed service running the same engine,
 and its Crossplane provider can create it. On other clouds the kind does not exist, and the portal
@@ -120,13 +120,13 @@ does not show the service. A different engine is never substituted: MySQL is not
 
 PostgreSQL, buckets and artifact repositories exist on every cloud.
 
-#### 8 Kind Names
+#### 8 Kind names
 
 A kind is named after the engine or the concept, never after a cloud product. Four kinds are
 renamed: `S3Bucket` becomes `Bucket`, `MSK` becomes `KafkaCluster`, `Repository` becomes
 `ArtifactRepository`, and `Topic` becomes `KafkaTopic`.
 
-#### 9 Creating or Observing
+#### 9 Creating or observing
 
 A kind that represents a cloud resource, such as a database instance or a bucket, either creates
 that resource or observes one that already exists. To observe, the user sets `observe: true` and
@@ -185,7 +185,7 @@ within the team's boundary, which the Zone already defines.
 
 Designs that were weighed and rejected, each with the reason.
 
-#### 1 Every Field Required
+#### 1 Every field required
 
 The user writes every field, including each cloud's `instanceType`.
 
@@ -193,7 +193,7 @@ The user writes every field, including each cloud's `instanceType`.
 knowledge infralib exists to abstract. Deployment defaults keep the same schema and allow a user to
 write only what they care about.
 
-#### 2 Platform-Picked Sizes
+#### 2 Platform-picked sizes
 
 The user states CPU and memory, or a named size, and the platform selects the nearest
 cloud size.

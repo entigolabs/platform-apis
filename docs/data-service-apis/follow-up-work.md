@@ -2,7 +2,7 @@
 
 Work outside the design that it depends on or leads to.
 
-#### 1 Per-Cloud Implementation
+#### 1 Per-cloud implementation
 
 The implementation of the design on each cloud. Known so far:
 
@@ -20,7 +20,7 @@ The implementation of the design on each cloud. Known so far:
   `RabbitMQVirtualHost` need. The Terraform `rabbitmq` provider covers users, virtual hosts and
   permissions and could be wrapped with upjet.
 
-#### 2 Migration from Current APIs
+#### 2 Migration from current APIs
 
 The path from today's kinds to the design. Known so far:
 
@@ -34,7 +34,7 @@ The path from today's kinds to the design. Known so far:
   topics without ACLs, such as FleetComplete's, lose access at the switch, which is therefore agreed
   with that team first.
 
-#### 3 Application Identity
+#### 3 Application identity
 
 An application's cloud identity, through which applications gain access to buckets, artifact
 repositories and other cloud services. The identity belongs to the application, not to the
@@ -52,14 +52,14 @@ resource it uses. Known so far:
   OCIR accepts a user's auth token or an instance principal through Oracle's
   docker-credential-ocir.
 
-#### 4 Zone Allow List for Argo CD
+#### 4 Zone allow list for Argo CD
 
 A Zone's AppProject blocks `*.m.upbound.io` but allows every other namespaced kind, so a namespaced
 provider outside it, such as provider-sql or provider-kubernetes, can be synced past the platform's
 functions. Its `namespaceResourceWhitelist` should list the groups the Zone's role allows, so a
 provider installed later is blocked by default.
 
-#### 5 Cloud Rejections in Argo CD Health
+#### 5 Cloud rejections in Argo CD health
 
 Argo CD's health check for `*.entigo.com` kinds
 ([`modules/k8s/argocd/values.yaml`](https://github.com/entigolabs/entigo-infralib/blob/main/modules/k8s/argocd/values.yaml)
