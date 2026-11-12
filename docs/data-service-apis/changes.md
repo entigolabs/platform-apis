@@ -64,6 +64,54 @@ fields are reported as the cloud runs them.
 `PostgreSQLUser` and `PostgreSQLDatabase` keep their fields; `name` and `instanceRef` become
 immutable.
 
+An example, today and in the design:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: orders-db
+spec:
+  engineVersion: "17"
+  instanceType: db.t4g.small
+  allocatedStorage: 20
+  multiAZ: false
+  deletionProtection: true
+  maintenanceWindow: "Sun:03:00-Sun:03:30"
+  backupRetentionPeriod: 7
+  backupWindow: "02:00-02:30"
+  parameterGroupParameters:
+    max_connections: "200"
+    applyMethod: pending-reboot
+```
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLInstance
+metadata:
+  name: orders-db
+spec:
+  version: "17"                        # was engineVersion
+  storage:
+    sizeGB: 20                         # was allocatedStorage
+  highAvailability: false              # was multiAZ
+  deletionProtection: true
+  maintenance:
+    window:                            # was maintenanceWindow
+      day: Sun
+      hourUTC: 3
+  backup:
+    retentionDays: 7                   # was backupRetentionPeriod
+    startHourUTC: 2                    # was backupWindow
+  parameters:                          # was parameterGroupParameters
+    max_connections: "200"
+  parameterApplyMethod: NextRestart    # was applyMethod: pending-reboot
+  aws:
+    instanceType: db.t4g.small         # was instanceType
+```
+
 ## MariaDB
 
 `MariaDBInstance` changes as `PostgreSQLInstance` does, on AWS only, without
@@ -78,6 +126,41 @@ immutable.
 | user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit | Today's defaults are too low for a production application |
 
 `MariaDBDatabase` keeps its fields.
+
+An example, today and in the design:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha1
+kind: MariaDBUser
+metadata:
+  name: orders-app
+spec:
+  instanceRef:
+    name: orders-db
+  databaseRef:
+    name: orders
+  privileges:
+  - SELECT
+  - INSERT
+```
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBUser
+metadata:
+  name: orders-app
+spec:
+  instanceRef:
+    name: orders-db
+  databases:                           # was databaseRef and privileges
+  - databaseRef:
+      name: orders
+    privileges:
+    - SELECT
+    - INSERT
+```
 
 ## Valkey
 
@@ -102,6 +185,44 @@ In the status, `endpoint.address` becomes `endpoint.host`, `multiAZenabled` beco
 
 The secret's `AUTH_TOKEN`, `PORT` and `credentials.json` keys become `endpoint`, `port`,
 `username`, `password` and `readerEndpoint` (rule 6).
+
+An example, today and in the design:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha1
+kind: ValkeyInstance
+metadata:
+  name: orders-cache
+spec:
+  engineVersion: "8.1"
+  instanceType: cache.t4g.small
+  numCacheClusters: 2
+  maintenanceWindow: "sun:05:00-sun:06:00"
+  snapshotRetentionLimit: 7
+  snapshotWindow: "03:00-05:00"
+```
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyInstance
+metadata:
+  name: orders-cache
+spec:
+  version: "8.1"                       # was engineVersion
+  replicas: 1                          # was numCacheClusters: 2
+  highAvailability: true               # new
+  maintenance:
+    window:                            # was maintenanceWindow
+      day: Sun
+      hourUTC: 5
+  backup:
+    retentionDays: 7                   # was snapshotRetentionLimit
+    startHourUTC: 3                    # was snapshotWindow
+  aws:
+    instanceType: cache.t4g.small      # was instanceType
+```
 
 ## Kafka
 
@@ -128,6 +249,55 @@ The user secret `<cluster>-<user>-k8s`, with one JSON value, becomes `<cluster>-
 keys `endpoint`, `username`, `password` and `saslMechanism`. Clusters deny access to topics
 without ACLs, where today they allow everyone.
 
+An example, today and in the design:
+
+```yaml
+---
+apiVersion: queue.entigo.com/v1alpha1
+kind: MSK
+metadata:
+  name: events
+spec:
+  clusterARN: arn:aws:kafka:...
+---
+apiVersion: queue.entigo.com/v1alpha1
+kind: Topic
+metadata:
+  name: orders
+  namespace: shop
+spec:
+  clusterName: events
+  partitions: 3
+  config:
+    retention.ms: "604800000"
+```
+
+```yaml
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaCluster                     # was MSK
+metadata:
+  name: events
+  namespace: platform                  # new: namespaced
+spec:
+  observe: true                        # new
+  aws:
+    id: arn:aws:kafka:...              # was clusterARN
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaTopic                       # was Topic
+metadata:
+  name: orders
+  namespace: shop
+spec:
+  clusterRef:                          # was clusterName
+    name: events
+    namespace: platform
+  partitions: 3
+  parameters:                          # was config
+    retention.ms: "604800000"
+```
+
 ## RabbitMQ
 
 `RabbitMQBroker` changes as follows, and `RabbitMQUser` and `RabbitMQVirtualHost` are new.
@@ -148,6 +318,51 @@ In the status, today's Amazon MQ fields are replaced by `endpoint`, `managementE
 secrets `<broker>-credentials` (`username`, `password`) and `<broker>-connection` become one,
 `<broker>-credentials`, with `endpoint`, `port`, `username`, `password` and `managementEndpoint`.
 
+An example, today and in the design:
+
+```yaml
+---
+apiVersion: mq.entigo.com/v1alpha1
+kind: RabbitMQBroker
+metadata:
+  name: orders-mq
+spec:
+  brokerName: orders-mq
+  engineType: RabbitMQ
+  engineVersion: "4.2"
+  instanceType: mq.m7g.medium
+  deploymentMode: SINGLE_INSTANCE
+  autoMinorVersionUpgrade: true
+  maintenanceWindowStartTime:
+    dayOfWeek: SUNDAY
+    timeOfDay: "03:00"
+    timeZone: UTC
+  configuration:
+    data: consumer_timeout = 1800000
+  publiclyAccessible: false
+```
+
+```yaml
+---
+apiVersion: mq.entigo.com/v1alpha2
+kind: RabbitMQBroker
+metadata:
+  name: orders-mq
+spec:
+  version: "4.2"                       # was engineVersion
+  highAvailability: false              # was deploymentMode
+  maintenance:
+    window:                            # was maintenanceWindowStartTime
+      day: Sun
+      hourUTC: 3
+  parameters:                          # was configuration.data
+    consumer_timeout: "1800000"
+  aws:
+    instanceType: mq.m7g.medium        # was instanceType
+    publiclyAccessible: false          # was publiclyAccessible
+# removed: brokerName, engineType, autoMinorVersionUpgrade
+```
+
 ## Bucket
 
 | Today                                        | Design                                                                                                    | Reason                                                                 |
@@ -162,6 +377,32 @@ longer created, and the secret with its `AWS_*` and `credentials.json` keys is r
 holds no credentials. In the status, `s3Url` and `s3Uri` become `url`, with `bucketName` and
 `region`; the encryption, public access and ACL fields are removed.
 
+An example, today and in the design:
+
+```yaml
+---
+apiVersion: storage.entigo.com/v1alpha1
+kind: S3Bucket
+metadata:
+  name: orders-files
+spec:
+  enableVersioning: true
+  createServiceAccount: true
+  serviceAccountName: orders-app
+```
+
+```yaml
+---
+apiVersion: storage.entigo.com/v1alpha2
+kind: Bucket                           # was S3Bucket
+metadata:
+  name: orders-files
+spec:
+  versioning: true                     # was enableVersioning
+  deletionProtection: true             # new
+# removed: createServiceAccount, serviceAccountName
+```
+
 ## ArtifactRepository
 
 | Today                  | Design                                                  | Reason                                                       |
@@ -173,3 +414,28 @@ holds no credentials. In the status, `s3Url` and `s3Uri` become `url`, with `buc
 
 `lifecycleRules` keeps its fields and now defaults per deployment, replacing today's
 deployment-wide rules.
+
+An example, today and in the design:
+
+```yaml
+---
+apiVersion: artifact.entigo.com/v1alpha1
+kind: Repository
+metadata:
+  name: orders-api
+  namespace: shop
+spec:
+  path: backend
+```
+
+```yaml
+---
+apiVersion: artifact.entigo.com/v1alpha2
+kind: ArtifactRepository               # was Repository
+metadata:
+  name: orders-api
+  namespace: shop
+spec:
+  path: backend                        # now under the namespace: shop/backend/orders-api
+  immutableTags: true                  # new
+```
