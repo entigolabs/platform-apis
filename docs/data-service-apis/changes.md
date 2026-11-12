@@ -1,4 +1,4 @@
-# Changes from Current APIs
+# API Changes
 
 Every change from the data service APIs on `main` of
 [`platform-apis`](https://github.com/entigolabs/platform-apis) to this design, per kind. A field

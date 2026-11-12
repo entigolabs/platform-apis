@@ -33,7 +33,7 @@ What each page of the design holds.
 - [Design Rules](rules.md): the rules every data service API follows, and the alternatives weighed
   against them.
 - [Open Points](open-points.md): questions still to decide.
-- [Changes from Current APIs](changes.md): every change from today's APIs to the design, per
+- [API Changes](changes.md): every change from today's APIs to the design, per
   kind.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
 - [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
