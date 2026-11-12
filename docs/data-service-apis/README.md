@@ -28,16 +28,16 @@ settings of one cloud (`oci/ocpus`), and one implementation per cloud in
 
 ## Pages
 
-What each page of the design holds.
+What each page of the design holds, in the order of the menu.
 
 - [Design Rules](rules.md): the rules every data service API follows, and the alternatives weighed
   against them.
-- [Open Points](open-points.md): questions still to decide.
-- [API Changes](changes.md): every change from today's APIs to the design, per
-  kind.
-- [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
-- [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
 - One page per service, showing how it applies the rules: [PostgreSQL](postgresql.md),
   [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md), [RabbitMQ](rabbitmq.md),
   [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md).
 - [Schemas](schemas/): the draft schema of every kind.
+- [API Changes](changes.md): every change from today's APIs to the design, per kind.
+- [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
+- [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
+- [Open Points](open-points.md): questions still to decide, listed in the menu only while one is
+  open.
