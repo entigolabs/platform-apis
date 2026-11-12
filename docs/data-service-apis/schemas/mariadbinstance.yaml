@@ -40,9 +40,8 @@ spec:
                     type: integer
                     description: |-
                       Disk size in GB at creation, and its floor after: raising it grows the disk,
-                      lowering it is rejected. The disk can end up larger: it is rounded up to a size
-                      the cloud accepts, and autoGrow can take it further. The status shows the real
-                      size.
+                      lowering it is rejected. The disk can be larger: it is rounded up to a size the
+                      cloud accepts, and autoGrow can take it further. The status shows the real size.
                       Default: per deployment.
                     minimum: 1
                     x-kubernetes-validations:
@@ -155,7 +154,7 @@ spec:
               restore:
                 type: object
                 description: |-
-                  Create the instance from another instance or from a backup. Create time only.
+                  Create the instance from another instance's backups. Create time only.
                 properties:
                   fromInstance:
                     type: string
@@ -166,15 +165,8 @@ spec:
                     description: |-
                       The time to restore fromInstance to. Unset, the latest restorable time.
                     format: date-time
-                  fromBackup:
-                    type: string
-                    description: |-
-                      The ID of an RDS snapshot to create the instance from.
-                x-kubernetes-validations:
-                - rule: has(self.fromInstance) != has(self.fromBackup)
-                  message: exactly one of fromInstance and fromBackup
-                - rule: "!has(self.pointInTime) || has(self.fromInstance)"
-                  message: pointInTime needs fromInstance
+                required:
+                - fromInstance
               secretName:
                 type: string
                 description: |-
@@ -203,6 +195,11 @@ spec:
                     type: string
                     description: |-
                       An existing RDS parameter group to use, in place of parameters.
+                  fromBackup:
+                    type: string
+                    description: |-
+                      An RDS snapshot ID to create the instance from. Create time only; not with
+                      restore.
             x-kubernetes-validations:
             - rule: |-
                 (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)))
@@ -219,6 +216,11 @@ spec:
                 || (self.version.split('.')[0] + '.' + self.version.split('.')[1]) == (oldSelf.version.split('.')[0] + '.' + oldSelf.version.split('.')[1])
                 || (has(self.maintenance) && has(self.maintenance.allowMajorVersionUpgrade) && self.maintenance.allowMajorVersionUpgrade)
               message: a major version change needs maintenance.allowMajorVersionUpgrade
+            - rule: |-
+                (has(self.aws) && has(self.aws.fromBackup)) == (has(oldSelf.aws) && has(oldSelf.aws.fromBackup)) && (!(has(self.aws) && has(self.aws.fromBackup)) || self.aws.fromBackup == oldSelf.aws.fromBackup)
+              message: aws.fromBackup is set at creation only
+            - rule: "!(has(self.aws) && has(self.aws.fromBackup)) || !has(self.restore)"
+              message: aws.fromBackup cannot be combined with restore
             - rule: |-
                 !has(self.aws)
                 || !has(self.aws.parameterGroupName)
@@ -293,16 +295,16 @@ spec:
                 type: string
                 description: |-
                   The admin Secret, <instance>-dbadmin (rule 6).
-              finalBackup:
-                type: string
-                description: |-
-                  The ID the final backup receives when the instance is deleted, for
-                  restore.fromBackup. Empty where the cloud does not tell it in advance.
               aws:
                 type: object
                 properties:
                   instanceType:
                     type: string
+                  finalBackup:
+                    type: string
+                    description: |-
+                      The ID the final snapshot receives when the instance is deleted, for
+                      aws.fromBackup.
                   identifier:
                     type: string
                   resourceId:

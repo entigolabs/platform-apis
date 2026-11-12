@@ -197,34 +197,38 @@ def size_field(floor):
     if not floor:
         return field("integer", "Disk size in GB at creation.", default=DEPLOY, minimum=1)
     return field("integer", "Disk size in GB at creation, and its floor after: raising it grows "
-                 "the disk, lowering it is rejected. The disk can end up larger: it is rounded up to a "
+                 "the disk, lowering it is rejected. The disk can be larger: it is rounded up to a "
                  "size the cloud accepts, and autoGrow can take it further. The status shows the "
                  "real size.",
                  default=DEPLOY, minimum=1, **{"x-kubernetes-validations": [
                      {"rule": "self >= oldSelf", "message": "storage.sizeGB cannot decrease"}]})
 
 
-def restore_block(kind, from_backup, sc):
-    props = {
+def restore_block(kind):
+    return obj({
         "fromInstance": field("string", f"A {kind} in this namespace."),
         "pointInTime": field("string", "The time to restore fromInstance to. Unset, the latest "
                              "restorable time.", format="date-time"),
-    }
-    if not from_backup:
-        return obj(props, "Create the instance from another instance's backups. Create time "
-                   "only.", required=["fromInstance"])
-    props["fromBackup"] = field(
-        "string", "The ID of an RDS snapshot to create the instance from.") if sc else field(
-        "string", "The cloud's ID of a backup to create the instance from: an RDS snapshot "
-        "on AWS, <instance>/<backup run ID> on GCP, a DB system backup OCID on OCI.",
-        "Extended: AWS, GCP, OCI.", None, sc)
-    return obj(props, "Create the instance from another instance or from a backup. Create "
-               "time only.", rules=[
-                   ("has(self.fromInstance) != has(self.fromBackup)",
-                    "exactly one of fromInstance and fromBackup"),
-                   ("!has(self.pointInTime) || has(self.fromInstance)",
-                    "pointInTime needs fromInstance"),
-               ])
+    }, "Create the instance from another instance's backups. Create time only.",
+        required=["fromInstance"])
+
+
+def from_backup_field(text):
+    return field("string", text + " Create time only; not with restore.")
+
+
+def from_backup_rules(clouds):
+    """fromBackup lives in the cloud blocks (rule 2): set at creation only, never with restore."""
+    rules = []
+    for c in clouds:
+        has = f"(has(self.{c}) && has(self.{c}.fromBackup))"
+        had = f"(has(oldSelf.{c}) && has(oldSelf.{c}.fromBackup))"
+        rules.append((f"{has} == {had} && (!{has} || "
+                      f"self.{c}.fromBackup == oldSelf.{c}.fromBackup)",
+                      f"{c}.fromBackup is set at creation only"))
+        rules.append((f"!{has} || !has(self.restore)",
+                      f"{c}.fromBackup cannot be combined with restore"))
+    return rules
 
 
 def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc, extra_rules=(),
@@ -284,7 +288,7 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
             "where a setting needs it; RDS rejects such settings with Immediate.",
             "Extended for NextRestart: AWS.", "fixed, Immediate", sc,
             enum=["Immediate", "NextRestart"])} if from_backup else {}),
-        "restore": restore_block(kind, from_backup, sc),
+        "restore": restore_block(kind),
         "secretName": secret_name("<instance>-dbadmin"),
     }
     rules = [
@@ -311,9 +315,6 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
                        "startHourUTC": field("integer")}),
         "endpoint": endpoint(),
         "connectionSecret": field("string", f"The admin Secret, <instance>-dbadmin (rule 6)."),
-        **({"finalBackup": field("string", "The ID the final backup receives when the instance is "
-                                 "deleted, for restore.fromBackup. Empty where the cloud does "
-                                 "not tell it in advance.")} if from_backup else {}),
         **STATUS_BLOCKS[kind],
     })
     return xrd(kind, plural, "database.entigo.com", spec, status)
@@ -322,7 +323,10 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
 S = lambda: field("string")
 STATUS_BLOCKS = {
     "PostgreSQLInstance": {
-        "aws": obj({"instanceType": S(), "identifier": S(), "resourceId": S(),
+        "aws": obj({"instanceType": S(), "finalBackup": field(
+                        "string", "The ID the final snapshot receives when the instance is "
+                        "deleted, for aws.fromBackup."),
+                    "identifier": S(), "resourceId": S(),
                     "engineVersionActual": S(),
                     "latestRestorableTime": field("string", format="date-time"),
                     "status": S()}),
@@ -333,7 +337,10 @@ STATUS_BLOCKS = {
         "azure": obj({"instanceType": S(), "id": S()}),
     },
     "MariaDBInstance": {
-        "aws": obj({"instanceType": S(), "identifier": S(), "resourceId": S(),
+        "aws": obj({"instanceType": S(), "finalBackup": field(
+                        "string", "The ID the final snapshot receives when the instance is "
+                        "deleted, for aws.fromBackup."),
+                    "identifier": S(), "resourceId": S(),
                     "engineVersionActual": S(),
                     "latestRestorableTime": field("string", format="date-time"),
                     "status": S()}),
@@ -350,6 +357,7 @@ write("postgresqlinstance", db_instance(
                                   default=DEPLOY),
             "parameterGroupName": field("string", "An existing RDS parameter group to use, in "
                                         "place of parameters."),
+            "fromBackup": from_backup_field("An RDS snapshot ID to create the instance from."),
         },
         "gcp": {
             "instanceType": field("string", "The Cloud SQL machine tier, such as "
@@ -359,6 +367,8 @@ write("postgresqlinstance", db_instance(
                              default=DEPLOY),
             "diskType": field("string", "Cloud SQL disk type, such as PD_SSD.",
                               default=DEPLOY),
+            "fromBackup": from_backup_field("A Cloud SQL backup to create the instance from, as "
+                                            "<instance>/<backup run ID>."),
         },
         "oci": {
             "instanceType": field("string", "The DB system shape. A .Flex shape needs "
@@ -367,6 +377,8 @@ write("postgresqlinstance", db_instance(
                            minimum=1),
             "memoryGB": field("integer", "Required with a .Flex shape.", default=DEPLOY,
                               minimum=1),
+            "fromBackup": from_backup_field("A DB system backup OCID to create the instance "
+                                            "from."),
         },
         "azure": {
             "instanceType": field("string", "The flexible server SKU, such as "
@@ -374,7 +386,7 @@ write("postgresqlinstance", db_instance(
             "storageTier": field("string", "The disk tier, such as P10, which sets its IOPS.",
                                  default=DEPLOY),
         },
-    }, sc=False, extra_rules=[
+    }, sc=False, extra_rules=from_backup_rules(["aws", "gcp", "oci"]) + [
         ("!has(self.aws) || !has(self.aws.parameterGroupName) || !has(self.parameters)",
          "aws.parameterGroupName and parameters cannot be used together"),
         ("!has(oldSelf.aws) || !has(oldSelf.aws.parameterGroupName) || !has(self.version) || "
@@ -401,8 +413,9 @@ write("mariadbinstance", db_instance(
     {"aws": {"instanceType": field("string", "The RDS instance class, such as db.t4g.small.",
                                    default=DEPLOY),
              "parameterGroupName": field("string", "An existing RDS parameter group to use, in "
-                                         "place of parameters.")}},
-    sc=True, extra_rules=[
+                                         "place of parameters."),
+             "fromBackup": from_backup_field("An RDS snapshot ID to create the instance from.")}},
+    sc=True, extra_rules=from_backup_rules(["aws"]) + [
         ("!has(self.aws) || !has(self.aws.parameterGroupName) || !has(self.parameters)",
          "aws.parameterGroupName and parameters cannot be used together"),
         ("!has(oldSelf.aws) || !has(oldSelf.aws.parameterGroupName) || !has(self.version) || "
@@ -587,9 +600,9 @@ write("valkeyinstance", xrd(
         "endpoint": endpoint("The primary's address."),
         "readerEndpoint": endpoint("The address that spreads reads over the replicas."),
         "connectionSecret": field("string", "The Secret <instance>-credentials (rule 6)."),
-        "finalBackup": field("string", "The ID the final backup receives when the cache is "
-                             "deleted. Empty where the cloud takes none."),
-        "aws": obj({"instanceType": S(), "id": S(), "engineVersionActual": S()}),
+        "aws": obj({"instanceType": S(), "finalBackup": field(
+            "string", "The ID the final snapshot receives when the cache is deleted."),
+            "id": S(), "engineVersionActual": S()}),
         "gcp": obj({"instanceType": S(), "id": S()}),
         "oci": obj({"memoryGB": field("integer"), "id": S(), "state": S(),
                     "softwareVersion": S()}),

@@ -240,16 +240,15 @@ spec:
                 type: string
                 description: |-
                   The Secret <instance>-credentials (rule 6).
-              finalBackup:
-                type: string
-                description: |-
-                  The ID the final backup receives when the cache is deleted. Empty where the
-                  cloud takes none.
               aws:
                 type: object
                 properties:
                   instanceType:
                     type: string
+                  finalBackup:
+                    type: string
+                    description: |-
+                      The ID the final snapshot receives when the cache is deleted.
                   id:
                     type: string
                   engineVersionActual:

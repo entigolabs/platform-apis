@@ -56,11 +56,11 @@ spec:
   restore:                             # create time only
     fromInstance: orders-db-old        # a PostgreSQLInstance in this namespace
     pointInTime: "2026-11-01T10:00:00Z"
-    fromBackup: orders-final           # a cloud backup ID, in place of fromInstance
   # Cloud-specific; every block also takes id (rule 9)
   aws:
     instanceType: db.t4g.small         # the RDS instance class
     parameterGroupName: orders-pg17    # not with parameters
+    fromBackup: orders-final           # an RDS snapshot ID; not with restore
   gcp:
     instanceType: db-custom-2-7680     # the Cloud SQL tier
     edition: ENTERPRISE                # or ENTERPRISE_PLUS
@@ -129,7 +129,6 @@ Crossplane provider. Level is the field's support level (rule 1).
 | `parameterApplyMethod`                 | Core for `Immediate`; Extended for `NextRestart`: AWS      | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` | restarts when a flag needs it; `NextRestart` rejected                                                                                    | `NextRestart` rejected                                                    | restarts when a setting needs it; `NextRestart` rejected |
 | `restore.fromInstance`                 | Core                                                       | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`         | `createMode: PointInTimeRestore`, `sourceServerId`       |
 | `restore.pointInTime`                  | Core                                                       | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                    | `pointInTimeRestoreTimeInUtc`                            |
-| `restore.fromBackup`                   | Extended: AWS, GCP, OCI                                    | `snapshotIdentifier`                                                        | `restoreBackupContext` (`instanceId`, `backupRunId`)                                                                                     | `source.sourceType: BACKUP`, `source.backupId`                            | rejected; no backups outside point-in-time restore       |
 
 The cloud-specific fields:
 
@@ -143,6 +142,9 @@ The cloud-specific fields:
 | `gcp.instanceType`       | `settings.tier`                                                          |
 | `oci.instanceType`       | `shape`; a `.Flex` shape without `oci.ocpus` and `oci.memoryGB` rejected |
 | `azure.instanceType`     | `skuName`                                                                |
+| `aws.fromBackup`         | `snapshotIdentifier`                                                     |
+| `gcp.fromBackup`         | `restoreBackupContext` (`instanceId`, `backupRunId`)                     |
+| `oci.fromBackup`         | `source.sourceType: BACKUP`, `source.backupId`                           |
 | `aws.parameterGroupName` | `parameterGroupName`                                                     |
 | `gcp.edition`            | `settings.edition`                                                       |
 | `gcp.diskType`           | `settings.diskType`                                                      |
@@ -169,10 +171,10 @@ adds one.
 
 ## Status
 
-`storage.sizeGB` stays empty on OCI, which reports no size. `finalBackup` is the ID the final backup
-will receive; it stays empty on GCP, whose provider reports only `finalBackupDescription`, and on
-Azure, which takes none. A deleted instance is restored with `restore.fromBackup` and the final
-backup's ID, which the status loses with the instance, so it is taken from the cloud console.
+`storage.sizeGB` stays empty on OCI, which reports no size. `status.aws.finalBackup` is the ID the
+final snapshot will receive; GCP's provider reports only `finalBackupDescription`, and OCI and Azure
+take no final backup. A deleted instance is restored with the cloud block's `fromBackup` and the
+final backup's ID, which the status loses with the instance, so it is taken from the cloud console.
 `endpoint.host` is a hostname on AWS and Azure and an IP address on GCP and OCI. The running minor
 version, the latest restorable time and the instance state are reported by only some providers
 (provider-upjet-aws v2.4.0 and the versions in rule 7), so they go in the cloud blocks:
@@ -180,6 +182,7 @@ version, the latest restorable time and the instance state are reported by only 
 ```yaml
 status:
   aws:
+    finalBackup: ...
     identifier: ...
     resourceId: ...
     engineVersionActual: "17.7"

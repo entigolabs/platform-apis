@@ -54,10 +54,10 @@ spec:
   restore:                             # create time only
     fromInstance: orders-db-old        # a MariaDBInstance in this namespace
     pointInTime: "2026-11-01T10:00:00Z"
-    fromBackup: orders-final           # an RDS snapshot ID, in place of fromInstance
   aws:                                 # also takes id (rule 9)
     instanceType: db.t4g.small         # the RDS instance class
     parameterGroupName: orders-mariadb114  # not with parameters
+    fromBackup: orders-final           # an RDS snapshot ID; not with restore
 ```
 
 `version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`, and RDS
@@ -103,7 +103,7 @@ Crossplane provider.
 | `parameterApplyMethod`                 | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |
 | `restore.fromInstance`                 | `restoreToPointInTime.sourceDbInstanceIdentifier`                           |
 | `restore.pointInTime`                  | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        |
-| `restore.fromBackup`                   | `snapshotIdentifier`                                                        |
+| `aws.fromBackup`                       | `snapshotIdentifier`                                                        |
 | `aws.parameterGroupName`               | `parameterGroupName`                                                        |
 
 Provider keys are from the CRDs of [provider-upjet-aws
@@ -117,14 +117,15 @@ a final snapshot when an instance is deleted, switched on per deployment as toda
 
 ## Status
 
-`finalBackup` is the ID the final snapshot will receive. A deleted instance is restored with
-`restore.fromBackup` and that ID, which the status loses with the instance, so it is taken from the
-AWS console. The running minor version, the latest restorable time and the instance state go in the
+`aws.finalBackup` is the ID the final snapshot will receive. A deleted instance is restored with
+`aws.fromBackup` and that ID, which the status loses with the instance, so it is taken from the AWS
+console. The running minor version, the latest restorable time and the instance state go in the
 `aws` block:
 
 ```yaml
 status:
   aws:
+    finalBackup: ...
     identifier: ...
     resourceId: ...
     engineVersionActual: "11.4.10"

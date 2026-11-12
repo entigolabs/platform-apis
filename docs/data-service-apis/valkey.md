@@ -116,13 +116,14 @@ always sends a username and password works unchanged.
 
 ## Status
 
-Adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and `finalBackup`, the ID the
-final snapshot will get. A deleted cache's ID, which the status loses with the cache, is taken from
-the cloud console.
+Adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and `aws.finalBackup`, the ID
+the final snapshot will receive. A deleted cache's ID, which the status loses with the cache, is
+taken from the cloud console.
 
 ```yaml
 status:
   aws:
+    finalBackup: ...
     id: ...
     engineVersionActual: ...           # ElastiCache reports no state
   gcp:

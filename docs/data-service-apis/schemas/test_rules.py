@@ -130,7 +130,7 @@ create("unknown storageTier accepted, left to the cloud", "PostgreSQLInstance",
 create("MariaDB retentionDays 3 accepted", "MariaDBInstance",
        {"backup": {"retentionDays": 3}})
 create("restore without fromInstance rejected", "PostgreSQLInstance",
-       w(PG, restore={"pointInTime": "2026-11-01T10:00:00Z"}), False, "pointInTime needs fromInstance")
+       w(PG, restore={"pointInTime": "2026-11-01T10:00:00Z"}), False, "Required value")
 update("major version change rejected", "PostgreSQLInstance", PG, w(PG, version="18"), False,
        "a major version change needs")
 up = w(PG, maintenance={"allowMajorVersionUpgrade": True})
@@ -164,23 +164,25 @@ create("aws.parameterGroupName with parameters rejected", "PostgreSQLInstance",
 update("changing aws.parameterGroupName accepted", "PostgreSQLInstance",
        w(PG, gcp=None, parameters=None, aws={"parameterGroupName": "a"}),
        w(PG, gcp=None, parameters=None, aws={"parameterGroupName": "b"}))
-create("restore.fromBackup accepted", "PostgreSQLInstance", w(PG, restore={"fromBackup": "rds:x"}))
-create("restore with fromInstance and fromBackup rejected", "PostgreSQLInstance",
-       w(PG, restore={"fromInstance": "a", "fromBackup": "b"}), False, "exactly one")
-create("restore with neither rejected", "PostgreSQLInstance",
-       w(PG, restore={"pointInTime": "2026-11-01T10:00:00Z"}), False, "exactly one")
-create("pointInTime with fromBackup rejected", "PostgreSQLInstance",
-       w(PG, restore={"fromBackup": "b", "pointInTime": "2026-11-01T10:00:00Z"}), False,
-       "pointInTime needs")
-fb = w(PG, restore={"fromBackup": "rds:x"})
-update("changing restore.fromBackup rejected", "PostgreSQLInstance", fb,
-       w(fb, restore={"fromBackup": "rds:y"}), False, "restore is set")
-update("adding restore.fromBackup later rejected", "PostgreSQLInstance", PG, fb, False,
-       "restore is set")
+create("aws.fromBackup accepted", "PostgreSQLInstance", w(PG, aws={"fromBackup": "rds:x"}))
+create("fromBackup in two cloud blocks accepted", "PostgreSQLInstance",
+       w(PG, aws={"fromBackup": "rds:x"}, oci={"fromBackup": "ocid1.x"}))
+create("aws.fromBackup with restore rejected", "PostgreSQLInstance",
+       w(PG, aws={"fromBackup": "b"}, restore={"fromInstance": "a"}), False,
+       "aws.fromBackup cannot be combined with restore")
+create("restore.fromBackup rejected", "PostgreSQLInstance",
+       w(PG, restore={"fromInstance": "a", "fromBackup": "b"}), False, "unknown field")
+fb = w(PG, aws={"fromBackup": "rds:x"})
+update("changing aws.fromBackup rejected", "PostgreSQLInstance", fb,
+       w(fb, aws={"fromBackup": "rds:y"}), False, "aws.fromBackup is set at creation only")
+update("adding gcp.fromBackup later rejected", "PostgreSQLInstance", PG,
+       w(PG, gcp={"edition": "ENTERPRISE", "fromBackup": "i/1"}), False,
+       "gcp.fromBackup is set at creation only")
 create("aws.snapshotIdentifier rejected", "PostgreSQLInstance",
        w(PG, gcp=None, aws={"snapshotIdentifier": "s1"}), False, "unknown field")
-create("MariaDB restore.fromBackup rejected", "MariaDBInstance",
-       {"restore": {"fromInstance": "a", "fromBackup": "b"}}, False, "exactly one of fromInstance and fromBackup")
+create("MariaDB aws.fromBackup with restore rejected", "MariaDBInstance",
+       {"restore": {"fromInstance": "a"}, "aws": {"fromBackup": "b"}}, False,
+       "aws.fromBackup cannot be combined with restore")
 
 update("raising storage.sizeGB accepted", "PostgreSQLInstance", PG,
        w(PG, storage={"sizeGB": 50, "maxSizeGB": 100}))
@@ -219,8 +221,8 @@ print("\n# MariaDBInstance")
 create("two-number version accepted", "MariaDBInstance", {"version": "11.4", "aws": {}})
 create("one-number version rejected", "MariaDBInstance", {"version": "11"}, False, "should match")
 MA = {"version": "11.4", "aws": {"parameterGroupName": "orders-mariadb114"}}
-create("MariaDB restore.fromBackup accepted", "MariaDBInstance",
-       {"restore": {"fromBackup": "orders-final"}})
+create("MariaDB aws.fromBackup accepted", "MariaDBInstance",
+       {"aws": {"fromBackup": "orders-final"}})
 create("MariaDB aws.parameterGroupName with parameters rejected", "MariaDBInstance",
        w(MA, parameters={"max_connections": "200"}), False, "cannot be used together")
 MAU = w(MA, maintenance={"allowMajorVersionUpgrade": True})
@@ -412,9 +414,8 @@ for kind, blocks in BLOCKS.items():
 print("\n# More MariaDBInstance and KafkaTopic rules")
 create("MariaDB maxSizeGB below sizeGB rejected", "MariaDBInstance",
        {"storage": {"sizeGB": 100, "maxSizeGB": 50}}, False, "maxSizeGB must be at least sizeGB")
-create("MariaDB pointInTime with fromBackup rejected", "MariaDBInstance",
-       {"restore": {"fromBackup": "b", "pointInTime": "2026-11-01T10:00:00Z"}}, False,
-       "pointInTime needs fromInstance")
+create("MariaDB pointInTime without fromInstance rejected", "MariaDBInstance",
+       {"restore": {"pointInTime": "2026-11-01T10:00:00Z"}}, False, "Required value")
 update("MariaDB adding restore later rejected", "MariaDBInstance", {"version": "11.4"},
        {"version": "11.4", "restore": {"fromInstance": "a"}}, False, "restore is set at creation only")
 update("KafkaTopic changing clusterRef rejected", "KafkaTopic", {"clusterRef": {"name": "c1"}},
