@@ -54,8 +54,8 @@ v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2
 objects asking for one path would both manage it, and deleting either would delete the other's
 images (today's function sets `forceDelete`). Namespace names are unique in a cluster, so the prefix
 rules that out within one cluster. Clusters that push to one registry are not checked against each
-other: whoever sets them up gives each its own registry, or keeps their namespace names apart.
-Today's free-form `path` does not carry over, so moving from `Repository` changes image paths.
+other: whoever configures them gives each its own registry, or keeps their namespace names distinct.
+Today's free-form `path` is not retained, so moving from `Repository` changes image paths.
 
 A lifecycle rule has one selector (`tagPrefixes`, `tagPatterns`, `untagged`, or none for every
 image) and one bound (`keepCount` newest, or `expireAfterDays` since the push), as today.

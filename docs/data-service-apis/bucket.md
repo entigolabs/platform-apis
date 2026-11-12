@@ -93,7 +93,7 @@ The cloud-specific fields:
 
 Azure puts versioning, lifecycle, CORS and soft delete on the storage account, so each `Bucket` has
 its own account, with the account's keys turned off (`sharedAccessKeyEnabled: false`). Soft delete
-exists only on GCP and Azure. S3 turns Object Lock on for an existing bucket too, but only once
+exists only on GCP and Azure. S3 enables Object Lock on an existing bucket too, but only once
 versioning is on, and never off again (`aws_s3_bucket_object_lock_configuration` in
 [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so `versioning:
 false` is refused on a bucket that ever had `retention`.

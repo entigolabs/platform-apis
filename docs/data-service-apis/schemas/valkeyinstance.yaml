@@ -81,8 +81,8 @@ spec:
                   autoMinorVersionUpgrade:
                     type: boolean
                     description: |-
-                      Let the cloud upgrade to newer minor versions on its schedule. false keeps the
-                      cache at version.
+                      Allow the cloud to upgrade to newer minor versions on its schedule. false keeps
+                      the cache at version.
                       Extended for false: AWS.
                       Default: per deployment.
               backup:
@@ -243,8 +243,8 @@ spec:
               finalBackup:
                 type: string
                 description: |-
-                  The ID the final backup gets when the cache is deleted. Empty where the cloud
-                  takes none.
+                  The ID the final backup receives when the cache is deleted. Empty where the
+                  cloud takes none.
               aws:
                 type: object
                 properties:

@@ -47,7 +47,7 @@ spec:
     autoMinorVersionUpgrade: true
     allowMajorVersionUpgrade: false
   backup:
-    retentionDays: 7                   # backups kept; 0 turns them off
+    retentionDays: 7                   # backups kept; 0 disables them
     pointInTimeDays: 7                 # how far back restore.pointInTime reaches
     startHourUTC: 2
   parameters:                          # PostgreSQL settings
@@ -77,16 +77,16 @@ spec:
 The size is in the cloud blocks, as `instanceType` with the cloud's own name, because RDS has fixed
 classes while OCI and GCP take CPU and memory, which no neutral size expresses. With deployment
 defaults, a user without a size requirement can omit it. On GCP the size belongs to an edition:
-`db-custom-*` to `ENTERPRISE`, `db-perf-optimized-*` to `ENTERPRISE_PLUS`, which Cloud SQL picks by
-default from PostgreSQL 16. The platform therefore always sets `gcp.edition`, and a deployment's
+`db-custom-*` to `ENTERPRISE`, `db-perf-optimized-*` to `ENTERPRISE_PLUS`, which Cloud SQL selects
+by default from PostgreSQL 16. The platform therefore always sets `gcp.edition`, and a deployment's
 defaults for `gcp.edition` and `gcp.instanceType` must belong together.
 
 `version` is the major version, such as `"17"`, and the cloud applies minor versions in the
-maintenance window. Only RDS can turn minor upgrades off, and it then needs a full version
+maintenance window. Only RDS can disable minor upgrades, and it then needs a full version
 (`engineVersion` in `rds.aws.m.upbound.io_instances`, [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0)), so a user
 who sets `maintenance.autoMinorVersionUpgrade: false` writes the full version, such as `"17.7"`, and
-changes it to upgrade. A parameter group fits one major version, so a major change is rejected
+changes it to upgrade. A parameter group applies to one major version, so a major change is rejected
 unless `aws.parameterGroupName` changes or is removed in the same edit.
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and
@@ -112,7 +112,7 @@ Crossplane provider. Level is the field's support level (rule 1).
 | -------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `observe`                              | Core                                                       | `managementPolicies: [Observe]`                                             | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                           | `managementPolicies: [Observe]`                          |
 | `version`                              | Core for a major version; Extended for a full version: AWS | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`                                                                                                           | `dbVersion: "17"`                                                         | `version: "17"`                                          |
-| `storage.sizeGB`                       | Core                                                       | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows on its own                                         | `storageMb`, rounded up to the next of its 12 sizes      |
+| `storage.sizeGB`                       | Core                                                       | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                      | `storageMb`, rounded up to the next of its 12 sizes      |
 | `storage.autoGrow`                     | Core for `true`; Extended for `false`: AWS, GCP, Azure     | on with `maxAllocatedStorage`                                               | `settings.diskAutoresize`                                                                                                                | always on; `false` rejected                                               | `autoGrowEnabled`                                        |
 | `storage.maxSizeGB`                    | Extended: AWS, GCP                                         | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      | `settings.diskAutoresizeLimit`                                                                                                           | rejected                                                                  | rejected                                                 |
 | `storage.iops`                         | Extended: AWS, GCP with Hyperdisk, OCI                     | `iops`                                                                      | `settings.dataDiskProvisionedIops`; rejected without Hyperdisk                                                                           | `storageDetails.iops`                                                     | rejected; `azure.storageTier` sets IOPS                  |
@@ -170,9 +170,9 @@ adds one.
 ## Status
 
 `storage.sizeGB` stays empty on OCI, which reports no size. `finalBackup` is the ID the final backup
-will get; it stays empty on GCP, whose provider reports only `finalBackupDescription`, and on Azure,
-which takes none. A deleted instance is restored with `restore.fromBackup` and the final backup's
-ID, which the status loses with the instance, so it is taken from the cloud console.
+will receive; it stays empty on GCP, whose provider reports only `finalBackupDescription`, and on
+Azure, which takes none. A deleted instance is restored with `restore.fromBackup` and the final
+backup's ID, which the status loses with the instance, so it is taken from the cloud console.
 `endpoint.host` is a hostname on AWS and Azure and an IP address on GCP and OCI. The running minor
 version, the latest restorable time and the instance state are reported by only some providers
 (provider-upjet-aws v2.4.0 and the versions in rule 7), so they go in the cloud blocks:
@@ -202,7 +202,7 @@ status:
 ## Users and Databases
 
 `PostgreSQLUser` and `PostgreSQLDatabase` act inside PostgreSQL, through provider-sql, so they are
-the same on every cloud. They keep today's fields; what changes is the version, `namespace` in
+the same on every cloud. They retain today's fields; what changes is the version, `namespace` in
 `instanceRef` (rule 11), defaults moving to the admission policy (rule 5), and `name` and
 `instanceRef` becoming immutable. `extensions` creates an extension in that database; on Azure a
 server must also allow it in `azure.extensions` ([Allow

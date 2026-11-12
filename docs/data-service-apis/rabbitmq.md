@@ -68,7 +68,7 @@ Crossplane provider.
 | `deletionProtection`     | platform blocks deletion                                                 |
 | `maintenance.window`     | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |
 | `parameters`             | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
-| `aws.publiclyAccessible` | `publiclyAccessible`; `true` leaves out the security group               |
+| `aws.publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
 | `aws.id`                 | the broker ID                                                            |
 
 ## Platform Decisions

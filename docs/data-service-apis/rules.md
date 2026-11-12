@@ -12,8 +12,8 @@ draft schemas are in [schemas/](schemas/).
 A manifest applies unchanged on every cloud where its kind exists. With Core fields and cloud blocks
 only, it also works on every cloud; an Extended field works where the cloud supports it and reports
 `CloudAccepted: False` elsewhere, as an Extended feature does in Gateway API. Everything
-cloud-specific lives in the cloud blocks (rule 2). What an Extended field should do on a cloud that
-lacks it is an open point ([open-points.md](open-points.md)).
+cloud-specific belongs in the cloud blocks (rule 2). What an Extended field should do on a cloud
+that lacks it is an open point ([open-points.md](open-points.md)).
 
 The common spec describes what the user needs, not which cloud product provides it: a version, a
 size, high availability, backups. A field belongs there when a user can choose it without knowing
@@ -33,7 +33,7 @@ support.
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Core     | Works on every cloud.                                                                                                                                |
 | Extended | Works on the clouds listed in the field's description, with the same meaning on each; on any other cloud, the object reports `CloudAccepted: False`. |
-| Ignored  | Accepted on a cloud but has no effect there, because that cloud already does what the field asks for.                                                |
+| Ignored  | Accepted on a cloud but has no effect there, because that cloud already provides what the field requests.                                            |
 
 In a schema, a field's description ends with `Extended` and the clouds that support it. A field
 without that mark is Core.
@@ -78,7 +78,7 @@ object is created. There are two kinds:
 | Deployment default | the deployment's operator, per cloud, through infralib | `version`, `aws.instanceType` |
 
 Safety settings, such as deletion protection, are fixed. Cost, size and availability are
-deployment defaults, because only the operator knows what suits their cloud and budget. In a
+deployment defaults, because only the operator can judge what suits their cloud and budget. In a
 schema, the field's description ends with `Default: fixed` or `Default: per deployment`.
 
 The defaults are written into the object by a `MutatingAdmissionPolicy`, which is built into
@@ -93,7 +93,7 @@ whose `deletionProtection` is true.
 #### 6 Connection Secret
 
 Each credential is one Kubernetes Secret in the object's namespace, with the same keys on every
-cloud: `endpoint`, `port`, `username` and `password`. `port` is left out where `endpoint` already
+cloud: `endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint` already
 contains it, as in a Kafka bootstrap list. A service that needs more adds its own keys, such as
 `readerEndpoint` for Valkey. No key is named after a cloud, and no key holds the others as JSON.
 
@@ -102,14 +102,14 @@ other services, and `<instance>-<user>` for a user object, as today. Every kind 
 an optional `secretName` to override that name. The platform never overwrites a Secret that another
 object or person owns: joined names can collide, as a user named `dbadmin` with the admin's secret,
 or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second object reports which
-object holds the name, and `secretName` resolves it. It also lets a team use a name its application
-already expects.
+object holds the name, and `secretName` resolves it. It also allows a team to use a name its
+application already expects.
 
 #### 7 Services Missing on a Cloud
 
 An API is installed on a cloud only if that cloud has a managed service running the same engine,
 and its Crossplane provider can create it. On other clouds the kind does not exist, and the portal
-does not show the service. A different engine never stands in: MySQL is not MariaDB.
+does not show the service. A different engine is never substituted: MySQL is not MariaDB.
 
 | Service  | AWS         | GCP                                    | OCI                             | Azure          |
 | -------- | ----------- | -------------------------------------- | ------------------------------- | -------------- |
@@ -128,7 +128,7 @@ renamed: `S3Bucket` becomes `Bucket`, `MSK` becomes `KafkaCluster`, `Repository`
 
 #### 9 Creating or Observing
 
-A kind that stands for a cloud resource, such as a database instance or a bucket, either creates
+A kind that represents a cloud resource, such as a database instance or a bucket, either creates
 that resource or observes one that already exists. To observe, the user sets `observe: true` and
 gives the resource's ID in the cloud's block:
 
@@ -173,7 +173,7 @@ every cloud.
 
 #### 11 References
 
-A kind that lives inside another, such as a database user or a Kafka topic, names its parent in
+A kind that exists inside another, such as a database user or a Kafka topic, names its parent in
 `instanceRef` or `clusterRef`, as `{ name, namespace }`. Without `namespace`, the parent is in the
 same namespace.
 
@@ -189,13 +189,13 @@ Designs that were weighed and rejected, each with the reason.
 
 The user writes every field, including each cloud's `instanceType`.
 
-**Rejected:** Every user then needs to know the cloud's size names and versions, which is the
-cloud knowledge infralib exists to abstract. Deployment defaults keep the same schema and let a
-user write only what they care about.
+**Rejected:** Every user then needs to know the cloud's size names and versions, which is the cloud
+knowledge infralib exists to abstract. Deployment defaults keep the same schema and allow a user to
+write only what they care about.
 
 #### 2 Platform-Picked Sizes
 
-The user states CPU and memory, or a named size, and the platform picks the nearest
+The user states CPU and memory, or a named size, and the platform selects the nearest
 cloud size.
 
 **Rejected:** Picking has to handle fixed and flexible sizes, burstable and dedicated families, and

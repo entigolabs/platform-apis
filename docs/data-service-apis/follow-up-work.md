@@ -7,8 +7,8 @@ Work outside the design that it depends on or leads to.
 The implementation of the design on each cloud. Known so far:
 
 - A floor (`sizeGB`, Valkey's `version`) is set in `initProvider`, which Crossplane uses at
-  creation only, and in `forProvider` only when the spec asks for more than the resource has, with
-  `LateInitialize` left out. Sending an older value back would shrink a GCP disk, replace an Azure
+  creation only, and in `forProvider` only when the spec requests more than the resource has, with
+  `LateInitialize` omitted. Sending an older value back would shrink a GCP disk, replace an Azure
   server, or be refused by upjet as a Valkey downgrade, which blocks every later change.
 - provider-kafka finds a topic by name only, so the duplicate-name check of `KafkaTopic` must run in
   the function.
@@ -48,7 +48,7 @@ resource it uses. Known so far:
   service account itself on GCP and OCI, or a key pair. On OCI, [crossplane-provider-oci
   v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0) writes a
   `CustomerSecretKey`'s secret only to its plain status (`status.atProvider.key`).
-- For pushing to an artifact repository, CI currently uses credentials set up outside the API.
+- For pushing to an artifact repository, CI currently uses credentials configured outside the API.
   OCIR accepts a user's auth token or an instance principal through Oracle's
   docker-credential-ocir.
 

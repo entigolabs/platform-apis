@@ -46,7 +46,7 @@ spec:
     autoMinorVersionUpgrade: true
     allowMajorVersionUpgrade: false
   backup:
-    retentionDays: 7                   # 0 turns backups off
+    retentionDays: 7                   # 0 disables backups
     startHourUTC: 2
   parameters:                          # MariaDB settings
     max_connections: "200"
@@ -65,7 +65,7 @@ applies minor versions in the maintenance window. RDS takes a version without it
 minor upgrades are on (`engineVersion` in `rds.aws.m.upbound.io_instances`, provider-upjet-aws
 v2.4.0), so a user who sets `maintenance.autoMinorVersionUpgrade: false` writes the full version,
 such as `"11.4.10"`, and changes it to upgrade. A major change is a change in the first two numbers.
-A parameter group fits one major version, so a major change is rejected unless
+A parameter group applies to one major version, so a major change is rejected unless
 `aws.parameterGroupName` changes or is removed in the same edit.
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and
@@ -97,7 +97,7 @@ Crossplane provider.
 | `maintenance.window`                   | `maintenanceWindow: sun:03:00-sun:03:30`                                    |
 | `maintenance.autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                   |
 | `maintenance.allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                  |
-| `backup.retentionDays`                 | `backupRetentionPeriod`; 0 turns backups off                                |
+| `backup.retentionDays`                 | `backupRetentionPeriod`; 0 disables backups                                 |
 | `backup.startHourUTC`                  | `backupWindow`, 30 minutes                                                  |
 | `parameters`                           | a `ParameterGroup` of family `mariadb<major>`                               |
 | `parameterApplyMethod`                 | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |
@@ -117,7 +117,7 @@ a final snapshot when an instance is deleted, switched on per deployment as toda
 
 ## Status
 
-`finalBackup` is the ID the final snapshot will get. A deleted instance is restored with
+`finalBackup` is the ID the final snapshot will receive. A deleted instance is restored with
 `restore.fromBackup` and that ID, which the status loses with the instance, so it is taken from the
 AWS console. The running minor version, the latest restorable time and the instance state go in the
 `aws` block:
@@ -136,7 +136,7 @@ status:
 
 ## Users and Databases
 
-`MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql, and keep today's
+`MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql, and retain today's
 fields. What changes is the version, `namespace` in `instanceRef` (rule 11), defaults moving to the
 admission policy (rule 5), and `name` and the references becoming immutable.
 `MariaDBUser.databaseRef.namespace`, which today's function ignores, works within the Zone (rule

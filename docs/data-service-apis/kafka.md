@@ -60,14 +60,14 @@ in each cloud's block (`aws.instanceType`, `oci.instanceType` with `oci.ocpus`, 
 
 In the table below, Level is the field's support level (rule 1).
 
-| Field              | Level                                      | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                         | OCI (`KafkaCluster`)                                                                |
-| ------------------ | ------------------------------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `observe`          | Core                                       | `managementPolicies: [Observe]`                             | rejected until the provider has a Kafka resource                                                   | `managementPolicies: [Observe]`                                                     |
-| `version`          | Core                                       | `kafkaVersion`                                              | `kafka_version`                                                                                    | `kafkaVersion`                                                                      |
-| `brokers`          | Extended: AWS, OCI                         | `numberOfBrokerNodes`                                       | rejected; chosen by the service                                                                    | `brokerShape.nodeCount`                                                             |
-| `storage.sizeGB`   | Core                                       | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                             | `brokerShape.storageSizeInGbs`                                                      |
-| `highAvailability` | Core for `true`; Extended for `false`: OCI | always; `false` rejected                                    | always three zones; `false` rejected                                                               | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
-| `parameters`       | Core                                       | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones wait for a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
+| Field              | Level                                      | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                                  | OCI (`KafkaCluster`)                                                                |
+| ------------------ | ------------------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `observe`          | Core                                       | `managementPolicies: [Observe]`                             | rejected until the provider has a Kafka resource                                                            | `managementPolicies: [Observe]`                                                     |
+| `version`          | Core                                       | `kafkaVersion`                                              | `kafka_version`                                                                                             | `kafkaVersion`                                                                      |
+| `brokers`          | Extended: AWS, OCI                         | `numberOfBrokerNodes`                                       | rejected; chosen by the service                                                                             | `brokerShape.nodeCount`                                                             |
+| `storage.sizeGB`   | Core                                       | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                                      | `brokerShape.storageSizeInGbs`                                                      |
+| `highAvailability` | Core for `true`; Extended for `false`: OCI | always; `false` rejected                                    | always three zones; `false` rejected                                                                        | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
+| `parameters`       | Core                                       | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones take effect after a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
 
 The cloud-specific fields:
 
@@ -155,9 +155,9 @@ spec:
 
 Created through the Kafka admin API on every cloud. `name` is the topic's Kafka name, which can hold
 what a Kubernetes name cannot, such as `Orders` or `orders_v2`. Applications use that name, so it
-cannot carry a hash like rule 9's cloud names, and two `KafkaTopic` objects on one cluster could ask
-for the same topic and both manage it. The platform rejects the newer one instead, naming the object
-that holds the name.
+cannot carry a hash like rule 9's cloud names, and two `KafkaTopic` objects on one cluster could
+request the same topic and both manage it. The platform rejects the newer one instead, naming the
+object that holds the name.
 
 ## Platform Decisions
 

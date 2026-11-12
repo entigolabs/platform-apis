@@ -17,7 +17,7 @@ maintenance windows in its forms.
 infralib deploys to AWS, GCP, OCI and Azure. Currently, its [`platform-apis`
 module](https://github.com/entigolabs/entigo-infralib/tree/main/modules/k8s/platform-apis) installs
 `platform-apis` on AWS and OCI only, and the data services are implemented on AWS only; OCI is the
-next cloud to implement them. A user asks for a PostgreSQL database, and which cloud runs it is the
+next cloud to implement them. A user requests a PostgreSQL database, and which cloud runs it is the
 platform's concern, so each API needs one form that every infralib cloud can implement with its own
 managed service, and that a later cloud can implement without changing it. This design covers all
 four clouds; implementing it on a cloud is follow-up work.
@@ -35,7 +35,7 @@ What each page of the design holds.
   against them.
 - [Open Points](open-points.md): questions still to decide.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
-- [Deferred Capabilities](deferred-capabilities.md): capabilities considered and left out for now.
+- [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
 - One page per service, showing how it applies the rules: [PostgreSQL](postgresql.md),
   [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md), [RabbitMQ](rabbitmq.md),
   [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md).

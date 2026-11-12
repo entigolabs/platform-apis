@@ -1,6 +1,6 @@
 # Deferred Capabilities
 
-Capabilities considered and left out for now; the design is complete without them.
+Capabilities considered and omitted for now; the design is complete without them.
 
 #### 1 Topic and Group Prefixes in `KafkaUser` ACLs
 
@@ -14,7 +14,7 @@ needs a new entry before it can use each one. Kafka's prefixed ACLs (every topic
 On Azure a server allows an extension through its `azure.extensions` parameter before any database
 can create it. The design sets it to the platform's whole allowlist on every Azure instance, so
 databases behave as on the other clouds ([postgresql.md](postgresql.md)); a per-instance list would
-let a team narrow it, at the cost of a second list to manage.
+allow a team to narrow it, at the cost of a second list to manage.
 
 #### 3 MSK Serverless
 

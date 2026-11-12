@@ -109,7 +109,7 @@ def cloud_block(cloud, kind_noun, settings=None):
 
 
 def resource_spec(common, blocks, kind_noun, rules=None, observe_ext=None):
-    """Spec of a kind that stands for a cloud resource: observe, common fields, cloud blocks."""
+    """Spec of a kind that represents a cloud resource: observe, common fields, cloud blocks."""
     props = {"observe": field(
         "boolean",
         "true observes an existing resource, named by the cloud block's id, and never changes "
@@ -275,7 +275,7 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
                                   maximum=23),
         }, rules=[("!has(self.pointInTimeDays) || !has(self.retentionDays) || "
                    "self.retentionDays > 0",
-                   "pointInTimeDays needs backups, which retentionDays 0 turns off")]
+                   "pointInTimeDays needs backups, which retentionDays 0 disables")]
            if pitr else None),
         "parameters": string_map(f"{engine} settings, by name. Keys outside the cloud's "
                                  "allowlist are rejected."),
@@ -311,7 +311,7 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
                        "startHourUTC": field("integer")}),
         "endpoint": endpoint(),
         "connectionSecret": field("string", f"The admin Secret, <instance>-dbadmin (rule 6)."),
-        **({"finalBackup": field("string", "The ID the final backup gets when the instance is "
+        **({"finalBackup": field("string", "The ID the final backup receives when the instance is "
                                  "deleted, for restore.fromBackup. Empty where the cloud does "
                                  "not tell it in advance.")} if from_backup else {}),
         **STATUS_BLOCKS[kind],
@@ -524,7 +524,7 @@ write("valkeyinstance", xrd(
                                     default="fixed, true"),
         "maintenance": obj({
             "window": window("Extended: AWS, GCP."),
-            "autoMinorVersionUpgrade": field("boolean", "Let the cloud upgrade to newer minor "
+            "autoMinorVersionUpgrade": field("boolean", "Allow the cloud to upgrade to newer minor "
                                              "versions on its schedule. false keeps the cache "
                                              "at version.", "Extended for false: AWS.",
                                              DEPLOY),
@@ -573,7 +573,7 @@ write("valkeyinstance", xrd(
         "endpoint": endpoint("The primary's address."),
         "readerEndpoint": endpoint("The address that spreads reads over the replicas."),
         "connectionSecret": field("string", "The Secret <instance>-credentials (rule 6)."),
-        "finalBackup": field("string", "The ID the final backup gets when the cache is "
+        "finalBackup": field("string", "The ID the final backup receives when the cache is "
                              "deleted. Empty where the cloud takes none."),
         "aws": obj({"instanceType": S(), "id": S(), "engineVersionActual": S()}),
         "gcp": obj({"instanceType": S(), "id": S()}),

@@ -158,7 +158,7 @@ spec:
                     !has(self.pointInTimeDays)
                     || !has(self.retentionDays)
                     || self.retentionDays > 0
-                  message: pointInTimeDays needs backups, which retentionDays 0 turns off
+                  message: pointInTimeDays needs backups, which retentionDays 0 disables
               parameters:
                 type: object
                 description: |-
@@ -408,7 +408,7 @@ spec:
               finalBackup:
                 type: string
                 description: |-
-                  The ID the final backup gets when the instance is deleted, for
+                  The ID the final backup receives when the instance is deleted, for
                   restore.fromBackup. Empty where the cloud does not tell it in advance.
               aws:
                 type: object
