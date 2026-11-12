@@ -7,7 +7,7 @@ The rules every data service API follows, and the alternatives weighed against t
 These rules apply to every data service API, and each service's page shows how it applies them. The
 draft schemas are in [schemas/](schemas/).
 
-#### 1 Common fields
+#### 1 The common spec states needs, not cloud products
 
 A manifest applies unchanged on every cloud where its kind exists. With Core fields and cloud blocks
 only, it also works on every cloud; an Extended field works where the cloud supports it and reports
@@ -38,7 +38,7 @@ support.
 In a schema, a field's description ends with `Extended` and the clouds that support it. A field
 without that mark is Core.
 
-#### 2 Cloud-specific settings
+#### 2 A setting of one cloud belongs in that cloud's block
 
 A setting that exists on only one cloud goes into a block named after that cloud: `spec.aws`,
 `spec.gcp`, `spec.oci` or `spec.azure`. For example, the name of an existing RDS parameter group
@@ -50,13 +50,13 @@ observing (rule 9), since a resource exists on one cloud.
 Everything that is neither a common field nor in a cloud's block, such as network placement and
 encryption keys, is decided by the platform.
 
-#### 3 Adding a cloud
+#### 3 A new cloud adds its blocks and never changes common fields
 
 When a cloud's implementation is added, the schema gains that cloud's blocks, `spec.<cloud>` and
 `status.<cloud>`. The common fields never change for a new cloud, so nothing a user wrote before
 breaks.
 
-#### 4 Status
+#### 4 The status reports what the cloud actually runs
 
 The status shows the common fields as the cloud actually runs them, the usual `conditions`, the
 address applications connect to, and the name of the connection secret. The address is
@@ -67,7 +67,7 @@ Values that only make sense on one cloud, such as its resource IDs, go into `sta
 cloud's provider does not report a common field, that field stays empty on that cloud, and the
 service's page says so.
 
-#### 5 Defaults
+#### 5 Defaults are written once, when the object is created
 
 Most fields are optional. When a user leaves one out, the platform fills in a default when the
 object is created. There are two kinds:
@@ -90,7 +90,7 @@ portal and from Argo CD. Observed resources (rule 9) receive no defaults.
 Deletion protection works as today: a `ValidatingAdmissionPolicy` refuses to delete an object
 whose `deletionProtection` is true.
 
-#### 6 Connection secret
+#### 6 Each credential is one Secret with the same keys on every cloud
 
 Each credential is one Kubernetes Secret in the object's namespace, with the same keys on every
 cloud: `endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint` already
@@ -105,7 +105,7 @@ or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second 
 object holds the name, and `secretName` resolves it. It also allows a team to use a name its
 application already expects.
 
-#### 7 Services missing on a cloud
+#### 7 A kind exists only where a cloud runs the same engine
 
 An API is installed on a cloud only if that cloud has a managed service running the same engine,
 and its Crossplane provider can create it. On other clouds the kind does not exist, and the portal
@@ -120,13 +120,13 @@ does not show the service. A different engine is never substituted: MySQL is not
 
 PostgreSQL, buckets and artifact repositories exist on every cloud.
 
-#### 8 Kind names
+#### 8 A kind is named after the engine or concept, never a cloud product
 
 A kind is named after the engine or the concept, never after a cloud product. Four kinds are
 renamed: `S3Bucket` becomes `Bucket`, `MSK` becomes `KafkaCluster`, `Repository` becomes
 `ArtifactRepository`, and `Topic` becomes `KafkaTopic`.
 
-#### 9 Creating or observing
+#### 9 A kind either creates its resource or observes an existing one
 
 A kind that represents a cloud resource, such as a database instance or a bucket, either creates
 that resource or observes one that already exists. To observe, the user sets `observe: true` and
@@ -157,7 +157,7 @@ When the platform creates a resource, its name in the cloud includes a hash of t
 unique ID. As a result, two objects with the same name in different namespaces never share one
 cloud resource.
 
-#### 10 Validation
+#### 10 The schema checks only what the API defines
 
 The schema checks only what the API itself knows: field types, fields that cannot change, fields
 that cannot be combined, and the API's own minimums, such as a disk that cannot shrink. It does not
@@ -171,7 +171,7 @@ False` and as a warning event. A field or value the running cloud does not suppo
 one, rule 1) is reported the same way, without reaching the cloud, so one manifest still applies on
 every cloud.
 
-#### 11 References
+#### 11 A reference crosses namespaces only within one Zone
 
 A kind that exists inside another, such as a database user or a Kafka topic, names its parent in
 `instanceRef` or `clusterRef`, as `{ name, namespace }`. Without `namespace`, the parent is in the
