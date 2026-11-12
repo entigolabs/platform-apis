@@ -181,6 +181,13 @@ A reference may point to another namespace only within the same Zone, meaning bo
 the same `tenancy.entigo.com/zone` label. Creating a user gives power over the parent, so it stays
 within the team's boundary, which the Zone already defines.
 
+#### 12 A user object holds its own permissions
+
+`KafkaUser` holds its ACLs, `MariaDBUser` its privileges and `RabbitMQUser` its permissions per
+virtual host, so a user's access is read from one object. A set of permissions shared by several
+users exists only where the engine has one, as roles: a `PostgreSQLUser` with `login: false` is a
+role, and `grant.roles` grants it. The platform adds no permission mechanism that no engine has.
+
 ## Alternatives Considered
 
 Designs that were weighed and rejected, each with the reason.

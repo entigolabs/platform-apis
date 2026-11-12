@@ -96,8 +96,8 @@ the management console.
 
 Permissions follow RabbitMQ's own model: per virtual host, three regular expressions over queue and
 exchange names, for `configure` (create and delete), `write` (publish) and `read` (consume). A new
-virtual host grants nothing until a user is given permissions on it. Whether permissions stay in the
-user or move to a separate grant object is an open point ([open-points.md](open-points.md)).
+virtual host grants nothing until a user is given permissions on it. Permissions are held in the
+user (rule 12).
 
 Amazon MQ does not manage RabbitMQ users through its own API; users, virtual hosts and permissions
 are created through RabbitMQ's management API, with the broker's admin login ([Amazon MQ for
