@@ -1,7 +1,6 @@
 # Overview
 
-The design of the cloud-agnostic data service APIs, with its reasons. A decision record follows
-once the [open points](open-points.md) are settled.
+The design of the cloud-agnostic data service APIs, with its reasons.
 
 ## Context
 
