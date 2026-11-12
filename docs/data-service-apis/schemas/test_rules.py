@@ -439,16 +439,27 @@ create("PostgreSQLDatabase unknown extension rejected", "PostgreSQLDatabase",
        w(PD, extensions=["pg_cron"]), False, "Unsupported value")
 update("PostgreSQLDatabase adding name later rejected", "PostgreSQLDatabase", PD,
        w(PD, name="orders"), False, "name is immutable")
-MU = {"instanceRef": {"name": "orders-db"}, "databaseRef": {"name": "orders"},
-      "privileges": ["SELECT", "INSERT"]}
+MU = {"instanceRef": {"name": "orders-db"},
+      "databases": [{"databaseRef": {"name": "orders"}, "privileges": ["SELECT", "INSERT"]}]}
 create("MariaDBUser valid spec", "MariaDBUser", MU)
-create("MariaDBUser without privileges rejected", "MariaDBUser", w(MU, privileges=None), False,
+create("MariaDBUser on two databases accepted", "MariaDBUser",
+       w(MU, databases=MU["databases"] + [{"databaseRef": {"name": "invoices"},
+                                           "privileges": ["SELECT"]}]))
+create("MariaDBUser one database twice rejected", "MariaDBUser",
+       w(MU, databases=MU["databases"] * 2), False, "each database and table appears once")
+create("MariaDBUser one database on two tables accepted", "MariaDBUser",
+       w(MU, databases=[{"databaseRef": {"name": "orders"}, "table": "a", "privileges": ["SELECT"]},
+                        {"databaseRef": {"name": "orders"}, "table": "b", "privileges": ["SELECT"]}]))
+create("MariaDBUser without databases rejected", "MariaDBUser", w(MU, databases=None), False,
        "Required value")
-create("MariaDBUser lowercase privilege rejected", "MariaDBUser", w(MU, privileges=["select"]),
+create("MariaDBUser entry without privileges rejected", "MariaDBUser",
+       w(MU, databases=[{"databaseRef": {"name": "orders"}}]), False, "Required value")
+create("MariaDBUser lowercase privilege rejected", "MariaDBUser",
+       w(MU, databases=[{"databaseRef": {"name": "orders"}, "privileges": ["select"]}]),
        False, "should match")
-update("MariaDBUser changing databaseRef rejected", "MariaDBUser", MU,
-       w(MU, databaseRef={"name": "orders", "namespace": "shop-billing"}), False,
-       "databaseRef is immutable")
+update("MariaDBUser adding a database accepted", "MariaDBUser", MU,
+       w(MU, databases=MU["databases"] + [{"databaseRef": {"name": "invoices"},
+                                           "privileges": ["SELECT"]}]))
 MD = {"instanceRef": {"name": "orders-db"}}
 create("MariaDBDatabase valid spec", "MariaDBDatabase", w(MD, defaultCharacterSet="utf8mb4"))
 update("MariaDBDatabase changing instanceRef rejected", "MariaDBDatabase", MD,

@@ -137,10 +137,13 @@ status:
 ## Users and Databases
 
 `MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql, and retain today's
-fields. What changes is the version, `namespace` in `instanceRef` (rule 11), defaults moving to the
-admission policy (rule 5), and `name` and the references becoming immutable.
-`MariaDBUser.databaseRef.namespace`, which today's function ignores, works within the Zone (rule
-11). provider-sql writes the four secret keys rule 6 names for MariaDB users too
+fields, except that a user's database and privileges become a list, `databases`, with one entry per
+database: today's single `databaseRef` would force an application that uses two databases on one
+instance into two logins, against rule 12. Each entry becomes one provider-sql `Grant`. What also
+changes is the version, `namespace` in `instanceRef` and in each `databaseRef` (rule 11; today's
+function ignores the latter), defaults moving to the admission policy (rule 5), and `name` and
+`instanceRef` becoming immutable. provider-sql writes the four secret keys rule 6 names for MariaDB
+users too
 ([`pkg/clients/mysql/mysql.go`](https://github.com/crossplane-contrib/provider-sql/blob/v0.16.1/pkg/clients/mysql/mysql.go),
 [provider-sql v0.16.1](https://github.com/crossplane-contrib/provider-sql/releases/tag/v0.16.1)).
 The four limits on a user (`maxQueriesPerHour`, `maxUpdatesPerHour`, `maxConnectionsPerHour`,
@@ -160,13 +163,18 @@ metadata:
 spec:
   instanceRef:
     name: orders-db
-  databaseRef:
-    name: orders
-  privileges:
-  - SELECT
-  - INSERT
-  table: "*"
-  maxUserConnections: 20                # 0, the default, is no limit
+  databases:                           # one entry per database
+  - databaseRef:
+      name: orders
+    privileges:
+    - SELECT
+    - INSERT
+    table: "*"                         # the default, every table
+  - databaseRef:
+      name: invoices
+    privileges:
+    - SELECT
+  maxUserConnections: 20               # 0, the default, is no limit
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: MariaDBDatabase

@@ -474,12 +474,26 @@ write("mariadbuser", xrd(
     obj({
         "name": engine_name("user"),
         "instanceRef": parent_ref("MariaDBInstance", "instanceRef"),
-        "databaseRef": parent_ref("MariaDBDatabase", "databaseRef"),
         "secretName": secret_name("<instance>-<user>"),
-        "table": field("string", "The tables the privileges apply to.", default="fixed, *"),
-        "privileges": array(field("string", pattern="^([A-Z0-9_ ]+|[A-Z_ ]+ [(]`[^`]+`(, `[^`]+`)"
-                                  "*[)])$"), "Privileges granted on the database, such as SELECT.",
-                            minItems=1),
+        "databases": array(obj({
+            "databaseRef": obj({"name": field("string", "The MariaDBDatabase.", maxLength=253),
+                                "namespace": field("string", "The MariaDBDatabase's namespace, "
+                                                   "which must be in this object's Zone (rule "
+                                                   "11). Unset, this object's namespace.",
+                                                   maxLength=63)},
+                               "The database the privileges apply to.", required=["name"]),
+            "table": field("string", "The tables the privileges apply to.", default="fixed, *",
+                           maxLength=64),
+            "privileges": array(field("string", pattern="^([A-Z0-9_ ]+|[A-Z_ ]+ [(]`[^`]+`(, "
+                                      "`[^`]+`)*[)])$", maxLength=256),
+                                "Privileges granted, such as SELECT.", minItems=1, maxItems=32),
+        }, required=["databaseRef", "privileges"]),
+            "The databases this user may use on the instance, each with its privileges.",
+            minItems=1, maxItems=16,
+            **{"x-kubernetes-validations": [{
+                "rule": "self.all(a, self.exists_one(b, b.databaseRef == a.databaseRef && "
+                        "(has(b.table) ? b.table : '*') == (has(a.table) ? a.table : '*')))",
+                "message": "each database and table appears once"}]}),
         "maxConnectionsPerHour": field("integer", "Connections allowed per hour; 0 is unlimited.",
                                        default="fixed, 0", minimum=0),
         "maxQueriesPerHour": field("integer", "Queries allowed per hour; 0 is unlimited.", default="fixed, 0",
@@ -491,7 +505,7 @@ write("mariadbuser", xrd(
         "grant": obj({"users": array(field("string"), "Users granted to this user.")}),
     }, rules=[NAME_RULE]),
     obj({"connectionSecret": field("string", "The Secret with this user's login (rule 6).")}),
-    required_spec=["instanceRef", "databaseRef", "privileges"]))
+    required_spec=["instanceRef", "databases"]))
 
 write("mariadbdatabase", xrd(
     "MariaDBDatabase", "mariadbdatabases", "database.entigo.com",

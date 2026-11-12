@@ -24,6 +24,8 @@ The implementation of the design on each cloud. Known so far:
 
 The path from today's kinds to the design. Known so far:
 
+- `MariaDBUser`'s `databaseRef`, `table` and `privileges` move into one entry of its `databases`
+  list.
 - The renamed kinds need new XRDs. `MSK` is cluster-scoped today, while `KafkaCluster` is
   namespaced and shared within its Zone (rule 11).
 - Some secrets change form: Valkey's `AUTH_TOKEN`, `PORT` and `credentials.json` keys; the bucket's

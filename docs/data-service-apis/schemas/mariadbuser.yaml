@@ -44,44 +44,62 @@ spec:
                 x-kubernetes-validations:
                 - rule: self == oldSelf
                   message: instanceRef is immutable
-              databaseRef:
-                type: object
-                description: |-
-                  The MariaDBDatabase this object lives in.
-                properties:
-                  name:
-                    type: string
-                    description: |-
-                      The MariaDBDatabase.
-                  namespace:
-                    type: string
-                    description: |-
-                      The MariaDBDatabase's namespace, which must be in this object's Zone (rule 11).
-                      Unset, this object's namespace.
-                required:
-                - name
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: databaseRef is immutable
               secretName:
                 type: string
                 description: |-
                   The name of the connection Secret (rule 6). The platform never overwrites a
                   Secret that another object or person owns; set this to avoid one.
                   Default: fixed, <instance>-<user>.
-              table:
-                type: string
-                description: |-
-                  The tables the privileges apply to.
-                  Default: fixed, *.
-              privileges:
+              databases:
                 type: array
                 description: |-
-                  Privileges granted on the database, such as SELECT.
+                  The databases this user may use on the instance, each with its privileges.
                 items:
-                  type: string
-                  pattern: ^([A-Z0-9_ ]+|[A-Z_ ]+ [(]`[^`]+`(, `[^`]+`)*[)])$
+                  type: object
+                  properties:
+                    databaseRef:
+                      type: object
+                      description: |-
+                        The database the privileges apply to.
+                      properties:
+                        name:
+                          type: string
+                          description: |-
+                            The MariaDBDatabase.
+                          maxLength: 253
+                        namespace:
+                          type: string
+                          description: |-
+                            The MariaDBDatabase's namespace, which must be in this object's Zone (rule 11).
+                            Unset, this object's namespace.
+                          maxLength: 63
+                      required:
+                      - name
+                    table:
+                      type: string
+                      description: |-
+                        The tables the privileges apply to.
+                        Default: fixed, *.
+                      maxLength: 64
+                    privileges:
+                      type: array
+                      description: |-
+                        Privileges granted, such as SELECT.
+                      items:
+                        type: string
+                        pattern: ^([A-Z0-9_ ]+|[A-Z_ ]+ [(]`[^`]+`(, `[^`]+`)*[)])$
+                        maxLength: 256
+                      minItems: 1
+                      maxItems: 32
+                  required:
+                  - databaseRef
+                  - privileges
                 minItems: 1
+                maxItems: 16
+                x-kubernetes-validations:
+                - rule: "self.all(a, self.exists_one(b, b.databaseRef == a.databaseRef && (has(b.table)\
+                    \ ? b.table : '*') == (has(a.table) ? a.table : '*')))"
+                  message: each database and table appears once
               maxConnectionsPerHour:
                 type: integer
                 description: |-
@@ -121,8 +139,7 @@ spec:
               message: name is immutable
             required:
             - instanceRef
-            - databaseRef
-            - privileges
+            - databases
           status:
             type: object
             properties:
