@@ -59,7 +59,7 @@ spec:
                     type: object
                     description: |-
                       The weekly hour, in UTC, in which the cloud applies updates.
-                      Extended: AWS, GCP.
+                      Ignored on OCI.
                     properties:
                       day:
                         type: string
@@ -83,13 +83,13 @@ spec:
                     description: |-
                       Allow the cloud to upgrade to newer minor versions on its schedule. false keeps
                       the cache at version.
-                      Extended for false: AWS.
+                      Ignored for false on GCP and OCI.
                       Default: per deployment.
               backup:
                 type: object
                 description: |-
                   Automated daily backups.
-                  Extended: AWS, GCP.
+                  Ignored on OCI, which takes manual backups only.
                 properties:
                   retentionDays:
                     type: integer

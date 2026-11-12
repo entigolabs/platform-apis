@@ -96,7 +96,7 @@ spec:
                 type: array
                 description: |-
                   Cross-origin requests browsers may make.
-                  Extended: AWS, GCP, Azure.
+                  Ignored on OCI, which allows every origin.
                 items:
                   type: object
                   properties:

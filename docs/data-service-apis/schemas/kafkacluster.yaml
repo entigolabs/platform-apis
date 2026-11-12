@@ -35,7 +35,7 @@ spec:
                 type: integer
                 description: |-
                   The number of brokers.
-                  Extended: AWS, OCI. GCP chooses its own.
+                  Ignored on GCP, which chooses its own.
                   Default: per deployment.
                 minimum: 1
               storage:
@@ -51,7 +51,7 @@ spec:
                 type: boolean
                 description: |-
                   Survive the loss of one zone.
-                  Extended for false: OCI.
+                  Ignored for false on AWS and GCP, which always run highly available.
                   Default: per deployment.
               deletionProtection:
                 type: boolean

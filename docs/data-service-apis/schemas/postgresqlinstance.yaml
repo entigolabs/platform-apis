@@ -31,7 +31,7 @@ spec:
                 description: |-
                   The major version, such as "17". With maintenance.autoMinorVersionUpgrade false,
                   the full version, such as "17.7".
-                  Extended for a minor: AWS.
+                  Ignored for a full version on GCP, OCI and Azure, which keep the minor current.
                   Default: per deployment.
                 pattern: ^[0-9]+(\.[0-9]+)?$
               storage:
@@ -52,26 +52,26 @@ spec:
                     type: boolean
                     description: |-
                       Grow the disk as it fills.
-                      Extended for false: AWS, GCP, Azure.
+                      Ignored for false on OCI, whose storage always grows.
                       Default: fixed, true.
                   maxSizeGB:
                     type: integer
                     description: |-
                       The size autoGrow stops at.
-                      Extended: AWS, GCP.
+                      Ignored on OCI and Azure.
                       Default: per deployment.
                     minimum: 1
                   iops:
                     type: integer
                     description: |-
                       Provisioned IOPS.
-                      Extended: AWS, GCP with Hyperdisk, OCI.
+                      Ignored on Azure, and on GCP without Hyperdisk.
                     minimum: 1
                   throughputMBps:
                     type: integer
                     description: |-
                       Provisioned throughput in MB/s.
-                      Extended: AWS, GCP with Hyperdisk.
+                      Ignored on OCI, Azure, and GCP without Hyperdisk.
                     minimum: 1
                 x-kubernetes-validations:
                 - rule: |-
@@ -119,13 +119,13 @@ spec:
                     description: |-
                       Apply new minor versions in the maintenance window. false keeps the minor
                       written in version.
-                      Extended for false: AWS.
+                      Ignored for false on GCP, OCI and Azure.
                       Default: per deployment.
                   allowMajorVersionUpgrade:
                     type: boolean
                     description: |-
                       Allow version to change to a later major.
-                      Extended for true: AWS, GCP, Azure.
+                      A major upgrade on OCI, which has none, fails (rule 10).
                       Default: fixed, false.
               backup:
                 type: object
@@ -135,7 +135,7 @@ spec:
                     description: |-
                       Days automated backups are kept, within the cloud's own range, which the cloud
                       checks (rule 10). 0 turns automated backups and point-in-time restore off.
-                      Extended for 0: AWS, GCP, OCI.
+                      Ignored for 0 on Azure, which always keeps backups.
                       Default: per deployment.
                     minimum: 0
                   pointInTimeDays:
@@ -149,7 +149,7 @@ spec:
                     type: integer
                     description: |-
                       The hour, in UTC, the daily backup starts.
-                      Extended: AWS, GCP, OCI.
+                      Ignored on Azure.
                     minimum: 0
                     maximum: 23
                 x-kubernetes-validations:
@@ -169,7 +169,8 @@ spec:
                 description: |-
                   When changed parameters take effect. Immediate restarts the instance where a
                   setting needs it; RDS rejects such settings with Immediate.
-                  Extended for NextRestart: AWS.
+                  Ignored for NextRestart on GCP, OCI and Azure, where a change that needs a
+                  restart restarts the instance at once.
                   Default: fixed, Immediate.
                 enum:
                 - Immediate

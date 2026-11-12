@@ -26,7 +26,8 @@ spec:
                   true observes an existing resource, named by the cloud block's id, and never
                   changes or deletes it. Every other field is then rejected (rule 9). Set at
                   creation only.
-                  Extended: AWS, GCP, OCI. An Azure repository has no resource of its own.
+                  Observing fails on Azure, where a repository has no resource of its own (rule
+                  10).
               name:
                 type: string
                 description: |-
@@ -45,13 +46,13 @@ spec:
                 type: boolean
                 description: |-
                   A pushed tag cannot be pushed again.
-                  Extended: AWS, GCP, OCI.
+                  Ignored on Azure.
                   Default: per deployment.
               lifecycleRules:
                 type: array
                 description: |-
                   Delete old images. Set, it replaces the deployment's rules.
-                  Extended: AWS, GCP.
+                  Ignored on OCI and Azure.
                   Default: per deployment.
                 items:
                   type: object
@@ -68,7 +69,7 @@ spec:
                       type: array
                       description: |-
                         Images with a tag matching one of these wildcards.
-                        Extended: AWS.
+                        Ignored on GCP, OCI and Azure, which then skip the whole rule.
                       items:
                         type: string
                     untagged:
@@ -80,7 +81,7 @@ spec:
                       description: |-
                         Keep this many newest images. With tagPrefixes or untagged, only on AWS; GCP
                         keeps the newest only of all images.
-                        Extended with a selector: AWS.
+                        Ignored with a selector on GCP, OCI and Azure, which then skip the whole rule.
                       minimum: 1
                     expireAfterDays:
                       type: integer

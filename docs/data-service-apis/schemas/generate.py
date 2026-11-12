@@ -36,7 +36,7 @@ def desc(text, ext=None, default=None, single_cloud=False):
     """A description: the text, then the support level and default lines."""
     lines = textwrap.wrap(text, 80) if text else []
     if ext and not single_cloud:
-        lines.append(ext)
+        lines += textwrap.wrap(ext, 80)
     if default:
         lines.append("Default: " + default + ".")
     return Literal("\n".join(lines))
@@ -239,13 +239,14 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
         "storage": obj({
             "sizeGB": size_field(from_backup),
             "autoGrow": field("boolean", "Grow the disk as it fills.",
-                              "Extended for false: AWS, GCP, Azure.", "fixed, true", sc),
+                              "Ignored for false on OCI, "
+                              "whose storage always grows.", "fixed, true", sc),
             "maxSizeGB": field("integer", "The size autoGrow stops at.",
-                               "Extended: AWS, GCP.", DEPLOY, sc, minimum=1),
+                               "Ignored on OCI and Azure.", DEPLOY, sc, minimum=1),
             "iops": field("integer", "Provisioned IOPS.",
-                          "Extended: AWS, GCP with Hyperdisk, OCI.", None, sc, minimum=1),
+                          "Ignored on Azure, and on GCP without Hyperdisk.", None, sc, minimum=1),
             "throughputMBps": field("integer", "Provisioned throughput in MB/s.",
-                                    "Extended: AWS, GCP with Hyperdisk.", None, sc,
+                                    "Ignored on OCI, Azure, and GCP without Hyperdisk.", None, sc,
                                     minimum=1),
         }, rules=[("!has(self.maxSizeGB) || !has(self.sizeGB) || self.maxSizeGB >= self.sizeGB",
                    "maxSizeGB must be at least sizeGB")]),
@@ -257,16 +258,18 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
             "window": window(),
             "autoMinorVersionUpgrade": field(
                 "boolean", "Apply new minor versions in the maintenance window. false keeps "
-                "the minor written in version.", "Extended for false: AWS.", DEPLOY, sc),
+                "the minor written in version.", "Ignored for false on "
+                                                 "GCP, OCI and Azure.", DEPLOY, sc),
             "allowMajorVersionUpgrade": field(
                 "boolean", "Allow version to change to a later major.",
-                "Extended for true: AWS, GCP, Azure.", "fixed, false", sc),
+                "A major upgrade on OCI, which has none, fails (rule 10).", "fixed, false", sc),
         }),
         "backup": obj({
             "retentionDays": field("integer", "Days automated backups are kept, within the "
                                    "cloud's own range, which the cloud checks (rule 10). 0 "
                                    "turns automated backups and point-in-time restore off.",
-                                   "Extended for 0: AWS, GCP, OCI.", DEPLOY, sc, minimum=0),
+                                   "Ignored for 0 on Azure, which "
+                                   "always keeps backups.", DEPLOY, sc, minimum=0),
             **({"pointInTimeDays": field(
                 "integer", "Days back restore.pointInTime can reach, within the cloud's own "
                 "range. AWS and Azure keep one window for both, so above retentionDays is "
@@ -275,7 +278,7 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
                 "with retentionDays 0",
                 minimum=1)} if pitr else {}),
             "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
-                                  "Extended: AWS, GCP, OCI.", None, sc, minimum=0,
+                                  "Ignored on Azure.", None, sc, minimum=0,
                                   maximum=23),
         }, rules=[("!has(self.pointInTimeDays) || !has(self.retentionDays) || "
                    "self.retentionDays > 0",
@@ -286,7 +289,8 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
         **({"parameterApplyMethod": field(
             "string", "When changed parameters take effect. Immediate restarts the instance "
             "where a setting needs it; RDS rejects such settings with Immediate.",
-            "Extended for NextRestart: AWS.", "fixed, Immediate", sc,
+            "Ignored for NextRestart on GCP, OCI and Azure, where a change "
+            "that needs a restart restarts the instance at once.", "fixed, Immediate", sc,
             enum=["Immediate", "NextRestart"])} if from_backup else {}),
         "restore": restore_block(kind),
         "secretName": secret_name("<instance>-dbadmin"),
@@ -401,7 +405,7 @@ write("postgresqlinstance", db_instance(
          "!self.maintenance.autoMinorVersionUpgrade)",
          "version takes a minor exactly when maintenance.autoMinorVersionUpgrade is false"),
     ], from_backup=True, major=lambda v: f"{v}.split('.')[0]",
-    minor_ext="Extended for a minor: AWS."))
+    minor_ext="Ignored for a full version on GCP, OCI and Azure, which keep the minor current."))
 
 MARIADB_MAJOR = lambda v: f"({v}.split('.')[0] + '.' + {v}.split('.')[1])"
 
@@ -550,10 +554,10 @@ write("valkeyinstance", xrd(
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
         "maintenance": obj({
-            "window": window("Extended: AWS, GCP."),
+            "window": window("Ignored on OCI."),
             "autoMinorVersionUpgrade": field("boolean", "Allow the cloud to upgrade to newer minor "
                                              "versions on its schedule. false keeps the cache "
-                                             "at version.", "Extended for false: AWS.",
+                                             "at version.", "Ignored for false on GCP and OCI.",
                                              DEPLOY),
         }),
         "backup": obj({
@@ -562,7 +566,7 @@ write("valkeyinstance", xrd(
                                    "off.", default=DEPLOY, minimum=0),
             "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
                                   minimum=0, maximum=23),
-        }, "Automated daily backups.", "Extended: AWS, GCP."),
+        }, "Automated daily backups.", "Ignored on OCI, which takes manual backups only."),
         "secretName": secret_name("<instance>-credentials"),
         "parameters": string_map("Valkey settings, by name. Keys outside the cloud's allowlist "
                                  "are rejected."),
@@ -616,11 +620,12 @@ write("kafkacluster", xrd(
         "version": field("string", "The Kafka version, such as \"3.9\". Each cloud accepts "
                          "the versions it offers.", default=DEPLOY),
         "brokers": field("integer", "The number of brokers.",
-                         "Extended: AWS, OCI. GCP chooses its own.", DEPLOY, minimum=1),
+                         "Ignored on GCP, which chooses its own.", DEPLOY, minimum=1),
         "storage": obj({"sizeGB": field("integer", "Disk per broker, in GB.", default=DEPLOY,
                                         minimum=1)}),
         "highAvailability": field("boolean", "Survive the loss of one zone.",
-                                  "Extended for false: OCI.", DEPLOY),
+                                  "Ignored for false on AWS and GCP, "
+                                  "which always run highly available.", DEPLOY),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
         "parameters": string_map("Broker settings, by name. Keys outside the cloud's "
@@ -791,7 +796,7 @@ write("bucket", xrd(
             "methods": array(field("string", enum=["GET", "PUT", "POST", "DELETE", "HEAD"])),
             "maxAgeSeconds": field("integer", minimum=0),
         }, required=["origins", "methods"]), "Cross-origin requests browsers may make.",
-            "Extended: AWS, GCP, Azure."),
+            "Ignored on OCI, which allows every origin."),
     }, {
         "aws": None,
         "gcp": {"softDeleteDays": field("integer", "Days deleted objects can be recovered.",
@@ -828,16 +833,18 @@ write("artifactrepository", xrd(
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
         "immutableTags": field("boolean", "A pushed tag cannot be pushed again.",
-                               "Extended: AWS, GCP, OCI.", DEPLOY),
+                               "Ignored on Azure.", DEPLOY),
         "lifecycleRules": array(obj({
             "tagPrefixes": array(field("string"), "Images with a tag starting with one of "
                                  "these."),
             "tagPatterns": array(field("string"), "Images with a tag matching one of these "
-                                 "wildcards.", "Extended: AWS."),
+                                 "wildcards.", "Ignored on GCP, OCI and Azure, "
+                                               "which then skip the whole rule."),
             "untagged": field("boolean", "Images without a tag."),
             "keepCount": field("integer", "Keep this many newest images. With tagPrefixes or "
                                "untagged, only on AWS; GCP keeps the newest only of all images.",
-                               "Extended with a selector: AWS.", minimum=1),
+                               "Ignored with a selector on GCP, OCI and "
+                               "Azure, which then skip the whole rule.", minimum=1),
             "expireAfterDays": field("integer", "Delete images this long after their push.",
                                      minimum=1),
         }, "One selector, or none for every image, and one bound.", rules=[
@@ -845,14 +852,16 @@ write("artifactrepository", xrd(
              "(has(self.untagged) ? 1 : 0) <= 1", "at most one selector"),
             ("has(self.keepCount) != has(self.expireAfterDays)",
              "exactly one of keepCount and expireAfterDays"),
-        ]), "Delete old images. Set, it replaces the deployment's rules.", "Extended: AWS, GCP.",
+        ]), "Delete old images. Set, it replaces the deployment's rules.", "Ignored on OCI "
+                                                                           "and Azure.",
            default=DEPLOY),
     }, {"aws": None, "gcp": None, "oci": None, "azure": None}, "repository", [
         ("(has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')",
          "name is immutable"),
         ("(has(self.path) ? self.path : '') == (has(oldSelf.path) ? oldSelf.path : '')",
          "path is immutable"),
-    ], observe_ext="Extended: AWS, GCP, OCI. An Azure repository has no resource of its own."),
+    ], observe_ext="Observing fails on Azure, where a repository "
+                   "has no resource of its own (rule 10)."),
     obj({
         "uri": field("string", "The image URI, such as "
                      "123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/orders-api."),

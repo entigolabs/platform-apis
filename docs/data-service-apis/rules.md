@@ -9,11 +9,10 @@ draft schemas are in [schemas/](schemas/).
 
 #### 1 The common spec states needs, not cloud products
 
-A manifest applies unchanged on every cloud where its kind exists. With Core fields and cloud blocks
-only, it also works on every cloud; an Extended field works where the cloud supports it and reports
-`CloudAccepted: False` elsewhere, as an Extended feature does in Gateway API. Everything
-cloud-specific belongs in the cloud blocks (rule 2). What an Extended field should do on a cloud
-that lacks it is an open point ([open-points.md](open-points.md)).
+A manifest applies unchanged and works on every cloud where its kind exists. A setting that a cloud
+lacks is ignored there, as `storage.iops` is on Azure, and everything cloud-specific belongs in the
+cloud blocks (rule 2). An operation that a cloud cannot perform, such as a major version upgrade on
+OCI, fails instead (rule 10).
 
 The common spec describes what the user needs, not which cloud product provides it: a version, a
 size, high availability, backups. A field belongs there when a user can choose it without knowing
@@ -25,18 +24,18 @@ The fields are checked against the managed services of every cloud infralib depl
 OCI and Azure), even where no Crossplane provider supports the service yet. As a result, a cloud
 that receives a provider later finds its concepts already in the API.
 
-Not every cloud supports every field, so each field has a support level per cloud. The level can
-also apply to a single value of a field, such as `storage.autoGrow: false`, which OCI does not
-support.
+Not every cloud supports every setting, so each field has a support level. The level can also apply
+to a single value of a field, such as `storage.autoGrow: false`, which OCI ignores because its
+storage always grows.
 
-| Level    | Meaning                                                                                                                                              |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Core     | Works on every cloud.                                                                                                                                |
-| Extended | Works on the clouds listed in the field's description, with the same meaning on each; on any other cloud, the object reports `CloudAccepted: False`. |
-| Ignored  | Accepted on a cloud but has no effect there, because that cloud already provides what the field requests.                                            |
+| Level   | Meaning                                                                                                                                                |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Core    | Works on every cloud.                                                                                                                                  |
+| Ignored | Accepted on every cloud, but has no effect on the clouds named in the field's description, which lack it. The resource is created without the setting. |
 
-In a schema, a field's description ends with `Extended` and the clouds that support it. A field
-without that mark is Core.
+In a schema, a field's description ends with `Ignored on` and the clouds that lack it; each
+service's Mapping table names the same clouds in its Level column. A field without that mark is
+Core.
 
 #### 2 A setting of one cloud belongs in that cloud's block
 
@@ -167,9 +166,9 @@ values itself, and each service's page lists the known limits under Cloud Limits
 
 When the cloud rejects a value, the error appears only on the provider's own object, not on the
 user's. The platform therefore also shows it on the user's object, as the condition `CloudAccepted:
-False` and as a warning event. A field or value the running cloud does not support (an Extended
-one, rule 1) is reported the same way, without reaching the cloud, so one manifest still applies on
-every cloud.
+False` and as a warning event. An operation that the running cloud cannot perform, such as a major
+version upgrade on OCI or observing a repository on Azure, is reported the same way, without
+reaching the cloud.
 
 #### 11 A reference crosses namespaces only within one Zone
 
