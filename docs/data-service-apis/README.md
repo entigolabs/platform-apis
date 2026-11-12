@@ -1,6 +1,6 @@
 # Overview
 
-The design of the cloud-agnostic data service APIs, with its reasons.
+The design of the portable data service APIs, with its reasons.
 
 ## Context
 

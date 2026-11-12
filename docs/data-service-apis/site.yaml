@@ -1,5 +1,5 @@
 ---
-title: Cloud-Agnostic Data Service APIs
+title: Portable Data Service APIs
 checklistCollection: openpoints
 replace:
 - from: "Applies the rules in [rules.md](rules.md)."
