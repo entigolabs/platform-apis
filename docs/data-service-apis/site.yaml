@@ -50,9 +50,9 @@ nav:
   - label: ArtifactRepository
     files:
     - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
+- {file: changes.md, label: API Changes, compare: true, tabs: sections}
 - group: Next Steps
   pages:
-  - {file: changes.md, label: API Changes, compare: true, tabs: sections}
   - {file: follow-up-work.md, label: Follow-Up Work}
   - {file: deferred-capabilities.md, label: Deferred Capabilities}
   - {file: open-points.md, label: Open Points, checklist: true}
