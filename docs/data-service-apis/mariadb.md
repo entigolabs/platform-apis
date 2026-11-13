@@ -9,6 +9,8 @@ instance, with its permissions; and `MariaDBDatabase`, one database on an instan
 Built on Amazon RDS (AWS), so `aws` is the only cloud block. GCP, OCI and Azure have none: their
 MySQL services are not MariaDB (rule 7), and Azure Database for MariaDB is retired.
 
+What changes from today's API is listed in [API Changes](changes.md#mariadb).
+
 ## Contents
 
 - [Spec](#spec)

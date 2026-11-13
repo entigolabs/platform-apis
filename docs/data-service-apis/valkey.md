@@ -8,6 +8,8 @@ One kind: `ValkeyInstance`, one primary node with read replicas.
 Built on ElastiCache (AWS), Memorystore for Valkey (GCP) and OCI Cache (OCI). Azure has none: Azure
 Managed Redis runs Redis, not Valkey.
 
+What changes from today's API is listed in [API Changes](changes.md#valkey).
+
 ## Contents
 
 - [Spec](#spec)

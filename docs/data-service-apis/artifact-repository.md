@@ -9,6 +9,8 @@ One kind: `ArtifactRepository` (today `Repository`), one application's image pat
 Built on ECR (AWS), Artifact Registry (GCP), OCIR (OCI) and Azure Container Registry (Azure), which
 store every OCI artifact alike.
 
+What changes from today's API is listed in [API Changes](changes.md#artifactrepository).
+
 ## Contents
 
 - [Spec](#spec)

@@ -10,6 +10,8 @@ Built on Amazon MSK provisioned (AWS), Managed Service for Apache Kafka (GCP) an
 Apache Kafka (OCI). Azure has none: Event Hubs speaks the Kafka protocol but has no Kafka ACLs, no
 topic creation through the Kafka admin API and no broker settings.
 
+What changes from today's API is listed in [API Changes](changes.md#kafka).
+
 ## Contents
 
 - [Spec](#spec)

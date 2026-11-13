@@ -1,6 +1,8 @@
 ---
 title: Portable Data Service APIs
 checklistCollection: openpoints
+itemLinks:                                # "rule N" in the text links to rule N
+- {word: rule, file: rules.md}
 nav:
 - file: README.md
   label: Overview

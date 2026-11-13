@@ -6,6 +6,8 @@ One kind: `Bucket` (today `S3Bucket`), one bucket.
 
 Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (Azure).
 
+What changes from today's API is listed in [API Changes](changes.md#bucket).
+
 ## Contents
 
 - [Spec](#spec)
@@ -65,8 +67,8 @@ cloud has.
 Today's `S3Bucket` also creates an IAM role, a service account annotated with it, and an IAM user
 with an access key. Those are identities of the applications that use the bucket, not part of the
 bucket, so they leave `Bucket`; an application's own identity is granted access to the buckets it
-names (Follow-Up Work 3, Cloud identity for applications, in
-[follow-up-work.md](follow-up-work.md)).
+names ([Cloud identity for applications](follow-up-work.md#3-cloud-identity-for-applications), in
+Follow-Up Work).
 
 ## Mapping
 

@@ -369,7 +369,7 @@ spec:
 | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | kind `S3Bucket`                              | kind `Bucket`                                                                                             | Named after the concept (rule 8)                                       |
 | `enableVersioning`                           | `versioning`                                                                                              | The same word on every cloud                                           |
-| `createServiceAccount`, `serviceAccountName` | removed                                                                                                   | An application's identity is not part of the bucket (Follow-Up Work 3) |
+| `createServiceAccount`, `serviceAccountName` | removed                                                                                                   | An application's identity is not part of the bucket ([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)) |
 | (none)                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `gcp.softDeleteDays`, `azure.softDeleteDays` | New settings                                                           |
 
 The IAM role, service account and IAM user with an access key that `S3Bucket` creates are no

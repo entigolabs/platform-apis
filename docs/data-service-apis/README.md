@@ -7,6 +7,8 @@ Status: a draft awaiting the agreement of the `platform-apis` maintainers, track
 
 ## Summary
 
+The design in seven points, each with the rule it comes from:
+
 - One manifest works on every cloud where its kind exists. It states what is needed, such as a
   version or a size, and settings that exist on only one cloud go into that cloud's block
   ([rule 1](rules.md#1-the-common-spec-states-needs-not-cloud-products), [rule 2](rules.md#2-a-setting-of-one-cloud-belongs-in-that-clouds-block)).

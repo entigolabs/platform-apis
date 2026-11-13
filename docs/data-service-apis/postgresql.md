@@ -8,6 +8,8 @@ an instance, with its permissions; and `PostgreSQLDatabase`, one database on an 
 Built on Amazon RDS (AWS), Cloud SQL (GCP), OCI Database with PostgreSQL (OCI) and Azure Database
 for PostgreSQL flexible server (Azure).
 
+What changes from today's API is listed in [API Changes](changes.md#postgresql).
+
 ## Contents
 
 - [Spec](#spec)
