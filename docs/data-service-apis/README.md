@@ -10,29 +10,11 @@ class, its status reports AWS identifiers, and the developer portal hard-codes A
 forms. infralib also deploys to GCP, OCI and Azure, and OCI is the next cloud to run the data
 services. Implementing the design on a cloud and moving today's objects to it are follow-up work.
 
+The rules the design follows are in [Design Rules](rules.md), and what changes for today's users is
+in [API Changes](changes.md).
+
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
-
-## Key Decisions
-
-Each decision is one of the [Design Rules](rules.md):
-
-- A manifest states what is needed, such as a version or a size. A setting that exists on only one
-  cloud goes into that cloud's block (rules 1 and 2).
-- A cloud that lacks a setting ignores it; an operation it cannot perform fails, with the reason on
-  the object (rules 1 and 10).
-- A service is offered only where a cloud runs the same engine, so MariaDB and RabbitMQ run on AWS
-  only (rule 7).
-- Defaults are written once, at creation, so changing a default never alters a running resource
-  (rule 5).
-- Every credential is one Secret with the same keys on every cloud (rule 6).
-- A kind either creates its resource or observes one that already exists (rule 9).
-- A user object is one application's login on one instance, with its own permissions (rule 12).
-
-The split into common fields and cloud blocks follows the Zone API, which uses shared keys with
-cloud-native values and prefixed keys for one cloud's settings
-([`functions/tenancy`](https://github.com/entigolabs/platform-apis/tree/main/functions/tenancy)).
-What changes for today's users is listed in [API Changes](changes.md).
 
 ## Pages
 

@@ -47,6 +47,10 @@ ignores the others, so one manifest can carry settings for several clouds and be
 them. Only one block may hold the `id` of an existing resource to observe, since a resource exists
 on one cloud.
 
+This follows the Zone API, which uses shared keys with cloud-native values and prefixed keys for one
+cloud's settings
+([`functions/tenancy`](https://github.com/entigolabs/platform-apis/tree/main/functions/tenancy)).
+
 Everything that is neither a common field nor in a cloud's block, such as network placement and
 encryption keys, is decided by the platform.
 
