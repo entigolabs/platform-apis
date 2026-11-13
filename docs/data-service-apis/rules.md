@@ -12,22 +12,21 @@ draft schemas are in [schemas/](schemas/).
 One manifest works on every cloud where its kind exists: it says what is needed, such as a version
 or a disk size, not which cloud product provides it.
 
-A setting that a cloud lacks is ignored there, as `storage.iops` is on Azure, and everything
-cloud-specific belongs in the cloud blocks (rule 2). An operation that a cloud cannot perform, such
-as a major version upgrade on OCI, fails instead (rule 10).
+A setting that a cloud lacks is ignored there, and everything that exists on only one cloud goes
+into a block for that cloud. An operation that a cloud cannot perform fails instead, with the reason
+shown on the object.
 
 The common spec holds needs such as a version, a size, high availability and backups. A field
 belongs there when a user can choose it without knowing which cloud runs underneath. Where no fair
-cloud-neutral value exists, the setting goes into the cloud blocks instead: a size, for example, is
-`aws.instanceType` on AWS and `oci.instanceType` with `oci.ocpus` on OCI.
+cloud-neutral value exists, the setting goes into the cloud blocks instead, as a machine size does,
+since each cloud names its sizes differently.
 
 The fields are checked against the managed services of every cloud infralib deploys to (AWS, GCP,
 OCI and Azure), even where no Crossplane provider supports the service yet. As a result, a cloud
 that receives a provider later finds its concepts already in the API.
 
 Not every cloud supports every setting, so each field has a support level. The level can also apply
-to a single value of a field, such as `storage.autoGrow: false`, which OCI ignores because its
-storage always grows.
+to a single value of a field, such as turning off a feature that one cloud always has on.
 
 | Level   | Meaning                                                                                                                                                |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -42,11 +41,11 @@ Core.
 
 Anything that exists on only one cloud goes into that cloud's block, such as `spec.aws`.
 
-The blocks are `spec.aws`, `spec.gcp`, `spec.oci` and `spec.azure`. For example, the name of an
-existing RDS parameter group goes into `spec.aws`. Each block has its own typed fields, so the
-schema can check them. A deployment uses the block of the cloud it runs on and ignores the others,
-so one manifest can carry settings for several clouds and be applied on any of them. Only one block
-may hold an `id` for observing (rule 9), since a resource exists on one cloud.
+The blocks are `spec.aws`, `spec.gcp`, `spec.oci` and `spec.azure`. Each block has its own typed
+fields, so the schema can check them. A deployment uses the block of the cloud it runs on and
+ignores the others, so one manifest can carry settings for several clouds and be applied on any of
+them. Only one block may hold the `id` of an existing resource to observe, since a resource exists
+on one cloud.
 
 Everything that is neither a common field nor in a cloud's block, such as network placement and
 encryption keys, is decided by the platform.
@@ -63,9 +62,8 @@ When a cloud's implementation is added, the schema gains that cloud's blocks, `s
 The status shows what is running on the cloud, not what the manifest asked for.
 
 The status shows the common fields as the cloud actually runs them, the usual `conditions`, the
-address applications connect to, and the name of the connection secret. The address is
-`endpoint: { host, port }` where the service has one host, or the service's own form, such as
-`bootstrapServers` for Kafka.
+address applications connect to, and the name of the connection secret. The address is `endpoint: {
+host, port }` where the service has one host, or the service's own form where it has several.
 
 Values that only make sense on one cloud, such as its resource IDs, go into `status.<cloud>`. If a
 cloud's provider does not report a common field, that field stays empty on that cloud, and the
@@ -79,8 +77,8 @@ Most fields are optional, and their defaults are of two kinds:
 
 | Kind               | Set By                                                 | Example                       |
 | ------------------ | ------------------------------------------------------ | ----------------------------- |
-| Fixed              | the platform, the same on every deployment             | `deletionProtection: true`    |
-| Deployment default | the deployment's operator, per cloud, through infralib | `version`, `aws.instanceType` |
+| Fixed              | the platform, the same on every deployment             | deletion protection           |
+| Deployment default | the deployment's operator, per cloud, through infralib | version, machine size         |
 
 Safety settings, such as deletion protection, are fixed. Cost, size and availability are
 deployment defaults, because only the operator can judge what suits their cloud and budget. In a
@@ -90,7 +88,7 @@ The defaults are written into the object by a `MutatingAdmissionPolicy`, which i
 Kubernetes from version 1.36. It fills them in when the object is created and keeps them on
 updates, so a default is applied only once: if the operator later changes a default, running
 databases are not resized or upgraded. Defaults were tested to survive later updates from the
-portal and from Argo CD. Observed resources (rule 9) receive no defaults.
+portal and from Argo CD. Observed resources receive no defaults.
 
 Deletion protection works as today: a `ValidatingAdmissionPolicy` refuses to delete an object
 whose `deletionProtection` is true.
@@ -102,8 +100,8 @@ Applications read every credential from one Secret with the same keys, `endpoint
 
 Each credential is one Kubernetes Secret in the object's namespace, with the same keys on every
 cloud: `endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint` already
-contains it, as in a Kafka bootstrap list. A service that needs more adds its own keys, such as
-`readerEndpoint` for Valkey. No key is named after a cloud, and no key holds the others as JSON.
+lists hosts with their ports. A service that needs more adds its own keys, such as a reader
+endpoint. No key is named after a cloud, and no key holds the others as JSON.
 
 The secrets are named `<instance>-dbadmin` for a database's admin, `<instance>-credentials` for
 other services, and `<instance>-<user>` for a user object, as today. Every kind with a secret takes
@@ -122,21 +120,9 @@ An API is installed on a cloud only if that cloud has a managed service running 
 and its Crossplane provider can create it. On other clouds the kind does not exist, and the portal
 does not show the service. A different engine is never substituted: MySQL is not MariaDB.
 
-| Service  | AWS         | GCP                                    | OCI                             | Azure          |
-| -------- | ----------- | -------------------------------------- | ------------------------------- | -------------- |
-| MariaDB  | RDS         | none                                   | none                            | none (retired) |
-| Valkey   | ElastiCache | Memorystore, but no password login yet | OCI Cache                       | none           |
-| Kafka    | MSK         | Managed Kafka, but no provider support | OCI Streaming with Apache Kafka | none           |
-| RabbitMQ | Amazon MQ   | none                                   | none                            | none           |
-
-PostgreSQL, buckets and artifact repositories exist on every cloud.
-
 #### 8 A kind is named after the engine or concept, never a cloud product
 
 Kinds are named for what they are, such as `Bucket`, never after a product such as S3.
-
-Four kinds are renamed: `S3Bucket` becomes `Bucket`, `MSK` becomes `KafkaCluster`, `Repository`
-becomes `ArtifactRepository`, and `Topic` becomes `KafkaTopic`.
 
 #### 9 A kind either creates its resource or observes an existing one
 
@@ -150,7 +136,7 @@ bucket. To observe, the user sets `observe: true` and gives the resource's ID in
 spec:
   observe: true
   aws:
-    id: db-ABC123DEFGHIJ               # copied from the RDS console's Resource ID
+    id: ...                            # the resource's ID, copied from the cloud console
 ```
 
 The ID is one value the user copies from the cloud's console, and each service's page says which
@@ -183,9 +169,8 @@ values itself, and each service's page lists the known limits under Cloud Limits
 
 When the cloud rejects a value, the error appears only on the provider's own object, not on the
 user's. The platform therefore also shows it on the user's object, as the condition `CloudAccepted:
-False` and as a warning event. An operation that the running cloud cannot perform, such as a major
-version upgrade on OCI or observing a repository on Azure, is reported the same way, without
-reaching the cloud.
+False` and as a warning event. An operation that the running cloud cannot perform, such as an
+upgrade its service does not offer, is reported the same way, without reaching the cloud.
 
 #### 11 A reference crosses namespaces only within one Zone
 
@@ -204,12 +189,11 @@ within the team's boundary, which the Zone already defines.
 Each user object is one application's login on one instance, and holds everything that login may do.
 
 A user is one application's identity on one instance of the engine: its login, its Secret and its
-permissions there. It is not shared between applications or instances; access for people is not
-covered by these kinds. `KafkaUser` holds its ACLs, `MariaDBUser` its privileges and `RabbitMQUser`
-its permissions per virtual host, so a user's access is read from one object. A set of permissions
-shared by several users exists only where the engine has one, as roles: a `PostgreSQLUser` with
-`login: false` is a role, and `grant.roles` grants it. The platform adds no permission mechanism
-that no engine has.
+permissions there, in whatever form the engine has them, such as ACLs or privileges. It is not
+shared between applications or instances; access for people is not covered by these kinds. A user's
+access is therefore read from one object. A set of permissions shared by several users exists only
+where the engine has one, such as PostgreSQL's roles. The platform adds no permission mechanism that
+no engine has.
 
 ## Alternatives Considered
 

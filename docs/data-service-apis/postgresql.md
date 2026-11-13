@@ -205,6 +205,9 @@ the same on every cloud. They retain today's fields; what changes is the version
 
 ### PostgreSQLUser
 
+A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
+which other users receive through `grant.roles`.
+
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
