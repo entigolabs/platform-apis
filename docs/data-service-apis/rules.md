@@ -16,11 +16,10 @@ A setting that a cloud lacks is ignored there, as `storage.iops` is on Azure, an
 cloud-specific belongs in the cloud blocks (rule 2). An operation that a cloud cannot perform, such
 as a major version upgrade on OCI, fails instead (rule 10).
 
-The common spec describes what the user needs, not which cloud product provides it: a version, a
-size, high availability, backups. A field belongs there when a user can choose it without knowing
-which cloud runs underneath. Where no fair cloud-neutral value exists, the setting goes into the
-cloud blocks instead: a size, for example, is `aws.instanceType` on AWS and `oci.instanceType` with
-`oci.ocpus` on OCI.
+The common spec holds needs such as a version, a size, high availability and backups. A field
+belongs there when a user can choose it without knowing which cloud runs underneath. Where no fair
+cloud-neutral value exists, the setting goes into the cloud blocks instead: a size, for example, is
+`aws.instanceType` on AWS and `oci.instanceType` with `oci.ocpus` on OCI.
 
 The fields are checked against the managed services of every cloud infralib deploys to (AWS, GCP,
 OCI and Azure), even where no Crossplane provider supports the service yet. As a result, a cloud
