@@ -1,6 +1,6 @@
 # Overview
 
-The design of the portable data service APIs, with its reasons.
+The design of the Portable Data Service APIs, with its reasons.
 
 ## Context
 
