@@ -9,10 +9,12 @@ draft schemas are in [schemas/](schemas/).
 
 #### 1 The common spec states needs, not cloud products
 
-A manifest applies unchanged and works on every cloud where its kind exists. A setting that a cloud
-lacks is ignored there, as `storage.iops` is on Azure, and everything cloud-specific belongs in the
-cloud blocks (rule 2). An operation that a cloud cannot perform, such as a major version upgrade on
-OCI, fails instead (rule 10).
+One manifest works on every cloud where its kind exists: it says what is needed, such as a version
+or a disk size, not which cloud product provides it.
+
+A setting that a cloud lacks is ignored there, as `storage.iops` is on Azure, and everything
+cloud-specific belongs in the cloud blocks (rule 2). An operation that a cloud cannot perform, such
+as a major version upgrade on OCI, fails instead (rule 10).
 
 The common spec describes what the user needs, not which cloud product provides it: a version, a
 size, high availability, backups. A field belongs there when a user can choose it without knowing
@@ -39,23 +41,27 @@ Core.
 
 #### 2 A setting of one cloud belongs in that cloud's block
 
-A setting that exists on only one cloud goes into a block named after that cloud: `spec.aws`,
-`spec.gcp`, `spec.oci` or `spec.azure`. For example, the name of an existing RDS parameter group
-goes into `spec.aws`. Each block has its own typed fields, so the schema can check them. A
-deployment uses the block of the cloud it runs on and ignores the others, so one manifest can carry
-settings for several clouds and be applied on any of them. Only one block may hold an `id` for
-observing (rule 9), since a resource exists on one cloud.
+Anything that exists on only one cloud goes into that cloud's block, such as `spec.aws`.
+
+The blocks are `spec.aws`, `spec.gcp`, `spec.oci` and `spec.azure`. For example, the name of an
+existing RDS parameter group goes into `spec.aws`. Each block has its own typed fields, so the
+schema can check them. A deployment uses the block of the cloud it runs on and ignores the others,
+so one manifest can carry settings for several clouds and be applied on any of them. Only one block
+may hold an `id` for observing (rule 9), since a resource exists on one cloud.
 
 Everything that is neither a common field nor in a cloud's block, such as network placement and
 encryption keys, is decided by the platform.
 
 #### 3 A new cloud adds its blocks and never changes common fields
 
+Adding a cloud only adds its blocks, so manifests written before keep working.
+
 When a cloud's implementation is added, the schema gains that cloud's blocks, `spec.<cloud>` and
-`status.<cloud>`. The common fields never change for a new cloud, so nothing a user wrote before
-breaks.
+`status.<cloud>`; the common fields never change.
 
 #### 4 The status reports what the cloud actually runs
+
+The status shows what is running on the cloud, not what the manifest asked for.
 
 The status shows the common fields as the cloud actually runs them, the usual `conditions`, the
 address applications connect to, and the name of the connection secret. The address is
@@ -68,8 +74,9 @@ service's page says so.
 
 #### 5 Defaults are written once, when the object is created
 
-Most fields are optional. When a user leaves one out, the platform fills in a default when the
-object is created. There are two kinds:
+A field left out gets its default once, at creation, and the platform never changes it afterwards.
+
+Most fields are optional, and their defaults are of two kinds:
 
 | Kind               | Set By                                                 | Example                       |
 | ------------------ | ------------------------------------------------------ | ----------------------------- |
@@ -91,6 +98,9 @@ whose `deletionProtection` is true.
 
 #### 6 Each credential is one Secret with the same keys on every cloud
 
+Applications read every credential from one Secret with the same keys, `endpoint`, `port`,
+`username` and `password`, on every cloud.
+
 Each credential is one Kubernetes Secret in the object's namespace, with the same keys on every
 cloud: `endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint` already
 contains it, as in a Kafka bootstrap list. A service that needs more adds its own keys, such as
@@ -105,6 +115,9 @@ object holds the name, and `secretName` resolves it. It also allows a team to us
 application already expects.
 
 #### 7 A kind exists only where a cloud runs the same engine
+
+A service is offered on a cloud only if that cloud runs the same engine as a managed service; no
+other engine stands in for it.
 
 An API is installed on a cloud only if that cloud has a managed service running the same engine,
 and its Crossplane provider can create it. On other clouds the kind does not exist, and the portal
@@ -121,15 +134,18 @@ PostgreSQL, buckets and artifact repositories exist on every cloud.
 
 #### 8 A kind is named after the engine or concept, never a cloud product
 
-A kind is named after the engine or the concept, never after a cloud product. Four kinds are
-renamed: `S3Bucket` becomes `Bucket`, `MSK` becomes `KafkaCluster`, `Repository` becomes
-`ArtifactRepository`, and `Topic` becomes `KafkaTopic`.
+Kinds are named for what they are, such as `Bucket`, never after a product such as S3.
+
+Four kinds are renamed: `S3Bucket` becomes `Bucket`, `MSK` becomes `KafkaCluster`, `Repository`
+becomes `ArtifactRepository`, and `Topic` becomes `KafkaTopic`.
 
 #### 9 A kind either creates its resource or observes an existing one
 
-A kind that represents a cloud resource, such as a database instance or a bucket, either creates
-that resource or observes one that already exists. To observe, the user sets `observe: true` and
-gives the resource's ID in the cloud's block:
+A kind either creates its cloud resource or, with `observe: true`, only reads one that already
+exists.
+
+This applies to every kind that represents a cloud resource, such as a database instance or a
+bucket. To observe, the user sets `observe: true` and gives the resource's ID in the cloud's block:
 
 ```yaml
 spec:
@@ -158,6 +174,8 @@ cloud resource.
 
 #### 10 The schema checks only what the API defines
 
+The schema checks the API's own rules only; each cloud enforces its own value limits.
+
 The schema checks only what the API itself knows: field types, fields that cannot change, fields
 that cannot be combined, and the API's own minimums, such as a disk that cannot shrink. It does not
 copy the limits each cloud has for values, such as how many days of backups it keeps. Those limits
@@ -172,6 +190,8 @@ reaching the cloud.
 
 #### 11 A reference crosses namespaces only within one Zone
 
+An object may refer to one in another namespace, but only within the same Zone.
+
 A kind that exists inside another, such as a database user or a Kafka topic, names its parent in
 `instanceRef` or `clusterRef`, as `{ name, namespace }`. Without `namespace`, the parent is in the
 same namespace.
@@ -181,6 +201,8 @@ the same `tenancy.entigo.com/zone` label. Creating a user gives power over the p
 within the team's boundary, which the Zone already defines.
 
 #### 12 A user object holds its own permissions
+
+Each user object is one application's login on one instance, and holds everything that login may do.
 
 A user is one application's identity on one instance of the engine: its login, its Secret and its
 permissions there. It is not shared between applications or instances; access for people is not
