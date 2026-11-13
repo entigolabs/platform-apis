@@ -10,7 +10,7 @@ Built on Amazon MSK provisioned (AWS), Managed Service for Apache Kafka (GCP) an
 Apache Kafka (OCI). Azure has none: Event Hubs speaks the Kafka protocol but has no Kafka ACLs, no
 topic creation through the Kafka admin API and no broker settings.
 
-What changes from today's API is listed in [API Changes](changes.md#kafka).
+[API Changes](changes.md#kafka) lists what changes from today's API.
 
 ## Contents
 
@@ -25,7 +25,8 @@ What changes from today's API is listed in [API Changes](changes.md#kafka).
 
 ## Spec
 
-What a user writes to create a `KafkaCluster`: its version, brokers, storage and broker settings.
+A user sets a `KafkaCluster`'s version, brokers, storage and broker settings in a manifest like the
+one below. Its comments note value ranges and what holds on one cloud only:
 
 ```yaml
 ---
@@ -55,6 +56,8 @@ spec:
     ocpus: 2                           # per broker, required with a .Flex shape
 ```
 
+*A `KafkaCluster` with its common fields and a block per cloud.*
+
 A cluster's size is its brokers times each broker's size. AWS and OCI take a broker size and count;
 GCP takes the cluster's total vCPU and memory and chooses the brokers itself. The size is therefore
 in each cloud's block (`aws.instanceType`, `oci.instanceType` with `oci.ocpus`, `gcp.vcpus` and
@@ -73,6 +76,8 @@ In the table below, Level is the field's support level (rule 1).
 | `highAvailability` | Core; `false` ignored on AWS and GCP | always; `false` ignored                                     | always three zones; `false` ignored                                                                         | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
 | `parameters`       | Core                                 | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones take effect after a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
 
+*Common fields of `KafkaCluster` on each cloud.*
+
 The cloud-specific fields:
 
 | Field              | Maps To                                                   |
@@ -86,10 +91,14 @@ The cloud-specific fields:
 | `gcp.memoryGB`     | `capacity_config.memory_bytes`, in bytes                  |
 | `oci.ocpus`        | `brokerShape.ocpuCount`                                   |
 
+*Cloud-specific fields of `KafkaCluster`.*
+
 ## Status
 
 The status adds `bootstrapServers`, the listener applications use (`bootstrapBrokersSaslScram` on
 AWS, `bootstrap_address` on GCP, `kafkaBootstrapUrls` on OCI). `brokers` stays empty on GCP.
+
+The cloud blocks of the status:
 
 ```yaml
 status:
@@ -103,6 +112,8 @@ status:
     state: ACTIVE
 ```
 
+*The cloud blocks of a `KafkaCluster` status.*
+
 A cluster has no secret of its own: applications log in with a `KafkaUser`'s secret.
 
 ## Other Kinds
@@ -110,6 +121,8 @@ A cluster has no secret of its own: applications log in with a `KafkaUser`'s sec
 ### KafkaUser
 
 An identity that applications use to log in to the cluster, with the ACLs it is granted.
+
+An example:
 
 ```yaml
 ---
@@ -128,11 +141,15 @@ spec:
     operation: Read
 ```
 
+*An application's login with one consumer group and a read ACL.*
+
 | Cloud | Identity                                           | Login                                   |
 | ----- | -------------------------------------------------- | --------------------------------------- |
 | AWS   | a SCRAM secret in Secrets Manager (`AmazonMSK_*`)  | SASL SCRAM-SHA-512                      |
 | GCP   | a service account with a key                       | SASL PLAIN: the account's email and key |
 | OCI   | provider-kafka `User`, through the Kafka admin API | SASL SCRAM-SHA-512                      |
+
+*How a `KafkaUser` logs in on each cloud.*
 
 ACLs are Kafka ACLs on every cloud: provider-kafka on AWS and OCI,
 [`google_managed_kafka_acl`](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/managed_kafka_acl)
@@ -145,6 +162,8 @@ differs by cloud.
 ### KafkaTopic
 
 A topic in the cluster, created through the Kafka admin API on every cloud.
+
+An example:
 
 ```yaml
 ---
@@ -163,6 +182,8 @@ spec:
     retention.ms: "604800000"
 ```
 
+*A topic whose Kafka name differs from its object's name.*
+
 Created through the Kafka admin API on every cloud. `name` is the topic's Kafka name, which can hold
 what a Kubernetes name cannot, such as `Orders` or `orders_v2`. Applications use that name, so it
 cannot carry a hash like rule 9's cloud names, and two `KafkaTopic` objects on one cluster could
@@ -179,19 +200,21 @@ the admin as a superuser; GCP needs explicit ALLOW ACLs for the admin on every r
 
 ## Ignored Settings
 
-Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
-means there.
+These settings are accepted on every cloud but have no effect on some (rule 1). The table says what
+that means there.
 
 | Setting                   | Ignored On | Effect                                |
 | ------------------------- | ---------- | ------------------------------------- |
 | `brokers`                 | GCP        | GCP chooses the broker count.         |
 | `highAvailability: false` | AWS, GCP   | The cluster runs across zones anyway. |
 
+*Kafka settings that some clouds ignore.*
+
 ## Cloud Limits
 
-Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
-rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
-validating them be decided later.
+Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
+should validating them be decided later.
 
 | Field            | Cloud | Limit                          | Source                                                                      |
 | ---------------- | ----- | ------------------------------ | --------------------------------------------------------------------------- |
@@ -203,9 +226,11 @@ validating them be decided later.
 | `gcp.vcpus`      | GCP   | at least 3                     | `vcpu_count`, `google_managed_kafka_cluster` docs                           |
 | `gcp.memoryGB`   | GCP   | 1 to 8 per vCPU                | `memory_bytes`, `google_managed_kafka_cluster` docs                         |
 
+*Limits each cloud enforces on Kafka.*
+
 ## Notes
 
-Facts about this service that the design relies on and that need no decision.
+The design relies on these facts, which need no decision.
 
 - GCP: the cluster, topic and ACL resources are in the GA Terraform `google` provider, and
   [provider-upjet-gcp

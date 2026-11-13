@@ -9,7 +9,7 @@ instance, with its permissions; and `MariaDBDatabase`, one database on an instan
 Built on Amazon RDS (AWS), so `aws` is the only cloud block. GCP, OCI and Azure have none: their
 MySQL services are not MariaDB (rule 7), and Azure Database for MariaDB is retired.
 
-What changes from today's API is listed in [API Changes](changes.md#mariadb).
+[API Changes](changes.md#mariadb) lists what changes from today's API.
 
 ## Contents
 
@@ -22,8 +22,8 @@ What changes from today's API is listed in [API Changes](changes.md#mariadb).
 
 ## Spec
 
-What a user writes to create a `MariaDBInstance`. The comments note value ranges and what holds on
-one cloud only.
+A user creates a `MariaDBInstance` with a manifest like the one below. Its comments note value
+ranges and what holds on one cloud only:
 
 ```yaml
 ---
@@ -63,6 +63,8 @@ spec:
     fromBackup: orders-final           # an RDS snapshot ID; not with restore
 ```
 
+*A `MariaDBInstance` with its common fields and its `aws` block.*
+
 `version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`, and RDS
 applies minor versions in the maintenance window. RDS takes a version without its minor only while
 minor upgrades are on (`engineVersion` in `rds.aws.m.upbound.io_instances`, provider-upjet-aws
@@ -81,8 +83,7 @@ status reports the actual size, and the platform never shrinks the disk back to 
 
 ## Mapping
 
-How each field maps to the managed service of each cloud, named by the fields of that cloud's
-Crossplane provider.
+The table names, for every field, the field of each cloud's provider it maps to.
 
 | Field                                  | RDS `Instance`                                                              |
 | -------------------------------------- | --------------------------------------------------------------------------- |
@@ -109,6 +110,8 @@ Crossplane provider.
 | `aws.fromBackup`                       | `snapshotIdentifier`                                                        |
 | `aws.parameterGroupName`               | `parameterGroupName`                                                        |
 
+*Fields of `MariaDBInstance` on Amazon RDS.*
+
 Provider keys are from the CRDs of [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
 
@@ -129,6 +132,8 @@ status:
     latestRestorableTime: ...
     status: available
 ```
+
+*The `aws` block of a `MariaDBInstance` status.*
 
 The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
@@ -154,6 +159,8 @@ USER](https://mariadb.com/docs/server/reference/sql-statements/account-managemen
 today's defaults of 20 queries and 10 updates an hour, 5 connections an hour and 2 at once are too
 low for any production application.
 
+An example:
+
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
@@ -178,7 +185,11 @@ spec:
   maxUserConnections: 20               # 0, the default, is no limit
 ```
 
+*An application's login with privileges on two databases.*
+
 ### MariaDBDatabase
+
+An example:
 
 ```yaml
 ---
@@ -194,6 +205,8 @@ spec:
   deletionProtection: true
 ```
 
+*A database with its default character set.*
+
 ## Platform Decisions
 
 Network placement (subnets and security group), no public access, gp3 storage, encryption with the
@@ -202,11 +215,13 @@ a final snapshot when an instance is deleted, switched on per deployment as toda
 
 ## Cloud Limits
 
-Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
-rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
-validating them be decided later.
+Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
+should validating them be decided later.
 
 | Field                            | Cloud | Limit                     | Source                                                                     |
 | -------------------------------- | ----- | ------------------------- | -------------------------------------------------------------------------- |
 | `backup.retentionDays`           | AWS   | 0 to 35                   | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0     |
 | `storage.iops`, `throughputMBps` | AWS   | only from 400 GiB of disk | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0 |
+
+*Limits AWS enforces on MariaDB.*

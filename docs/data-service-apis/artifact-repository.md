@@ -9,7 +9,7 @@ One kind: `ArtifactRepository` (today `Repository`), one application's image pat
 Built on ECR (AWS), Artifact Registry (GCP), OCIR (OCI) and Azure Container Registry (Azure), which
 store every OCI artifact alike.
 
-What changes from today's API is listed in [API Changes](changes.md#artifactrepository).
+[API Changes](changes.md#artifactrepository) lists what changes from today's API.
 
 ## Contents
 
@@ -22,13 +22,13 @@ What changes from today's API is listed in [API Changes](changes.md#artifactrepo
 
 ## Spec
 
-What a user writes to create an `ArtifactRepository`. The comments note value ranges and what holds
-on one cloud only.
-
 The clouds disagree on what a repository is: ECR and OCIR have one repository per image path, an
 Artifact Registry repository holds many images, and an Azure registry holds repositories it creates
 on the first push, with no resource of their own. The API's unit is the image path, because that is
 what an application owns.
+
+A user creates an `ArtifactRepository` with a manifest like the one below. Its comments note value
+ranges and what holds on one cloud only:
 
 ```yaml
 ---
@@ -54,6 +54,8 @@ spec:
   # every cloud block takes id (rule 9), except azure
 ```
 
+*An `ArtifactRepository` with its common fields.*
+
 The image path always starts with the namespace: `<namespace>/<path>/<name>`, or
 `<namespace>/<name>` without `path`. A registry holds each path once, and the provider finds a
 repository by its path alone (`aws_ecr_repository: config.NameAsIdentifier` in [provider-upjet-aws
@@ -73,8 +75,8 @@ and replaces today's deployment-wide `imageTagMutability`; its `IMMUTABLE_WITH_E
 
 ## Mapping
 
-How each field maps to the managed service of each cloud, named by the fields of that cloud's
-Crossplane provider. Level is the field's support level (rule 1).
+The table names, for every field, the field of each cloud's provider it maps to. Level is the
+field's support level (rule 1).
 
 | Field                | Level                    | AWS (ECR)                       | GCP (Artifact Registry)                                                                                                                                                                                             | OCI (OCIR)                                                             | Azure (ACR)                                                   |
 | -------------------- | ------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -83,6 +85,8 @@ Crossplane provider. Level is the field's support level (rule 1).
 | `deletionProtection` | Core                     | platform blocks deletion        | platform blocks deletion                                                                                                                                                                                            | platform blocks deletion                                               | platform blocks deletion                                      |
 | `immutableTags`      | Ignored on Azure         | `imageTagMutability: IMMUTABLE` | `dockerConfig.immutableTags`                                                                                                                                                                                        | `isImmutable`                                                          | ignored; tag locks are set per tag through the Azure CLI only |
 | `lifecycleRules`     | Ignored on OCI and Azure | `LifecyclePolicy`               | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped | ignored; retention is console-only and counts days since the last pull | ignored; only registry-wide untagged retention exists         |
+
+*Common fields of `ArtifactRepository` on each cloud.*
 
 The cloud-specific fields:
 
@@ -93,6 +97,8 @@ The cloud-specific fields:
 | `oci.id`   | the repository's OCID                                    |
 | `azure.id` | rejected; an Azure repository has no resource of its own |
 
+*Cloud-specific fields of `ArtifactRepository`.*
+
 A separate Artifact Registry repository per application on GCP keeps immutability and cleanup per
 application, as on ECR and OCIR. On Azure, a registry per application would be one billed SKU each,
 so applications share a platform registry and only path-scoped access is per application.
@@ -102,6 +108,8 @@ so applications share a platform registry and only path-scoped access is per app
 The status adds `uri`, the image URI, such as
 `123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/backend/orders-api`. There is no connection
 secret.
+
+The cloud blocks of the status:
 
 ```yaml
 status:
@@ -115,6 +123,8 @@ status:
     registryId: ...
 ```
 
+*The cloud blocks of an `ArtifactRepository` status.*
+
 ## Platform Decisions
 
 Private repositories, encryption (the platform's data key on AWS; GCP and Azure take a key only at
@@ -125,8 +135,8 @@ keyless image pulls by the cluster's nodes, which on OCI needs Oracle's kubelet 
 
 ## Ignored Settings
 
-Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
-means there.
+These settings are accepted on every cloud but have no effect on some (rule 1). The table says what
+that means there.
 
 | Setting                                                       | Ignored On | Effect                                                       |
 | ------------------------------------------------------------- | ---------- | ------------------------------------------------------------ |
@@ -134,9 +144,11 @@ means there.
 | `lifecycleRules`                                              | OCI, Azure | Old images are not cleaned up.                               |
 | A rule with `tagPatterns`, or with `keepCount` and a selector | GCP        | The whole rule is skipped, so the images it covers are kept. |
 
+*Artifact repository settings that some clouds ignore.*
+
 ## Notes
 
-Facts about this service that the design relies on and that need no decision.
+The design relies on these facts, which need no decision.
 
 - Azure path-scoped access needs the registry in ABAC repository permissions mode, generally
   available since November 2025, which ignores the plain AcrPull and AcrPush roles.

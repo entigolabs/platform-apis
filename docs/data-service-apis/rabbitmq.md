@@ -10,7 +10,7 @@ isolated set of queues and exchanges in a broker.
 Built on Amazon MQ (AWS), the only managed RabbitMQ among the four clouds, so the API follows
 RabbitMQ's own concepts. GCP, OCI and Azure have none.
 
-What changes from today's API is listed in [API Changes](changes.md#rabbitmq).
+[API Changes](changes.md#rabbitmq) lists what changes from today's API.
 
 ## Contents
 
@@ -24,8 +24,8 @@ What changes from today's API is listed in [API Changes](changes.md#rabbitmq).
 
 ## Spec
 
-What a user writes to create a `RabbitMQBroker`. The comments note value ranges and what holds on
-one cloud only.
+A user creates a `RabbitMQBroker` with a manifest like the one below. Its comments note value ranges
+and what holds on one cloud only:
 
 ```yaml
 ---
@@ -49,6 +49,8 @@ spec:
     publiclyAccessible: false          # set at creation only
 ```
 
+*A `RabbitMQBroker` with its common fields and its `aws` block.*
+
 Fields of today's API that leave the spec: `brokerName` and `engineType` (the platform names the
 broker, and the engine is always RabbitMQ), `autoMinorVersionUpgrade` (Amazon MQ requires it on),
 and `deploymentMode` (replaced by `highAvailability`). `configuration`, a raw `rabbitmq.conf` text,
@@ -59,8 +61,7 @@ is set at creation only.
 
 ## Mapping
 
-How each field maps to the managed service of each cloud, named by the fields of that cloud's
-Crossplane provider.
+The table names, for every field, the field of each cloud's provider it maps to.
 
 | Field                    | AWS (Amazon MQ `Broker`)                                                 |
 | ------------------------ | ------------------------------------------------------------------------ |
@@ -73,6 +74,8 @@ Crossplane provider.
 | `parameters`             | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
 | `aws.publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
 | `aws.id`                 | the broker ID                                                            |
+
+*Fields of `RabbitMQBroker` on Amazon MQ.*
 
 ## Status
 
@@ -99,6 +102,8 @@ Permissions follow RabbitMQ's own model: per virtual host, three regular express
 exchange names, for `configure` (create and delete), `write` (publish) and `read` (consume).
 Permissions are held in the user (rule 12).
 
+An example:
+
 ```yaml
 ---
 apiVersion: mq.entigo.com/v1alpha2
@@ -116,11 +121,15 @@ spec:
     read: "^orders\\."
 ```
 
+*An application's login with permissions on one virtual host.*
+
 ### RabbitMQVirtualHost
 
 A virtual host is an isolated set of queues and exchanges inside the broker, comparable to a
 database in PostgreSQL; deleting one deletes its queues and messages, so it has
 `deletionProtection`. A new virtual host grants nothing until a user is given permissions on it.
+
+An example:
 
 ```yaml
 ---
@@ -134,6 +143,8 @@ spec:
     name: orders-mq
 ```
 
+*A virtual host in a broker.*
+
 ## Platform Decisions
 
 Network placement (subnets, security group), no public access unless `aws.publiclyAccessible`,
@@ -144,17 +155,19 @@ only the release line.
 
 ## Cloud Limits
 
-Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
-rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
-validating them be decided later.
+Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
+should validating them be decided later.
 
 | Field                    | Cloud | Limit                | Source                                         |
 | ------------------------ | ----- | -------------------- | ---------------------------------------------- |
 | `highAvailability: true` | AWS   | not on `mq.t3.micro` | Amazon MQ docs, RabbitMQ broker instance types |
 
+*Limits AWS enforces on RabbitMQ.*
+
 ## Notes
 
-Facts about this service that the design relies on and that need no decision.
+The design relies on these facts, which need no decision.
 
 - `parameters` keys: Amazon MQ lists the `rabbitmq.conf` keys it accepts in "Configurable values"
   (five general keys, plus pages for OAuth2, LDAP, TLS and resource limits); others are left to

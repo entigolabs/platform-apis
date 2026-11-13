@@ -8,7 +8,7 @@ an instance, with its permissions; and `PostgreSQLDatabase`, one database on an 
 Built on Amazon RDS (AWS), Cloud SQL (GCP), OCI Database with PostgreSQL (OCI) and Azure Database
 for PostgreSQL flexible server (Azure).
 
-What changes from today's API is listed in [API Changes](changes.md#postgresql).
+[API Changes](changes.md#postgresql) lists what changes from today's API.
 
 ## Contents
 
@@ -23,8 +23,8 @@ What changes from today's API is listed in [API Changes](changes.md#postgresql).
 
 ## Spec
 
-What a user writes to create a `PostgreSQLInstance`. The comments note value ranges and what holds
-on one cloud only.
+A user creates a `PostgreSQLInstance` with a manifest like the one below. Its comments note value
+ranges and what holds on one cloud only:
 
 ```yaml
 ---
@@ -78,6 +78,8 @@ spec:
     storageTier: P10                   # P4 to P80; sets the disk's IOPS
 ```
 
+*A `PostgreSQLInstance` with its common fields and a block per cloud.*
+
 The size is in the cloud blocks, as `instanceType` with the cloud's own name, because RDS has fixed
 classes while OCI and GCP take CPU and memory, which no neutral size expresses. With deployment
 defaults, a user without a size requirement can omit it. On GCP the size belongs to an edition:
@@ -109,8 +111,8 @@ The kind is one database server. Read replicas belong to a cluster-shaped kind, 
 
 ## Mapping
 
-How each field maps to the managed service of each cloud, named by the fields of that cloud's
-Crossplane provider. Level is the field's support level (rule 1).
+The table names, for every field, the field of each cloud's provider it maps to. Level is the
+field's support level (rule 1).
 
 | Field                                  | Level                                              | AWS (RDS `Instance`)                                                        | GCP (Cloud SQL `DatabaseInstance`)                                                                                                       | OCI (`PsqlDbSystem`)                                                      | Azure (`FlexibleServer`)                                |
 | -------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
@@ -134,6 +136,8 @@ Crossplane provider. Level is the field's support level (rule 1).
 | `restore.fromInstance`                 | Core                                               | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`         | `createMode: PointInTimeRestore`, `sourceServerId`      |
 | `restore.pointInTime`                  | Core                                               | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                    | `pointInTimeRestoreTimeInUtc`                           |
 
+*Common fields of `PostgreSQLInstance` on each cloud.*
+
 The cloud-specific fields:
 
 | Field                    | Maps To                                                                  |
@@ -155,6 +159,8 @@ The cloud-specific fields:
 | `oci.ocpus`              | `instanceOcpuCount`                                                      |
 | `oci.memoryGB`           | `instanceMemorySizeInGbs`                                                |
 | `azure.storageTier`      | `storageTier`                                                            |
+
+*Cloud-specific fields of `PostgreSQLInstance`.*
 
 Provider keys are from the CRDs of provider-upjet-aws v2.4.0, [provider-upjet-gcp
 v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0),
@@ -196,6 +202,8 @@ status:
     id: ...
 ```
 
+*The cloud blocks of a `PostgreSQLInstance` status.*
+
 The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
 ## Other Kinds
@@ -209,6 +217,8 @@ the same on every cloud. They retain today's fields; what changes is the version
 
 A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
 which other users receive through `grant.roles`.
+
+An example:
 
 ```yaml
 ---
@@ -230,6 +240,8 @@ spec:
     - reporting
 ```
 
+*An application's login that receives the `reporting` role.*
+
 ### PostgreSQLDatabase
 
 `extensions` creates an extension in that database; on Azure a server must also allow it in
@@ -237,6 +249,8 @@ spec:
 extensions](https://learn.microsoft.com/en-us/azure/postgresql/extensions/how-to-allow-extensions)),
 so every Azure instance allows the whole allowlist, and any database can create any of them, as on
 the other clouds.
+
+An example:
 
 ```yaml
 ---
@@ -258,6 +272,8 @@ spec:
   deletionProtection: true
 ```
 
+*A database with the PostGIS extension in its own schema.*
+
 ## Platform Decisions
 
 Network placement (subnets, security group or NSG, Azure private DNS zone), no public access, gp3
@@ -269,8 +285,8 @@ adds one.
 
 ## Ignored Settings
 
-Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
-means there.
+These settings are accepted on every cloud but have no effect on some (rule 1). The table says what
+that means there.
 
 | Setting                                                        | Ignored On                        | Effect                                                                    |
 | -------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------- |
@@ -283,11 +299,13 @@ means there.
 | `backup.startHourUTC`                                          | Azure                             | Azure picks the backup hour.                                              |
 | `parameterApplyMethod: NextRestart`                            | GCP, OCI, Azure                   | A setting change that needs a restart restarts the instance at once.      |
 
+*PostgreSQL settings that some clouds ignore.*
+
 ## Cloud Limits
 
-Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
-rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
-validating them be decided later.
+Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
+should validating them be decided later.
 
 | Field                                     | Cloud | Limit                                    | Source                                                                           |
 | ----------------------------------------- | ----- | ---------------------------------------- | -------------------------------------------------------------------------------- |
@@ -301,6 +319,8 @@ validating them be decided later.
 | `gcp.edition`                             | GCP   | `ENTERPRISE`, `ENTERPRISE_PLUS`          | `settings.edition`, `DatabaseInstance` CRD                                       |
 | `gcp.diskType`                            | GCP   | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED` | `settings.diskType`, `DatabaseInstance` CRD                                      |
 | `azure.storageTier`                       | Azure | `P4` to `P80`                            | `storageTier`, `FlexibleServer` CRD                                              |
+
+*Limits each cloud enforces on PostgreSQL.*
 
 ## Notes
 

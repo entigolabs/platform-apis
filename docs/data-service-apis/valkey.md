@@ -8,7 +8,7 @@ One kind: `ValkeyInstance`, one primary node with read replicas.
 Built on ElastiCache (AWS), Memorystore for Valkey (GCP) and OCI Cache (OCI). Azure has none: Azure
 Managed Redis runs Redis, not Valkey.
 
-What changes from today's API is listed in [API Changes](changes.md#valkey).
+[API Changes](changes.md#valkey) lists what changes from today's API.
 
 ## Contents
 
@@ -22,10 +22,10 @@ What changes from today's API is listed in [API Changes](changes.md#valkey).
 
 ## Spec
 
-What a user writes to create a `ValkeyInstance`. The comments note value ranges and what holds on
-one cloud only.
-
 An instance has no sharding: its data lives on the primary and is copied to each replica.
+
+A user creates a `ValkeyInstance` with a manifest like the one below. Its comments note value ranges
+and what holds on one cloud only:
 
 ```yaml
 ---
@@ -58,6 +58,8 @@ spec:
     memoryGB: 16                       # per node
 ```
 
+*A `ValkeyInstance` with its common fields and a block per cloud.*
+
 Replicas serve reads, and high availability places at least one of them in another zone, so
 `highAvailability: true` with `replicas: 0` is rejected. On OCI, which sizes nodes by memory only,
 the deployment default `oci.memoryGB` sizes an instance whose spec is empty.
@@ -75,8 +77,8 @@ edit.
 
 ## Mapping
 
-How each field maps to the managed service of each cloud, named by the fields of that cloud's
-Crossplane provider. Level is the field's support level (rule 1).
+The table names, for every field, the field of each cloud's provider it maps to. Level is the
+field's support level (rule 1).
 
 | Field                                 | Level                                | AWS (ElastiCache replication group)          | GCP (Memorystore `Instance`), no password auth in provider                                                        | OCI (OCI Cache `RedisCluster`)                                             |
 | ------------------------------------- | ------------------------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -91,6 +93,8 @@ Crossplane provider. Level is the field's support level (rule 1).
 | `backup.startHourUTC`                 | Ignored on OCI                       | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    | ignored                                                                    |
 | `parameters`                          | Core                                 | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | config set, allowlist of about 15 keys                                     |
 
+*Common fields of `ValkeyInstance` on each cloud.*
+
 The cloud-specific fields:
 
 | Field                    | Maps To                  |
@@ -103,11 +107,15 @@ The cloud-specific fields:
 | `aws.parameterGroupName` | `parameterGroupName`     |
 | `oci.memoryGB`           | `nodeMemoryInGbs`        |
 
+*Cloud-specific fields of `ValkeyInstance`.*
+
 ## Status
 
 The status adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and
 `aws.finalBackup`, the ID the final snapshot will receive. A deleted cache's ID, which the status
 loses with the cache, is taken from the cloud console.
+
+The cloud blocks of the status:
 
 ```yaml
 status:
@@ -122,6 +130,8 @@ status:
     state: ACTIVE
     softwareVersion: VALKEY_8_1
 ```
+
+*The cloud blocks of a `ValkeyInstance` status.*
 
 The connection secret is `<instance>-credentials`, with `endpoint`, `port` (6379), `username:
 default`, `password` and `readerEndpoint`. `default` is the user Valkey logs a password-only client
@@ -138,8 +148,8 @@ password.
 
 ## Ignored Settings
 
-Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
-means there.
+These settings are accepted on every cloud but have no effect on some (rule 1). The table says what
+that means there.
 
 | Setting                                      | Ignored On | Effect                                                  |
 | -------------------------------------------- | ---------- | ------------------------------------------------------- |
@@ -147,11 +157,13 @@ means there.
 | `maintenance.autoMinorVersionUpgrade: false` | GCP, OCI   | New minor versions are applied on the cloud's schedule. |
 | `backup`                                     | OCI        | The cache has no automated backups.                     |
 
+*Valkey settings that some clouds ignore.*
+
 ## Cloud Limits
 
-Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
-rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
-validating them be decided later.
+Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
+should validating them be decided later.
 
 | Field                  | Cloud | Limit    | Source                                                                                  |
 | ---------------------- | ----- | -------- | --------------------------------------------------------------------------------------- |
@@ -162,9 +174,11 @@ validating them be decided later.
 | `backup.retentionDays` | AWS   | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0 |
 | `backup.retentionDays` | GCP   | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD                           |
 
+*Limits each cloud enforces on Valkey.*
+
 ## Notes
 
-Facts about this service that the design relies on and that need no decision.
+The design relies on these facts, which need no decision.
 
 - Azure: Azure Managed Redis runs Redis 7.4 on Redis Enterprise, with no version choice, no backups
   and a 25 GB limit without clustering.

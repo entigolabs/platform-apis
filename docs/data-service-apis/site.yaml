@@ -16,7 +16,7 @@ nav:
   - label: PostgreSQL
     tabs:
     - {file: postgresql.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: postgresql.md, label: Implementation, sections: [Mapping, Cloud Limits]}
+    - {file: postgresql.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
     - label: Schemas
       files:
       - {file: schemas/postgresqlinstance.yaml, label: PostgreSQLInstance}
@@ -25,7 +25,7 @@ nav:
   - label: MariaDB
     tabs:
     - {file: mariadb.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: mariadb.md, label: Implementation, sections: [Mapping, Cloud Limits]}
+    - {file: mariadb.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
     - label: Schemas
       files:
       - {file: schemas/mariadbinstance.yaml, label: MariaDBInstance}
@@ -34,14 +34,14 @@ nav:
   - label: Valkey
     tabs:
     - {file: valkey.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: valkey.md, label: Implementation, sections: [Mapping, Cloud Limits]}
+    - {file: valkey.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
     - label: Schemas
       files:
       - {file: schemas/valkeyinstance.yaml, label: ValkeyInstance}
   - label: Kafka
     tabs:
     - {file: kafka.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: kafka.md, label: Implementation, sections: [Mapping, Cloud Limits]}
+    - {file: kafka.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
     - label: Schemas
       files:
       - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
@@ -50,7 +50,7 @@ nav:
   - label: RabbitMQ
     tabs:
     - {file: rabbitmq.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: rabbitmq.md, label: Implementation, sections: [Mapping, Cloud Limits]}
+    - {file: rabbitmq.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
     - label: Schemas
       files:
       - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
@@ -59,14 +59,14 @@ nav:
   - label: Bucket
     tabs:
     - {file: bucket.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: bucket.md, label: Implementation, sections: [Mapping, Cloud Limits]}
+    - {file: bucket.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
     - label: Schemas
       files:
       - {file: schemas/bucket.yaml, label: Bucket}
   - label: ArtifactRepository
     tabs:
     - {file: artifact-repository.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: artifact-repository.md, label: Implementation, sections: [Mapping, Cloud Limits]}
+    - {file: artifact-repository.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
     - label: Schemas
       files:
       - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}

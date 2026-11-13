@@ -33,6 +33,8 @@ to a single value of a field, such as turning off a feature that one cloud alway
 | Core    | Works on every cloud.                                                                                                                                  |
 | Ignored | Accepted on every cloud, but has no effect on the clouds named in the field's description, which lack it. The resource is created without the setting. |
 
+*Support levels of a field.*
+
 In a schema, a field's description ends with `Ignored on` and the clouds that lack it; each
 service's Mapping table names the same clouds in its Level column. A field without that mark is
 Core.
@@ -83,6 +85,8 @@ Most fields are optional, and their defaults are of two kinds:
 | ------------------ | ------------------------------------------------------ | ----------------------------- |
 | Fixed              | the platform, the same on every deployment             | deletion protection           |
 | Deployment default | the deployment's operator, per cloud, through infralib | version, machine size         |
+
+*The two kinds of default.*
 
 Safety settings, such as deletion protection, are fixed. Cost, size and availability are
 deployment defaults, because only the operator can judge what suits their cloud and budget. In a
@@ -142,6 +146,8 @@ spec:
   aws:
     id: ...                            # the resource's ID, copied from the cloud console
 ```
+
+*Observing an existing resource.*
 
 The ID is one value the user copies from the cloud's console, and each service's page says which
 one. The platform turns it into whatever the provider needs. An observed resource is never changed

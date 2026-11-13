@@ -6,7 +6,7 @@ not listed keeps its name and meaning.
 
 ## Contents
 
-- [Every Kind](#every-kind)
+- [All Kinds](#all-kinds)
 - [PostgreSQL](#postgresql)
 - [MariaDB](#mariadb)
 - [Valkey](#valkey)
@@ -15,7 +15,7 @@ not listed keeps its name and meaning.
 - [Bucket](#bucket)
 - [ArtifactRepository](#artifactrepository)
 
-## Every Kind
+## All Kinds
 
 Changes shared by all kinds, stated once here.
 
@@ -34,7 +34,7 @@ Changes shared by all kinds, stated once here.
 
 ## PostgreSQL
 
-`PostgreSQLInstance` changes as follows.
+`PostgreSQLInstance` changes as follows:
 
 | Today                                                                | Design                                                                        | Reason                                                         |
 | -------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -54,6 +54,8 @@ Changes shared by all kinds, stated once here.
 | `snapshotIdentifier`                                                 | `aws.fromBackup`                                                              | A backup ID is a cloud value (rule 2)                          |
 | (none)                                                               | `restore.fromInstance`, `restore.pointInTime`                                 | Restore from another instance                                  |
 | (none)                                                               | `gcp`, `oci` and `azure` settings                                             | Sizes and settings of those clouds                             |
+
+*Changes to PostgreSQL.*
 
 In the status, `endpoint.address` becomes `endpoint.host`; `dbInstanceIdentifier`, `resourceId`,
 `status`, `latestRestorableTime` and `finalSnapshotIdentifier` move into `status.aws`, the last as
@@ -112,18 +114,22 @@ spec:
     instanceType: db.t4g.small         # was instanceType
 ```
 
+*A PostgreSQL instance, today and in the design.*
+
 ## MariaDB
 
 `MariaDBInstance` changes as `PostgreSQLInstance` does, on AWS only, without
 `backup.pointInTimeDays`.
 
-`MariaDBUser` changes as follows.
+`MariaDBUser` changes as follows:
 
 | Today                                                                                         | Design                     | Reason                                                    |
 | --------------------------------------------------------------------------------------------- | -------------------------- | --------------------------------------------------------- |
 | `databaseRef`, `table`, `privileges`                                                          | one entry of `databases`   | One login per application and instance (rule 12)          |
 | `databaseRef.namespace`, ignored today                                                        | honoured within the Zone   | References cross namespaces within the Zone (rule 11)     |
 | user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit | Today's defaults are too low for a production application |
+
+*Changes to MariaDB.*
 
 `MariaDBDatabase` keeps its fields.
 
@@ -162,9 +168,11 @@ spec:
     - INSERT
 ```
 
+*A MariaDB user, today and in the design.*
+
 ## Valkey
 
-`ValkeyInstance` changes as follows.
+`ValkeyInstance` changes as follows:
 
 | Today                      | Design                                 | Reason                                                |
 | -------------------------- | -------------------------------------- | ----------------------------------------------------- |
@@ -178,6 +186,8 @@ spec:
 | `snapshotWindow`           | `backup.startHourUTC`                  | One form for every cloud                              |
 | `parameterGroupName`       | `aws.parameterGroupName`               | An ElastiCache concept (rule 2)                       |
 | `parameterGroupParameters` | `parameters`                           | One map for every cloud                               |
+
+*Changes to Valkey.*
 
 In the status, `endpoint.address` becomes `endpoint.host`, `multiAZenabled` becomes
 `highAvailability`, and `readerEndpoint` and `replicas` are added; `kmsKeyAlias`, `kmsKeyId`,
@@ -224,6 +234,8 @@ spec:
     instanceType: cache.t4g.small      # was instanceType
 ```
 
+*A Valkey instance, today and in the design.*
+
 ## Kafka
 
 Today's cluster-scoped `MSK` only observes an existing cluster; the namespaced `KafkaCluster`
@@ -238,12 +250,16 @@ creates one or observes one.
 | `status.arn`                             | `status.aws.arn`                                                                      | A cloud ID (rule 4)                                               |
 | `status.providerConfig`, `status.region` | removed                                                                               | Internal to the platform                                          |
 
+*Changes from `MSK` to `KafkaCluster`.*
+
 | Today                                        | Design                  | Reason                                          |
 | -------------------------------------------- | ----------------------- | ----------------------------------------------- |
 | kind `Topic`                                 | kind `KafkaTopic`       | Named after the engine (rule 8)                 |
 | `Topic.clusterName`, `KafkaUser.clusterName` | `clusterRef`            | A reference with a namespace (rule 11)          |
 | `Topic.config`                               | `KafkaTopic.parameters` | The same word as on every other kind            |
 | (none)                                       | `KafkaTopic.name`       | A Kafka name that a Kubernetes name cannot hold |
+
+*Changes to Kafka topics and users.*
 
 The user secret `<cluster>-<user>-k8s`, with one JSON value, becomes `<cluster>-<user>` with the
 keys `endpoint`, `username`, `password` and `saslMechanism`. Clusters deny access to topics
@@ -298,9 +314,11 @@ spec:
     retention.ms: "604800000"
 ```
 
+*A Kafka cluster and topic, today and in the design.*
+
 ## RabbitMQ
 
-`RabbitMQBroker` changes as follows, and `RabbitMQUser` and `RabbitMQVirtualHost` are new.
+`RabbitMQUser` and `RabbitMQVirtualHost` are new, and `RabbitMQBroker` changes as follows:
 
 | Today                                                 | Design                   | Reason                                                                                       |
 | ----------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------- |
@@ -312,6 +330,8 @@ spec:
 | `configuration.description`                           | removed                  | Internal to the platform                                                                     |
 | `publiclyAccessible`                                  | `aws.publiclyAccessible` | An Amazon MQ setting (rule 2)                                                                |
 | `brokerName`, `engineType`, `autoMinorVersionUpgrade` | removed                  | The platform names the broker, the engine is RabbitMQ, and Amazon MQ requires minor upgrades |
+
+*Changes to RabbitMQ.*
 
 In the status, today's Amazon MQ fields are replaced by `endpoint`, `managementEndpoint`,
 `highAvailability` and `version`, with `status.aws.id` and `status.aws.engineVersion`. The two
@@ -363,6 +383,8 @@ spec:
 # removed: brokerName, engineType, autoMinorVersionUpgrade
 ```
 
+*A RabbitMQ broker, today and in the design.*
+
 ## Bucket
 
 | Today                                        | Design                                                                                                    | Reason                                                                 |
@@ -371,6 +393,8 @@ spec:
 | `enableVersioning`                           | `versioning`                                                                                              | The same word on every cloud                                           |
 | `createServiceAccount`, `serviceAccountName` | removed                                                                                                   | An application's identity is not part of the bucket ([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)) |
 | (none)                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `gcp.softDeleteDays`, `azure.softDeleteDays` | New settings                                                           |
+
+*Changes from `S3Bucket` to `Bucket`.*
 
 The IAM role, service account and IAM user with an access key that `S3Bucket` creates are no
 longer created, and the secret with its `AWS_*` and `credentials.json` keys is removed: a bucket
@@ -403,6 +427,8 @@ spec:
 # removed: createServiceAccount, serviceAccountName
 ```
 
+*A bucket, today and in the design.*
+
 ## ArtifactRepository
 
 | Today                  | Design                                                  | Reason                                                       |
@@ -411,6 +437,8 @@ spec:
 | `path`, free-form      | `path` under the namespace: `<namespace>/<path>/<name>` | Namespaces keep paths apart in a cluster; image paths change |
 | (none)                 | `immutableTags`                                         | Today a deployment-wide setting                              |
 | `status.repositoryUri` | `status.uri`                                            | The same word on every cloud                                 |
+
+*Changes from `Repository` to `ArtifactRepository`.*
 
 `lifecycleRules` keeps its fields and now defaults per deployment, replacing today's
 deployment-wide rules.
@@ -439,3 +467,5 @@ spec:
   path: backend                        # now under the namespace: shop/backend/orders-api
   immutableTags: true                  # new
 ```
+
+*An artifact repository, today and in the design.*

@@ -6,7 +6,7 @@ One kind: `Bucket` (today `S3Bucket`), one bucket.
 
 Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (Azure).
 
-What changes from today's API is listed in [API Changes](changes.md#bucket).
+[API Changes](changes.md#bucket) lists what changes from today's API.
 
 ## Contents
 
@@ -20,11 +20,11 @@ What changes from today's API is listed in [API Changes](changes.md#bucket).
 
 ## Spec
 
-What a user writes to create a `Bucket`. The comments note value ranges and what holds on one cloud
-only.
-
 A `Bucket` is only the bucket: who may use it is decided by the user's own identity, not by the
 bucket.
+
+A user creates a `Bucket` with a manifest like the one below. Its comments note value ranges and
+what holds on one cloud only:
 
 ```yaml
 ---
@@ -61,6 +61,8 @@ spec:
     softDeleteDays: 7
 ```
 
+*A `Bucket` with its common fields and the GCP and Azure blocks.*
+
 `lifecycleRules`, `retention` and `cors` have no default. `tier` names the two cold tiers every
 cloud has.
 
@@ -72,8 +74,8 @@ Follow-Up Work).
 
 ## Mapping
 
-How each field maps to the managed service of each cloud, named by the fields of that cloud's
-Crossplane provider. Level is the field's support level (rule 1).
+The table names, for every field, the field of each cloud's provider it maps to. Level is the
+field's support level (rule 1).
 
 | Field                | Level          | AWS (S3)                                                                                                                                            | GCP (Cloud Storage)                                       | OCI (Object Storage)                                                                                                                                | Azure (Blob Storage)                                 |
 | -------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -87,6 +89,8 @@ Crossplane provider. Level is the field's support level (rule 1).
 | `retention`          | Core           | Object Lock default retention, mode `COMPLIANCE` when `locked` and `GOVERNANCE` when not; needs `versioning`, and Object Lock stays on once enabled | `retentionPolicy.retentionPeriod`, in seconds; `isLocked` | `retentionRules[]`; `locked: true` sets `timeRuleLocked` 15 days ahead, since OCI rejects 14 days or less (tested in OC19), and the rule locks then | `ContainerImmutabilityPolicy`, `locked`              |
 | `cors`               | Ignored on OCI | `BucketCorsConfiguration`                                                                                                                           | `cors[]`                                                  | ignored; OCI allows every origin                                                                                                                    | `Account.blobProperties.corsRule[]`                  |
 
+*Common fields of `Bucket` on each cloud.*
+
 The cloud-specific fields:
 
 | Field                  | Maps To                                                                                   |
@@ -97,6 +101,8 @@ The cloud-specific fields:
 | `azure.id`             | the container's resource ID; the function takes the account, container and resource group |
 | `gcp.softDeleteDays`   | `softDeletePolicy.retentionDurationSeconds`, in seconds                                   |
 | `azure.softDeleteDays` | `Account.blobProperties.deleteRetentionPolicy.days`                                       |
+
+*Cloud-specific fields of `Bucket`.*
 
 Azure puts versioning, lifecycle, CORS and soft delete on the storage account, so each `Bucket` has
 its own account, with the account's keys turned off (`sharedAccessKeyEnabled: false`). Soft delete
@@ -110,6 +116,8 @@ false` is refused on a bucket that ever had `retention`.
 A `Bucket` has no secret: it holds no credentials. The status adds `url`, `bucketName` and `region`,
 which an application needs to find the bucket. On OCI, `status.oci.retentionLockedFrom` is the date
 a locked retention takes effect.
+
+The cloud blocks of the status:
 
 ```yaml
 status:
@@ -125,6 +133,8 @@ status:
     containerId: ...
 ```
 
+*The cloud blocks of a `Bucket` status.*
+
 ## Platform Decisions
 
 The bucket's cloud name (globally unique on AWS, GCP and for Azure accounts), encryption with the
@@ -133,27 +143,31 @@ enforced, GCS uniform bucket-level access).
 
 ## Ignored Settings
 
-Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
-means there.
+These settings are accepted on every cloud but have no effect on some (rule 1). The table says what
+that means there.
 
 | Setting | Ignored On | Effect                                                                             |
 | ------- | ---------- | ---------------------------------------------------------------------------------- |
 | `cors`  | OCI        | Browsers may call the bucket from every origin; requests still need authorization. |
 
+*Bucket settings that some clouds ignore.*
+
 ## Cloud Limits
 
-Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
-rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
-validating them be decided later.
+Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
+should validating them be decided later.
 
 | Field                  | Cloud | Limit         | Source                                                                               |
 | ---------------------- | ----- | ------------- | ------------------------------------------------------------------------------------ |
 | `gcp.softDeleteDays`   | GCP   | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
 | `azure.softDeleteDays` | Azure | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
 
+*Limits each cloud enforces on buckets.*
+
 ## Notes
 
-Facts about this service that the design relies on and that need no decision.
+The design relies on these facts, which need no decision.
 
 - Deleting a bucket that holds objects fails on OCI and succeeds on Azure, taking the blobs with it;
   `deletionProtection` is the guard on every cloud.
