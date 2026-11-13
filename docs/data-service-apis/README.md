@@ -30,5 +30,3 @@ What each page of the design holds, in the order of the menu.
 - [API Changes](changes.md): every change from today's APIs to the design, per kind.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
 - [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
-- [Open Points](open-points.md): questions still to decide, listed in the menu only while one is
-  open.
