@@ -7,14 +7,14 @@ works on AWS, GCP, OCI and Azure alike.
 
 ```mermaid
 flowchart LR
-  request("<b>Data Service Object</b><br/>What is needed, plus<br/>cloud-specific settings")
-  platform("<b>Platform Function</b><br/>Translates object<br/>for deployment's cloud")
-  service[("<b>Cloud Resource</b><br/>Same engine<br/>on every cloud")]
-  status(["<b>Status</b><br/>Same form<br/>on every cloud"])
-  request --> platform --> service --> status
-  class request user
-  class platform platform
-  class service cloud
+  object("<b>Data Service Object</b><br/>Describes<br/>cloud resource")
+  function("<b>Platform Function</b><br/>Creates resource on<br/>deployment's cloud")
+  resource[("<b>Cloud Resource</b><br/>&nbsp;<br/>&nbsp;")]
+  status("<b>Status</b><br/>Reports resource's<br/>actual state")
+  object --> function --> resource --> status
+  class object user
+  class function platform
+  class resource cloud
   class status app
 ```
 
