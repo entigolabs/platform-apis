@@ -13,7 +13,8 @@ nav:
   tabs:
   - label: PostgreSQL
     tabs:
-    - {file: postgresql.md, label: Design}
+    - {file: postgresql.md, label: Design, omit: [Mapping, Cloud Limits]}
+    - {file: postgresql.md, label: Implementation, sections: [Mapping, Cloud Limits]}
     - label: Schemas
       files:
       - {file: schemas/postgresqlinstance.yaml, label: PostgreSQLInstance}
@@ -21,7 +22,8 @@ nav:
       - {file: schemas/postgresqldatabase.yaml, label: PostgreSQLDatabase}
   - label: MariaDB
     tabs:
-    - {file: mariadb.md, label: Design}
+    - {file: mariadb.md, label: Design, omit: [Mapping, Cloud Limits]}
+    - {file: mariadb.md, label: Implementation, sections: [Mapping, Cloud Limits]}
     - label: Schemas
       files:
       - {file: schemas/mariadbinstance.yaml, label: MariaDBInstance}
@@ -29,13 +31,15 @@ nav:
       - {file: schemas/mariadbdatabase.yaml, label: MariaDBDatabase}
   - label: Valkey
     tabs:
-    - {file: valkey.md, label: Design}
+    - {file: valkey.md, label: Design, omit: [Mapping, Cloud Limits]}
+    - {file: valkey.md, label: Implementation, sections: [Mapping, Cloud Limits]}
     - label: Schemas
       files:
       - {file: schemas/valkeyinstance.yaml, label: ValkeyInstance}
   - label: Kafka
     tabs:
-    - {file: kafka.md, label: Design}
+    - {file: kafka.md, label: Design, omit: [Mapping, Cloud Limits]}
+    - {file: kafka.md, label: Implementation, sections: [Mapping, Cloud Limits]}
     - label: Schemas
       files:
       - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
@@ -43,7 +47,8 @@ nav:
       - {file: schemas/kafkatopic.yaml, label: KafkaTopic}
   - label: RabbitMQ
     tabs:
-    - {file: rabbitmq.md, label: Design}
+    - {file: rabbitmq.md, label: Design, omit: [Mapping, Cloud Limits]}
+    - {file: rabbitmq.md, label: Implementation, sections: [Mapping, Cloud Limits]}
     - label: Schemas
       files:
       - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
@@ -51,13 +56,15 @@ nav:
       - {file: schemas/rabbitmqvirtualhost.yaml, label: RabbitMQVirtualHost}
   - label: Bucket
     tabs:
-    - {file: bucket.md, label: Design}
+    - {file: bucket.md, label: Design, omit: [Mapping, Cloud Limits]}
+    - {file: bucket.md, label: Implementation, sections: [Mapping, Cloud Limits]}
     - label: Schemas
       files:
       - {file: schemas/bucket.yaml, label: Bucket}
   - label: ArtifactRepository
     tabs:
-    - {file: artifact-repository.md, label: Design}
+    - {file: artifact-repository.md, label: Design, omit: [Mapping, Cloud Limits]}
+    - {file: artifact-repository.md, label: Implementation, sections: [Mapping, Cloud Limits]}
     - label: Schemas
       files:
       - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
