@@ -10,9 +10,7 @@ nav:
   id: overview
 - file: rules.md
   label: Design Rules
-  divider: true
 - label: Services
-  divider: true
   tabs:
   - {file: postgresql.md, label: PostgreSQL}
   - {file: mariadb.md, label: MariaDB}
@@ -22,7 +20,6 @@ nav:
   - {file: bucket.md, label: Bucket}
   - {file: artifact-repository.md, label: ArtifactRepository}
 - label: Schemas
-  divider: true
   tabs:
   - label: PostgreSQL
     files:
