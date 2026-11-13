@@ -1,8 +1,5 @@
 # ArtifactRepository
 
-Applies the rules in [rules.md](rules.md). Can be installed on every cloud (rule 7).
-Schema: [artifactrepository.yaml](schemas/artifactrepository.yaml).
-
 `ArtifactRepository` (today `Repository`) is one application's repository of OCI artifacts: one
 image path, such as `shop/orders-api`, with its tags. It holds container images, Helm charts and any
 other OCI artifact, which all four registries store alike. The clouds disagree on what a repository

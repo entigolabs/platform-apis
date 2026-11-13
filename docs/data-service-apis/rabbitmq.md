@@ -1,10 +1,5 @@
 # RabbitMQ
 
-Applies the rules in [rules.md](rules.md). Can be installed on AWS only (rule 7).
-Schemas: [rabbitmqbroker.yaml](schemas/rabbitmqbroker.yaml),
-[rabbitmquser.yaml](schemas/rabbitmquser.yaml),
-[rabbitmqvirtualhost.yaml](schemas/rabbitmqvirtualhost.yaml).
-
 `RabbitMQBroker` is one RabbitMQ broker: a single node, or a three-node cluster across zones. Amazon
 MQ is the only managed RabbitMQ among the four clouds, so its concepts come from RabbitMQ itself
 and are checked against Amazon MQ.

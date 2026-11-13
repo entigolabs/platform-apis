@@ -1,9 +1,5 @@
 # Kafka
 
-Applies the rules in [rules.md](rules.md). Can be installed on AWS and OCI (rule 7).
-Schemas: [kafkacluster.yaml](schemas/kafkacluster.yaml), [kafkauser.yaml](schemas/kafkauser.yaml),
-[kafkatopic.yaml](schemas/kafkatopic.yaml).
-
 Three kinds: `KafkaCluster`, `KafkaUser` (an identity with credentials and ACLs) and `KafkaTopic`.
 Their concepts are checked against Amazon MSK provisioned (AWS), Managed Service for Apache Kafka
 (GCP) and OCI Streaming with Apache Kafka (OCI). GCP's cluster, topic and ACL resources are in the

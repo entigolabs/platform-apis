@@ -1,9 +1,6 @@
 ---
 title: Portable Data Service APIs
 checklistCollection: openpoints
-replace:
-- from: "Applies the rules in [rules.md](rules.md)."
-  to: "Applies the [rules](rules.md)."
 nav:
 - file: README.md
   label: Overview

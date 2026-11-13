@@ -1,10 +1,5 @@
 # MariaDB
 
-Applies the rules in [rules.md](rules.md). Can be installed on AWS only (rule 7).
-Schemas: [mariadbinstance.yaml](schemas/mariadbinstance.yaml),
-[mariadbuser.yaml](schemas/mariadbuser.yaml),
-[mariadbdatabase.yaml](schemas/mariadbdatabase.yaml).
-
 `MariaDBInstance` is one database server on Amazon RDS. MariaDB runs on AWS only, so its only cloud
 block is `aws`.
 

@@ -1,8 +1,5 @@
 # Bucket
 
-Applies the rules in [rules.md](rules.md). Can be installed on every cloud (rule 7).
-Schema: [bucket.yaml](schemas/bucket.yaml).
-
 `Bucket` (today `S3Bucket`) is one object storage bucket, and only the bucket: who may use it is
 decided by the user's own identity, not by the bucket.
 

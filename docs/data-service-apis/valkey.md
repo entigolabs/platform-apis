@@ -1,8 +1,5 @@
 # Valkey
 
-Applies the rules in [rules.md](rules.md). Can be installed on AWS and OCI (rule 7).
-Schema: [valkeyinstance.yaml](schemas/valkeyinstance.yaml).
-
 `ValkeyInstance` is one primary node with replicas, without sharding. Its concepts are checked
 against ElastiCache (AWS), Memorystore for Valkey (GCP) and OCI Cache (OCI). Azure Managed Redis
 does not count as Valkey: it runs Redis 7.4 on Redis Enterprise, with no version choice, no backups

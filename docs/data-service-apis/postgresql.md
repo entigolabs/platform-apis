@@ -1,12 +1,5 @@
 # PostgreSQL
 
-Applies the rules in [rules.md](rules.md). Can be installed on every cloud (rule 7).
-Schemas: [postgresqlinstance.yaml](schemas/postgresqlinstance.yaml),
-[postgresqluser.yaml](schemas/postgresqluser.yaml),
-[postgresqldatabase.yaml](schemas/postgresqldatabase.yaml).
-
-
-
 ## Contents
 
 - [Spec](#spec)
