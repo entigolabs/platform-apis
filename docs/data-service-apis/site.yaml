@@ -9,45 +9,58 @@ nav:
 - file: rules.md
   label: Design Rules
 - label: Services
-  tabs:
-  - {file: postgresql.md, label: PostgreSQL}
-  - {file: mariadb.md, label: MariaDB}
-  - {file: valkey.md, label: Valkey}
-  - {file: kafka.md, label: Kafka}
-  - {file: rabbitmq.md, label: RabbitMQ}
-  - {file: bucket.md, label: Bucket}
-  - {file: artifact-repository.md, label: ArtifactRepository}
-- label: Schemas
+  aliases: {schemas: "*/schemas"}
   tabs:
   - label: PostgreSQL
-    files:
-    - {file: schemas/postgresqlinstance.yaml, label: PostgreSQLInstance}
-    - {file: schemas/postgresqluser.yaml, label: PostgreSQLUser}
-    - {file: schemas/postgresqldatabase.yaml, label: PostgreSQLDatabase}
+    tabs:
+    - {file: postgresql.md, label: Design}
+    - label: Schemas
+      files:
+      - {file: schemas/postgresqlinstance.yaml, label: PostgreSQLInstance}
+      - {file: schemas/postgresqluser.yaml, label: PostgreSQLUser}
+      - {file: schemas/postgresqldatabase.yaml, label: PostgreSQLDatabase}
   - label: MariaDB
-    files:
-    - {file: schemas/mariadbinstance.yaml, label: MariaDBInstance}
-    - {file: schemas/mariadbuser.yaml, label: MariaDBUser}
-    - {file: schemas/mariadbdatabase.yaml, label: MariaDBDatabase}
+    tabs:
+    - {file: mariadb.md, label: Design}
+    - label: Schemas
+      files:
+      - {file: schemas/mariadbinstance.yaml, label: MariaDBInstance}
+      - {file: schemas/mariadbuser.yaml, label: MariaDBUser}
+      - {file: schemas/mariadbdatabase.yaml, label: MariaDBDatabase}
   - label: Valkey
-    files:
-    - {file: schemas/valkeyinstance.yaml, label: ValkeyInstance}
+    tabs:
+    - {file: valkey.md, label: Design}
+    - label: Schemas
+      files:
+      - {file: schemas/valkeyinstance.yaml, label: ValkeyInstance}
   - label: Kafka
-    files:
-    - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
-    - {file: schemas/kafkauser.yaml, label: KafkaUser}
-    - {file: schemas/kafkatopic.yaml, label: KafkaTopic}
+    tabs:
+    - {file: kafka.md, label: Design}
+    - label: Schemas
+      files:
+      - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
+      - {file: schemas/kafkauser.yaml, label: KafkaUser}
+      - {file: schemas/kafkatopic.yaml, label: KafkaTopic}
   - label: RabbitMQ
-    files:
-    - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
-    - {file: schemas/rabbitmquser.yaml, label: RabbitMQUser}
-    - {file: schemas/rabbitmqvirtualhost.yaml, label: RabbitMQVirtualHost}
+    tabs:
+    - {file: rabbitmq.md, label: Design}
+    - label: Schemas
+      files:
+      - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
+      - {file: schemas/rabbitmquser.yaml, label: RabbitMQUser}
+      - {file: schemas/rabbitmqvirtualhost.yaml, label: RabbitMQVirtualHost}
   - label: Bucket
-    files:
-    - {file: schemas/bucket.yaml, label: Bucket}
+    tabs:
+    - {file: bucket.md, label: Design}
+    - label: Schemas
+      files:
+      - {file: schemas/bucket.yaml, label: Bucket}
   - label: ArtifactRepository
-    files:
-    - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
+    tabs:
+    - {file: artifact-repository.md, label: Design}
+    - label: Schemas
+      files:
+      - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
 - {file: changes.md, label: API Changes, compare: true, tabs: sections}
 - {file: follow-up-work.md, label: Follow-Up Work, divider: true}
 - {file: deferred-capabilities.md, label: Deferred Capabilities}
