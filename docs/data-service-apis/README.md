@@ -1,62 +1,32 @@
 # Overview
 
-The design of the Portable Data Service APIs, with its reasons.
+The Portable Data Service APIs give each data service in
+[`platform-apis`](https://github.com/entigolabs/platform-apis), from PostgreSQL to buckets, one form
+that every cloud infralib deploys to can implement with its own managed service. One manifest then
+works on AWS, GCP, OCI and Azure alike.
+
+Today each API is built around one AWS service: its spec takes AWS values, such as an RDS instance
+class, its status reports AWS identifiers, and the developer portal hard-codes AWS values in its
+forms. infralib also deploys to GCP, OCI and Azure, and OCI is the next cloud to run the data
+services. Implementing the design on a cloud and moving today's objects to it are follow-up work.
 
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
 
-## Summary
+## Key Decisions
 
-[`platform-apis`](https://github.com/entigolabs/platform-apis) offers data services, such as
-PostgreSQL and Kafka, as Kubernetes APIs that work only on AWS. This design gives each API one form
-that every cloud infralib deploys to can implement with its own managed service, so that one
-manifest works on AWS, GCP, OCI and Azure alike.
-
-## Motivation
-
-`platform-apis` offers PostgreSQL, MariaDB, Valkey, Kafka, RabbitMQ, buckets and artifact
-repositories. Each API is built around one AWS service: its spec takes AWS values, such as an RDS
-instance class or a parameter group name, its status reports AWS identifiers, and its function
-builds only AWS resources. The developer portal copies these schemas and hard-codes AWS values in
-its forms.
-
-infralib deploys to AWS, GCP, OCI and Azure, and OCI is the next cloud to run the data services. A
-user asks for a PostgreSQL database; which cloud runs it is the platform's concern.
-
-### Goals
-
-- One manifest works on every cloud where its service exists.
-- A cloud added later implements the APIs without changing them.
-- Applications connect the same way on every cloud.
-
-### Non-Goals
-
-- Implementing the design on a cloud, and moving today's objects to it. Both are
-  [Follow-Up Work](follow-up-work.md).
-- Access for people. A user object is an application's login, not a person's.
-
-## Proposal
-
-The key decisions, grouped by who they affect. Each is one of the [Design Rules](rules.md).
-
-### For Users
+Each decision is one of the [Design Rules](rules.md):
 
 - A manifest states what is needed, such as a version or a size. A setting that exists on only one
   cloud goes into that cloud's block (rules 1 and 2).
-- A kind either creates its resource or observes one that already exists (rule 9).
-- A service is offered only where a cloud runs the same engine, so MariaDB and RabbitMQ run on AWS
-  only (rule 7).
-
-### On the Platform
-
 - A cloud that lacks a setting ignores it; an operation it cannot perform fails, with the reason on
   the object (rules 1 and 10).
+- A service is offered only where a cloud runs the same engine, so MariaDB and RabbitMQ run on AWS
+  only (rule 7).
 - Defaults are written once, at creation, so changing a default never alters a running resource
   (rule 5).
-
-### For Applications
-
 - Every credential is one Secret with the same keys on every cloud (rule 6).
+- A kind either creates its resource or observes one that already exists (rule 9).
 - A user object is one application's login on one instance, with its own permissions (rule 12).
 
 The split into common fields and cloud blocks follows the Zone API, which uses shared keys with
