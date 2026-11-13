@@ -22,9 +22,6 @@ What changes from today's API is listed in [API Changes](changes.md#artifactrepo
 
 ## Spec
 
-What a user writes to create an `ArtifactRepository`. The comments note value ranges and what holds
-on one cloud only.
-
 The clouds disagree on what a repository is: ECR and OCIR have one repository per image path, an
 Artifact Registry repository holds many images, and an Azure registry holds repositories it creates
 on the first push, with no resource of their own. The API's unit is the image path, because that is
@@ -72,9 +69,6 @@ and replaces today's deployment-wide `imageTagMutability`; its `IMMUTABLE_WITH_E
 `MUTABLE_WITH_EXCLUSION` modes, which only ECR has, are dropped.
 
 ## Mapping
-
-How each field maps to the managed service of each cloud, named by the fields of that cloud's
-Crossplane provider. Level is the field's support level (rule 1).
 
 | Field                | Level                    | AWS (ECR)                       | GCP (Artifact Registry)                                                                                                                                                                                             | OCI (OCIR)                                                             | Azure (ACR)                                                   |
 | -------------------- | ------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -125,9 +119,6 @@ keyless image pulls by the cluster's nodes, which on OCI needs Oracle's kubelet 
 
 ## Ignored Settings
 
-Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
-means there.
-
 | Setting                                                       | Ignored On | Effect                                                       |
 | ------------------------------------------------------------- | ---------- | ------------------------------------------------------------ |
 | `immutableTags`                                               | Azure      | Tags can be overwritten.                                     |
@@ -135,8 +126,6 @@ means there.
 | A rule with `tagPatterns`, or with `keepCount` and a selector | GCP        | The whole rule is skipped, so the images it covers are kept. |
 
 ## Notes
-
-Facts about this service that the design relies on and that need no decision.
 
 - Azure path-scoped access needs the registry in ABAC repository permissions mode, generally
   available since November 2025, which ignores the plain AcrPull and AcrPush roles.

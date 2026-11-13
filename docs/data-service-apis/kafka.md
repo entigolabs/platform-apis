@@ -25,8 +25,6 @@ What changes from today's API is listed in [API Changes](changes.md#kafka).
 
 ## Spec
 
-What a user writes to create a `KafkaCluster`: its version, brokers, storage and broker settings.
-
 ```yaml
 ---
 apiVersion: queue.entigo.com/v1alpha2
@@ -61,8 +59,6 @@ in each cloud's block (`aws.instanceType`, `oci.instanceType` with `oci.ocpus`, 
 `gcp.memoryGB`), and `brokers` is ignored on GCP. No cloud offers a maintenance window.
 
 ## Mapping
-
-In the table below, Level is the field's support level (rule 1).
 
 | Field              | Level                                | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                                  | OCI (`KafkaCluster`)                                                                |
 | ------------------ | ------------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -179,19 +175,12 @@ the admin as a superuser; GCP needs explicit ALLOW ACLs for the admin on every r
 
 ## Ignored Settings
 
-Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
-means there.
-
 | Setting                   | Ignored On | Effect                                |
 | ------------------------- | ---------- | ------------------------------------- |
 | `brokers`                 | GCP        | GCP chooses the broker count.         |
 | `highAvailability: false` | AWS, GCP   | The cluster runs across zones anyway. |
 
 ## Cloud Limits
-
-Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
-rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
-validating them be decided later.
 
 | Field            | Cloud | Limit                          | Source                                                                      |
 | ---------------- | ----- | ------------------------------ | --------------------------------------------------------------------------- |
@@ -204,8 +193,6 @@ validating them be decided later.
 | `gcp.memoryGB`   | GCP   | 1 to 8 per vCPU                | `memory_bytes`, `google_managed_kafka_cluster` docs                         |
 
 ## Notes
-
-Facts about this service that the design relies on and that need no decision.
 
 - GCP: the cluster, topic and ACL resources are in the GA Terraform `google` provider, and
   [provider-upjet-gcp
