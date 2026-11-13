@@ -34,8 +34,8 @@ What each page of the design holds, in the order of the menu.
   against them.
 - One page per service, showing how it applies the rules: [PostgreSQL](postgresql.md),
   [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md), [RabbitMQ](rabbitmq.md),
-  [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md).
-- [Schemas](schemas/): the draft schema of every kind.
+  [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md). The draft schema of each
+  kind is in [schemas](schemas/) and is shown with its service.
 - [API Changes](changes.md): every change from today's APIs to the design, per kind.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
 - [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
