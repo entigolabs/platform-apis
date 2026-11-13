@@ -1,12 +1,14 @@
 # Kafka
 
-Three kinds: `KafkaCluster`, `KafkaUser` (an identity with credentials and ACLs) and `KafkaTopic`.
-Their concepts are checked against Amazon MSK provisioned (AWS), Managed Service for Apache Kafka
-(GCP) and OCI Streaming with Apache Kafka (OCI). GCP's cluster, topic and ACL resources are in the
-GA Terraform `google` provider, and [provider-upjet-gcp
-v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0) has none of
-them yet. Azure Event Hubs does not count as Kafka: it has no Kafka ACLs, no topic creation through
-the Kafka admin API and no broker settings.
+Apache Kafka is a distributed event log that applications publish streams of records to and consume
+them from.
+
+Three kinds: `KafkaCluster`, the cluster itself; `KafkaUser`, one application's login, with its
+ACLs; and `KafkaTopic`, one topic in a cluster.
+
+Built on Amazon MSK provisioned (AWS), Managed Service for Apache Kafka (GCP) and OCI Streaming with
+Apache Kafka (OCI). Azure has none: Event Hubs speaks the Kafka protocol but has no Kafka ACLs, no
+topic creation through the Kafka admin API and no broker settings.
 
 ## Contents
 
@@ -21,7 +23,7 @@ the Kafka admin API and no broker settings.
 
 ## Spec
 
-The Kafka cluster itself: its version, brokers, storage and broker settings.
+What a user writes to create a `KafkaCluster`: its version, brokers, storage and broker settings.
 
 ```yaml
 ---
@@ -98,6 +100,8 @@ status:
     id: ...
     state: ACTIVE
 ```
+
+A cluster has no secret of its own: applications log in with a `KafkaUser`'s secret.
 
 ## Other Kinds
 
@@ -201,6 +205,10 @@ validating them be decided later.
 
 Facts about this service that the design relies on and that need no decision.
 
+- GCP: the cluster, topic and ACL resources are in the GA Terraform `google` provider, and
+  [provider-upjet-gcp
+  v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0) has none of
+  them yet.
 - MSK Express brokers have no storage to size, so `storage.sizeGB` would be rejected with an
   `express.*` instance type.
 - GCP: users are IAM service accounts, and a service account key in a secret is the only static

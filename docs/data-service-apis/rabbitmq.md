@@ -1,14 +1,20 @@
 # RabbitMQ
 
-`RabbitMQBroker` is one RabbitMQ broker: a single node, or a three-node cluster across zones. Amazon
-MQ is the only managed RabbitMQ among the four clouds, so its concepts come from RabbitMQ itself
-and are checked against Amazon MQ.
+RabbitMQ is an open-source message broker that routes messages between applications through
+exchanges and queues.
+
+Three kinds: `RabbitMQBroker`, one broker, a single node or a three-node cluster across zones;
+`RabbitMQUser`, one application's login, with its permissions; and `RabbitMQVirtualHost`, an
+isolated set of queues and exchanges in a broker.
+
+Built on Amazon MQ (AWS), the only managed RabbitMQ among the four clouds, so the API follows
+RabbitMQ's own concepts. GCP, OCI and Azure have none.
 
 ## Contents
 
 - [Spec](#spec)
 - [Mapping](#mapping)
-- [Status and Connection Secret](#status-and-connection-secret)
+- [Status](#status)
 - [Other Kinds](#other-kinds)
 - [Platform Decisions](#platform-decisions)
 - [Cloud Limits](#cloud-limits)
@@ -66,7 +72,7 @@ Crossplane provider.
 | `aws.publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
 | `aws.id`                 | the broker ID                                                            |
 
-## Status and Connection Secret
+## Status
 
 The status adds `managementEndpoint` (the management console URL), and `status.aws` holds `id` and
 `engineVersion`. The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host),

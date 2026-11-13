@@ -1,11 +1,13 @@
 # ArtifactRepository
 
-`ArtifactRepository` (today `Repository`) is one application's repository of OCI artifacts: one
-image path, such as `shop/orders-api`, with its tags. It holds container images, Helm charts and any
-other OCI artifact, which all four registries store alike. The clouds disagree on what a repository
-is: ECR and OCIR have one repository per image path, an Artifact Registry repository holds many
-images, and an Azure registry holds repositories it creates on the first push, with no resource of
-their own. The API's unit is the image path, because that is what an application owns.
+An artifact registry stores container images, Helm charts and other OCI artifacts, which deployments
+pull and CI pushes.
+
+One kind: `ArtifactRepository` (today `Repository`), one application's image path, such as
+`shop/orders-api`, with its tags.
+
+Built on ECR (AWS), Artifact Registry (GCP), OCIR (OCI) and Azure Container Registry (Azure), which
+store every OCI artifact alike.
 
 ## Contents
 
@@ -20,6 +22,11 @@ their own. The API's unit is the image path, because that is what an application
 
 What a user writes to create an `ArtifactRepository`. The comments note value ranges and what holds
 on one cloud only.
+
+The clouds disagree on what a repository is: ECR and OCIR have one repository per image path, an
+Artifact Registry repository holds many images, and an Azure registry holds repositories it creates
+on the first push, with no resource of their own. The API's unit is the image path, because that is
+what an application owns.
 
 ```yaml
 ---

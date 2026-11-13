@@ -1,7 +1,10 @@
 # Bucket
 
-`Bucket` (today `S3Bucket`) is one object storage bucket, and only the bucket: who may use it is
-decided by the user's own identity, not by the bucket.
+Object storage keeps files as objects in buckets, which applications read and write over HTTP.
+
+One kind: `Bucket` (today `S3Bucket`), one bucket.
+
+Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (Azure).
 
 ## Contents
 
@@ -17,6 +20,9 @@ decided by the user's own identity, not by the bucket.
 
 What a user writes to create a `Bucket`. The comments note value ranges and what holds on one cloud
 only.
+
+A `Bucket` is only the bucket: who may use it is decided by the user's own identity, not by the
+bucket.
 
 ```yaml
 ---

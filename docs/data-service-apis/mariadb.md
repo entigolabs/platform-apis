@@ -1,7 +1,13 @@
 # MariaDB
 
-`MariaDBInstance` is one database server on Amazon RDS. MariaDB runs on AWS only, so its only cloud
-block is `aws`.
+MariaDB is an open-source relational database that began as a fork of MySQL, used by applications
+for their transactional data.
+
+Three kinds: `MariaDBInstance`, one database server; `MariaDBUser`, one application's login on an
+instance, with its permissions; and `MariaDBDatabase`, one database on an instance.
+
+Built on Amazon RDS (AWS), so `aws` is the only cloud block. GCP, OCI and Azure have none: their
+MySQL services are not MariaDB (rule 7), and Azure Database for MariaDB is retired.
 
 ## Contents
 
@@ -121,6 +127,8 @@ status:
     latestRestorableTime: ...
     status: available
 ```
+
+The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
 ## Other Kinds
 

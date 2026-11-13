@@ -1,8 +1,12 @@
 # PostgreSQL
 
-`PostgreSQLInstance` is one PostgreSQL database server. Its concepts are checked against Amazon RDS
-(AWS), Cloud SQL (GCP), OCI Database with PostgreSQL (OCI) and Azure Database for PostgreSQL
-flexible server (Azure).
+PostgreSQL is an open-source relational database, used by applications for their transactional data.
+
+Three kinds: `PostgreSQLInstance`, one database server; `PostgreSQLUser`, one application's login on
+an instance, with its permissions; and `PostgreSQLDatabase`, one database on an instance.
+
+Built on Amazon RDS (AWS), Cloud SQL (GCP), OCI Database with PostgreSQL (OCI) and Azure Database
+for PostgreSQL flexible server (Azure).
 
 ## Contents
 
@@ -189,6 +193,8 @@ status:
   azure:
     id: ...
 ```
+
+The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
 ## Other Kinds
 

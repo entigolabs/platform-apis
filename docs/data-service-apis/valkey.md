@@ -1,15 +1,18 @@
 # Valkey
 
-`ValkeyInstance` is one primary node with replicas, without sharding. Its concepts are checked
-against ElastiCache (AWS), Memorystore for Valkey (GCP) and OCI Cache (OCI). Azure Managed Redis
-does not count as Valkey: it runs Redis 7.4 on Redis Enterprise, with no version choice, no backups
-and a 25 GB limit without clustering.
+Valkey is an in-memory key-value store, an open-source fork of Redis, that applications use as a
+cache, session store or message broker.
+
+One kind: `ValkeyInstance`, one primary node with read replicas.
+
+Built on ElastiCache (AWS), Memorystore for Valkey (GCP) and OCI Cache (OCI). Azure has none: Azure
+Managed Redis runs Redis, not Valkey.
 
 ## Contents
 
 - [Spec](#spec)
 - [Mapping](#mapping)
-- [Status and Connection Secret](#status-and-connection-secret)
+- [Status](#status)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
@@ -19,6 +22,8 @@ and a 25 GB limit without clustering.
 
 What a user writes to create a `ValkeyInstance`. The comments note value ranges and what holds on
 one cloud only.
+
+An instance has no sharding: its data lives on the primary and is copied to each replica.
 
 ```yaml
 ---
@@ -96,7 +101,7 @@ The cloud-specific fields:
 | `aws.parameterGroupName` | `parameterGroupName`     |
 | `oci.memoryGB`           | `nodeMemoryInGbs`        |
 
-## Status and Connection Secret
+## Status
 
 The status adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and
 `aws.finalBackup`, the ID the final snapshot will receive. A deleted cache's ID, which the status
@@ -159,6 +164,8 @@ validating them be decided later.
 
 Facts about this service that the design relies on and that need no decision.
 
+- Azure: Azure Managed Redis runs Redis 7.4 on Redis Enterprise, with no version choice, no backups
+  and a 25 GB limit without clustering.
 - GCP: Memorystore for Valkey has password auth (`TOKEN_AUTH`), but [provider-upjet-gcp
   v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0) offers only
   IAM auth, whose hour-long tokens no connection secret can hold. Its TLS also needs the instance's
