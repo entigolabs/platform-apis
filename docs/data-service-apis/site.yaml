@@ -8,6 +8,7 @@ nav:
 - file: README.md
   label: Overview
   id: overview
+  home: true
 - file: rules.md
   label: Design Rules
 - label: Services
@@ -51,8 +52,6 @@ nav:
     files:
     - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
 - {file: changes.md, label: API Changes, compare: true, tabs: sections}
-- group: Next Steps
-  pages:
-  - {file: follow-up-work.md, label: Follow-Up Work}
-  - {file: deferred-capabilities.md, label: Deferred Capabilities}
-  - {file: open-points.md, label: Open Points, checklist: true}
+- {file: follow-up-work.md, label: Follow-Up Work, divider: true}
+- {file: deferred-capabilities.md, label: Deferred Capabilities}
+- {file: open-points.md, label: Open Points, checklist: true}
