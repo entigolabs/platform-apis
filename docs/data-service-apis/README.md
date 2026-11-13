@@ -25,22 +25,8 @@ What each page of the design holds, in the order of the menu.
 - One page per service, showing how it applies the rules: [PostgreSQL](postgresql.md),
   [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md), [RabbitMQ](rabbitmq.md),
   [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md). The site shows each in
-  three tabs: its design, how each cloud implements it, and the draft schemas of its kinds from
-  [schemas](schemas/). A page leaves out a section it has nothing for, and each section means the
-  same on every page:
-  - Spec: what a user writes to create the service's main kind. The comments note value ranges and
-    what holds on one cloud only.
-  - Status: what the status adds to the common fields, and the main kind's secret.
-  - Other Kinds: the service's other kinds, such as its users.
-  - Platform Decisions: what the platform sets that the user does not.
-  - Ignored Settings: settings accepted on every cloud but without effect on some, and what that
-    means there (rule 1).
-  - Notes: facts the design relies on that need no decision.
-  - Mapping: how each field maps to the managed service of each cloud, named by the fields of that
-    cloud's Crossplane provider. Level is the field's support level (rule 1).
-  - Cloud Limits: limits each cloud enforces itself, which the API does not check (rule 10). A
-    value outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are
-    listed for reference, should validating them be decided later.
+  three tabs: its design, how each cloud implements it (Mapping and Cloud Limits), and the draft
+  schemas of its kinds from [schemas](schemas/).
 - [API Changes](changes.md): every change from today's APIs to the design, per kind.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
 - [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.

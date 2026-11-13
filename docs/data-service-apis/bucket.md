@@ -20,6 +20,9 @@ What changes from today's API is listed in [API Changes](changes.md#bucket).
 
 ## Spec
 
+What a user writes to create a `Bucket`. The comments note value ranges and what holds on one cloud
+only.
+
 A `Bucket` is only the bucket: who may use it is decided by the user's own identity, not by the
 bucket.
 
@@ -68,6 +71,9 @@ names ([Cloud identity for applications](follow-up-work.md#3-cloud-identity-for-
 Follow-Up Work).
 
 ## Mapping
+
+How each field maps to the managed service of each cloud, named by the fields of that cloud's
+Crossplane provider. Level is the field's support level (rule 1).
 
 | Field                | Level          | AWS (S3)                                                                                                                                            | GCP (Cloud Storage)                                       | OCI (Object Storage)                                                                                                                                | Azure (Blob Storage)                                 |
 | -------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -127,11 +133,18 @@ enforced, GCS uniform bucket-level access).
 
 ## Ignored Settings
 
+Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
+means there.
+
 | Setting | Ignored On | Effect                                                                             |
 | ------- | ---------- | ---------------------------------------------------------------------------------- |
 | `cors`  | OCI        | Browsers may call the bucket from every origin; requests still need authorization. |
 
 ## Cloud Limits
+
+Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
+rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
+validating them be decided later.
 
 | Field                  | Cloud | Limit         | Source                                                                               |
 | ---------------------- | ----- | ------------- | ------------------------------------------------------------------------------------ |
@@ -139,6 +152,8 @@ enforced, GCS uniform bucket-level access).
 | `azure.softDeleteDays` | Azure | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
 
 ## Notes
+
+Facts about this service that the design relies on and that need no decision.
 
 - Deleting a bucket that holds objects fails on OCI and succeeds on Azure, taking the blobs with it;
   `deletionProtection` is the guard on every cloud.

@@ -22,6 +22,9 @@ What changes from today's API is listed in [API Changes](changes.md#mariadb).
 
 ## Spec
 
+What a user writes to create a `MariaDBInstance`. The comments note value ranges and what holds on
+one cloud only.
+
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
@@ -77,6 +80,9 @@ status reports the actual size, and the platform never shrinks the disk back to 
 `parameters`.
 
 ## Mapping
+
+How each field maps to the managed service of each cloud, named by the fields of that cloud's
+Crossplane provider.
 
 | Field                                  | RDS `Instance`                                                              |
 | -------------------------------------- | --------------------------------------------------------------------------- |
@@ -195,6 +201,10 @@ platform's data key, admin username and generated password, workspace and Zone t
 a final snapshot when an instance is deleted, switched on per deployment as today.
 
 ## Cloud Limits
+
+Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
+rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
+validating them be decided later.
 
 | Field                            | Cloud | Limit                     | Source                                                                     |
 | -------------------------------- | ----- | ------------------------- | -------------------------------------------------------------------------- |

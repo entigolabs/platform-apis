@@ -22,6 +22,9 @@ What changes from today's API is listed in [API Changes](changes.md#valkey).
 
 ## Spec
 
+What a user writes to create a `ValkeyInstance`. The comments note value ranges and what holds on
+one cloud only.
+
 An instance has no sharding: its data lives on the primary and is copied to each replica.
 
 ```yaml
@@ -71,6 +74,9 @@ change of the major is rejected unless `aws.parameterGroupName` changes or is re
 edit.
 
 ## Mapping
+
+How each field maps to the managed service of each cloud, named by the fields of that cloud's
+Crossplane provider. Level is the field's support level (rule 1).
 
 | Field                                 | Level                                | AWS (ElastiCache replication group)          | GCP (Memorystore `Instance`), no password auth in provider                                                        | OCI (OCI Cache `RedisCluster`)                                             |
 | ------------------------------------- | ------------------------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -132,6 +138,9 @@ password.
 
 ## Ignored Settings
 
+Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
+means there.
+
 | Setting                                      | Ignored On | Effect                                                  |
 | -------------------------------------------- | ---------- | ------------------------------------------------------- |
 | `maintenance.window`                         | OCI        | OCI patches on its own schedule.                        |
@@ -139,6 +148,10 @@ password.
 | `backup`                                     | OCI        | The cache has no automated backups.                     |
 
 ## Cloud Limits
+
+Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
+rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
+validating them be decided later.
 
 | Field                  | Cloud | Limit    | Source                                                                                  |
 | ---------------------- | ----- | -------- | --------------------------------------------------------------------------------------- |
@@ -150,6 +163,8 @@ password.
 | `backup.retentionDays` | GCP   | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD                           |
 
 ## Notes
+
+Facts about this service that the design relies on and that need no decision.
 
 - Azure: Azure Managed Redis runs Redis 7.4 on Redis Enterprise, with no version choice, no backups
   and a 25 GB limit without clustering.

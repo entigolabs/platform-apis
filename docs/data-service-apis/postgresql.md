@@ -23,6 +23,9 @@ What changes from today's API is listed in [API Changes](changes.md#postgresql).
 
 ## Spec
 
+What a user writes to create a `PostgreSQLInstance`. The comments note value ranges and what holds
+on one cloud only.
+
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
@@ -105,6 +108,9 @@ zone-redundant mode only.
 The kind is one database server. Read replicas belong to a cluster-shaped kind, if one is added.
 
 ## Mapping
+
+How each field maps to the managed service of each cloud, named by the fields of that cloud's
+Crossplane provider. Level is the field's support level (rule 1).
 
 | Field                                  | Level                                              | AWS (RDS `Instance`)                                                        | GCP (Cloud SQL `DatabaseInstance`)                                                                                                       | OCI (`PsqlDbSystem`)                                                      | Azure (`FlexibleServer`)                                |
 | -------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
@@ -263,6 +269,9 @@ adds one.
 
 ## Ignored Settings
 
+Settings this service accepts on every cloud but that have no effect on some (rule 1), and what that
+means there.
+
 | Setting                                                        | Ignored On                        | Effect                                                                    |
 | -------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------- |
 | `storage.autoGrow: false`                                      | OCI                               | The storage keeps growing.                                                |
@@ -275,6 +284,10 @@ adds one.
 | `parameterApplyMethod: NextRestart`                            | GCP, OCI, Azure                   | A setting change that needs a restart restarts the instance at once.      |
 
 ## Cloud Limits
+
+Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
+rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
+validating them be decided later.
 
 | Field                                     | Cloud | Limit                                    | Source                                                                           |
 | ----------------------------------------- | ----- | ---------------------------------------- | -------------------------------------------------------------------------------- |

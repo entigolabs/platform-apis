@@ -24,6 +24,9 @@ What changes from today's API is listed in [API Changes](changes.md#rabbitmq).
 
 ## Spec
 
+What a user writes to create a `RabbitMQBroker`. The comments note value ranges and what holds on
+one cloud only.
+
 ```yaml
 ---
 apiVersion: mq.entigo.com/v1alpha2
@@ -55,6 +58,9 @@ from today's API, moves to the `aws` block (rule 2); Amazon MQ replaces a broker
 is set at creation only.
 
 ## Mapping
+
+How each field maps to the managed service of each cloud, named by the fields of that cloud's
+Crossplane provider.
 
 | Field                    | AWS (Amazon MQ `Broker`)                                                 |
 | ------------------------ | ------------------------------------------------------------------------ |
@@ -138,11 +144,17 @@ only the release line.
 
 ## Cloud Limits
 
+Limits each cloud enforces itself, which the API does not check (rule 10); a value outside them is
+rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference, should
+validating them be decided later.
+
 | Field                    | Cloud | Limit                | Source                                         |
 | ------------------------ | ----- | -------------------- | ---------------------------------------------- |
 | `highAvailability: true` | AWS   | not on `mq.t3.micro` | Amazon MQ docs, RabbitMQ broker instance types |
 
 ## Notes
+
+Facts about this service that the design relies on and that need no decision.
 
 - `parameters` keys: Amazon MQ lists the `rabbitmq.conf` keys it accepts in "Configurable values"
   (five general keys, plus pages for OAuth2, LDAP, TLS and resource limits); others are left to
