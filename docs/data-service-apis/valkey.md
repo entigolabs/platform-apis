@@ -9,9 +9,8 @@ and a 25 GB limit without clustering.
 
 - [Spec](#spec)
 - [Mapping](#mapping)
+- [Status and Connection Secret](#status-and-connection-secret)
 - [Platform Decisions](#platform-decisions)
-- [Connection Secret](#connection-secret)
-- [Status](#status)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
@@ -97,26 +96,11 @@ The cloud-specific fields:
 | `aws.parameterGroupName` | `parameterGroupName`     |
 | `oci.memoryGB`           | `nodeMemoryInGbs`        |
 
-## Platform Decisions
+## Status and Connection Secret
 
-Network placement (subnet, security group or NSG), TLS, encryption at rest with the platform's data
-key on AWS, the password, and a final snapshot when a cache is deleted, switched on per deployment
-as today, on AWS (`finalSnapshotIdentifier`), the only cloud that takes one: OCI Cache takes manual
-backups only, and Memorystore has no final backup. On OCI the platform creates an OCI Cache user
-named `default` with the password's SHA-256 hash, which replaces the built-in user that has no
-password.
-
-## Connection Secret
-
-`<instance>-credentials`, with `endpoint`, `port` (6379), `username: default`, `password` and
-`readerEndpoint`. `default` is the user Valkey logs a password-only client in as, so a client that
-always sends a username and password works unchanged.
-
-## Status
-
-Adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and `aws.finalBackup`, the ID
-the final snapshot will receive. A deleted cache's ID, which the status loses with the cache, is
-taken from the cloud console.
+The status adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and
+`aws.finalBackup`, the ID the final snapshot will receive. A deleted cache's ID, which the status
+loses with the cache, is taken from the cloud console.
 
 ```yaml
 status:
@@ -131,6 +115,19 @@ status:
     state: ACTIVE
     softwareVersion: VALKEY_8_1
 ```
+
+The connection secret is `<instance>-credentials`, with `endpoint`, `port` (6379), `username:
+default`, `password` and `readerEndpoint`. `default` is the user Valkey logs a password-only client
+in as, so a client that always sends a username and password works unchanged.
+
+## Platform Decisions
+
+Network placement (subnet, security group or NSG), TLS, encryption at rest with the platform's data
+key on AWS, the password, and a final snapshot when a cache is deleted, switched on per deployment
+as today, on AWS (`finalSnapshotIdentifier`), the only cloud that takes one: OCI Cache takes manual
+backups only, and Memorystore has no final backup. On OCI the platform creates an OCI Cache user
+named `default` with the password's SHA-256 hash, which replaces the built-in user that has no
+password.
 
 ## Ignored Settings
 

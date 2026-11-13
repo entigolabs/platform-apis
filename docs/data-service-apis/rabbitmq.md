@@ -8,9 +8,9 @@ and are checked against Amazon MQ.
 
 - [Spec](#spec)
 - [Mapping](#mapping)
+- [Status and Connection Secret](#status-and-connection-secret)
+- [Other Kinds](#other-kinds)
 - [Platform Decisions](#platform-decisions)
-- [Connection Secret and Status](#connection-secret-and-status)
-- [Users and Virtual Hosts](#users-and-virtual-hosts)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
@@ -66,49 +66,32 @@ Crossplane provider.
 | `aws.publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
 | `aws.id`                 | the broker ID                                                            |
 
-## Platform Decisions
+## Status and Connection Secret
 
-Network placement (subnets, security group), no public access unless `aws.publiclyAccessible`,
-encryption with the platform's data key, the admin user and its generated password, the broker name,
-and `autoMinorVersionUpgrade: true`, which Amazon MQ requires from RabbitMQ 3.13, its oldest
-version; with it, Amazon MQ applies patch versions in the maintenance window, so `version` holds
-only the release line.
+The status adds `managementEndpoint` (the management console URL), and `status.aws` holds `id` and
+`engineVersion`. The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host),
+`port` (5671), `username`, `password` and `managementEndpoint`.
 
-## Connection Secret and Status
-
-Secret `<broker>-credentials`, with `endpoint` (the AMQPS host), `port` (5671), `username`,
-`password` and `managementEndpoint` (the management console URL). The status adds
-`managementEndpoint`, and `status.aws` holds `id` and `engineVersion`.
-
-## Users and Virtual Hosts
+## Other Kinds
 
 `RabbitMQUser` and `RabbitMQVirtualHost` act inside RabbitMQ, so that each application has its own
-login instead of the broker's admin login. A virtual host is an isolated set of queues and exchanges
-inside the broker, comparable to a database in PostgreSQL; deleting one deletes its queues and
-messages, so it has `deletionProtection`. A user receives the secret `<broker>-<user>` with the keys
-of the broker's secret except `managementEndpoint`, and no management tags, so its login cannot open
-the management console.
-
-Permissions follow RabbitMQ's own model: per virtual host, three regular expressions over queue and
-exchange names, for `configure` (create and delete), `write` (publish) and `read` (consume). A new
-virtual host grants nothing until a user is given permissions on it. Permissions are held in the
-user (rule 12).
+login instead of the broker's admin login.
 
 Amazon MQ does not manage RabbitMQ users through its own API; users, virtual hosts and permissions
 are created through RabbitMQ's management API, with the broker's admin login ([Amazon MQ for
 RabbitMQ broker
 users](https://docs.aws.amazon.com/amazon-mq/latest/developer-guide/rabbitmq-basic-elements-user.html)).
 
+### RabbitMQUser
+
+A user receives the secret `<broker>-<user>` with the keys of the broker's secret except
+`managementEndpoint`, and no management tags, so its login cannot open the management console.
+
+Permissions follow RabbitMQ's own model: per virtual host, three regular expressions over queue and
+exchange names, for `configure` (create and delete), `write` (publish) and `read` (consume).
+Permissions are held in the user (rule 12).
+
 ```yaml
----
-apiVersion: mq.entigo.com/v1alpha2
-kind: RabbitMQVirtualHost
-metadata:
-  name: orders
-  namespace: shop
-spec:
-  brokerRef:
-    name: orders-mq
 ---
 apiVersion: mq.entigo.com/v1alpha2
 kind: RabbitMQUser
@@ -124,6 +107,32 @@ spec:
     write: "^orders\\."
     read: "^orders\\."
 ```
+
+### RabbitMQVirtualHost
+
+A virtual host is an isolated set of queues and exchanges inside the broker, comparable to a
+database in PostgreSQL; deleting one deletes its queues and messages, so it has
+`deletionProtection`. A new virtual host grants nothing until a user is given permissions on it.
+
+```yaml
+---
+apiVersion: mq.entigo.com/v1alpha2
+kind: RabbitMQVirtualHost
+metadata:
+  name: orders
+  namespace: shop
+spec:
+  brokerRef:
+    name: orders-mq
+```
+
+## Platform Decisions
+
+Network placement (subnets, security group), no public access unless `aws.publiclyAccessible`,
+encryption with the platform's data key, the admin user and its generated password, the broker name,
+and `autoMinorVersionUpgrade: true`, which Amazon MQ requires from RabbitMQ 3.13, its oldest
+version; with it, Amazon MQ applies patch versions in the maintenance window, so `version` holds
+only the release line.
 
 ## Cloud Limits
 

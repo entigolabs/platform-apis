@@ -1,15 +1,19 @@
 # PostgreSQL
 
+`PostgreSQLInstance` is one PostgreSQL database server. Its concepts are checked against Amazon RDS
+(AWS), Cloud SQL (GCP), OCI Database with PostgreSQL (OCI) and Azure Database for PostgreSQL
+flexible server (Azure).
+
 ## Contents
 
 - [Spec](#spec)
 - [Mapping](#mapping)
-- [Platform Decisions](#platform-decisions)
 - [Status](#status)
-- [Users and Databases](#users-and-databases)
+- [Other Kinds](#other-kinds)
+- [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
-- [Alternatives Considered](#alternatives-considered)
+- [Notes](#notes)
 
 ## Spec
 
@@ -154,15 +158,6 @@ v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0) a
 v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/v2.8.0). GCP's
 `updateTrack` only delays minor upgrades.
 
-## Platform Decisions
-
-Network placement (subnets, security group or NSG, Azure private DNS zone), no public access, gp3
-storage on AWS, encryption with the platform's data key, admin username and generated password,
-workspace and Zone tags, port 5432, and a final backup when an instance is deleted, switched on per
-deployment as today, on the clouds that take one (AWS, GCP). crossplane-provider-oci v2.0.0 has no
-key field for OCI Database with PostgreSQL, so OCI uses the service's own key until the provider
-adds one.
-
 ## Status
 
 `storage.sizeGB` stays empty on OCI, which reports no size. `status.aws.finalBackup` is the ID the
@@ -195,17 +190,14 @@ status:
     id: ...
 ```
 
-
-## Users and Databases
+## Other Kinds
 
 `PostgreSQLUser` and `PostgreSQLDatabase` act inside PostgreSQL, through provider-sql, so they are
 the same on every cloud. They retain today's fields; what changes is the version, `namespace` in
 `instanceRef` (rule 11), defaults moving to the admission policy (rule 5), and `name` and
-`instanceRef` becoming immutable. `extensions` creates an extension in that database; on Azure a
-server must also allow it in `azure.extensions` ([Allow
-extensions](https://learn.microsoft.com/en-us/azure/postgresql/extensions/how-to-allow-extensions)),
-so every Azure instance allows the whole allowlist, and any database can create any
-of them, as on the other clouds.
+`instanceRef` becoming immutable.
+
+### PostgreSQLUser
 
 ```yaml
 ---
@@ -225,6 +217,17 @@ spec:
   grant:
     roles:
     - reporting
+```
+
+### PostgreSQLDatabase
+
+`extensions` creates an extension in that database; on Azure a server must also allow it in
+`azure.extensions` ([Allow
+extensions](https://learn.microsoft.com/en-us/azure/postgresql/extensions/how-to-allow-extensions)),
+so every Azure instance allows the whole allowlist, and any database can create any of them, as on
+the other clouds.
+
+```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: PostgreSQLDatabase
@@ -243,6 +246,15 @@ spec:
       schema: gis
   deletionProtection: true
 ```
+
+## Platform Decisions
+
+Network placement (subnets, security group or NSG, Azure private DNS zone), no public access, gp3
+storage on AWS, encryption with the platform's data key, admin username and generated password,
+workspace and Zone tags, port 5432, and a final backup when an instance is deleted, switched on per
+deployment as today, on the clouds that take one (AWS, GCP). crossplane-provider-oci v2.0.0 has no
+key field for OCI Database with PostgreSQL, so OCI uses the service's own key until the provider
+adds one.
 
 ## Ignored Settings
 
@@ -279,7 +291,9 @@ validating them be decided later.
 | `gcp.diskType`                            | GCP   | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED` | `settings.diskType`, `DatabaseInstance` CRD                                      |
 | `azure.storageTier`                       | Azure | `P4` to `P80`                            | `storageTier`, `FlexibleServer` CRD                                              |
 
-## Alternatives Considered
+## Notes
+
+### Alternatives Considered
 
 Designs that were weighed and rejected, each with the reason.
 

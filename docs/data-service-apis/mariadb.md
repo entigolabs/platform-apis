@@ -7,9 +7,9 @@ block is `aws`.
 
 - [Spec](#spec)
 - [Mapping](#mapping)
-- [Platform Decisions](#platform-decisions)
 - [Status](#status)
-- [Users and Databases](#users-and-databases)
+- [Other Kinds](#other-kinds)
+- [Platform Decisions](#platform-decisions)
 - [Cloud Limits](#cloud-limits)
 
 ## Spec
@@ -104,12 +104,6 @@ Crossplane provider.
 Provider keys are from the CRDs of [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
 
-## Platform Decisions
-
-Network placement (subnets and security group), no public access, gp3 storage, encryption with the
-platform's data key, admin username and generated password, workspace and Zone tags, port 3306, and
-a final snapshot when an instance is deleted, switched on per deployment as today.
-
 ## Status
 
 `aws.finalBackup` is the ID the final snapshot will receive. A deleted instance is restored with
@@ -128,18 +122,19 @@ status:
     status: available
 ```
 
-
-
-## Users and Databases
+## Other Kinds
 
 `MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql, and retain today's
-fields, except that a user's database and privileges become a list, `databases`, with one entry per
-database: today's single `databaseRef` would force an application that uses two databases on one
-instance into two logins, against rule 12. Each entry becomes one provider-sql `Grant`. What also
-changes is the version, `namespace` in `instanceRef` and in each `databaseRef` (rule 11; today's
-function ignores the latter), defaults moving to the admission policy (rule 5), and `name` and
-`instanceRef` becoming immutable. provider-sql writes the four secret keys rule 6 names for MariaDB
-users too
+fields. What changes for both is the version, `namespace` in `instanceRef` (rule 11), defaults
+moving to the admission policy (rule 5), and `name` and `instanceRef` becoming immutable.
+
+### MariaDBUser
+
+A user's database and privileges become a list, `databases`, with one entry per database: today's
+single `databaseRef` would force an application that uses two databases on one instance into two
+logins, against rule 12. Each entry becomes one provider-sql `Grant`, and each `databaseRef` takes
+`namespace` too (rule 11; today's function ignores it). provider-sql writes the four secret keys
+rule 6 names for MariaDB users too
 ([`pkg/clients/mysql/mysql.go`](https://github.com/crossplane-contrib/provider-sql/blob/v0.16.1/pkg/clients/mysql/mysql.go),
 [provider-sql v0.16.1](https://github.com/crossplane-contrib/provider-sql/releases/tag/v0.16.1)).
 The four limits on a user (`maxQueriesPerHour`, `maxUpdatesPerHour`, `maxConnectionsPerHour`,
@@ -171,6 +166,11 @@ spec:
     privileges:
     - SELECT
   maxUserConnections: 20               # 0, the default, is no limit
+```
+
+### MariaDBDatabase
+
+```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: MariaDBDatabase
@@ -183,6 +183,12 @@ spec:
   defaultCharacterSet: utf8mb4
   deletionProtection: true
 ```
+
+## Platform Decisions
+
+Network placement (subnets and security group), no public access, gp3 storage, encryption with the
+platform's data key, admin username and generated password, workspace and Zone tags, port 3306, and
+a final snapshot when an instance is deleted, switched on per deployment as today.
 
 ## Cloud Limits
 

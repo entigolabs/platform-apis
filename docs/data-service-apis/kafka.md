@@ -10,15 +10,16 @@ the Kafka admin API and no broker settings.
 
 ## Contents
 
-- [KafkaCluster](#kafkacluster)
-- [KafkaUser](#kafkauser)
-- [KafkaTopic](#kafkatopic)
+- [Spec](#spec)
+- [Mapping](#mapping)
+- [Status](#status)
+- [Other Kinds](#other-kinds)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
-## KafkaCluster
+## Spec
 
 The Kafka cluster itself: its version, brokers, storage and broker settings.
 
@@ -55,6 +56,8 @@ GCP takes the cluster's total vCPU and memory and chooses the brokers itself. Th
 in each cloud's block (`aws.instanceType`, `oci.instanceType` with `oci.ocpus`, `gcp.vcpus` and
 `gcp.memoryGB`), and `brokers` is ignored on GCP. No cloud offers a maintenance window.
 
+## Mapping
+
 In the table below, Level is the field's support level (rule 1).
 
 | Field              | Level                                | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                                  | OCI (`KafkaCluster`)                                                                |
@@ -79,6 +82,8 @@ The cloud-specific fields:
 | `gcp.memoryGB`     | `capacity_config.memory_bytes`, in bytes                  |
 | `oci.ocpus`        | `brokerShape.ocpuCount`                                   |
 
+## Status
+
 The status adds `bootstrapServers`, the listener applications use (`bootstrapBrokersSaslScram` on
 AWS, `bootstrap_address` on GCP, `kafkaBootstrapUrls` on OCI). `brokers` stays empty on GCP.
 
@@ -94,7 +99,9 @@ status:
     state: ACTIVE
 ```
 
-## KafkaUser
+## Other Kinds
+
+### KafkaUser
 
 An identity that applications use to log in to the cluster, with the ACLs it is granted.
 
@@ -129,7 +136,7 @@ Secret `<cluster>-<user>`: `endpoint` (the bootstrap servers, as `host:port` pai
 `username`, `password` and `saslMechanism` (`SCRAM-SHA-512` or `PLAIN`), since the mechanism
 differs by cloud.
 
-## KafkaTopic
+### KafkaTopic
 
 A topic in the cluster, created through the Kafka admin API on every cloud.
 

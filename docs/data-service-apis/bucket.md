@@ -7,8 +7,8 @@ decided by the user's own identity, not by the bucket.
 
 - [Spec](#spec)
 - [Mapping](#mapping)
-- [Platform Decisions](#platform-decisions)
 - [Status](#status)
+- [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
@@ -97,12 +97,6 @@ versioning is on, and never off again (`aws_s3_bucket_object_lock_configuration`
 [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so `versioning:
 false` is refused on a bucket that ever had `retention`.
 
-## Platform Decisions
-
-The bucket's cloud name (globally unique on AWS, GCP and for Azure accounts), encryption with the
-platform's data key, public access blocked, and access through IAM only (S3 object ownership
-enforced, GCS uniform bucket-level access).
-
 ## Status
 
 A `Bucket` has no secret: it holds no credentials. The status adds `url`, `bucketName` and `region`,
@@ -122,6 +116,12 @@ status:
     accountId: ...
     containerId: ...
 ```
+
+## Platform Decisions
+
+The bucket's cloud name (globally unique on AWS, GCP and for Azure accounts), encryption with the
+platform's data key, public access blocked, and access through IAM only (S3 object ownership
+enforced, GCS uniform bucket-level access).
 
 ## Ignored Settings
 

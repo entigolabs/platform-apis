@@ -11,8 +11,8 @@ their own. The API's unit is the image path, because that is what an application
 
 - [Spec](#spec)
 - [Mapping](#mapping)
-- [Platform Decisions](#platform-decisions)
 - [Status](#status)
+- [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Notes](#notes)
 
@@ -88,14 +88,6 @@ A separate Artifact Registry repository per application on GCP keeps immutabilit
 application, as on ECR and OCIR. On Azure, a registry per application would be one billed SKU each,
 so applications share a platform registry and only path-scoped access is per application.
 
-## Platform Decisions
-
-Private repositories, encryption (the platform's data key on AWS; GCP and Azure take a key only at
-creation, and OCIR has none), vulnerability scanning (ECR scan on push, Artifact Registry's
-container scanning, OCI Vulnerability Scanning Service, Defender for Containers on Azure), and
-keyless image pulls by the cluster's nodes, which on OCI needs Oracle's kubelet credential provider
-(oke-credential-provider-for-ocir) on the nodes.
-
 ## Status
 
 The status adds `uri`, the image URI, such as
@@ -113,6 +105,14 @@ status:
   azure:
     registryId: ...
 ```
+
+## Platform Decisions
+
+Private repositories, encryption (the platform's data key on AWS; GCP and Azure take a key only at
+creation, and OCIR has none), vulnerability scanning (ECR scan on push, Artifact Registry's
+container scanning, OCI Vulnerability Scanning Service, Defender for Containers on Azure), and
+keyless image pulls by the cluster's nodes, which on OCI needs Oracle's kubelet credential provider
+(oke-credential-provider-for-ocir) on the nodes.
 
 ## Ignored Settings
 
