@@ -3,6 +3,11 @@ title: Portable Data Service APIs
 checklistCollection: openpoints
 itemLinks:                                # "rule N" in the text links to rule N
 - {word: rule, file: rules.md}
+schemaTab: &schemas                       # shared by every service's Schemas tab
+  label: Schemas
+  intro: "Each kind is defined by a Crossplane composite resource definition (XRD): its fields, their descriptions and the rules the API checks."
+  partIntro: "The XRD of `{label}`:"
+  partCaption: "The draft schema of `{label}`, from `{file}`."
 nav:
 - file: README.md
   label: Overview
@@ -16,8 +21,8 @@ nav:
   - label: PostgreSQL
     tabs:
     - {file: postgresql.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: postgresql.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
-    - label: Schemas
+    - {file: postgresql.md, label: Cloud Mapping, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
+    - <<: *schemas
       files:
       - {file: schemas/postgresqlinstance.yaml, label: PostgreSQLInstance}
       - {file: schemas/postgresqluser.yaml, label: PostgreSQLUser}
@@ -25,8 +30,8 @@ nav:
   - label: MariaDB
     tabs:
     - {file: mariadb.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: mariadb.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
-    - label: Schemas
+    - {file: mariadb.md, label: Cloud Mapping, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
+    - <<: *schemas
       files:
       - {file: schemas/mariadbinstance.yaml, label: MariaDBInstance}
       - {file: schemas/mariadbuser.yaml, label: MariaDBUser}
@@ -34,15 +39,15 @@ nav:
   - label: Valkey
     tabs:
     - {file: valkey.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: valkey.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
-    - label: Schemas
+    - {file: valkey.md, label: Cloud Mapping, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
+    - <<: *schemas
       files:
       - {file: schemas/valkeyinstance.yaml, label: ValkeyInstance}
   - label: Kafka
     tabs:
     - {file: kafka.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: kafka.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
-    - label: Schemas
+    - {file: kafka.md, label: Cloud Mapping, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
+    - <<: *schemas
       files:
       - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
       - {file: schemas/kafkauser.yaml, label: KafkaUser}
@@ -50,8 +55,8 @@ nav:
   - label: RabbitMQ
     tabs:
     - {file: rabbitmq.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: rabbitmq.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
-    - label: Schemas
+    - {file: rabbitmq.md, label: Cloud Mapping, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
+    - <<: *schemas
       files:
       - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
       - {file: schemas/rabbitmquser.yaml, label: RabbitMQUser}
@@ -59,15 +64,15 @@ nav:
   - label: Bucket
     tabs:
     - {file: bucket.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: bucket.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
-    - label: Schemas
+    - {file: bucket.md, label: Cloud Mapping, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
+    - <<: *schemas
       files:
       - {file: schemas/bucket.yaml, label: Bucket}
   - label: ArtifactRepository
     tabs:
     - {file: artifact-repository.md, label: Design, omit: [Mapping, Cloud Limits]}
-    - {file: artifact-repository.md, label: Implementation, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
-    - label: Schemas
+    - {file: artifact-repository.md, label: Cloud Mapping, sections: [Mapping, Cloud Limits], intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. The sections below map every field to that provider, and list the limits each cloud enforces itself."}
+    - <<: *schemas
       files:
       - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
 - {file: changes.md, label: API Changes, compare: true, tabs: sections}
