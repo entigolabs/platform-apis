@@ -5,6 +5,19 @@ The Portable Data Service APIs give each data service in
 that every cloud infralib deploys to can implement with its own managed service. One manifest then
 works on AWS, GCP, OCI and Azure alike.
 
+```mermaid
+flowchart LR
+  request("<b>Data Service Object</b><br/>What is needed, plus<br/>cloud-specific settings")
+  platform("<b>Platform Function</b><br/>Translates object<br/>for deployment's cloud")
+  service[("<b>Cloud Resource</b><br/>Same engine<br/>on every cloud")]
+  status(["<b>Status</b><br/>Same form<br/>on every cloud"])
+  request --> platform --> service --> status
+  class request user
+  class platform platform
+  class service cloud
+  class status app
+```
+
 Today each API is built around one AWS service: its spec takes AWS values, such as an RDS instance
 class, its status reports AWS identifiers, and the developer portal hard-codes AWS values in its
 forms. infralib also deploys to GCP, OCI and Azure, and OCI is the next cloud to run the data
