@@ -46,5 +46,6 @@ Each page of the design holds the following, in the order of the menu:
 - [API Changes](changes.md): every change from today's APIs to the design, per kind.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
 - [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
+- [Revisions](revisions.md): the design's revisions, newest first.
 - Feedback, on the published page only: comments from reviewers, readable by everyone with access
   to the page.

@@ -1,6 +1,7 @@
 ---
 title: Portable Data Service APIs
 checklistCollection: openpoints
+revisions: revisions.md                       # the newest revision's number and date show under the title
 selectorChoices: [AWS, GCP, OCI, Azure]       # every cloud; one a service lacks is shown disabled
 itemLinks:                                # "rule N" in the text links to rule N
 - {word: rule, file: rules.md}
@@ -80,6 +81,7 @@ nav:
 - {file: changes.md, label: API Changes, compare: true, tabs: sections, subsectionTabs: true}
 - {file: follow-up-work.md, label: Follow-Up Work, divider: true, foldItems: true}
 - {file: deferred-capabilities.md, label: Deferred Capabilities}
+- {file: revisions.md, label: Revisions}
 - {file: open-points.md, label: Open Points, checklist: true}
 - label: Feedback
   feedback: true
