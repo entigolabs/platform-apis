@@ -29,7 +29,7 @@ spec:
               version:
                 type: string
                 description: |-
-                  The Kafka version, such as "3.9". Each cloud accepts the versions it offers.
+                  The Kafka version, such as "4.0". Each cloud accepts the versions it offers.
                   Default: per deployment.
               brokers:
                 type: integer

@@ -136,7 +136,7 @@ applies to one major version (family `valkey<major>`), so a change of the major 
 the final snapshot will receive.
 
 **GCP:** the provider's Memorystore `Instance` offers no password authentication. Data at rest uses
-the service's own key, and Memorystore takes no final backup.
+the platform's data key, through `kmsKey`, and Memorystore takes no final backup.
 
 **OCI:** nodes are sized by memory only, so the deployment default `oci.memoryGB` sizes an instance
 whose spec is empty. `readerEndpoint` comes from `replicasFqdn`. Data at rest uses the service's own
@@ -279,6 +279,7 @@ spec:
     engineConfigs:
       maxmemory-policy: allkeys-lru
     transitEncryptionMode: SERVER_AUTHENTICATION  # platform
+    kmsKey: projects/shop-project/locations/europe-north1/keyRings/data/cryptoKeys/data  # platform
     desiredPscAutoConnections:  # platform
     - network: projects/shop-project/global/networks/deployment
       projectId: shop-project

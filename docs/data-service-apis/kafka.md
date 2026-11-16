@@ -40,7 +40,7 @@ metadata:
   namespace: shop
 spec:
   # Common
-  version: "3.9"                       # each cloud accepts the versions it offers
+  version: "4.0"                       # each cloud accepts the versions it offers
   brokers: 3
   storage:
     sizeGB: 100                        # per broker
@@ -214,7 +214,7 @@ metadata:
   name: orders-kafka
   namespace: shop
 spec:
-  version: "3.9"
+  version: "4.0"
   brokers: 3
   storage:
     sizeGB: 100
@@ -243,7 +243,7 @@ spec:
   forProvider:
     region: eu-north-1         # deployment
     clusterName: orders-kafka-7f3a2c
-    kafkaVersion: "3.9"
+    kafkaVersion: "4.0.x"
     numberOfBrokerNodes: 3
     brokerNodeGroupInfo:
       instanceType: kafka.m7g.large
@@ -276,7 +276,7 @@ metadata:
   name: orders-kafka
   namespace: shop
 spec:
-  version: "3.9"
+  version: "4.0"
   brokers: 3
   storage:
     sizeGB: 100
@@ -305,9 +305,9 @@ spec:
   forProvider:
     compartmentId: ocid1.compartment.oc1..zone  # platform
     displayName: orders-kafka-7f3a2c
-    kafkaVersion: "3.9"
+    kafkaVersion: "4.0.0"
     clusterType: PRODUCTION
-    coordinationType: ZOOKEEPER  # platform
+    coordinationType: KRAFT    # platform
     brokerShape:
     - nodeCount: 3
       nodeShape: VM.Standard.E5.Flex

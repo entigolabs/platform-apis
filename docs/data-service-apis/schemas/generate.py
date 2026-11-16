@@ -632,7 +632,7 @@ write("valkeyinstance", xrd(
 write("kafkacluster", xrd(
     "KafkaCluster", "kafkaclusters", "queue.entigo.com",
     resource_spec({
-        "version": field("string", "The Kafka version, such as \"3.9\". Each cloud accepts "
+        "version": field("string", "The Kafka version, such as \"4.0\". Each cloud accepts "
                          "the versions it offers.", default=DEPLOY),
         "brokers": field("integer", "The number of brokers.",
                          "Ignored on GCP, which chooses its own.", DEPLOY, minimum=1),
