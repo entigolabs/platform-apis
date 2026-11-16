@@ -19,6 +19,11 @@ The implementation of the design on each cloud. Known so far:
 - No Crossplane provider for RabbitMQ's management API was found, which `RabbitMQUser` and
   `RabbitMQVirtualHost` need. The Terraform `rabbitmq` provider covers users, virtual hosts and
   permissions and could be wrapped with upjet.
+- The `platform-apis` chart takes the deployment's cloud and installs each service where it is
+  implemented (rule 7). Today infralib's per-cloud values switch services off, such as
+  [values-oracle.yaml](https://github.com/entigolabs/entigo-infralib/blob/main/modules/k8s/platform-apis/values-oracle.yaml)
+  in the `platform-apis` module; once the chart holds the support matrix, those values keep only an
+  operator's opt-out.
 
 #### 2 Migration from current APIs
 

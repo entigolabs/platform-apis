@@ -129,6 +129,12 @@ An API is installed on a cloud only if that cloud has a managed service running 
 and its Crossplane provider can create it. On other clouds the kind does not exist, and the portal
 does not show the service. A different engine is never substituted: MySQL is not MariaDB.
 
+The `platform-apis` chart holds this knowledge: a deployment passes only its cloud, and the chart
+installs each service's API where that service is implemented and its engine runs. A per-service
+switch lets an operator leave a service out, never add one that the cloud lacks. A manifest of a
+kind that is not installed is rejected by the Kubernetes API server when it is applied, before any
+function runs.
+
 #### 8 A kind is named after the engine or concept, never a cloud product
 
 A kind's name means the same on every cloud: it names the engine or the concept, never one cloud's
