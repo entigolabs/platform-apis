@@ -6,9 +6,10 @@ them from.
 Three kinds: `KafkaCluster`, the cluster itself; `KafkaUser`, one application's login, with its
 ACLs; and `KafkaTopic`, one topic in a cluster.
 
-Built on Amazon MSK provisioned (AWS), Managed Service for Apache Kafka (GCP) and OCI Streaming with
-Apache Kafka (OCI). Azure has none: Event Hubs speaks the Kafka protocol but has no Kafka ACLs, no
-topic creation through the Kafka admin API and no broker settings.
+Built on Amazon MSK provisioned (AWS) and OCI Streaming with Apache Kafka (OCI). GCP's Managed
+Service for Apache Kafka is mapped, but the kinds exist on GCP only once its Crossplane provider
+supports the service (rule 7). Azure has none: Event Hubs speaks the Kafka protocol but has no Kafka
+ACLs, no topic creation through the Kafka admin API and no broker settings.
 
 [API Changes](changes.md#kafka) lists what changes from today's API.
 
@@ -192,11 +193,17 @@ object that holds the name.
 
 ## Platform Decisions
 
-Network placement, TLS, the login mechanism, encryption with the platform's data key (AWS, GCP; OCI
-has no customer key), the admin login provider-kafka uses (IAM on AWS, the superuser's Vault secret
-on OCI), and deny by default: a topic or group is reachable only by users with an ACL on it and by
-the admin. MSK and OCI set `allow.everyone.if.no.acl.found=false` in the cluster configuration, with
-the admin as a superuser; GCP needs explicit ALLOW ACLs for the admin on every resource.
+The platform makes these settings itself:
+
+| Setting           | Platform's Choice                                                                                                                                                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network placement | The deployment's network                                                                                                                                                                                                                                |
+| Encryption        | TLS in transit; at rest, the platform's data key on AWS and GCP, while OCI has no customer key                                                                                                                                                          |
+| Login mechanism   | Chosen by the platform per cloud, and named in each user's secret                                                                                                                                                                                       |
+| Admin login       | The one provider-kafka uses: IAM on AWS, the superuser's Vault secret on OCI                                                                                                                                                                            |
+| Access            | Denied by default: a topic or group is reachable only by users with an ACL on it and by the admin. MSK and OCI set `allow.everyone.if.no.acl.found=false`, with the admin as a superuser; GCP needs explicit ALLOW ACLs for the admin on every resource |
+
+*Settings the platform makes for a `KafkaCluster`.*
 
 ## Ignored Settings
 

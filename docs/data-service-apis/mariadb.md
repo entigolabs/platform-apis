@@ -139,9 +139,10 @@ The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
 ## Other Kinds
 
-`MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql, and retain today's
-fields. What changes for both is the version, `namespace` in `instanceRef` (rule 11), defaults
-moving to the admission policy (rule 5), and `name` and `instanceRef` becoming immutable.
+`MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql, and keep today's
+fields, apart from the user's changes below. What changes for both is the version, `namespace` in
+`instanceRef` (rule 11), defaults moving to the admission policy (rule 5), and `name` and
+`instanceRef` becoming immutable.
 
 ### MariaDBUser
 
@@ -209,9 +210,20 @@ spec:
 
 ## Platform Decisions
 
-Network placement (subnets and security group), no public access, gp3 storage, encryption with the
-platform's data key, admin username and generated password, workspace and Zone tags, port 3306, and
-a final snapshot when an instance is deleted, switched on per deployment as today.
+The platform makes these settings itself:
+
+| Setting           | Platform's Choice                                                                 |
+| ----------------- | --------------------------------------------------------------------------------- |
+| Network placement | The deployment's subnets and a security group                                     |
+| Public access     | None                                                                              |
+| Encryption        | The platform's data key                                                           |
+| Admin login       | An admin username and a generated password                                        |
+| Storage           | gp3                                                                               |
+| Port              | 3306                                                                              |
+| Tags              | Workspace and Zone tags                                                           |
+| Final backup      | A snapshot taken when an instance is deleted, switched on per deployment as today |
+
+*Settings the platform makes for a `MariaDBInstance`.*
 
 ## Cloud Limits
 

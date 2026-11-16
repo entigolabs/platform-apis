@@ -241,14 +241,14 @@ spec:
 Today's cluster-scoped `MSK` only observes an existing cluster; the namespaced `KafkaCluster`
 creates one or observes one.
 
-| Today                                    | Design                                                                                | Reason                                                            |
-| ---------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| kind `MSK`, cluster-scoped               | kind `KafkaCluster`, namespaced                                                       | Named after the engine (rule 8), shared within its Zone (rule 11) |
-| `clusterARN`                             | `observe: true` and `aws.id`                                                          | Observing is one form for every kind (rule 9)                     |
-| (none)                                   | `version`, `brokers`, `storage.sizeGB`, `highAvailability`, `parameters`, cloud sizes | Creating a cluster                                                |
-| `status.brokers`, `status.brokersscram`  | `status.bootstrapServers`                                                             | One listener field for every cloud                                |
-| `status.arn`                             | `status.aws.arn`                                                                      | A cloud ID (rule 4)                                               |
-| `status.providerConfig`, `status.region` | removed                                                                               | Internal to the platform                                          |
+| Today                                    | Design                                                                                                      | Reason                                                            |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| kind `MSK`, cluster-scoped               | kind `KafkaCluster`, namespaced                                                                             | Named after the engine (rule 8), shared within its Zone (rule 11) |
+| `clusterARN`                             | `observe: true` and `aws.id`                                                                                | Observing is one form for every kind (rule 9)                     |
+| (none)                                   | `version`, `brokers`, `storage.sizeGB`, `highAvailability`, `deletionProtection`, `parameters`, cloud sizes | Creating a cluster                                                |
+| `status.brokers`, `status.brokersscram`  | `status.bootstrapServers`                                                                                   | One listener field for every cloud                                |
+| `status.arn`                             | `status.aws.arn`                                                                                            | A cloud ID (rule 4)                                               |
+| `status.providerConfig`, `status.region` | removed                                                                                                     | Internal to the platform                                          |
 
 *Changes from `MSK` to `KafkaCluster`.*
 
@@ -330,6 +330,7 @@ spec:
 | `configuration.description`                           | removed                  | Internal to the platform                                                                     |
 | `publiclyAccessible`                                  | `aws.publiclyAccessible` | An Amazon MQ setting (rule 2)                                                                |
 | `brokerName`, `engineType`, `autoMinorVersionUpgrade` | removed                  | The platform names the broker, the engine is RabbitMQ, and Amazon MQ requires minor upgrades |
+| (none)                                                | `deletionProtection`     | The same guard as on every other kind                                                        |
 
 *Changes to RabbitMQ.*
 
@@ -387,19 +388,21 @@ spec:
 
 ## Bucket
 
-| Today                                        | Design                                                                                                    | Reason                                                                 |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| kind `S3Bucket`                              | kind `Bucket`                                                                                             | Named after the concept (rule 8)                                       |
-| `enableVersioning`                           | `versioning`                                                                                              | The same word on every cloud                                           |
-| `createServiceAccount`, `serviceAccountName` | removed                                                                                                   | An application's identity is not part of the bucket ([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)) |
-| (none)                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `gcp.softDeleteDays`, `azure.softDeleteDays` | New settings                                                           |
+| Today                                        | Design                                                                        | Reason                                                                                                                        |
+| -------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| kind `S3Bucket`                              | kind `Bucket`                                                                 | Named after the concept (rule 8)                                                                                              |
+| `enableVersioning`                           | `versioning`                                                                  | The same word on every cloud                                                                                                  |
+| `createServiceAccount`, `serviceAccountName` | removed                                                                       | An application's identity is not part of the bucket ([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)) |
+| (none)                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `softDeleteDays` | New settings                                                                                                                  |
 
 *Changes from `S3Bucket` to `Bucket`.*
 
-The IAM role, service account and IAM user with an access key that `S3Bucket` creates are no
-longer created, and the secret with its `AWS_*` and `credentials.json` keys is removed: a bucket
-holds no credentials. In the status, `s3Url` and `s3Uri` become `url`, with `bucketName` and
-`region`; the encryption, public access and ACL fields are removed.
+The IAM role, service account and IAM user with an access key that `S3Bucket` creates are no longer
+created, and the secret with its `AWS_*` and `credentials.json` keys is removed: a bucket holds no
+credentials. In the status, `s3Url` and `s3Uri` become `url`, with `bucketName` and `region`; the
+encryption, public access and ACL fields are removed. Until application identity is available
+([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)), applications that read
+those keys keep `S3Bucket`, which stays served next to `Bucket`.
 
 An example, today and in the design:
 

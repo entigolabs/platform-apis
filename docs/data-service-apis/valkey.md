@@ -5,8 +5,9 @@ cache, session store or message broker.
 
 One kind: `ValkeyInstance`, one primary node with read replicas.
 
-Built on ElastiCache (AWS), Memorystore for Valkey (GCP) and OCI Cache (OCI). Azure has none: Azure
-Managed Redis runs Redis, not Valkey.
+Built on ElastiCache (AWS) and OCI Cache (OCI). GCP's Memorystore for Valkey is mapped, but the kind
+exists on GCP only once its Crossplane provider supports password login, which the connection secret
+needs (rule 6). Azure has none: Azure Managed Redis runs Redis, not Valkey.
 
 [API Changes](changes.md#valkey) lists what changes from today's API.
 
@@ -84,7 +85,7 @@ field's support level (rule 1).
 | ------------------------------------- | ------------------------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `observe`                             | Core                                 | `managementPolicies: [Observe]`              | `managementPolicies: [Observe]`                                                                                   | `managementPolicies: [Observe]`                                            |
 | `version`                             | Core                                 | `engineVersion`                              | `engineVersion: VALKEY_8_1`                                                                                       | `softwareVersion: VALKEY_8_1`                                              |
-| `highAvailability`                    | Core                                 | `multiAzEnabled`, automatic failover         | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                         | the service distributes nodes itself; `false` ignored; failover unverified |
+| `highAvailability`                    | Core; `false` ignored on OCI         | `multiAzEnabled`, automatic failover         | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                         | the service distributes nodes itself; `false` ignored; failover unverified |
 | `replicas`                            | Core                                 | `numCacheClusters` = replicas + 1            | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends                | `nodeCount` = replicas + 1                                                 |
 | `deletionProtection`                  | Core                                 | platform blocks deletion                     | `deletionProtectionEnabled`                                                                                       | platform blocks deletion                                                   |
 | `maintenance.window`                  | Ignored on OCI                       | `maintenanceWindow`                          | `maintenancePolicy.weeklyMaintenanceWindow` (`day`, `startTime.hours`)                                            | ignored; OCI patches on its own schedule                                   |
@@ -139,12 +140,16 @@ in as, so a client that always sends a username and password works unchanged.
 
 ## Platform Decisions
 
-Network placement (subnet, security group or NSG), TLS, encryption at rest with the platform's data
-key on AWS, the password, and a final snapshot when a cache is deleted, switched on per deployment
-as today, on AWS (`finalSnapshotIdentifier`), the only cloud that takes one: OCI Cache takes manual
-backups only, and Memorystore has no final backup. On OCI the platform creates an OCI Cache user
-named `default` with the password's SHA-256 hash, which replaces the built-in user that has no
-password.
+The platform makes these settings itself:
+
+| Setting           | Platform's Choice                                                                                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Network placement | The deployment's subnet, and a security group or NSG                                                                                                                                             |
+| Encryption        | TLS in transit; at rest, the platform's data key on AWS                                                                                                                                          |
+| Login             | A generated password; on OCI, a user named `default` with the password's SHA-256 hash, which replaces the built-in user that has no password                                                     |
+| Final backup      | A snapshot taken when a cache is deleted (`finalSnapshotIdentifier`), switched on per deployment as today, on AWS only: OCI Cache takes manual backups only, and Memorystore has no final backup |
+
+*Settings the platform makes for a `ValkeyInstance`.*
 
 ## Ignored Settings
 
@@ -153,6 +158,7 @@ that means there.
 
 | Setting                                      | Ignored On | Effect                                                  |
 | -------------------------------------------- | ---------- | ------------------------------------------------------- |
+| `highAvailability: false`                    | OCI        | The service distributes nodes across zones itself.      |
 | `maintenance.window`                         | OCI        | OCI patches on its own schedule.                        |
 | `maintenance.autoMinorVersionUpgrade: false` | GCP, OCI   | New minor versions are applied on the cloud's schedule. |
 | `backup`                                     | OCI        | The cache has no automated backups.                     |

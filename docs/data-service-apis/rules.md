@@ -30,7 +30,7 @@ to a single value of a field, such as turning off a feature that one cloud alway
 
 | Level   | Meaning                                                                                                                                                |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Core    | Works on every cloud.                                                                                                                                  |
+| Core    | Works on every cloud. Where a cloud cannot perform an operation the field asks for, the Level column says so, and the object reports the failure.      |
 | Ignored | Accepted on every cloud, but has no effect on the clouds named in the field's description, which lack it. The resource is created without the setting. |
 
 *Support levels of a field.*
@@ -56,12 +56,14 @@ cloud's settings
 Everything that is neither a common field nor in a cloud's block, such as network placement and
 encryption keys, is decided by the platform.
 
-#### 3 A new cloud adds its blocks and never changes common fields
+#### 3 Implementing a cloud never changes the common fields
 
-Adding a cloud only adds its blocks, so manifests written before keep working.
+Implementing the design on another cloud never changes the common fields, so manifests written
+before keep working.
 
-When a cloud's implementation is added, the schema gains that cloud's blocks, `spec.<cloud>` and
-`status.<cloud>`; the common fields never change.
+The schema holds a block for every cloud infralib deploys to, `spec.<cloud>` and `status.<cloud>`,
+even before that cloud's implementation exists. Implementing a cloud gives its block a working
+mapping; the common fields stay as they are.
 
 #### 4 The status reports what the cloud actually runs
 
@@ -163,9 +165,10 @@ provider kinds, and a Zone's Argo CD project and roles allow only the platform's
 groups. A team that could create a provider's resource directly could observe anything without the
 check.
 
-When the platform creates a resource, its name in the cloud includes a hash of the object's
-unique ID. As a result, two objects with the same name in different namespaces never share one
-cloud resource.
+When the platform creates a resource, its name in the cloud includes a hash of the object's unique
+ID. As a result, two objects with the same name in different namespaces never share one cloud
+resource. A name that applications use, such as a Kafka topic or an image path, keeps the user's
+name instead, and the platform rejects a second object that asks for a name already held.
 
 #### 10 The schema checks only what the API defines
 
@@ -207,7 +210,7 @@ no engine has.
 
 ## Alternatives Considered
 
-Designs that were weighed and rejected, each with the reason.
+These designs were weighed and rejected; each is followed by the reason.
 
 #### 1 Users write every field
 

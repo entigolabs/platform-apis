@@ -147,11 +147,18 @@ spec:
 
 ## Platform Decisions
 
-Network placement (subnets, security group), no public access unless `aws.publiclyAccessible`,
-encryption with the platform's data key, the admin user and its generated password, the broker name,
-and `autoMinorVersionUpgrade: true`, which Amazon MQ requires from RabbitMQ 3.13, its oldest
-version; with it, Amazon MQ applies patch versions in the maintenance window, so `version` holds
-only the release line.
+The platform makes these settings itself:
+
+| Setting           | Platform's Choice                                                                                                                                                                                           |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network placement | The deployment's subnets and a security group                                                                                                                                                               |
+| Public access     | None, unless `aws.publiclyAccessible` is set                                                                                                                                                                |
+| Encryption        | The platform's data key                                                                                                                                                                                     |
+| Admin login       | An admin user and a generated password                                                                                                                                                                      |
+| Broker name       | Set by the platform                                                                                                                                                                                         |
+| Minor upgrades    | `autoMinorVersionUpgrade: true`, which Amazon MQ requires from RabbitMQ 3.13, its oldest version. Amazon MQ then applies patch versions in the maintenance window, so `version` holds only the release line |
+
+*Settings the platform makes for a `RabbitMQBroker`.*
 
 ## Cloud Limits
 

@@ -40,6 +40,7 @@ spec:
                 description: |-
                   A replica in another zone, with automatic failover. Needs replicas of at least
                   1.
+                  Ignored for false on OCI, which distributes nodes itself.
                   Default: per deployment.
               replicas:
                 type: integer

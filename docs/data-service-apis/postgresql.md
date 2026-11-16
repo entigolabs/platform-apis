@@ -19,7 +19,7 @@ for PostgreSQL flexible server (Azure).
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
-- [Notes](#notes)
+- [Alternatives Considered](#alternatives-considered)
 
 ## Spec
 
@@ -118,7 +118,7 @@ field's support level (rule 1).
 | -------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
 | `observe`                              | Core                                               | `managementPolicies: [Observe]`                                             | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                           | `managementPolicies: [Observe]`                         |
 | `version`                              | Core; a full version ignored on GCP, OCI and Azure | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`                                                                                                           | `dbVersion: "17"`                                                         | `version: "17"`                                         |
-| `storage.sizeGB`                       | Core                                               | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                      | `storageMb`, rounded up to the next of its 12 sizes     |
+| `storage.sizeGB`                       | Ignored on OCI                                     | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                      | `storageMb`, rounded up to the next of its 12 sizes     |
 | `storage.autoGrow`                     | Core; `false` ignored on OCI                       | on with `maxAllocatedStorage`                                               | `settings.diskAutoresize`                                                                                                                | always on; `false` ignored                                                | `autoGrowEnabled`                                       |
 | `storage.maxSizeGB`                    | Ignored on OCI and Azure                           | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      | `settings.diskAutoresizeLimit`                                                                                                           | ignored; storage grows without a ceiling                                  | ignored                                                 |
 | `storage.iops`                         | Ignored on Azure, and on GCP without Hyperdisk     | `iops`                                                                      | `settings.dataDiskProvisionedIops`; ignored without Hyperdisk                                                                            | `storageDetails.iops`                                                     | ignored; `azure.storageTier` sets IOPS                  |
@@ -177,8 +177,8 @@ final snapshot will receive; GCP's provider reports only `finalBackupDescription
 take no final backup. A deleted instance is restored with the cloud block's `fromBackup` and the
 final backup's ID, which the status loses with the instance, so it is taken from the cloud console.
 `endpoint.host` is a hostname on AWS and Azure and an IP address on GCP and OCI. The running minor
-version, the latest restorable time and the instance state are reported by only some providers
-(provider-upjet-aws v2.4.0 and the versions in rule 7), so they go in the cloud blocks:
+version, the latest restorable time and the instance state are reported by only some providers, so
+they go in the cloud blocks:
 
 ```yaml
 status:
@@ -276,12 +276,20 @@ spec:
 
 ## Platform Decisions
 
-Network placement (subnets, security group or NSG, Azure private DNS zone), no public access, gp3
-storage on AWS, encryption with the platform's data key, admin username and generated password,
-workspace and Zone tags, port 5432, and a final backup when an instance is deleted, switched on per
-deployment as today, on the clouds that take one (AWS, GCP). crossplane-provider-oci v2.0.0 has no
-key field for OCI Database with PostgreSQL, so OCI uses the service's own key until the provider
-adds one.
+The platform makes these settings itself:
+
+| Setting           | Platform's Choice                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network placement | The deployment's subnets, and a security group or NSG; on Azure, also a private DNS zone                                                       |
+| Public access     | None                                                                                                                                           |
+| Encryption        | The platform's data key; on OCI, the service's own key, since crossplane-provider-oci v2.0.0 has no key field for OCI Database with PostgreSQL |
+| Admin login       | An admin username and a generated password                                                                                                     |
+| Storage           | gp3 on AWS                                                                                                                                     |
+| Port              | 5432                                                                                                                                           |
+| Tags              | Workspace and Zone tags                                                                                                                        |
+| Final backup      | Taken when an instance is deleted, switched on per deployment as today, on the clouds that take one (AWS, GCP)                                 |
+
+*Settings the platform makes for a `PostgreSQLInstance`.*
 
 ## Ignored Settings
 
@@ -290,6 +298,7 @@ that means there.
 
 | Setting                                                        | Ignored On                        | Effect                                                                    |
 | -------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------- |
+| `storage.sizeGB`                                               | OCI                               | Storage grows automatically; no size is set.                              |
 | `storage.autoGrow: false`                                      | OCI                               | The storage keeps growing.                                                |
 | `storage.maxSizeGB`                                            | OCI, Azure                        | Growth has no ceiling.                                                    |
 | `storage.iops`                                                 | Azure; GCP without Hyperdisk      | The disk keeps its default IOPS; on Azure, `azure.storageTier` sets them. |
@@ -322,16 +331,8 @@ should validating them be decided later.
 
 *Limits each cloud enforces on PostgreSQL.*
 
-## Notes
+## Alternatives Considered
 
-### Alternatives Considered
-
-Designs that were weighed and rejected, each with the reason.
-
-#### 1 Catalog of fixed OCI shapes
-
-Allow only OCI's fixed shapes, so `oci.instanceType` is one name, as on the other
-clouds.
-
-**Rejected:** The platform would have to keep the catalog current, and a customer needing a custom
-OCPU and memory combination could not have it.
+Allowing only OCI's fixed shapes, so that `oci.instanceType` is one name as on the other clouds, was
+rejected: the platform would have to keep the catalog current, and a customer needing a custom
+combination of OCPUs and memory could not have it.

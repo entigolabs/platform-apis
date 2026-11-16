@@ -120,6 +120,13 @@ spec:
                   required:
                   - origins
                   - methods
+              softDeleteDays:
+                type: integer
+                description: |-
+                  Days deleted objects can be recovered.
+                  Ignored on AWS and OCI, which have no soft delete.
+                  Default: per deployment.
+                minimum: 0
               aws:
                 type: object
                 description: |-
@@ -144,12 +151,6 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
-                  softDeleteDays:
-                    type: integer
-                    description: |-
-                      Days deleted objects can be recovered.
-                      Default: per deployment.
-                    minimum: 0
               oci:
                 type: object
                 description: |-
@@ -174,12 +175,6 @@ spec:
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
-                  softDeleteDays:
-                    type: integer
-                    description: |-
-                      Days deleted objects can be recovered.
-                      Default: per deployment.
-                    minimum: 0
             x-kubernetes-validations:
             - rule: |-
                 [(has(self.aws) && has(self.aws.id)), (has(self.gcp) && has(self.gcp.id)), (has(self.oci) && has(self.oci.id)), (has(self.azure) && has(self.azure.id))].filter(b, b).size() <= 1

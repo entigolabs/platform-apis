@@ -43,6 +43,7 @@ spec:
                       Disk size in GB at creation, and its floor after: raising it grows the disk,
                       lowering it is rejected. The disk can be larger: it is rounded up to a size the
                       cloud accepts, and autoGrow can take it further. The status shows the real size.
+                      Ignored on OCI, whose storage grows automatically.
                       Default: per deployment.
                     minimum: 1
                     x-kubernetes-validations:

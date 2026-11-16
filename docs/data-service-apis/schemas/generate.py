@@ -193,13 +193,13 @@ def window(ext=None, sc=False):
 
 # --- PostgreSQL and MariaDB: one shared instance spec --------------------------------------
 
-def size_field(floor):
+def size_field(floor, ext=None):
     if not floor:
-        return field("integer", "Disk size in GB at creation.", default=DEPLOY, minimum=1)
+        return field("integer", "Disk size in GB at creation.", ext, default=DEPLOY, minimum=1)
     return field("integer", "Disk size in GB at creation, and its floor after: raising it grows "
                  "the disk, lowering it is rejected. The disk can be larger: it is rounded up to a "
                  "size the cloud accepts, and autoGrow can take it further. The status shows the "
-                 "real size.",
+                 "real size.", ext,
                  default=DEPLOY, minimum=1, **{"x-kubernetes-validations": [
                      {"rule": "self >= oldSelf", "message": "storage.sizeGB cannot decrease"}]})
 
@@ -232,12 +232,12 @@ def from_backup_rules(clouds):
 
 
 def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc, extra_rules=(),
-                from_backup=False, major=lambda v: v, minor_ext=None, pitr=None):
+                from_backup=False, major=lambda v: v, minor_ext=None, pitr=None, size_ext=None):
     pitr = from_backup if pitr is None else pitr
     common = {
         "version": field("string", version_text, minor_ext, DEPLOY, sc, pattern=version_pattern),
         "storage": obj({
-            "sizeGB": size_field(from_backup),
+            "sizeGB": size_field(from_backup, size_ext),
             "autoGrow": field("boolean", "Grow the disk as it fills.",
                               "Ignored for false on OCI, "
                               "whose storage always grows.", "fixed, true", sc),
@@ -405,7 +405,8 @@ write("postgresqlinstance", db_instance(
          "!self.maintenance.autoMinorVersionUpgrade)",
          "version takes a minor exactly when maintenance.autoMinorVersionUpgrade is false"),
     ], from_backup=True, major=lambda v: f"{v}.split('.')[0]",
-    minor_ext="Ignored for a full version on GCP, OCI and Azure, which keep the minor current."))
+    minor_ext="Ignored for a full version on GCP, OCI and Azure, which keep the minor current.",
+    size_ext="Ignored on OCI, whose storage grows automatically."))
 
 MARIADB_MAJOR = lambda v: f"({v}.split('.')[0] + '.' + {v}.split('.')[1])"
 
@@ -548,7 +549,9 @@ write("valkeyinstance", xrd(
                          "past it; the status shows the running version.",
                          default=DEPLOY, pattern="^[0-9]+\\.[0-9]+$"),
         "highAvailability": field("boolean", "A replica in another zone, with automatic "
-                                  "failover. Needs replicas of at least 1.", default=DEPLOY),
+                                  "failover. Needs replicas of at least 1.",
+                                  "Ignored for false on OCI, which distributes nodes itself.",
+                                  default=DEPLOY),
         "replicas": field("integer", "Read replicas besides the primary, within the cloud's "
                           "own limit (rule 10).", default=DEPLOY, minimum=0),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
@@ -797,13 +800,13 @@ write("bucket", xrd(
             "maxAgeSeconds": field("integer", minimum=0),
         }, required=["origins", "methods"]), "Cross-origin requests browsers may make.",
             "Ignored on OCI, which allows every origin."),
+        "softDeleteDays": field("integer", "Days deleted objects can be recovered.",
+                                "Ignored on AWS and OCI, which have no soft delete.", DEPLOY, minimum=0),
     }, {
         "aws": None,
-        "gcp": {"softDeleteDays": field("integer", "Days deleted objects can be recovered.",
-                                        default=DEPLOY, minimum=0)},
+        "gcp": None,
         "oci": None,
-        "azure": {"softDeleteDays": field("integer", "Days deleted objects can be recovered.",
-                                          default=DEPLOY, minimum=0)},
+        "azure": None,
     }, "bucket", [
         ("!has(oldSelf.retention) || !has(oldSelf.retention.locked) || !oldSelf.retention.locked "
          "|| (has(self.retention) && has(self.retention.locked) && self.retention.locked)",

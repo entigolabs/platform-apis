@@ -51,7 +51,7 @@ spec:
     keepCount: 20
   - untagged: true
     expireAfterDays: 7
-  # every cloud block takes id (rule 9), except azure
+  # every cloud block takes id (rule 9); observing fails on Azure
 ```
 
 *An `ArtifactRepository` with its common fields.*
@@ -90,12 +90,12 @@ field's support level (rule 1).
 
 The cloud-specific fields:
 
-| Field      | Maps To                                                  |
-| ---------- | -------------------------------------------------------- |
-| `aws.id`   | the repository name, the whole path                      |
-| `gcp.id`   | the repository ID                                        |
-| `oci.id`   | the repository's OCID                                    |
-| `azure.id` | rejected; an Azure repository has no resource of its own |
+| Field      | Maps To                                                                       |
+| ---------- | ----------------------------------------------------------------------------- |
+| `aws.id`   | the repository name, the whole path                                           |
+| `gcp.id`   | the repository ID                                                             |
+| `oci.id`   | the repository's OCID                                                         |
+| `azure.id` | accepted, but observing fails: an Azure repository has no resource of its own |
 
 *Cloud-specific fields of `ArtifactRepository`.*
 
@@ -127,11 +127,16 @@ status:
 
 ## Platform Decisions
 
-Private repositories, encryption (the platform's data key on AWS; GCP and Azure take a key only at
-creation, and OCIR has none), vulnerability scanning (ECR scan on push, Artifact Registry's
-container scanning, OCI Vulnerability Scanning Service, Defender for Containers on Azure), and
-keyless image pulls by the cluster's nodes, which on OCI needs Oracle's kubelet credential provider
-(oke-credential-provider-for-ocir) on the nodes.
+The platform makes these settings itself:
+
+| Setting                | Platform's Choice                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Visibility             | Private                                                                                                                                    |
+| Encryption             | The platform's data key on AWS; GCP and Azure take a key only at creation, and OCIR has none                                               |
+| Vulnerability scanning | ECR scan on push, Artifact Registry's container scanning, OCI Vulnerability Scanning Service, Defender for Containers on Azure             |
+| Image pulls            | Keyless pulls by the cluster's nodes; on OCI, through Oracle's kubelet credential provider (oke-credential-provider-for-ocir) on the nodes |
+
+*Settings the platform makes for an `ArtifactRepository`.*
 
 ## Ignored Settings
 
