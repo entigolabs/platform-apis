@@ -10,15 +10,18 @@ Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (A
 
 ## Contents
 
-- [Spec](#spec)
+- [Kinds](#kinds)
 - [Mapping](#mapping)
-- [Status](#status)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
-## Spec
+## Kinds
+
+Object storage is offered as one kind, shown below with a manifest a user writes.
+
+### Bucket
 
 A `Bucket` is only the bucket: who may use it is decided by the user's own identity, not by the
 bucket.
@@ -68,6 +71,28 @@ applications that use the bucket; an application's own identity is granted acces
 names ([Cloud identity for applications](follow-up-work.md#3-cloud-identity-for-applications), in
 Follow-Up Work).
 
+A `Bucket` has no secret: it holds no credentials. The status adds `url`, `bucketName` and `region`,
+which an application needs to find the bucket. On OCI, `status.oci.retentionLockedFrom` is the date
+a locked retention takes effect.
+
+The cloud blocks of the status:
+
+```yaml
+status:
+  aws:
+    arn: ...
+  gcp:
+    selfLink: ...
+  oci:
+    namespace: ...
+    retentionLockedFrom: ...
+  azure:
+    accountId: ...
+    containerId: ...
+```
+
+*The cloud blocks of a `Bucket` status.*
+
 ## Mapping
 
 The table names, for every field, the field of each cloud's provider it maps to. Level is the
@@ -105,30 +130,6 @@ exists only on GCP and Azure. S3 enables Object Lock on an existing bucket too, 
 versioning is on, and never off again (`aws_s3_bucket_object_lock_configuration` in
 [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so `versioning:
 false` is refused on a bucket that ever had `retention`.
-
-## Status
-
-A `Bucket` has no secret: it holds no credentials. The status adds `url`, `bucketName` and `region`,
-which an application needs to find the bucket. On OCI, `status.oci.retentionLockedFrom` is the date
-a locked retention takes effect.
-
-The cloud blocks of the status:
-
-```yaml
-status:
-  aws:
-    arn: ...
-  gcp:
-    selfLink: ...
-  oci:
-    namespace: ...
-    retentionLockedFrom: ...
-  azure:
-    accountId: ...
-    containerId: ...
-```
-
-*The cloud blocks of a `Bucket` status.*
 
 ## Platform Decisions
 

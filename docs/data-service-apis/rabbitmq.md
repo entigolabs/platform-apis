@@ -14,15 +14,17 @@ RabbitMQ's own concepts. GCP, OCI and Azure have none.
 
 ## Contents
 
-- [Spec](#spec)
+- [Kinds](#kinds)
 - [Mapping](#mapping)
-- [Status](#status)
-- [Other Kinds](#other-kinds)
 - [Platform Decisions](#platform-decisions)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
-## Spec
+## Kinds
+
+RabbitMQ is offered as three kinds, each shown below with a manifest a user writes.
+
+### RabbitMQBroker
 
 A user creates a `RabbitMQBroker` with a manifest like the one below. Its comments note value ranges
 and what holds on one cloud only:
@@ -58,31 +60,11 @@ upgrades, so none of these is a field. `highAvailability` chooses the deployment
 only: Amazon MQ replaces a broker to change it (`ForceNew` in
 [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)).
 
-## Mapping
-
-The table names, for every field, the field of each cloud's provider it maps to.
-
-| Field                    | AWS (Amazon MQ `Broker`)                                                 |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `observe`                | `managementPolicies: [Observe]` on every managed resource                |
-| `version`                | `engineVersion`                                                          |
-| `aws.instanceType`       | `hostInstanceType`                                                       |
-| `highAvailability`       | `deploymentMode`: `CLUSTER_MULTI_AZ` or `SINGLE_INSTANCE`                |
-| `deletionProtection`     | platform blocks deletion                                                 |
-| `maintenance.window`     | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |
-| `parameters`             | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
-| `aws.publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
-| `aws.id`                 | the broker ID                                                            |
-
-*Fields of `RabbitMQBroker` on Amazon MQ.*
-
-## Status
-
 The status adds `managementEndpoint` (the management console URL), and `status.aws` holds `id` and
 `engineVersion`. The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host),
 `port` (5671), `username`, `password` and `managementEndpoint`.
 
-## Other Kinds
+### RabbitMQUser
 
 `RabbitMQUser` and `RabbitMQVirtualHost` act inside RabbitMQ, so that each application has its own
 login instead of the broker's admin login.
@@ -91,8 +73,6 @@ Amazon MQ does not manage RabbitMQ users through its own API; users, virtual hos
 are created through RabbitMQ's management API, with the broker's admin login ([Amazon MQ for
 RabbitMQ broker
 users](https://docs.aws.amazon.com/amazon-mq/latest/developer-guide/rabbitmq-basic-elements-user.html)).
-
-### RabbitMQUser
 
 A user receives the secret `<broker>-<user>` with the keys of the broker's secret except
 `managementEndpoint`, and no management tags, so its login cannot open the management console.
@@ -149,6 +129,24 @@ spec:
 ```
 
 *A `RabbitMQVirtualHost` in a broker.*
+
+## Mapping
+
+The table names, for every field, the field of each cloud's provider it maps to.
+
+| Field                    | AWS (Amazon MQ `Broker`)                                                 |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `observe`                | `managementPolicies: [Observe]` on every managed resource                |
+| `version`                | `engineVersion`                                                          |
+| `aws.instanceType`       | `hostInstanceType`                                                       |
+| `highAvailability`       | `deploymentMode`: `CLUSTER_MULTI_AZ` or `SINGLE_INSTANCE`                |
+| `deletionProtection`     | platform blocks deletion                                                 |
+| `maintenance.window`     | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |
+| `parameters`             | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
+| `aws.publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
+| `aws.id`                 | the broker ID                                                            |
+
+*Fields of `RabbitMQBroker` on Amazon MQ.*
 
 ## Platform Decisions
 

@@ -13,14 +13,17 @@ store every OCI artifact alike.
 
 ## Contents
 
-- [Spec](#spec)
+- [Kinds](#kinds)
 - [Mapping](#mapping)
-- [Status](#status)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Notes](#notes)
 
-## Spec
+## Kinds
+
+The artifact registry is offered as one kind, shown below with a manifest a user writes.
+
+### ArtifactRepository
 
 The clouds disagree on what a repository is: ECR and OCIR have one repository per image path, an
 Artifact Registry repository holds many images, and an Azure registry holds repositories it creates
@@ -71,6 +74,26 @@ defaults per deployment, so a repository whose spec is empty is still cleaned up
 the default. `immutableTags` defaults per deployment. ECR's `IMMUTABLE_WITH_EXCLUSION` and
 `MUTABLE_WITH_EXCLUSION` modes, which only ECR has, are not offered.
 
+The status adds `uri`, the image URI, such as
+`123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/backend/orders-api`. There is no connection
+secret.
+
+The cloud blocks of the status:
+
+```yaml
+status:
+  aws:
+    arn: ...
+  gcp:
+    id: ...
+  oci:
+    id: ...
+  azure:
+    registryId: ...
+```
+
+*The cloud blocks of an `ArtifactRepository` status.*
+
 ## Mapping
 
 The table names, for every field, the field of each cloud's provider it maps to. Level is the
@@ -100,28 +123,6 @@ The cloud-specific fields:
 A separate Artifact Registry repository per application on GCP keeps immutability and cleanup per
 application, as on ECR and OCIR. On Azure, a registry per application would be one billed SKU each,
 so applications share a platform registry and only path-scoped access is per application.
-
-## Status
-
-The status adds `uri`, the image URI, such as
-`123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/backend/orders-api`. There is no connection
-secret.
-
-The cloud blocks of the status:
-
-```yaml
-status:
-  aws:
-    arn: ...
-  gcp:
-    id: ...
-  oci:
-    id: ...
-  azure:
-    registryId: ...
-```
-
-*The cloud blocks of an `ArtifactRepository` status.*
 
 ## Platform Decisions
 

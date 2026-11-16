@@ -15,16 +15,18 @@ ACLs, no topic creation through the Kafka admin API and no broker settings.
 
 ## Contents
 
-- [Spec](#spec)
+- [Kinds](#kinds)
 - [Mapping](#mapping)
-- [Status](#status)
-- [Other Kinds](#other-kinds)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
-## Spec
+## Kinds
+
+Kafka is offered as three kinds, each shown below with a manifest a user writes.
+
+### KafkaCluster
 
 A user sets a `KafkaCluster`'s version, brokers, storage and broker settings in a manifest like the
 one below. Its comments note value ranges and what holds on one cloud only:
@@ -64,38 +66,6 @@ GCP takes the cluster's total vCPU and memory and chooses the brokers itself. Th
 in each cloud's block (`aws.instanceType`, `oci.instanceType` with `oci.ocpus`, `gcp.vcpus` and
 `gcp.memoryGB`), and `brokers` is ignored on GCP. No cloud offers a maintenance window.
 
-## Mapping
-
-In the table below, Level is the field's support level (rule 1).
-
-| Field              | Level                                | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                                  | OCI (`KafkaCluster`)                                                                |
-| ------------------ | ------------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `observe`          | Core                                 | `managementPolicies: [Observe]`                             | rejected until the provider has a Kafka resource                                                            | `managementPolicies: [Observe]`                                                     |
-| `version`          | Core                                 | `kafkaVersion`                                              | `kafka_version`                                                                                             | `kafkaVersion`                                                                      |
-| `brokers`          | Ignored on GCP                       | `numberOfBrokerNodes`                                       | ignored; chosen by the service                                                                              | `brokerShape.nodeCount`                                                             |
-| `storage.sizeGB`   | Core                                 | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                                      | `brokerShape.storageSizeInGbs`                                                      |
-| `highAvailability` | Core; `false` ignored on AWS and GCP | always; `false` ignored                                     | always three zones; `false` ignored                                                                         | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
-| `parameters`       | Core                                 | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones take effect after a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
-
-*Common fields of `KafkaCluster` on each cloud.*
-
-The cloud-specific fields:
-
-| Field              | Maps To                                                   |
-| ------------------ | --------------------------------------------------------- |
-| `aws.id`           | the cluster ARN                                           |
-| `gcp.id`           | rejected; provider-upjet-gcp v3.1.0 has no Kafka resource |
-| `oci.id`           | the cluster's OCID                                        |
-| `aws.instanceType` | `brokerNodeGroupInfo.instanceType`                        |
-| `oci.instanceType` | `brokerShape.nodeShape`                                   |
-| `gcp.vcpus`        | `capacity_config.vcpu_count`                              |
-| `gcp.memoryGB`     | `capacity_config.memory_bytes`, in bytes                  |
-| `oci.ocpus`        | `brokerShape.ocpuCount`                                   |
-
-*Cloud-specific fields of `KafkaCluster`.*
-
-## Status
-
 The status adds `bootstrapServers`, the listener applications use (`bootstrapBrokersSaslScram` on
 AWS, `bootstrap_address` on GCP, `kafkaBootstrapUrls` on OCI). `brokers` stays empty on GCP.
 
@@ -116,8 +86,6 @@ status:
 *The cloud blocks of a `KafkaCluster` status.*
 
 A cluster has no secret of its own: applications log in with a `KafkaUser`'s secret.
-
-## Other Kinds
 
 ### KafkaUser
 
@@ -193,6 +161,36 @@ what a Kubernetes name cannot, such as `Orders` or `orders_v2`. Applications use
 cannot carry a hash like rule 9's cloud names, and two `KafkaTopic` objects on one cluster could
 request the same topic and both manage it. The platform rejects the newer one instead, naming the
 object that holds the name.
+
+## Mapping
+
+In the table below, Level is the field's support level (rule 1).
+
+| Field              | Level                                | AWS (MSK provisioned `Cluster`)                             | GCP (`google_managed_kafka_cluster`), no provider resource                                                  | OCI (`KafkaCluster`)                                                                |
+| ------------------ | ------------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `observe`          | Core                                 | `managementPolicies: [Observe]`                             | rejected until the provider has a Kafka resource                                                            | `managementPolicies: [Observe]`                                                     |
+| `version`          | Core                                 | `kafkaVersion`                                              | `kafka_version`                                                                                             | `kafkaVersion`                                                                      |
+| `brokers`          | Ignored on GCP                       | `numberOfBrokerNodes`                                       | ignored; chosen by the service                                                                              | `brokerShape.nodeCount`                                                             |
+| `storage.sizeGB`   | Core                                 | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                                      | `brokerShape.storageSizeInGbs`                                                      |
+| `highAvailability` | Core; `false` ignored on AWS and GCP | always; `false` ignored                                     | always three zones; `false` ignored                                                                         | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
+| `parameters`       | Core                                 | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones take effect after a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
+
+*Common fields of `KafkaCluster` on each cloud.*
+
+The cloud-specific fields:
+
+| Field              | Maps To                                                   |
+| ------------------ | --------------------------------------------------------- |
+| `aws.id`           | the cluster ARN                                           |
+| `gcp.id`           | rejected; provider-upjet-gcp v3.1.0 has no Kafka resource |
+| `oci.id`           | the cluster's OCID                                        |
+| `aws.instanceType` | `brokerNodeGroupInfo.instanceType`                        |
+| `oci.instanceType` | `brokerShape.nodeShape`                                   |
+| `gcp.vcpus`        | `capacity_config.vcpu_count`                              |
+| `gcp.memoryGB`     | `capacity_config.memory_bytes`, in bytes                  |
+| `oci.ocpus`        | `brokerShape.ocpuCount`                                   |
+
+*Cloud-specific fields of `KafkaCluster`.*
 
 ## Platform Decisions
 

@@ -13,15 +13,18 @@ needs (rule 6). Azure has none: Azure Managed Redis runs Redis, not Valkey.
 
 ## Contents
 
-- [Spec](#spec)
+- [Kinds](#kinds)
 - [Mapping](#mapping)
-- [Status](#status)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
-## Spec
+## Kinds
+
+Valkey is offered as one kind, shown below with a manifest a user writes.
+
+### ValkeyInstance
 
 An instance has no sharding: its data lives on the primary and is copied to each replica.
 
@@ -79,6 +82,33 @@ running version, and the platform never moves the cache back to `version`.
 parameter group applies to one major version (family `valkey<major>`), so a change of the major is
 rejected unless `aws.parameterGroupName` changes or is removed in the same edit.
 
+The status adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and
+`aws.finalBackup`, the ID the final snapshot will receive. A deleted cache is restored with
+`aws.fromBackup` and that ID, which the status loses with the cache, so it is taken from the cloud
+console.
+
+The cloud blocks of the status:
+
+```yaml
+status:
+  aws:
+    finalBackup: ...
+    id: ...
+    engineVersionActual: ...           # ElastiCache reports no state
+  gcp:
+    id: ...
+  oci:
+    id: ...
+    state: ACTIVE
+    softwareVersion: VALKEY_8_1
+```
+
+*The cloud blocks of a `ValkeyInstance` status.*
+
+The connection secret is `<instance>-credentials`, with `endpoint`, `port` (6379), `username:
+default`, `password` and `readerEndpoint`. `default` is the user Valkey logs a password-only client
+in as, so a client that always sends a username and password works unchanged.
+
 ## Mapping
 
 The table names, for every field, the field of each cloud's provider it maps to. Level is the
@@ -113,35 +143,6 @@ The cloud-specific fields:
 | `aws.fromBackup`         | `snapshotName`, at creation only |
 
 *Cloud-specific fields of `ValkeyInstance`.*
-
-## Status
-
-The status adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and
-`aws.finalBackup`, the ID the final snapshot will receive. A deleted cache is restored with
-`aws.fromBackup` and that ID, which the status loses with the cache, so it is taken from the cloud
-console.
-
-The cloud blocks of the status:
-
-```yaml
-status:
-  aws:
-    finalBackup: ...
-    id: ...
-    engineVersionActual: ...           # ElastiCache reports no state
-  gcp:
-    id: ...
-  oci:
-    id: ...
-    state: ACTIVE
-    softwareVersion: VALKEY_8_1
-```
-
-*The cloud blocks of a `ValkeyInstance` status.*
-
-The connection secret is `<instance>-credentials`, with `endpoint`, `port` (6379), `username:
-default`, `password` and `readerEndpoint`. `default` is the user Valkey logs a password-only client
-in as, so a client that always sends a username and password works unchanged.
 
 ## Platform Decisions
 

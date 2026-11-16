@@ -13,14 +13,16 @@ MySQL services are not MariaDB (rule 7), and Azure Database for MariaDB is retir
 
 ## Contents
 
-- [Spec](#spec)
+- [Kinds](#kinds)
 - [Mapping](#mapping)
-- [Status](#status)
-- [Other Kinds](#other-kinds)
 - [Platform Decisions](#platform-decisions)
 - [Cloud Limits](#cloud-limits)
 
-## Spec
+## Kinds
+
+MariaDB is offered as three kinds, each shown below with a manifest a user writes.
+
+### MariaDBInstance
 
 A user creates a `MariaDBInstance` with a manifest like the one below. Its comments note value
 ranges and what holds on one cloud only:
@@ -100,46 +102,10 @@ status reports the actual size, and the platform never shrinks the disk back to 
 
 `aws.parameterGroupName` uses an existing RDS parameter group in place of `parameters`.
 
-## Mapping
-
-The table names, for every field, the field of each cloud's provider it maps to.
-
-| Field                                  | RDS `Instance`                                                              |
-| -------------------------------------- | --------------------------------------------------------------------------- |
-| `observe`                              | `managementPolicies: [Observe]` on every managed resource                   |
-| `aws.id`                               | the console's Resource ID (`db-...`)                                        |
-| `version`                              | `engineVersion`; the full version with minor upgrades off                   |
-| `aws.instanceType`                     | `instanceClass`                                                             |
-| `storage.sizeGB`                       | `allocatedStorage`; below 20 rounded up to 20                               |
-| `storage.autoGrow`                     | on with `maxAllocatedStorage`                                               |
-| `storage.maxSizeGB`                    | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      |
-| `storage.iops`                         | `iops`                                                                      |
-| `storage.throughputMBps`               | `storageThroughput`                                                         |
-| `highAvailability`                     | `multiAz`                                                                   |
-| `deletionProtection`                   | `deletionProtection`                                                        |
-| `maintenance.window`                   | `maintenanceWindow: sun:03:00-sun:03:30`                                    |
-| `maintenance.autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                   |
-| `maintenance.allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                  |
-| `backup.retentionDays`                 | `backupRetentionPeriod`; 0 disables backups                                 |
-| `backup.startHourUTC`                  | `backupWindow`, 30 minutes                                                  |
-| `parameters`                           | a `ParameterGroup` of family `mariadb<major>`                               |
-| `parameterApplyMethod`                 | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |
-| `restore.fromInstance`                 | `restoreToPointInTime.sourceDbInstanceIdentifier`                           |
-| `restore.pointInTime`                  | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        |
-| `aws.fromBackup`                       | `snapshotIdentifier`                                                        |
-| `aws.parameterGroupName`               | `parameterGroupName`                                                        |
-
-*Fields of `MariaDBInstance` on Amazon RDS.*
-
-Provider keys are from the CRDs of [provider-upjet-aws
-v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
-
-## Status
-
-`aws.finalBackup` is the ID the final snapshot will receive. A deleted instance is restored with
-`aws.fromBackup` and that ID, which the status loses with the instance, so it is taken from the AWS
-console. The running minor version, the latest restorable time and the instance state go in the
-`aws` block:
+In the status, `aws.finalBackup` is the ID the final snapshot will receive. A deleted instance is
+restored with `aws.fromBackup` and that ID, which the status loses with the instance, so it is taken
+from the AWS console. The running minor version, the latest restorable time and the instance state
+go in the `aws` block:
 
 ```yaml
 status:
@@ -156,13 +122,11 @@ status:
 
 The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
-## Other Kinds
+### MariaDBUser
 
 `MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql. Their `name` and
 `instanceRef` are immutable, `instanceRef` may name another namespace of the same Zone (rule 11),
 and their defaults are written by the admission policy (rule 5).
-
-### MariaDBUser
 
 A user's databases and privileges are a list, `databases`, with one entry per database, so an
 application that uses two databases on one instance needs one login, as rule 12 requires. Each entry
@@ -232,6 +196,40 @@ spec:
 ```
 
 *A `MariaDBDatabase` with its default character set.*
+
+## Mapping
+
+The table names, for every field, the field of each cloud's provider it maps to.
+
+| Field                                  | RDS `Instance`                                                              |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| `observe`                              | `managementPolicies: [Observe]` on every managed resource                   |
+| `aws.id`                               | the console's Resource ID (`db-...`)                                        |
+| `version`                              | `engineVersion`; the full version with minor upgrades off                   |
+| `aws.instanceType`                     | `instanceClass`                                                             |
+| `storage.sizeGB`                       | `allocatedStorage`; below 20 rounded up to 20                               |
+| `storage.autoGrow`                     | on with `maxAllocatedStorage`                                               |
+| `storage.maxSizeGB`                    | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      |
+| `storage.iops`                         | `iops`                                                                      |
+| `storage.throughputMBps`               | `storageThroughput`                                                         |
+| `highAvailability`                     | `multiAz`                                                                   |
+| `deletionProtection`                   | `deletionProtection`                                                        |
+| `maintenance.window`                   | `maintenanceWindow: sun:03:00-sun:03:30`                                    |
+| `maintenance.autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                   |
+| `maintenance.allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                  |
+| `backup.retentionDays`                 | `backupRetentionPeriod`; 0 disables backups                                 |
+| `backup.startHourUTC`                  | `backupWindow`, 30 minutes                                                  |
+| `parameters`                           | a `ParameterGroup` of family `mariadb<major>`                               |
+| `parameterApplyMethod`                 | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |
+| `restore.fromInstance`                 | `restoreToPointInTime.sourceDbInstanceIdentifier`                           |
+| `restore.pointInTime`                  | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        |
+| `aws.fromBackup`                       | `snapshotIdentifier`                                                        |
+| `aws.parameterGroupName`               | `parameterGroupName`                                                        |
+
+*Fields of `MariaDBInstance` on Amazon RDS.*
+
+Provider keys are from the CRDs of [provider-upjet-aws
+v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
 
 ## Platform Decisions
 

@@ -12,16 +12,18 @@ for PostgreSQL flexible server (Azure).
 
 ## Contents
 
-- [Spec](#spec)
+- [Kinds](#kinds)
 - [Mapping](#mapping)
-- [Status](#status)
-- [Other Kinds](#other-kinds)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Alternatives Considered](#alternatives-considered)
 
-## Spec
+## Kinds
+
+PostgreSQL is offered as three kinds, each shown below with a manifest a user writes.
+
+### PostgreSQLInstance
 
 A user creates a `PostgreSQLInstance` with a manifest like the one below. Its comments note value
 ranges and what holds on one cloud only:
@@ -130,76 +132,13 @@ zone-redundant mode only.
 
 The kind is one database server. Read replicas belong to a cluster-shaped kind, if one is added.
 
-## Mapping
-
-The table names, for every field, the field of each cloud's provider it maps to. Level is the
-field's support level (rule 1).
-
-| Field                                  | Level                                              | AWS (RDS `Instance`)                                                        | GCP (Cloud SQL `DatabaseInstance`)                                                                                                       | OCI (`PsqlDbSystem`)                                                      | Azure (`FlexibleServer`)                                |
-| -------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `observe`                              | Core                                               | `managementPolicies: [Observe]`                                             | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                           | `managementPolicies: [Observe]`                         |
-| `version`                              | Core; a full version ignored on GCP, OCI and Azure | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`                                                                                                           | `dbVersion: "17"`                                                         | `version: "17"`                                         |
-| `storage.sizeGB`                       | Ignored on OCI                                     | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                      | `storageMb`, rounded up to the next of its 12 sizes     |
-| `storage.autoGrow`                     | Core; `false` ignored on OCI                       | on with `maxAllocatedStorage`                                               | `settings.diskAutoresize`                                                                                                                | always on; `false` ignored                                                | `autoGrowEnabled`                                       |
-| `storage.maxSizeGB`                    | Ignored on OCI and Azure                           | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      | `settings.diskAutoresizeLimit`                                                                                                           | ignored; storage grows without a ceiling                                  | ignored                                                 |
-| `storage.iops`                         | Ignored on Azure, and on GCP without Hyperdisk     | `iops`                                                                      | `settings.dataDiskProvisionedIops`; ignored without Hyperdisk                                                                            | `storageDetails.iops`                                                     | ignored; `azure.storageTier` sets IOPS                  |
-| `storage.throughputMBps`               | Ignored on OCI, Azure, and GCP without Hyperdisk   | `storageThroughput`                                                         | `settings.dataDiskProvisionedThroughput`; ignored without Hyperdisk                                                                      | ignored                                                                   | ignored                                                 |
-| `highAvailability`                     | Core                                               | `multiAz`                                                                   | `settings.availabilityType: REGIONAL`; with `backup.retentionDays: 0` rejected, as a regional instance needs backups                     | `instanceCount: 2`, regional storage                                      | `highAvailability.mode: ZoneRedundant`                  |
-| `deletionProtection`                   | Core                                               | `deletionProtection`                                                        | `settings.deletionProtectionEnabled`                                                                                                     | platform blocks deletion                                                  | platform blocks deletion                                |
-| `maintenance.window`                   | Core                                               | `maintenanceWindow: sun:03:00-sun:03:30`                                    | `settings.maintenanceWindow` (`day: 7`, `hour: 3`)                                                                                       | `managementPolicy.maintenanceWindowStart: "SUN 03:00"`                    | `maintenanceWindow` (`dayOfWeek: 0`, `startHour: 3`)    |
-| `maintenance.autoMinorVersionUpgrade`  | Core; `false` ignored on GCP, OCI and Azure        | `autoMinorVersionUpgrade`                                                   | always on; `false` ignored                                                                                                               | always on; `false` ignored                                                | always on; `false` ignored                              |
-| `maintenance.allowMajorVersionUpgrade` | Core; a major upgrade fails on OCI                 | `allowMajorVersionUpgrade`                                                  | `databaseVersion` change allowed                                                                                                         | a major upgrade fails until the provider supports it                      | `version` change allowed                                |
-| `backup.retentionDays`                 | Core; `0` ignored on Azure                         | `backupRetentionPeriod`                                                     | `settings.backupConfiguration.backupRetentionSettings.retainedBackups`, with `pointInTimeRecoveryEnabled: true`; 0 sets `enabled: false` | `managementPolicy.backupPolicy.retentionDays`, DAILY; 0 sets `kind: NONE` | `backupRetentionDays`; 0 ignored, backups are always on |
-| `backup.pointInTimeDays`               | Core                                               | the same setting; above `retentionDays` rejected                            | `settings.backupConfiguration.transactionLogRetentionDays`                                                                               | `managementPolicy.pitrPolicy.restoreDays`, STANDARD                       | the same setting; above `retentionDays` rejected        |
-| `backup.startHourUTC`                  | Ignored on Azure                                   | `backupWindow`, 30 minutes                                                  | `settings.backupConfiguration.startTime`                                                                                                 | `managementPolicy.backupPolicy.backupStart`                               | ignored; Azure picks the hour                           |
-| `parameters`                           | Core                                               | a `ParameterGroup`                                                          | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                      | one `FlexibleServerConfiguration` each                  |
-| `parameterApplyMethod`                 | Core; `NextRestart` ignored on GCP, OCI and Azure  | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` | restarts when a flag needs it; `NextRestart` ignored                                                                                     | `NextRestart` ignored                                                     | restarts when a setting needs it; `NextRestart` ignored |
-| `restore.fromInstance`                 | Core                                               | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`         | `createMode: PointInTimeRestore`, `sourceServerId`      |
-| `restore.pointInTime`                  | Core                                               | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                    | `pointInTimeRestoreTimeInUtc`                           |
-
-*Common fields of `PostgreSQLInstance` on each cloud.*
-
-The cloud-specific fields:
-
-| Field                    | Maps To                                                                  |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `aws.id`                 | the console's Resource ID (`db-...`)                                     |
-| `gcp.id`                 | the instance name                                                        |
-| `oci.id`                 | the DB system's OCID                                                     |
-| `azure.id`               | the server's resource ID; the function takes the name and resource group |
-| `aws.instanceType`       | `instanceClass`                                                          |
-| `gcp.instanceType`       | `settings.tier`                                                          |
-| `oci.instanceType`       | `shape`; a `.Flex` shape without `oci.ocpus` and `oci.memoryGB` rejected |
-| `azure.instanceType`     | `skuName`                                                                |
-| `aws.fromBackup`         | `snapshotIdentifier`                                                     |
-| `gcp.fromBackup`         | `restoreBackupContext` (`instanceId`, `backupRunId`)                     |
-| `oci.fromBackup`         | `source.sourceType: BACKUP`, `source.backupId`                           |
-| `aws.parameterGroupName` | `parameterGroupName`                                                     |
-| `gcp.edition`            | `settings.edition`                                                       |
-| `gcp.diskType`           | `settings.diskType`                                                      |
-| `oci.ocpus`              | `instanceOcpuCount`                                                      |
-| `oci.memoryGB`           | `instanceMemorySizeInGbs`                                                |
-| `azure.storageTier`      | `storageTier`                                                            |
-
-*Cloud-specific fields of `PostgreSQLInstance`.*
-
-Provider keys are from the CRDs of provider-upjet-aws v2.4.0, [provider-upjet-gcp
-v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0),
-[crossplane-provider-oci
-v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0) and
-[provider-upjet-azure
-v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/v2.8.0). GCP's
-`updateTrack` only delays minor upgrades.
-
-## Status
-
-`storage.sizeGB` stays empty on OCI, which reports no size. `status.aws.finalBackup` is the ID the
-final snapshot will receive; GCP's provider reports only `finalBackupDescription`, and OCI and Azure
-take no final backup. A deleted instance is restored with the cloud block's `fromBackup` and the
-final backup's ID, which the status loses with the instance, so it is taken from the cloud console.
-`endpoint.host` is a hostname on AWS and Azure and an IP address on GCP and OCI. The running minor
-version, the latest restorable time and the instance state are reported by only some providers, so
-they go in the cloud blocks:
+In the status, `storage.sizeGB` stays empty on OCI, which reports no size. `status.aws.finalBackup`
+is the ID the final snapshot will receive; GCP's provider reports only `finalBackupDescription`, and
+OCI and Azure take no final backup. A deleted instance is restored with the cloud block's
+`fromBackup` and the final backup's ID, which the status loses with the instance, so it is taken
+from the cloud console. `endpoint.host` is a hostname on AWS and Azure and an IP address on GCP and
+OCI. The running minor version, the latest restorable time and the instance state are reported by
+only some providers, so they go in the cloud blocks:
 
 ```yaml
 status:
@@ -227,14 +166,12 @@ status:
 
 The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
-## Other Kinds
+### PostgreSQLUser
 
 `PostgreSQLUser` and `PostgreSQLDatabase` act inside PostgreSQL, through provider-sql, so they are
 the same on every cloud. Their `name` and `instanceRef` are immutable, `instanceRef` may name
 another namespace of the same Zone (rule 11), and their defaults are written by the admission policy
 (rule 5).
-
-### PostgreSQLUser
 
 A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
 which other users receive through `grant.roles`.
@@ -301,6 +238,67 @@ spec:
 ```
 
 *A `PostgreSQLDatabase` with the PostGIS extension in its own schema.*
+
+## Mapping
+
+The table names, for every field, the field of each cloud's provider it maps to. Level is the
+field's support level (rule 1).
+
+| Field                                  | Level                                              | AWS (RDS `Instance`)                                                        | GCP (Cloud SQL `DatabaseInstance`)                                                                                                       | OCI (`PsqlDbSystem`)                                                      | Azure (`FlexibleServer`)                                |
+| -------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `observe`                              | Core                                               | `managementPolicies: [Observe]`                                             | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                           | `managementPolicies: [Observe]`                         |
+| `version`                              | Core; a full version ignored on GCP, OCI and Azure | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`                                                                                                           | `dbVersion: "17"`                                                         | `version: "17"`                                         |
+| `storage.sizeGB`                       | Ignored on OCI                                     | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                      | `storageMb`, rounded up to the next of its 12 sizes     |
+| `storage.autoGrow`                     | Core; `false` ignored on OCI                       | on with `maxAllocatedStorage`                                               | `settings.diskAutoresize`                                                                                                                | always on; `false` ignored                                                | `autoGrowEnabled`                                       |
+| `storage.maxSizeGB`                    | Ignored on OCI and Azure                           | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      | `settings.diskAutoresizeLimit`                                                                                                           | ignored; storage grows without a ceiling                                  | ignored                                                 |
+| `storage.iops`                         | Ignored on Azure, and on GCP without Hyperdisk     | `iops`                                                                      | `settings.dataDiskProvisionedIops`; ignored without Hyperdisk                                                                            | `storageDetails.iops`                                                     | ignored; `azure.storageTier` sets IOPS                  |
+| `storage.throughputMBps`               | Ignored on OCI, Azure, and GCP without Hyperdisk   | `storageThroughput`                                                         | `settings.dataDiskProvisionedThroughput`; ignored without Hyperdisk                                                                      | ignored                                                                   | ignored                                                 |
+| `highAvailability`                     | Core                                               | `multiAz`                                                                   | `settings.availabilityType: REGIONAL`; with `backup.retentionDays: 0` rejected, as a regional instance needs backups                     | `instanceCount: 2`, regional storage                                      | `highAvailability.mode: ZoneRedundant`                  |
+| `deletionProtection`                   | Core                                               | `deletionProtection`                                                        | `settings.deletionProtectionEnabled`                                                                                                     | platform blocks deletion                                                  | platform blocks deletion                                |
+| `maintenance.window`                   | Core                                               | `maintenanceWindow: sun:03:00-sun:03:30`                                    | `settings.maintenanceWindow` (`day: 7`, `hour: 3`)                                                                                       | `managementPolicy.maintenanceWindowStart: "SUN 03:00"`                    | `maintenanceWindow` (`dayOfWeek: 0`, `startHour: 3`)    |
+| `maintenance.autoMinorVersionUpgrade`  | Core; `false` ignored on GCP, OCI and Azure        | `autoMinorVersionUpgrade`                                                   | always on; `false` ignored                                                                                                               | always on; `false` ignored                                                | always on; `false` ignored                              |
+| `maintenance.allowMajorVersionUpgrade` | Core; a major upgrade fails on OCI                 | `allowMajorVersionUpgrade`                                                  | `databaseVersion` change allowed                                                                                                         | a major upgrade fails until the provider supports it                      | `version` change allowed                                |
+| `backup.retentionDays`                 | Core; `0` ignored on Azure                         | `backupRetentionPeriod`                                                     | `settings.backupConfiguration.backupRetentionSettings.retainedBackups`, with `pointInTimeRecoveryEnabled: true`; 0 sets `enabled: false` | `managementPolicy.backupPolicy.retentionDays`, DAILY; 0 sets `kind: NONE` | `backupRetentionDays`; 0 ignored, backups are always on |
+| `backup.pointInTimeDays`               | Core                                               | the same setting; above `retentionDays` rejected                            | `settings.backupConfiguration.transactionLogRetentionDays`                                                                               | `managementPolicy.pitrPolicy.restoreDays`, STANDARD                       | the same setting; above `retentionDays` rejected        |
+| `backup.startHourUTC`                  | Ignored on Azure                                   | `backupWindow`, 30 minutes                                                  | `settings.backupConfiguration.startTime`                                                                                                 | `managementPolicy.backupPolicy.backupStart`                               | ignored; Azure picks the hour                           |
+| `parameters`                           | Core                                               | a `ParameterGroup`                                                          | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                      | one `FlexibleServerConfiguration` each                  |
+| `parameterApplyMethod`                 | Core; `NextRestart` ignored on GCP, OCI and Azure  | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` | restarts when a flag needs it; `NextRestart` ignored                                                                                     | `NextRestart` ignored                                                     | restarts when a setting needs it; `NextRestart` ignored |
+| `restore.fromInstance`                 | Core                                               | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`         | `createMode: PointInTimeRestore`, `sourceServerId`      |
+| `restore.pointInTime`                  | Core                                               | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                    | `pointInTimeRestoreTimeInUtc`                           |
+
+*Common fields of `PostgreSQLInstance` on each cloud.*
+
+The cloud-specific fields:
+
+| Field                    | Maps To                                                                  |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `aws.id`                 | the console's Resource ID (`db-...`)                                     |
+| `gcp.id`                 | the instance name                                                        |
+| `oci.id`                 | the DB system's OCID                                                     |
+| `azure.id`               | the server's resource ID; the function takes the name and resource group |
+| `aws.instanceType`       | `instanceClass`                                                          |
+| `gcp.instanceType`       | `settings.tier`                                                          |
+| `oci.instanceType`       | `shape`; a `.Flex` shape without `oci.ocpus` and `oci.memoryGB` rejected |
+| `azure.instanceType`     | `skuName`                                                                |
+| `aws.fromBackup`         | `snapshotIdentifier`                                                     |
+| `gcp.fromBackup`         | `restoreBackupContext` (`instanceId`, `backupRunId`)                     |
+| `oci.fromBackup`         | `source.sourceType: BACKUP`, `source.backupId`                           |
+| `aws.parameterGroupName` | `parameterGroupName`                                                     |
+| `gcp.edition`            | `settings.edition`                                                       |
+| `gcp.diskType`           | `settings.diskType`                                                      |
+| `oci.ocpus`              | `instanceOcpuCount`                                                      |
+| `oci.memoryGB`           | `instanceMemorySizeInGbs`                                                |
+| `azure.storageTier`      | `storageTier`                                                            |
+
+*Cloud-specific fields of `PostgreSQLInstance`.*
+
+Provider keys are from the CRDs of provider-upjet-aws v2.4.0, [provider-upjet-gcp
+v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0),
+[crossplane-provider-oci
+v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0) and
+[provider-upjet-azure
+v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/v2.8.0). GCP's
+`updateTrack` only delays minor upgrades.
 
 ## Platform Decisions
 
