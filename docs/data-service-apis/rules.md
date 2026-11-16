@@ -4,8 +4,7 @@ The rules every data service API follows, and the alternatives weighed against t
 
 ## Rules
 
-These rules apply to every data service API, and each service's page shows how it applies them. The
-draft schemas are in [schemas/](schemas/).
+These rules apply to every data service API, and each service's page shows how it applies them.
 
 #### 1 The common spec states needs, not cloud products
 
@@ -100,7 +99,7 @@ updates, so a default is applied only once: if the operator later changes a defa
 databases are not resized or upgraded. Defaults were tested to survive later updates from the
 portal and from Argo CD. Observed resources receive no defaults.
 
-Deletion protection works as today: a `ValidatingAdmissionPolicy` refuses to delete an object
+Deletion protection is enforced by a `ValidatingAdmissionPolicy`, which refuses to delete an object
 whose `deletionProtection` is true.
 
 #### 6 Applications connect the same way on every cloud
@@ -114,8 +113,8 @@ lists hosts with their ports. A service that needs more adds its own keys, such 
 endpoint. No key is named after a cloud, and no key holds the others as JSON.
 
 The secrets are named `<instance>-dbadmin` for a database's admin, `<instance>-credentials` for
-other services, and `<instance>-<user>` for a user object, as today. Every kind with a secret takes
-an optional `secretName` to override that name. The platform never overwrites a Secret that another
+other services, and `<instance>-<user>` for a user object. Every kind with a secret takes an
+optional `secretName` to override that name. The platform never overwrites a Secret that another
 object or person owns: joined names can collide, as a user named `dbadmin` with the admin's secret,
 or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second object reports which
 object holds the name, and `secretName` resolves it. It also allows a team to use a name its
@@ -132,7 +131,13 @@ does not show the service. A different engine is never substituted: MySQL is not
 
 #### 8 A kind is named after the engine or concept, never a cloud product
 
-Kinds are named for what they are, such as `Bucket`, never after a product such as S3.
+A kind's name means the same on every cloud: it names the engine or the concept, never one cloud's
+product.
+
+A product name ties a kind to one cloud: `S3Bucket` reads as Amazon S3 even where the bucket is in
+Cloud Storage, and a user would have to know which cloud runs underneath to recognise it. A kind
+therefore takes the engine's own name, as `PostgreSQLInstance` and `KafkaTopic` do, or, where no
+engine names it, the concept every cloud shares, as `Bucket` and `ArtifactRepository` do.
 
 #### 9 A kind either creates its resource or observes an existing one
 

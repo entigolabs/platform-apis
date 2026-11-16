@@ -15,6 +15,7 @@ nav:
   home: true
 - file: rules.md
   label: Design Rules
+  foldItems: [Rules]                      # each rule shows its opening sentence; the rest folds
 - label: Services
   aliases: {schemas: "*/schemas"}
   tabs:

@@ -95,8 +95,7 @@ lowering it is rejected. The platform rounds it up to 20 GiB, the RDS minimum, a
 an increase under 10% up to 10%. Rounding and `autoGrow` can take the disk past `sizeGB`, so the
 status reports the actual size, and the platform never shrinks the disk back to `sizeGB`.
 
-`aws.parameterGroupName`, kept from today's API, uses an existing RDS parameter group in place of
-`parameters`.
+`aws.parameterGroupName` uses an existing RDS parameter group in place of `parameters`.
 
 ## Mapping
 
@@ -156,26 +155,22 @@ The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
 ## Other Kinds
 
-`MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql, and keep today's
-fields, apart from the user's changes below. What changes for both is the version, `namespace` in
-`instanceRef` (rule 11), defaults moving to the admission policy (rule 5), and `name` and
-`instanceRef` becoming immutable.
+`MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql. Their `name` and
+`instanceRef` are immutable, `instanceRef` may name another namespace of the same Zone (rule 11),
+and their defaults are written by the admission policy (rule 5).
 
 ### MariaDBUser
 
-A user's database and privileges become a list, `databases`, with one entry per database: today's
-single `databaseRef` would force an application that uses two databases on one instance into two
-logins, against rule 12. Each entry becomes one provider-sql `Grant`, and each `databaseRef` takes
-`namespace` too (rule 11; today's function ignores it). provider-sql writes the four secret keys
-rule 6 names for MariaDB users too
+A user's databases and privileges are a list, `databases`, with one entry per database, so an
+application that uses two databases on one instance needs one login, as rule 12 requires. Each entry
+becomes one provider-sql `Grant`, and each `databaseRef` takes `namespace` too (rule 11).
+provider-sql writes the four secret keys rule 6 names for MariaDB users too
 ([`pkg/clients/mysql/mysql.go`](https://github.com/crossplane-contrib/provider-sql/blob/v0.16.1/pkg/clients/mysql/mysql.go),
 [provider-sql v0.16.1](https://github.com/crossplane-contrib/provider-sql/releases/tag/v0.16.1)).
 The four limits on a user (`maxQueriesPerHour`, `maxUpdatesPerHour`, `maxConnectionsPerHour`,
 `maxUserConnections`) default to 0, which MariaDB treats as no limit, as it does for any new user
 ([CREATE
-USER](https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/create-user));
-today's defaults of 20 queries and 10 updates an hour, 5 connections an hour and 2 at once are too
-low for any production application.
+USER](https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/create-user)).
 
 An example:
 
@@ -238,7 +233,7 @@ The platform makes these settings itself:
 | Storage           | gp3                                                                               |
 | Port              | 3306                                                                              |
 | Tags              | Workspace and Zone tags                                                           |
-| Final backup      | A snapshot taken when an instance is deleted, switched on per deployment as today |
+| Final backup      | A snapshot taken when an instance is deleted, switched on per deployment |
 
 *Settings the platform makes for a `MariaDBInstance`.*
 

@@ -435,12 +435,12 @@ spec:
 
 ## ArtifactRepository
 
-| Today                  | Design                                                  | Reason                                                       |
-| ---------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
-| kind `Repository`      | kind `ArtifactRepository`                               | Holds any OCI artifact, and named after the concept (rule 8) |
-| `path`, free-form      | `path` under the namespace: `<namespace>/<path>/<name>` | Namespaces keep paths apart in a cluster; image paths change |
-| (none)                 | `immutableTags`                                         | Today a deployment-wide setting                              |
-| `status.repositoryUri` | `status.uri`                                            | The same word on every cloud                                 |
+| Today                  | Design                                                  | Reason                                                                 |
+| ---------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| kind `Repository`      | kind `ArtifactRepository`                               | Holds any OCI artifact, and named after the concept (rule 8)           |
+| `path`, free-form      | `path` under the namespace: `<namespace>/<path>/<name>` | Namespaces keep paths apart in a cluster; image paths change           |
+| (none)                 | `immutableTags`                                         | Today a deployment-wide setting; ECR's two exclusion modes are dropped |
+| `status.repositoryUri` | `status.uri`                                            | The same word on every cloud                                           |
 
 *Changes from `Repository` to `ArtifactRepository`.*
 

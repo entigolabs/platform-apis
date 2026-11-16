@@ -4,10 +4,10 @@ Capabilities considered and omitted for now; the design is complete without them
 
 #### 1 Topic and group prefixes in `KafkaUser` ACLs
 
-Each ACL and consumer group in a `KafkaUser` names one exact topic or group, as today, so an
-application that adds topics at runtime, such as one per customer (`orders-acme`, `orders-globex`),
-needs a new entry before it can use each one. Kafka's prefixed ACLs (every topic starting with
-`orders-`) would cover them all; MSK and OCI run plain Kafka ACLs, and GCP's support is unverified.
+Each ACL and consumer group in a `KafkaUser` names one exact topic or group, so an application that
+adds topics at runtime, such as one per customer (`orders-acme`, `orders-globex`), needs a new entry
+before it can use each one. Kafka's prefixed ACLs (every topic starting with `orders-`) would cover
+them all; MSK and OCI run plain Kafka ACLs, and GCP's support is unverified.
 
 #### 2 Per-instance extension allow list for PostgreSQL
 

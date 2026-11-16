@@ -70,10 +70,9 @@ the deployment default `oci.memoryGB` sizes an instance whose spec is empty.
 `version` is a floor: raising it upgrades the cache, lowering it is rejected, the status shows the
 running version, and the platform never moves the cache back to `version`.
 
-`aws.parameterGroupName`, kept from today's API, uses an existing ElastiCache parameter group in
-place of `parameters`. A parameter group applies to one major version (family `valkey<major>`), so a
-change of the major is rejected unless `aws.parameterGroupName` changes or is removed in the same
-edit.
+`aws.parameterGroupName` uses an existing ElastiCache parameter group in place of `parameters`. A
+parameter group applies to one major version (family `valkey<major>`), so a change of the major is
+rejected unless `aws.parameterGroupName` changes or is removed in the same edit.
 
 ## Mapping
 
@@ -148,7 +147,7 @@ The platform makes these settings itself:
 | Network placement | The deployment's subnet, and a security group or NSG                                                                                                                                             |
 | Encryption        | TLS in transit; at rest, the platform's data key on AWS                                                                                                                                          |
 | Login             | A generated password; on OCI, a user named `default` with the password's SHA-256 hash, which replaces the built-in user that has no password                                                     |
-| Final backup      | A snapshot taken when a cache is deleted (`finalSnapshotIdentifier`), switched on per deployment as today, on AWS only: OCI Cache takes manual backups only, and Memorystore has no final backup |
+| Final backup      | A snapshot taken when a cache is deleted (`finalSnapshotIdentifier`), switched on per deployment, on AWS only: OCI Cache takes manual backups only, and Memorystore has no final backup |
 
 *Settings the platform makes for a `ValkeyInstance`.*
 

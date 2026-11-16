@@ -51,13 +51,11 @@ spec:
 
 *A `RabbitMQBroker` with its common fields and its `aws` block.*
 
-Fields of today's API that leave the spec: `brokerName` and `engineType` (the platform names the
-broker, and the engine is always RabbitMQ), `autoMinorVersionUpgrade` (Amazon MQ requires it on),
-and `deploymentMode` (replaced by `highAvailability`). `configuration`, a raw `rabbitmq.conf` text,
-becomes the `parameters` map, which the platform renders into that file. `publiclyAccessible`, kept
-from today's API, moves to the `aws` block (rule 2); Amazon MQ replaces a broker to change it
-(`ForceNew` in [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so it
-is set at creation only.
+The platform names the broker, the engine is always RabbitMQ, and Amazon MQ requires minor version
+upgrades, so none of these is a field. `highAvailability` chooses the deployment mode, and
+`parameters`, a map, is rendered into `rabbitmq.conf`. `aws.publiclyAccessible` is set at creation
+only: Amazon MQ replaces a broker to change it (`ForceNew` in
+[terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)).
 
 ## Mapping
 

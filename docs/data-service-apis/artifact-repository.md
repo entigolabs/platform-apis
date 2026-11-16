@@ -3,8 +3,8 @@
 An artifact registry stores container images, Helm charts and other OCI artifacts, which deployments
 pull and CI pushes.
 
-One kind: `ArtifactRepository` (today `Repository`), one application's image path, such as
-`shop/orders-api`, with its tags.
+One kind: `ArtifactRepository`, one application's image path, such as `shop/orders-api`, with its
+tags.
 
 Built on ECR (AWS), Artifact Registry (GCP), OCIR (OCI) and Azure Container Registry (Azure), which
 store every OCI artifact alike.
@@ -61,17 +61,15 @@ The image path always starts with the namespace: `<namespace>/<path>/<name>`, or
 repository by its path alone (`aws_ecr_repository: config.NameAsIdentifier` in [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0)), so two
 objects asking for one path would both manage it, and deleting either would delete the other's
-images (today's function sets `forceDelete`). Namespace names are unique in a cluster, so the prefix
+images (the platform sets `forceDelete`). Namespace names are unique in a cluster, so the prefix
 rules that out within one cluster. Clusters that push to one registry are not checked against each
 other: whoever configures them gives each its own registry, or keeps their namespace names distinct.
-Today's free-form `path` is not retained, so moving from `Repository` changes image paths.
 
 A lifecycle rule has one selector (`tagPrefixes`, `tagPatterns`, `untagged`, or none for every
-image) and one bound (`keepCount` newest, or `expireAfterDays` since the push), as today.
-`lifecycleRules` defaults per deployment, as today's deployment-wide rules do, so a repository whose
-spec is empty is still cleaned up; set, it replaces them. `immutableTags` defaults per deployment
-and replaces today's deployment-wide `imageTagMutability`; its `IMMUTABLE_WITH_EXCLUSION` and
-`MUTABLE_WITH_EXCLUSION` modes, which only ECR has, are dropped.
+image) and one bound (`keepCount` newest, or `expireAfterDays` since the push). `lifecycleRules`
+defaults per deployment, so a repository whose spec is empty is still cleaned up; set, it replaces
+the default. `immutableTags` defaults per deployment. ECR's `IMMUTABLE_WITH_EXCLUSION` and
+`MUTABLE_WITH_EXCLUSION` modes, which only ECR has, are not offered.
 
 ## Mapping
 

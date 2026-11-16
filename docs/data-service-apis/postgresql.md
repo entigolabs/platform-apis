@@ -118,8 +118,7 @@ AWS, and the next of Azure's 12 fixed sizes; AWS itself rounds an increase under
 Rounding and `autoGrow` can take the disk past `sizeGB`, so the status reports the actual size, and
 the platform never shrinks the disk back to `sizeGB`.
 
-`aws.parameterGroupName`, kept from today's API, uses an existing RDS parameter group in place of
-`parameters`.
+`aws.parameterGroupName` uses an existing RDS parameter group in place of `parameters`.
 
 Azure's same-zone standby keeps no copy in another zone, so `highAvailability: true` maps to its
 zone-redundant mode only.
@@ -226,9 +225,9 @@ The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 ## Other Kinds
 
 `PostgreSQLUser` and `PostgreSQLDatabase` act inside PostgreSQL, through provider-sql, so they are
-the same on every cloud. They retain today's fields; what changes is the version, `namespace` in
-`instanceRef` (rule 11), defaults moving to the admission policy (rule 5), and `name` and
-`instanceRef` becoming immutable.
+the same on every cloud. Their `name` and `instanceRef` are immutable, `instanceRef` may name
+another namespace of the same Zone (rule 11), and their defaults are written by the admission policy
+(rule 5).
 
 ### PostgreSQLUser
 
@@ -304,7 +303,7 @@ The platform makes these settings itself:
 | Storage           | gp3 on AWS                                                                                                                                     |
 | Port              | 5432                                                                                                                                           |
 | Tags              | Workspace and Zone tags                                                                                                                        |
-| Final backup      | Taken when an instance is deleted, switched on per deployment as today, on the clouds that take one (AWS, GCP)                                 |
+| Final backup      | Taken when an instance is deleted, switched on per deployment, on the clouds that take one (AWS, GCP)                                 |
 
 *Settings the platform makes for a `PostgreSQLInstance`.*
 

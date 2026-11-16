@@ -2,7 +2,7 @@
 
 Object storage keeps files as objects in buckets, which applications read and write over HTTP.
 
-One kind: `Bucket` (today `S3Bucket`), one bucket.
+One kind: `Bucket`, one bucket.
 
 Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (Azure).
 
@@ -63,9 +63,8 @@ spec:
 `lifecycleRules`, `retention` and `cors` have no default. `tier` names the two cold tiers every
 cloud has.
 
-Today's `S3Bucket` also creates an IAM role, a service account annotated with it, and an IAM user
-with an access key. Those are identities of the applications that use the bucket, not part of the
-bucket, so they leave `Bucket`; an application's own identity is granted access to the buckets it
+A `Bucket` creates no identity: no IAM role, service account or access key. Those belong to the
+applications that use the bucket; an application's own identity is granted access to the buckets it
 names ([Cloud identity for applications](follow-up-work.md#3-cloud-identity-for-applications), in
 Follow-Up Work).
 
