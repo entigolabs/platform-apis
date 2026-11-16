@@ -128,6 +128,12 @@ def resource_spec(common, blocks, kind_noun, rules=None, observe_ext=None):
                       "observe and the cloud block's id go together"))
     all_rules.append(("(has(self.observe) && self.observe) == "
                       "(has(oldSelf.observe) && oldSelf.observe)", "observe is immutable"))
+    others = [f"!has(self.{k})" for k in common]
+    others += [f"!has(self.{c}.{k})" for c, s in blocks.items() for k in (s or {})]
+    if others:
+        all_rules.append(("!(has(self.observe) && self.observe) || (" + " && ".join(
+            (o if o.count(".") == 1 else f"(!has(self.{o.split('.')[1]}) || {o})") for o in others) + ")",
+            "an observed resource takes no other field than its cloud block's id"))
     all_rules += rules or []
     return obj(props, rules=all_rules)
 
@@ -518,7 +524,7 @@ write("mariadbuser", xrd(
                                    minimum=0),
         "maxUpdatesPerHour": field("integer", "Updates allowed per hour; 0 is unlimited.", default="fixed, 0",
                                    minimum=0),
-        "maxUserConnections": field("integer", "Connections allowed at once; 0 means the server's max_connections.", default="fixed, 0",
+        "maxUserConnections": field("integer", "Connections allowed at once; 0 is no limit of the user's own, so only the server's max_connections applies.", default="fixed, 0",
                                     minimum=0),
         "grant": obj({"users": array(field("string"), "Users granted to this user.")}),
     }, rules=[NAME_RULE]),
@@ -577,11 +583,18 @@ write("valkeyinstance", xrd(
         "aws": {"instanceType": field("string", "The ElastiCache node type, such as "
                                       "cache.t4g.small.", default=DEPLOY),
                 "parameterGroupName": field("string", "An existing ElastiCache parameter group "
-                                            "to use, in place of parameters.")},
+                                            "to use, in place of parameters."),
+                "fromBackup": field("string", "An ElastiCache snapshot name to create the cache "
+                                    "from, such as status.aws.finalBackup of a deleted cache. "
+                                    "Create time only.")},
         "gcp": {"instanceType": field("string", "The Memorystore node type.", default=DEPLOY)},
         "oci": {"memoryGB": field("integer", "Memory per node, within OCI's own range "
                                   "(rule 10).", default=DEPLOY, minimum=1)},
     }, "cache", [
+        ("(has(self.aws) && has(self.aws.fromBackup)) == "
+         "(has(oldSelf.aws) && has(oldSelf.aws.fromBackup)) && "
+         "(!has(self.aws) || !has(self.aws.fromBackup) || self.aws.fromBackup == oldSelf.aws.fromBackup)",
+         "aws.fromBackup is set at creation only"),
         ("!has(self.highAvailability) || !self.highAvailability || "
          "(has(self.replicas) && self.replicas >= 1)",
          "highAvailability needs replicas of at least 1"),

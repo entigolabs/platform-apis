@@ -121,7 +121,8 @@ spec:
               maxUserConnections:
                 type: integer
                 description: |-
-                  Connections allowed at once; 0 means the server's max_connections.
+                  Connections allowed at once; 0 is no limit of the user's own, so only the
+                  server's max_connections applies.
                   Default: fixed, 0.
                 minimum: 0
               grant:

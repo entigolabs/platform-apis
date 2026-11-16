@@ -8,17 +8,19 @@ works on AWS, GCP, OCI and Azure alike.
 ```mermaid
 flowchart LR
   object("<b>Data Service Object</b><br/>Describes<br/>cloud resource")
-  function("<b>Platform Function</b><br/>Creates resource on<br/>deployment's cloud")
+  function("<b>Platform Function</b><br/>Turns object into<br/>provider resources")
+  provider("<b>Crossplane Provider</b><br/>Creates resource<br/>on cloud")
   resource[("<b>Cloud Resource</b><br/>&nbsp;<br/>&nbsp;")]
   status("<b>Status</b><br/>Reports resource's<br/>actual state")
-  object --> function --> resource --> status
+  object --> function --> provider --> resource --> status
   class object user
   class function platform
+  class provider platform
   class resource cloud
   class status app
 ```
 
-*How a data service object becomes a resource on the deployment's cloud.*
+*The path from a data service object to its resource on the deployment's cloud.*
 
 Today each API is built around one AWS service: its spec takes AWS values, such as an RDS instance
 class, its status reports AWS identifiers, and the developer portal hard-codes AWS values in its

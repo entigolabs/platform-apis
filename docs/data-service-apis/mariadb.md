@@ -54,16 +54,33 @@ spec:
   parameters:                          # MariaDB settings
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
-  restore:                             # create time only
-    fromInstance: orders-db-old        # a MariaDBInstance in this namespace
-    pointInTime: "2026-11-01T10:00:00Z"
   aws:                                 # also takes id (rule 9)
     instanceType: db.t4g.small         # the RDS instance class
-    parameterGroupName: orders-mariadb114  # not with parameters
-    fromBackup: orders-final           # an RDS snapshot ID; not with restore
 ```
 
 *A `MariaDBInstance` with its common fields and its `aws` block.*
+
+`restore` creates an instance from another instance's backups, at a point in time. A deleted
+instance is restored instead with `aws.fromBackup` and an RDS snapshot ID. Both are set at creation
+only and cannot be combined:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBInstance
+metadata:
+  name: orders-db-restored
+  namespace: shop
+spec:
+  version: "11.4"
+  restore:
+    fromInstance: orders-db            # a MariaDBInstance in this namespace
+    pointInTime: "2026-11-01T10:00:00Z"
+  aws:
+    instanceType: db.t4g.small
+```
+
+*An instance created from another instance's backups.*
 
 `version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`, and RDS
 applies minor versions in the maintenance window. RDS takes a version without its minor only while
@@ -183,7 +200,7 @@ spec:
       name: invoices
     privileges:
     - SELECT
-  maxUserConnections: 20               # 0, the default, is no limit
+  maxUserConnections: 20               # 0, the default, sets no limit of the user's own
 ```
 
 *An application's login with privileges on two databases.*

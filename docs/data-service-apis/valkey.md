@@ -54,7 +54,6 @@ spec:
   # Cloud-specific; every block also takes id (rule 9)
   aws:
     instanceType: cache.t4g.small      # the ElastiCache node type
-    parameterGroupName: orders-valkey8 # not with parameters
   oci:
     memoryGB: 16                       # per node
 ```
@@ -98,23 +97,25 @@ field's support level (rule 1).
 
 The cloud-specific fields:
 
-| Field                    | Maps To                  |
-| ------------------------ | ------------------------ |
-| `aws.id`                 | the replication group ID |
-| `gcp.id`                 | the instance ID          |
-| `aws.instanceType`       | `nodeType`               |
-| `gcp.instanceType`       | `nodeType`               |
-| `oci.id`                 | the cluster's OCID       |
-| `aws.parameterGroupName` | `parameterGroupName`     |
-| `oci.memoryGB`           | `nodeMemoryInGbs`        |
+| Field                    | Maps To                          |
+| ------------------------ | -------------------------------- |
+| `aws.id`                 | the replication group ID         |
+| `gcp.id`                 | the instance ID                  |
+| `aws.instanceType`       | `nodeType`                       |
+| `gcp.instanceType`       | `nodeType`                       |
+| `oci.id`                 | the cluster's OCID               |
+| `aws.parameterGroupName` | `parameterGroupName`             |
+| `oci.memoryGB`           | `nodeMemoryInGbs`                |
+| `aws.fromBackup`         | `snapshotName`, at creation only |
 
 *Cloud-specific fields of `ValkeyInstance`.*
 
 ## Status
 
 The status adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and
-`aws.finalBackup`, the ID the final snapshot will receive. A deleted cache's ID, which the status
-loses with the cache, is taken from the cloud console.
+`aws.finalBackup`, the ID the final snapshot will receive. A deleted cache is restored with
+`aws.fromBackup` and that ID, which the status loses with the cache, so it is taken from the cloud
+console.
 
 The cloud blocks of the status:
 

@@ -133,7 +133,7 @@ metadata:
   name: orders-app
   namespace: shop
 spec:
-  clusterRef:                          # required (rule 11)
+  clusterRef:                          # required
     name: orders-kafka
   consumerGroups:
   - orders
@@ -150,7 +150,7 @@ spec:
 | GCP   | a service account with a key                       | SASL PLAIN: the account's email and key |
 | OCI   | provider-kafka `User`, through the Kafka admin API | SASL SCRAM-SHA-512                      |
 
-*How a `KafkaUser` logs in on each cloud.*
+*A `KafkaUser`'s identity and login on each cloud.*
 
 ACLs are Kafka ACLs on every cloud: provider-kafka on AWS and OCI,
 [`google_managed_kafka_acl`](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/managed_kafka_acl)
@@ -174,7 +174,7 @@ metadata:
   name: orders
   namespace: shop
 spec:
-  clusterRef:                          # required (rule 11)
+  clusterRef:                          # required
     name: orders-kafka
   name: orders_v2                      # the Kafka name; unset, metadata.name
   partitions: 3

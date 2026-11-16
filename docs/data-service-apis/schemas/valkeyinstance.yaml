@@ -138,6 +138,11 @@ spec:
                     type: string
                     description: |-
                       An existing ElastiCache parameter group to use, in place of parameters.
+                  fromBackup:
+                    type: string
+                    description: |-
+                      An ElastiCache snapshot name to create the cache from, such as
+                      status.aws.finalBackup of a deleted cache. Create time only.
               gcp:
                 type: object
                 description: |-
@@ -183,6 +188,13 @@ spec:
             - rule: |-
                 (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
               message: observe is immutable
+            - rule: |-
+                !(has(self.observe) && self.observe)
+                || (!has(self.version) && !has(self.highAvailability) && !has(self.replicas) && !has(self.deletionProtection) && !has(self.maintenance) && !has(self.backup) && !has(self.secretName) && !has(self.parameters) && (!has(self.aws) || !has(self.aws.instanceType)) && (!has(self.aws) || !has(self.aws.parameterGroupName)) && (!has(self.aws) || !has(self.aws.fromBackup)) && (!has(self.gcp) || !has(self.gcp.instanceType)) && (!has(self.oci) || !has(self.oci.memoryGB)))
+              message: an observed resource takes no other field than its cloud block's id
+            - rule: |-
+                (has(self.aws) && has(self.aws.fromBackup)) == (has(oldSelf.aws) && has(oldSelf.aws.fromBackup)) && (!has(self.aws) || !has(self.aws.fromBackup) || self.aws.fromBackup == oldSelf.aws.fromBackup)
+              message: aws.fromBackup is set at creation only
             - rule: |-
                 !has(self.highAvailability)
                 || !self.highAvailability

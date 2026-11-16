@@ -328,6 +328,10 @@ spec:
                 (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
               message: observe is immutable
             - rule: |-
+                !(has(self.observe) && self.observe)
+                || (!has(self.version) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.maintenance) && !has(self.backup) && !has(self.parameters) && !has(self.parameterApplyMethod) && !has(self.restore) && !has(self.secretName) && (!has(self.aws) || !has(self.aws.instanceType)) && (!has(self.aws) || !has(self.aws.parameterGroupName)) && (!has(self.aws) || !has(self.aws.fromBackup)) && (!has(self.gcp) || !has(self.gcp.instanceType)) && (!has(self.gcp) || !has(self.gcp.edition)) && (!has(self.gcp) || !has(self.gcp.diskType)) && (!has(self.gcp) || !has(self.gcp.fromBackup)) && (!has(self.oci) || !has(self.oci.instanceType)) && (!has(self.oci) || !has(self.oci.ocpus)) && (!has(self.oci) || !has(self.oci.memoryGB)) && (!has(self.oci) || !has(self.oci.fromBackup)) && (!has(self.azure) || !has(self.azure.instanceType)) && (!has(self.azure) || !has(self.azure.storageTier)))
+              message: an observed resource takes no other field than its cloud block's id
+            - rule: |-
                 has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || self.restore == oldSelf.restore)
               message: restore is set at creation only
             - rule: |-

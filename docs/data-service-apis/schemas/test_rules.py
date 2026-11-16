@@ -110,6 +110,10 @@ create("observe without id rejected", "PostgreSQLInstance", {"observe": True, "a
        "go together")
 create("observe with aws.id accepted", "PostgreSQLInstance",
        {"observe": True, "aws": {"id": "arn:aws:rds:x"}})
+create("observe with a common field rejected", "PostgreSQLInstance",
+       {"observe": True, "version": "17", "aws": {"id": "arn:aws:rds:x"}}, False, "takes no other field")
+create("observe with a cloud setting rejected", "PostgreSQLInstance",
+       {"observe": True, "aws": {"id": "arn:aws:rds:x", "instanceType": "db.t4g.small"}}, False, "takes no other field")
 create("maxSizeGB below sizeGB rejected", "PostgreSQLInstance",
        w(PG, storage={"sizeGB": 200, "maxSizeGB": 100}), False, "maxSizeGB must be")
 create("retentionDays 3 with pointInTimeDays accepted", "PostgreSQLInstance",
@@ -244,6 +248,8 @@ update("MariaDB lowering storage.sizeGB rejected", "MariaDBInstance",
 
 print("\n# ValkeyInstance")
 VA = {"version": "8.1", "aws": {"parameterGroupName": "orders-valkey8"}}
+create("Valkey aws.fromBackup accepted at creation", "ValkeyInstance", w(VA, aws={**VA["aws"], "fromBackup": "orders-cache-final"}))
+update("Valkey aws.fromBackup added later rejected", "ValkeyInstance", VA, w(VA, aws={**VA["aws"], "fromBackup": "s"}), False, "set at creation only")
 create("Valkey aws.parameterGroupName accepted", "ValkeyInstance", VA)
 create("Valkey 8 replicas accepted, left to the cloud", "ValkeyInstance",
        {"replicas": 8, "aws": {}})

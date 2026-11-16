@@ -57,14 +57,9 @@ spec:
   parameters:                          # PostgreSQL settings
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
-  restore:                             # create time only
-    fromInstance: orders-db-old        # a PostgreSQLInstance in this namespace
-    pointInTime: "2026-11-01T10:00:00Z"
   # Cloud-specific; every block also takes id (rule 9)
   aws:
     instanceType: db.t4g.small         # the RDS instance class
-    parameterGroupName: orders-pg17    # not with parameters
-    fromBackup: orders-final           # an RDS snapshot ID; not with restore
   gcp:
     instanceType: db-custom-2-7680     # the Cloud SQL tier
     edition: ENTERPRISE                # or ENTERPRISE_PLUS
@@ -79,6 +74,28 @@ spec:
 ```
 
 *A `PostgreSQLInstance` with its common fields and a block per cloud.*
+
+`restore` creates an instance from another instance's backups, at a point in time. A deleted
+instance is restored instead with its cloud block's `fromBackup`, such as `aws.fromBackup` with an
+RDS snapshot ID. Both are set at creation only and cannot be combined:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLInstance
+metadata:
+  name: orders-db-restored
+  namespace: shop
+spec:
+  version: "17"
+  restore:
+    fromInstance: orders-db            # a PostgreSQLInstance in this namespace
+    pointInTime: "2026-11-01T10:00:00Z"
+  aws:
+    instanceType: db.t4g.small
+```
+
+*An instance created from another instance's backups.*
 
 The size is in the cloud blocks, as `instanceType` with the cloud's own name, because RDS has fixed
 classes while OCI and GCP take CPU and memory, which no neutral size expresses. With deployment

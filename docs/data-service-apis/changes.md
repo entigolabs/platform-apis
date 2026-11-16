@@ -22,9 +22,9 @@ Changes shared by all kinds, stated once here.
 - Every kind moves from `v1alpha1` to `v1alpha2`.
 - Defaults are written into the object once, at creation, by a `MutatingAdmissionPolicy`, and never
   change a running resource afterwards (rule 5).
-- A kind that represents a cloud resource gains `observe` and one block per cloud, `aws`, `gcp`,
-  `oci` and `azure`, each with an `id` for observing (rules 2 and 9). Cloud-specific settings move
-  into these blocks.
+- A kind that represents a cloud resource gains `observe` and a block for each cloud it exists on,
+  among `aws`, `gcp`, `oci` and `azure`, each with an `id` for observing (rules 2 and 9).
+  Cloud-specific settings move into these blocks.
 - Every kind with a connection secret gains `secretName` to override the secret's name (rule 6).
 - A reference gains `namespace`, valid within the same Zone (rule 11).
 - A cloud rejection or an operation the cloud cannot perform shows on the object as the condition
@@ -186,6 +186,7 @@ spec:
 | `snapshotWindow`           | `backup.startHourUTC`                  | One form for every cloud                              |
 | `parameterGroupName`       | `aws.parameterGroupName`               | An ElastiCache concept (rule 2)                       |
 | `parameterGroupParameters` | `parameters`                           | One map for every cloud                               |
+| (none)                     | `aws.fromBackup`                       | Create a cache from a snapshot, such as the final one |
 
 *Changes to Valkey.*
 

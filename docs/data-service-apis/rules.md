@@ -149,7 +149,7 @@ spec:
     id: ...                            # the resource's ID, copied from the cloud console
 ```
 
-*Observing an existing resource.*
+*An observed resource on AWS.*
 
 The ID is one value the user copies from the cloud's console, and each service's page says which
 one. The platform turns it into whatever the provider needs. An observed resource is never changed
@@ -183,15 +183,17 @@ values itself, and each service's page lists the known limits under Cloud Limits
 When the cloud rejects a value, the error appears only on the provider's own object, not on the
 user's. The platform therefore also shows it on the user's object, as the condition `CloudAccepted:
 False` and as a warning event. An operation that the running cloud cannot perform, such as an
-upgrade its service does not offer, is reported the same way, without reaching the cloud.
+upgrade its service does not offer, is reported the same way, without reaching the cloud. Defaults
+are not checks: the admission policy that writes them runs per deployment, so a default may take
+that cloud's limit into account.
 
 #### 11 A reference crosses namespaces only within one Zone
 
 An object may refer to one in another namespace, but only within the same Zone.
 
-A kind that exists inside another, such as a database user or a Kafka topic, names its parent in
-`instanceRef` or `clusterRef`, as `{ name, namespace }`. Without `namespace`, the parent is in the
-same namespace.
+A kind that exists inside another, such as a database user or a Kafka topic, names its parent in a
+reference, `instanceRef`, `clusterRef` or `brokerRef`, as `{ name, namespace }`. Without
+`namespace`, the parent is in the same namespace.
 
 A reference may point to another namespace only within the same Zone, meaning both namespaces carry
 the same `tenancy.entigo.com/zone` label. Creating a user gives power over the parent, so it stays

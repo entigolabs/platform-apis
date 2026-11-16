@@ -186,6 +186,10 @@ spec:
                 (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
               message: observe is immutable
             - rule: |-
+                !(has(self.observe) && self.observe)
+                || (!has(self.versioning) && !has(self.deletionProtection) && !has(self.lifecycleRules) && !has(self.retention) && !has(self.cors) && !has(self.softDeleteDays))
+              message: an observed resource takes no other field than its cloud block's id
+            - rule: |-
                 !has(oldSelf.retention)
                 || !has(oldSelf.retention.locked)
                 || !oldSelf.retention.locked
