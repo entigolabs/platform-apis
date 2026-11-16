@@ -377,7 +377,7 @@ The design relies on these facts, which need no decision.
 
 - Azure: Azure Managed Redis runs Redis 7.4 on Redis Enterprise, with no version choice, no backups
   and a 25 GB limit without clustering.
-- GCP: Memorystore for Valkey has password auth (`TOKEN_AUTH`), but [provider-upjet-gcp
+- GCP: Memorystore for Valkey has password authentication (`TOKEN_AUTH`), but [provider-upjet-gcp
   v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0) offers only
-  IAM auth, whose hour-long tokens no connection secret can hold. Its TLS also needs the instance's
-  CA in the client, which the connection secret would carry.
+  IAM authentication, whose hour-long tokens no connection secret can hold. Its TLS also needs the
+  instance's CA in the client, which the connection secret would carry.

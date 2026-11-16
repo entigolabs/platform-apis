@@ -243,9 +243,9 @@ them is rejected by the cloud and shown as `CloudAccepted: False`. They are list
 should validating them be decided later. Each limit holds as of its source: the provider release
 named, or the cloud's documentation as read in November 2026.
 
-| Field                    | Cloud | Limit                | Source                                         |
-| ------------------------ | ----- | -------------------- | ---------------------------------------------- |
-| `highAvailability: true` | AWS   | not on `mq.t3.micro` | Amazon MQ docs, RabbitMQ broker instance types |
+| Field                    | Cloud | Limit                | Source                                                  |
+| ------------------------ | ----- | -------------------- | ------------------------------------------------------- |
+| `highAvailability: true` | AWS   | not on `mq.t3.micro` | Amazon MQ documentation, RabbitMQ broker instance types |
 
 *Limits AWS enforces on RabbitMQ.*
 

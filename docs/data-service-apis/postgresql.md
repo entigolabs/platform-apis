@@ -662,7 +662,7 @@ named, or the cloud's documentation as read in November 2026.
 | ----------------------------------------- | ----- | ---------------------------------------- | -------------------------------------------------------------------------------- |
 | `backup.retentionDays`                    | AWS   | 0 to 35                                  | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0           |
 | `backup.retentionDays`                    | Azure | 7 to 35                                  | `backupRetentionDays`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0         |
-| `backup.retentionDays`, `pointInTimeDays` | OCI   | up to 35                                 | OCI Database with PostgreSQL docs, backups and point-in-time recovery            |
+| `backup.retentionDays`, `pointInTimeDays` | OCI   | up to 35                                 | OCI Database with PostgreSQL documentation, backups and point-in-time recovery   |
 | `backup.pointInTimeDays`                  | GCP   | 1 to 7; 1 to 35 on `ENTERPRISE_PLUS`     | `transactionLogRetentionDays`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0 |
 | `storage.sizeGB`                          | GCP   | at least 10; 20 on `HYPERDISK_BALANCED`  | `settings.diskSize`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
 | `storage.iops`, `throughputMBps`          | AWS   | only from 400 GiB of disk                | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0       |
