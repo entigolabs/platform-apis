@@ -17,54 +17,51 @@ not listed keeps its name and meaning.
 
 ## All Kinds
 
-Changes shared by all kinds, stated once here.
+Changes shared by all kinds, stated once here:
 
-- Every kind moves from `v1alpha1` to `v1alpha2`.
-- Defaults are written into the object once, at creation, by a `MutatingAdmissionPolicy`, and never
-  change a running resource afterwards (rule 5).
-- A kind that represents a cloud resource gains `observe` and a block for each cloud it exists on,
-  among `aws`, `gcp`, `oci` and `azure`, each with an `id` for observing (rules 2 and 9).
-  Cloud-specific settings move into these blocks.
-- Every kind with a connection secret gains `secretName` to override the secret's name (rule 6).
-- A reference gains `namespace`, valid within the same Zone (rule 11).
-- A cloud rejection or an operation the cloud cannot perform shows on the object as the condition
-  `CloudAccepted: False` and a warning event (rule 10).
-- AWS-only status fields, such as security groups, KMS keys and hosted zone IDs, are removed; what
-  remains cloud-specific moves into `status.<cloud>` (rule 4).
+| Today                                                                              | Design                                                   | Reason                                                                                     |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `v1alpha1`                                                                         | `v1alpha2`                                               | Fields move, so the version changes                                                        |
+| XRD schema defaults, and deployment values the function applies on every reconcile | defaults written into the object once, at creation       | A changed default never changes a running resource (rule 5)                                |
+| (none)                                                                             | `observe`, and a block per cloud with an `id`            | Observing an existing resource, and each cloud's settings in its own block (rules 2 and 9) |
+| (none)                                                                             | `secretName`                                             | Overrides the secret's name (rule 6)                                                       |
+| a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | References cross namespaces within the Zone (rule 11)                                      |
+| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The user sees why the cloud refused (rule 10)                                              |
+| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.<cloud>`                    | The status reports what the cloud runs (rule 4)                                            |
+
+*Changes shared by all kinds.*
 
 ## PostgreSQL
 
+### PostgreSQLInstance
+
 `PostgreSQLInstance` changes as follows:
 
-| Today                                                                | Design                                                                        | Reason                                                         |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `engineVersion`                                                      | `version`                                                                     | The major version; a full version only with minor upgrades off |
-| `instanceType`                                                       | `aws.instanceType`                                                            | A cloud's own size name belongs in its block (rule 2)          |
-| `allocatedStorage`                                                   | `storage.sizeGB`                                                              | The size at creation and a floor afterwards                    |
-| `iops`                                                               | `storage.iops`                                                                | Grouped with the other storage settings                        |
-| (none)                                                               | `storage.autoGrow`, `storage.maxSizeGB`, `storage.throughputMBps`             | New common settings                                            |
-| `multiAZ`                                                            | `highAvailability`                                                            | Named after the need, not the AWS feature                      |
-| `maintenanceWindow` (RDS string)                                     | `maintenance.window` (`day`, `hourUTC`)                                       | One form for every cloud                                       |
-| `autoMinorVersionUpgrade`, `allowMajorVersionUpgrade`                | `maintenance.autoMinorVersionUpgrade`, `maintenance.allowMajorVersionUpgrade` | Grouped under maintenance                                      |
-| `backupRetentionPeriod`                                              | `backup.retentionDays`                                                        | Grouped under backup                                           |
-| `backupWindow` (RDS string)                                          | `backup.startHourUTC`                                                         | One form for every cloud                                       |
-| (none)                                                               | `backup.pointInTimeDays`                                                      | New common setting                                             |
-| `parameterGroupName`                                                 | `aws.parameterGroupName`                                                      | An RDS concept (rule 2)                                        |
-| `parameterGroupParameters` (a map with a reserved `applyMethod` key) | `parameters` and `parameterApplyMethod`                                       | The apply method becomes its own field                         |
-| `snapshotIdentifier`                                                 | `aws.fromBackup`                                                              | A backup ID is a cloud value (rule 2)                          |
-| (none)                                                               | `restore.fromInstance`, `restore.pointInTime`                                 | Restore from another instance                                  |
-| (none)                                                               | `gcp`, `oci` and `azure` settings                                             | Sizes and settings of those clouds                             |
+| Today                                                                                                                   | Design                                                                        | Reason                                                         |
+| ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `engineVersion`                                                                                                         | `version`                                                                     | The major version; a full version only with minor upgrades off |
+| `instanceType`                                                                                                          | `aws.instanceType`                                                            | A cloud's own size name belongs in its block (rule 2)          |
+| `allocatedStorage`                                                                                                      | `storage.sizeGB`                                                              | The size at creation and a floor afterwards                    |
+| `iops`                                                                                                                  | `storage.iops`                                                                | Grouped with the other storage settings                        |
+| (none)                                                                                                                  | `storage.autoGrow`, `storage.maxSizeGB`, `storage.throughputMBps`             | New common settings                                            |
+| `multiAZ`                                                                                                               | `highAvailability`                                                            | Named after the need, not the AWS feature                      |
+| `maintenanceWindow` (RDS string)                                                                                        | `maintenance.window` (`day`, `hourUTC`)                                       | One form for every cloud                                       |
+| `autoMinorVersionUpgrade`, `allowMajorVersionUpgrade`                                                                   | `maintenance.autoMinorVersionUpgrade`, `maintenance.allowMajorVersionUpgrade` | Grouped under maintenance                                      |
+| `backupRetentionPeriod`                                                                                                 | `backup.retentionDays`                                                        | Grouped under backup                                           |
+| `backupWindow` (RDS string)                                                                                             | `backup.startHourUTC`                                                         | One form for every cloud                                       |
+| (none)                                                                                                                  | `backup.pointInTimeDays`                                                      | New common setting                                             |
+| `parameterGroupName`                                                                                                    | `aws.parameterGroupName`                                                      | An RDS concept (rule 2)                                        |
+| `parameterGroupParameters` (a map with a reserved `applyMethod` key)                                                    | `parameters` and `parameterApplyMethod`                                       | The apply method becomes its own field                         |
+| `snapshotIdentifier`                                                                                                    | `aws.fromBackup`                                                              | A backup ID is a cloud value (rule 2)                          |
+| (none)                                                                                                                  | `restore.fromInstance`, `restore.pointInTime`                                 | Restore from another instance                                  |
+| (none)                                                                                                                  | `gcp`, `oci` and `azure` settings                                             | Sizes and settings of those clouds                             |
+| `status.endpoint.address`                                                                                               | `status.endpoint.host`                                                        | The same word on every cloud                                   |
+| `status.dbInstanceIdentifier`, `status.resourceId`, `status.status`, `status.latestRestorableTime`                      | `status.aws`                                                                  | AWS values (rule 4)                                            |
+| `status.finalSnapshotIdentifier`                                                                                        | `status.aws.finalBackup`                                                      | An AWS value (rule 4)                                          |
+| `status.hostedZoneId`, `status.vpcSecurityGroupIds`, `status.kmsKeyId`, `status.storageEncrypted`, `status.storageType` | removed                                                                       | Settings the platform makes (rule 4)                           |
+| `status.parameterGroupName`, `status.snapshotIdentifier`                                                                | removed                                                                       | Echoes of the spec                                             |
 
-*Changes to PostgreSQL.*
-
-In the status, `endpoint.address` becomes `endpoint.host`; `dbInstanceIdentifier`, `resourceId`,
-`status`, `latestRestorableTime` and `finalSnapshotIdentifier` move into `status.aws`, the last as
-`finalBackup`; `hostedZoneId`, `vpcSecurityGroupIds`, `kmsKeyId`, `storageEncrypted`,
-`storageType` and the echoed `parameterGroupName` and `snapshotIdentifier` are removed. The common
-fields are reported as the cloud runs them.
-
-`PostgreSQLUser` and `PostgreSQLDatabase` keep their fields; `name` and `instanceRef` become
-immutable.
+*Changes to `PostgreSQLInstance`.*
 
 An example, today and in the design:
 
@@ -116,10 +113,22 @@ spec:
 
 *A `PostgreSQLInstance`, today and in the design.*
 
+### PostgreSQLUser
+
+`PostgreSQLUser` keeps its fields; `name` and `instanceRef` become immutable.
+
+### PostgreSQLDatabase
+
+`PostgreSQLDatabase` keeps its fields; `name` and `instanceRef` become immutable.
+
 ## MariaDB
 
-`MariaDBInstance` changes as `PostgreSQLInstance` does, on AWS only, without
+### MariaDBInstance
+
+`MariaDBInstance` changes as [`PostgreSQLInstance`](#postgresqlinstance) does, on AWS only, without
 `backup.pointInTimeDays`.
+
+### MariaDBUser
 
 `MariaDBUser` changes as follows:
 
@@ -130,9 +139,7 @@ spec:
 | user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit | Today's defaults are too low for a production application                                                                                 |
 | `grant.users`                                                                                 | removed                    | The names never reached MariaDB: each one only created another copy of the user's own grant, and privileges applied only when one was set |
 
-*Changes to MariaDB.*
-
-`MariaDBDatabase` keeps its fields.
+*Changes to `MariaDBUser`.*
 
 An example, today and in the design:
 
@@ -171,32 +178,37 @@ spec:
 
 *A `MariaDBUser`, today and in the design.*
 
+### MariaDBDatabase
+
+`MariaDBDatabase` keeps its fields.
+
 ## Valkey
+
+### ValkeyInstance
 
 `ValkeyInstance` changes as follows:
 
-| Today                      | Design                                 | Reason                                                |
-| -------------------------- | -------------------------------------- | ----------------------------------------------------- |
-| `engineVersion`            | `version`                              | Major and minor, a floor that only rises              |
-| `instanceType`             | `aws.instanceType`, `gcp.instanceType` | A cloud's own node type belongs in its block (rule 2) |
-| `numCacheClusters`         | `replicas`                             | Counts replicas only: `numCacheClusters` minus one    |
-| (none)                     | `highAvailability`                     | New common setting; needs at least one replica        |
-| `maintenanceWindow`        | `maintenance.window`                   | One form for every cloud                              |
-| `autoMinorVersionUpgrade`  | `maintenance.autoMinorVersionUpgrade`  | Grouped under maintenance                             |
-| `snapshotRetentionLimit`   | `backup.retentionDays`                 | Grouped under backup                                  |
-| `snapshotWindow`           | `backup.startHourUTC`                  | One form for every cloud                              |
-| `parameterGroupName`       | `aws.parameterGroupName`               | An ElastiCache concept (rule 2)                       |
-| `parameterGroupParameters` | `parameters`                           | One map for every cloud                               |
-| (none)                     | `aws.fromBackup`                       | Create a cache from a snapshot, such as the final one |
+| Today                                                           | Design                                                       | Reason                                                |
+| --------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
+| `engineVersion`                                                 | `version`                                                    | Major and minor, a floor that only rises              |
+| `instanceType`                                                  | `aws.instanceType`, `gcp.instanceType`                       | A cloud's own node type belongs in its block (rule 2) |
+| `numCacheClusters`                                              | `replicas`                                                   | Counts replicas only: `numCacheClusters` minus one    |
+| (none)                                                          | `highAvailability`                                           | New common setting; needs at least one replica        |
+| `maintenanceWindow`                                             | `maintenance.window`                                         | One form for every cloud                              |
+| `autoMinorVersionUpgrade`                                       | `maintenance.autoMinorVersionUpgrade`                        | Grouped under maintenance                             |
+| `snapshotRetentionLimit`                                        | `backup.retentionDays`                                       | Grouped under backup                                  |
+| `snapshotWindow`                                                | `backup.startHourUTC`                                        | One form for every cloud                              |
+| `parameterGroupName`                                            | `aws.parameterGroupName`                                     | An ElastiCache concept (rule 2)                       |
+| `parameterGroupParameters`                                      | `parameters`                                                 | One map for every cloud                               |
+| (none)                                                          | `aws.fromBackup`                                             | Create a cache from a snapshot, such as the final one |
+| `status.endpoint.address`                                       | `status.endpoint.host`                                       | The same word on every cloud                          |
+| `status.multiAZenabled`                                         | `status.highAvailability`                                    | Named after the need                                  |
+| (none)                                                          | `status.readerEndpoint`, `status.replicas`                   | Where reads go, and how many replicas run             |
+| `status.kmsKeyAlias`, `status.kmsKeyId`, `status.securityGroup` | removed                                                      | Settings the platform makes (rule 4)                  |
+| `status.parameterGroupName`                                     | removed                                                      | An echo of the spec                                   |
+| secret keys `AUTH_TOKEN`, `PORT`, `credentials.json`            | `endpoint`, `port`, `username`, `password`, `readerEndpoint` | The keys of rule 6                                    |
 
-*Changes to Valkey.*
-
-In the status, `endpoint.address` becomes `endpoint.host`, `multiAZenabled` becomes
-`highAvailability`, and `readerEndpoint` and `replicas` are added; `kmsKeyAlias`, `kmsKeyId`,
-`securityGroup` and `parameterGroupName` are removed.
-
-The secret's `AUTH_TOKEN`, `PORT` and `credentials.json` keys become `endpoint`, `port`,
-`username`, `password` and `readerEndpoint` (rule 6).
+*Changes to `ValkeyInstance`.*
 
 An example, today and in the design:
 
@@ -240,8 +252,10 @@ spec:
 
 ## Kafka
 
+### KafkaCluster
+
 Today's cluster-scoped `MSK` only observes an existing cluster; the namespaced `KafkaCluster`
-creates one or observes one.
+creates one or observes one:
 
 | Today                                    | Design                                                                                                      | Reason                                                            |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -251,21 +265,9 @@ creates one or observes one.
 | `status.brokers`, `status.brokersscram`  | `status.bootstrapServers`                                                                                   | One listener field for every cloud                                |
 | `status.arn`                             | `status.aws.arn`                                                                                            | A cloud ID (rule 4)                                               |
 | `status.providerConfig`, `status.region` | removed                                                                                                     | Internal to the platform                                          |
+| topics without an ACL open to every user | topics without an ACL closed                                                                                | Access is granted per user (rule 12)                              |
 
 *Changes from `MSK` to `KafkaCluster`.*
-
-| Today                                        | Design                  | Reason                                          |
-| -------------------------------------------- | ----------------------- | ----------------------------------------------- |
-| kind `Topic`                                 | kind `KafkaTopic`       | Named after the engine (rule 8)                 |
-| `Topic.clusterName`, `KafkaUser.clusterName` | `clusterRef`            | A reference with a namespace (rule 11)          |
-| `Topic.config`                               | `KafkaTopic.parameters` | The same word as on every other kind            |
-| (none)                                       | `KafkaTopic.name`       | A Kafka name that a Kubernetes name cannot hold |
-
-*Changes to Kafka topics and users.*
-
-The user secret `<cluster>-<user>-k8s`, with one JSON value, becomes `<cluster>-<user>` with the
-keys `endpoint`, `username`, `password` and `saslMechanism`. Clusters deny access to topics
-without ACLs, where today they allow everyone.
 
 An example, today and in the design:
 
@@ -277,6 +279,39 @@ metadata:
   name: events
 spec:
   clusterARN: arn:aws:kafka:...
+```
+
+```yaml
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaCluster                     # was MSK
+metadata:
+  name: events
+  namespace: platform                  # new: namespaced
+spec:
+  observe: true                        # new
+  aws:
+    id: arn:aws:kafka:...              # was clusterARN
+```
+
+*`MSK` today, `KafkaCluster` in the design.*
+
+### KafkaTopic
+
+`Topic` becomes `KafkaTopic`:
+
+| Today         | Design            | Reason                                          |
+| ------------- | ----------------- | ----------------------------------------------- |
+| kind `Topic`  | kind `KafkaTopic` | Named after the engine (rule 8)                 |
+| `clusterName` | `clusterRef`      | A reference with a namespace (rule 11)          |
+| `config`      | `parameters`      | The same word as on every other kind            |
+| (none)        | `name`            | A Kafka name that a Kubernetes name cannot hold |
+
+*Changes from `Topic` to `KafkaTopic`.*
+
+An example, today and in the design:
+
+```yaml
 ---
 apiVersion: queue.entigo.com/v1alpha1
 kind: Topic
@@ -293,16 +328,6 @@ spec:
 ```yaml
 ---
 apiVersion: queue.entigo.com/v1alpha2
-kind: KafkaCluster                     # was MSK
-metadata:
-  name: events
-  namespace: platform                  # new: namespaced
-spec:
-  observe: true                        # new
-  aws:
-    id: arn:aws:kafka:...              # was clusterARN
----
-apiVersion: queue.entigo.com/v1alpha2
 kind: KafkaTopic                       # was Topic
 metadata:
   name: orders
@@ -316,30 +341,40 @@ spec:
     retention.ms: "604800000"
 ```
 
-*`MSK` and `Topic` today, `KafkaCluster` and `KafkaTopic` in the design.*
+*`Topic` today, `KafkaTopic` in the design.*
+
+### KafkaUser
+
+`KafkaUser` changes as follows:
+
+| Today                                         | Design                                                                         | Reason                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
+| `clusterName`                                 | `clusterRef`                                                                   | A reference with a namespace (rule 11) |
+| secret `<cluster>-<user>-k8s`, one JSON value | secret `<cluster>-<user>`: `endpoint`, `username`, `password`, `saslMechanism` | The keys of rule 6                     |
+
+*Changes to `KafkaUser`.*
 
 ## RabbitMQ
 
-`RabbitMQUser` and `RabbitMQVirtualHost` are new, and `RabbitMQBroker` changes as follows:
+### RabbitMQBroker
 
-| Today                                                 | Design                   | Reason                                                                                       |
-| ----------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------- |
-| `engineVersion`                                       | `version`                | The release line; Amazon MQ manages the patch                                                |
-| `instanceType`                                        | `aws.instanceType`       | A cloud's own size name (rule 2)                                                             |
-| `deploymentMode`                                      | `highAvailability`       | Named after the need                                                                         |
-| `maintenanceWindowStartTime`                          | `maintenance.window`     | One form for every cloud                                                                     |
-| `configuration.data`                                  | `parameters`             | A map the platform renders into `rabbitmq.conf`                                              |
-| `configuration.description`                           | removed                  | Internal to the platform                                                                     |
-| `publiclyAccessible`                                  | `aws.publiclyAccessible` | An Amazon MQ setting (rule 2)                                                                |
-| `brokerName`, `engineType`, `autoMinorVersionUpgrade` | removed                  | The platform names the broker, the engine is RabbitMQ, and Amazon MQ requires minor upgrades |
-| (none)                                                | `deletionProtection`     | The same guard as on every other kind                                                        |
+`RabbitMQBroker` changes as follows:
 
-*Changes to RabbitMQ.*
+| Today                                                                             | Design                                                                                                                                   | Reason                                                                                       |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `engineVersion`                                                                   | `version`                                                                                                                                | The release line; Amazon MQ manages the patch                                                |
+| `instanceType`                                                                    | `aws.instanceType`                                                                                                                       | A cloud's own size name (rule 2)                                                             |
+| `deploymentMode`                                                                  | `highAvailability`                                                                                                                       | Named after the need                                                                         |
+| `maintenanceWindowStartTime`                                                      | `maintenance.window`                                                                                                                     | One form for every cloud                                                                     |
+| `configuration.data`                                                              | `parameters`                                                                                                                             | A map the platform renders into `rabbitmq.conf`                                              |
+| `configuration.description`                                                       | removed                                                                                                                                  | Internal to the platform                                                                     |
+| `publiclyAccessible`                                                              | `aws.publiclyAccessible`                                                                                                                 | An Amazon MQ setting (rule 2)                                                                |
+| `brokerName`, `engineType`, `autoMinorVersionUpgrade`                             | removed                                                                                                                                  | The platform names the broker, the engine is RabbitMQ, and Amazon MQ requires minor upgrades |
+| (none)                                                                            | `deletionProtection`                                                                                                                     | The same guard as on every other kind                                                        |
+| today's Amazon MQ status fields                                                   | `status.endpoint`, `status.managementEndpoint`, `status.highAvailability`, `status.version`; `status.aws.id`, `status.aws.engineVersion` | One form for every cloud (rule 4)                                                            |
+| secrets `<broker>-credentials` (`username`, `password`) and `<broker>-connection` | one secret `<broker>-credentials`: `endpoint`, `port`, `username`, `password`, `managementEndpoint`                                      | The keys of rule 6                                                                           |
 
-In the status, today's Amazon MQ fields are replaced by `endpoint`, `managementEndpoint`,
-`highAvailability` and `version`, with `status.aws.id` and `status.aws.engineVersion`. The two
-secrets `<broker>-credentials` (`username`, `password`) and `<broker>-connection` become one,
-`<broker>-credentials`, with `endpoint`, `port`, `username`, `password` and `managementEndpoint`.
+*Changes to `RabbitMQBroker`.*
 
 An example, today and in the design:
 
@@ -388,23 +423,36 @@ spec:
 
 *A `RabbitMQBroker`, today and in the design.*
 
+### RabbitMQUser
+
+`RabbitMQUser` is new.
+
+### RabbitMQVirtualHost
+
+`RabbitMQVirtualHost` is new.
+
 ## Bucket
 
-| Today                                        | Design                                                                        | Reason                                                                                                                        |
-| -------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| kind `S3Bucket`                              | kind `Bucket`                                                                 | Named after the concept (rule 8)                                                                                              |
-| `enableVersioning`                           | `versioning`                                                                  | The same word on every cloud                                                                                                  |
-| `createServiceAccount`, `serviceAccountName` | removed                                                                       | An application's identity is not part of the bucket ([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)) |
-| (none)                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `softDeleteDays` | New settings                                                                                                                  |
+### Bucket
+
+`S3Bucket` becomes `Bucket`:
+
+| Today                                                        | Design                                                                        | Reason                                                                                                                        |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| kind `S3Bucket`                                              | kind `Bucket`                                                                 | Named after the concept (rule 8)                                                                                              |
+| `enableVersioning`                                           | `versioning`                                                                  | The same word on every cloud                                                                                                  |
+| `createServiceAccount`, `serviceAccountName`                 | removed                                                                       | An application's identity is not part of the bucket ([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)) |
+| (none)                                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `softDeleteDays` | New settings                                                                                                                  |
+| an IAM role, service account and IAM user with an access key | not created                                                                   | A bucket holds no credentials                                                                                                 |
+| a secret with `AWS_*` and `credentials.json` keys            | removed                                                                       | A bucket holds no credentials                                                                                                 |
+| `status.s3Url`, `status.s3Uri`                               | `status.url`, with `status.bucketName` and `status.region`                    | The same words on every cloud                                                                                                 |
+| encryption, public access and ACL status fields              | removed                                                                       | Settings the platform makes (rule 4)                                                                                          |
 
 *Changes from `S3Bucket` to `Bucket`.*
 
-The IAM role, service account and IAM user with an access key that `S3Bucket` creates are no longer
-created, and the secret with its `AWS_*` and `credentials.json` keys is removed: a bucket holds no
-credentials. In the status, `s3Url` and `s3Uri` become `url`, with `bucketName` and `region`; the
-encryption, public access and ACL fields are removed. Until application identity is available
-([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)), applications that read
-those keys keep `S3Bucket`, which stays served next to `Bucket`.
+Until application identity is available ([Follow-Up Work
+3](follow-up-work.md#3-cloud-identity-for-applications)), applications that read the secret keep
+`S3Bucket`, which stays served next to `Bucket`.
 
 An example, today and in the design:
 
@@ -436,17 +484,19 @@ spec:
 
 ## ArtifactRepository
 
-| Today                  | Design                                                  | Reason                                                                 |
-| ---------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
-| kind `Repository`      | kind `ArtifactRepository`                               | Holds any OCI artifact, and named after the concept (rule 8)           |
-| `path`, free-form      | `path` under the namespace: `<namespace>/<path>/<name>` | Namespaces keep paths apart in a cluster; image paths change           |
-| (none)                 | `immutableTags`                                         | Today a deployment-wide setting; ECR's two exclusion modes are dropped |
-| `status.repositoryUri` | `status.uri`                                            | The same word on every cloud                                           |
+### ArtifactRepository
+
+`Repository` becomes `ArtifactRepository`:
+
+| Today                           | Design                                                  | Reason                                                                 |
+| ------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| kind `Repository`               | kind `ArtifactRepository`                               | Holds any OCI artifact, and named after the concept (rule 8)           |
+| `path`, free-form               | `path` under the namespace: `<namespace>/<path>/<name>` | Namespaces keep paths apart in a cluster; image paths change           |
+| (none)                          | `immutableTags`                                         | Today a deployment-wide setting; ECR's two exclusion modes are dropped |
+| `status.repositoryUri`          | `status.uri`                                            | The same word on every cloud                                           |
+| deployment-wide lifecycle rules | `lifecycleRules`, defaulting per deployment             | Rules per repository, with the same fields                             |
 
 *Changes from `Repository` to `ArtifactRepository`.*
-
-`lifecycleRules` keeps its fields and now defaults per deployment, replacing today's
-deployment-wide rules.
 
 An example, today and in the design:
 

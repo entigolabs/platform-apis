@@ -77,7 +77,7 @@ nav:
     - <<: *schemas
       files:
       - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
-- {file: changes.md, label: API Changes, compare: true, tabs: sections}
+- {file: changes.md, label: API Changes, compare: true, tabs: sections, subsectionTabs: true}
 - {file: follow-up-work.md, label: Follow-Up Work, divider: true, foldItems: true}
 - {file: deferred-capabilities.md, label: Deferred Capabilities}
 - {file: open-points.md, label: Open Points, checklist: true}
