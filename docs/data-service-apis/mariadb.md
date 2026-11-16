@@ -234,10 +234,9 @@ v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2
 
 ## Composed Resources
 
-The platform composes the resources below from the `MariaDBInstance` in [Kinds](#kinds), on each
-cloud in turn. A comment names the source of each value the object does not hold as written:
-`platform` for a value the platform sets, and `deployment` for one the deployment sets. The
-resources per cloud:
+A comment names the source of each value the object does not hold as written: `platform` for a value
+the platform sets, and `deployment` for one the deployment sets. The `MariaDBInstance` from
+[Kinds](#kinds) is composed into the resource below on AWS, the only cloud that offers it:
 
 ```yaml Object
 ---
@@ -273,7 +272,7 @@ spec:
     instanceType: db.t4g.small
 ```
 
-```yaml AWS resources
+```yaml AWS resource
 ---
 apiVersion: rds.aws.m.upbound.io/v1beta1
 kind: Instance
@@ -312,7 +311,7 @@ spec:
     kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
-*A `MariaDBInstance` on AWS and its composed resources.*
+*A `MariaDBInstance` on AWS and its composed resource.*
 
 ## Platform Decisions
 

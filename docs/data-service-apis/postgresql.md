@@ -302,10 +302,10 @@ v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/
 
 ## Composed Resources
 
-The platform composes the resources below from the `PostgreSQLInstance` in [Kinds](#kinds), on each
-cloud in turn. A comment names the source of each value the object does not hold as written:
-`platform` for a value the platform sets, and `deployment` for one the deployment sets. The
-resources per cloud:
+The same `PostgreSQLInstance`, from [Kinds](#kinds), is composed into different resources on each
+cloud: the platform uses the block of the cloud it runs on and ignores the others. A comment names
+the source of each value the object does not hold as written: `platform` for a value the platform
+sets, and `deployment` for one the deployment sets. The resources per cloud:
 
 ```yaml Object
 ---
@@ -340,9 +340,20 @@ spec:
   secretName: orders-db-admin
   aws:
     instanceType: db.t4g.small
+  gcp:
+    instanceType: db-custom-2-7680
+    edition: ENTERPRISE
+    diskType: PD_SSD
+  oci:
+    instanceType: PostgreSQL.VM.Standard.E5.Flex
+    ocpus: 2
+    memoryGB: 32
+  azure:
+    instanceType: GP_Standard_D2ds_v5
+    storageTier: P10
 ```
 
-```yaml AWS resources
+```yaml AWS resource
 ---
 apiVersion: rds.aws.m.upbound.io/v1beta1
 kind: Instance
@@ -381,7 +392,7 @@ spec:
     kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
-*A `PostgreSQLInstance` on AWS and its composed resources.*
+*A `PostgreSQLInstance` on AWS and its composed resource.*
 
 ```yaml Object
 ---
@@ -414,13 +425,22 @@ spec:
     max_connections: "200"
   parameterApplyMethod: Immediate
   secretName: orders-db-admin
+  aws:
+    instanceType: db.t4g.small
   gcp:
     instanceType: db-custom-2-7680
     edition: ENTERPRISE
     diskType: PD_SSD
+  oci:
+    instanceType: PostgreSQL.VM.Standard.E5.Flex
+    ocpus: 2
+    memoryGB: 32
+  azure:
+    instanceType: GP_Standard_D2ds_v5
+    storageTier: P10
 ```
 
-```yaml GCP resources
+```yaml GCP resource
 ---
 apiVersion: sql.gcp.m.upbound.io/v1beta1
 kind: DatabaseInstance
@@ -459,7 +479,7 @@ spec:
         privateNetwork: projects/p/global/networks/deployment
 ```
 
-*A `PostgreSQLInstance` on GCP and its composed resources.*
+*A `PostgreSQLInstance` on GCP and its composed resource.*
 
 ```yaml Object
 ---
@@ -492,13 +512,22 @@ spec:
     max_connections: "200"
   parameterApplyMethod: Immediate
   secretName: orders-db-admin
+  aws:
+    instanceType: db.t4g.small
+  gcp:
+    instanceType: db-custom-2-7680
+    edition: ENTERPRISE
+    diskType: PD_SSD
   oci:
     instanceType: PostgreSQL.VM.Standard.E5.Flex
     ocpus: 2
     memoryGB: 32
+  azure:
+    instanceType: GP_Standard_D2ds_v5
+    storageTier: P10
 ```
 
-```yaml OCI resources
+```yaml OCI resource
 ---
 apiVersion: psql.oci.m.upbound.io/v1alpha1
 kind: PsqlDbSystem
@@ -536,7 +565,7 @@ spec:
     - username: dbadmin
 ```
 
-*A `PostgreSQLInstance` on OCI and its composed resources.*
+*A `PostgreSQLInstance` on OCI and its composed resource.*
 
 ```yaml Object
 ---
@@ -569,12 +598,22 @@ spec:
     max_connections: "200"
   parameterApplyMethod: Immediate
   secretName: orders-db-admin
+  aws:
+    instanceType: db.t4g.small
+  gcp:
+    instanceType: db-custom-2-7680
+    edition: ENTERPRISE
+    diskType: PD_SSD
+  oci:
+    instanceType: PostgreSQL.VM.Standard.E5.Flex
+    ocpus: 2
+    memoryGB: 32
   azure:
     instanceType: GP_Standard_D2ds_v5
     storageTier: P10
 ```
 
-```yaml Azure resources
+```yaml Azure resource
 ---
 apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
 kind: FlexibleServer
@@ -603,7 +642,7 @@ spec:
       key: password
 ```
 
-*A `PostgreSQLInstance` on Azure and its composed resources.*
+*A `PostgreSQLInstance` on Azure and its composed resource.*
 
 ## Platform Decisions
 

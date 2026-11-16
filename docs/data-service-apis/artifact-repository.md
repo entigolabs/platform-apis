@@ -127,11 +127,12 @@ so applications share a platform registry and only path-scoped access is per app
 
 ## Composed Resources
 
-The platform composes the resources below from the `ArtifactRepository` in [Kinds](#kinds), on each
-cloud in turn. A comment names the source of each value the object does not hold as written:
-`platform` for a value the platform sets, and `deployment` for one the deployment sets. Azure has no
-pair: a repository there is a path in the platform's registry, created by the first push, with no
-resource of its own. The resources per cloud:
+The same `ArtifactRepository`, from [Kinds](#kinds), is composed into different resources on each
+cloud: the platform uses the block of the cloud it runs on and ignores the others. A comment names
+the source of each value the object does not hold as written: `platform` for a value the platform
+sets, and `deployment` for one the deployment sets. Azure has no pair: a repository there is a path
+in the platform's registry, created by the first push, with no resource of its own. The resources
+per cloud:
 
 ```yaml Object
 ---
@@ -226,7 +227,7 @@ spec:
     expireAfterDays: 7
 ```
 
-```yaml GCP resources
+```yaml GCP resource
 ---
 apiVersion: artifact.gcp.m.upbound.io/v1beta1
 kind: RegistryRepository
@@ -250,7 +251,7 @@ spec:
         olderThan: 604800s     # 7 days
 ```
 
-*An `ArtifactRepository` on GCP and its composed resources.*
+*An `ArtifactRepository` on GCP and its composed resource.*
 
 ```yaml Object
 ---
@@ -275,7 +276,7 @@ spec:
     expireAfterDays: 7
 ```
 
-```yaml OCI resources
+```yaml OCI resource
 ---
 apiVersion: artifacts.oci.m.upbound.io/v1alpha1
 kind: ContainerRepository
@@ -290,7 +291,7 @@ spec:
     isPublic: false            # platform
 ```
 
-*An `ArtifactRepository` on OCI and its composed resources.*
+*An `ArtifactRepository` on OCI and its composed resource.*
 
 ## Platform Decisions
 

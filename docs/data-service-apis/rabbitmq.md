@@ -151,10 +151,9 @@ The table names, for every field, the field of each cloud's provider it maps to.
 
 ## Composed Resources
 
-The platform composes the resources below from the `RabbitMQBroker` in [Kinds](#kinds), on each
-cloud in turn. A comment names the source of each value the object does not hold as written:
-`platform` for a value the platform sets, and `deployment` for one the deployment sets. The
-resources per cloud:
+A comment names the source of each value the object does not hold as written: `platform` for a value
+the platform sets, and `deployment` for one the deployment sets. The `RabbitMQBroker` from
+[Kinds](#kinds) is composed into the resource below on AWS, the only cloud that offers it:
 
 ```yaml Object
 ---
@@ -179,7 +178,7 @@ spec:
     publiclyAccessible: false
 ```
 
-```yaml AWS resources
+```yaml AWS resource
 ---
 apiVersion: mq.aws.m.upbound.io/v1beta1
 kind: Broker
@@ -217,7 +216,7 @@ spec:
         key: password
 ```
 
-*A `RabbitMQBroker` on AWS and its composed resources.*
+*A `RabbitMQBroker` on AWS and its composed resource.*
 
 ## Platform Decisions
 

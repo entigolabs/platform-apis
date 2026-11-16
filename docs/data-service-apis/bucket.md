@@ -134,9 +134,10 @@ false` is refused on a bucket that ever had `retention`.
 
 ## Composed Resources
 
-The platform composes the resources below from the `Bucket` in [Kinds](#kinds), on each cloud in
-turn. A comment names the source of each value the object does not hold as written: `platform` for a
-value the platform sets, and `deployment` for one the deployment sets. The resources per cloud:
+The same `Bucket`, from [Kinds](#kinds), is composed into different resources on each cloud: the
+platform uses the block of the cloud it runs on and ignores the others. A comment names the source
+of each value the object does not hold as written: `platform` for a value the platform sets, and
+`deployment` for one the deployment sets. The resources per cloud:
 
 ```yaml Object
 ---
@@ -283,7 +284,7 @@ spec:
   softDeleteDays: 7
 ```
 
-```yaml GCP resources
+```yaml GCP resource
 ---
 apiVersion: storage.gcp.m.upbound.io/v1beta1
 kind: Bucket
@@ -333,7 +334,7 @@ spec:
       retentionDurationSeconds: 604800  # 7 days
 ```
 
-*A `Bucket` on GCP and its composed resources.*
+*A `Bucket` on GCP and its composed resource.*
 
 ```yaml Object
 ---

@@ -195,10 +195,11 @@ The cloud-specific fields:
 
 ## Composed Resources
 
-The platform composes the resources below from the `KafkaCluster` in [Kinds](#kinds), on each cloud
-in turn. A comment names the source of each value the object does not hold as written: `platform`
-for a value the platform sets, and `deployment` for one the deployment sets. GCP has no pair: its
-provider has no Managed Kafka resource. The resources per cloud:
+The same `KafkaCluster`, from [Kinds](#kinds), is composed into different resources on each cloud:
+the platform uses the block of the cloud it runs on and ignores the others. A comment names the
+source of each value the object does not hold as written: `platform` for a value the platform sets,
+and `deployment` for one the deployment sets. GCP has no pair: its provider has no Managed Kafka
+resource. The resources per cloud:
 
 ```yaml Object
 ---
@@ -218,9 +219,15 @@ spec:
     auto.create.topics.enable: "false"
   aws:
     instanceType: kafka.m7g.large
+  gcp:
+    vcpus: 3
+    memoryGB: 12
+  oci:
+    instanceType: VM.Standard.E5.Flex
+    ocpus: 2
 ```
 
-```yaml AWS resources
+```yaml AWS resource
 ---
 apiVersion: kafka.aws.m.upbound.io/v1beta1
 kind: Cluster
@@ -254,7 +261,7 @@ spec:
       encryptionAtRestKmsKeyArn: arn:aws:kms:eu-north-1:111122223333:key/data
 ```
 
-*A `KafkaCluster` on AWS and its composed resources.*
+*A `KafkaCluster` on AWS and its composed resource.*
 
 ```yaml Object
 ---
@@ -272,12 +279,17 @@ spec:
   deletionProtection: true
   parameters:
     auto.create.topics.enable: "false"
+  aws:
+    instanceType: kafka.m7g.large
+  gcp:
+    vcpus: 3
+    memoryGB: 12
   oci:
     instanceType: VM.Standard.E5.Flex
     ocpus: 2
 ```
 
-```yaml OCI resources
+```yaml OCI resource
 ---
 apiVersion: managedkafka.oci.m.upbound.io/v1alpha1
 kind: KafkaCluster
@@ -303,7 +315,7 @@ spec:
       - ocid1.subnet.oc1..deployment
 ```
 
-*A `KafkaCluster` on OCI and its composed resources.*
+*A `KafkaCluster` on OCI and its composed resource.*
 
 ## Platform Decisions
 

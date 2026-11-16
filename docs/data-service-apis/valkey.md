@@ -147,10 +147,10 @@ The cloud-specific fields:
 
 ## Composed Resources
 
-The platform composes the resources below from the `ValkeyInstance` in [Kinds](#kinds), on each
-cloud in turn. A comment names the source of each value the object does not hold as written:
-`platform` for a value the platform sets, and `deployment` for one the deployment sets. The
-resources per cloud:
+The same `ValkeyInstance`, from [Kinds](#kinds), is composed into different resources on each cloud:
+the platform uses the block of the cloud it runs on and ignores the others. A comment names the
+source of each value the object does not hold as written: `platform` for a value the platform sets,
+and `deployment` for one the deployment sets. The resources per cloud:
 
 ```yaml Object
 ---
@@ -177,9 +177,13 @@ spec:
   secretName: orders-cache-login
   aws:
     instanceType: cache.t4g.small
+  gcp:
+    instanceType: HIGHMEM_MEDIUM
+  oci:
+    memoryGB: 16
 ```
 
-```yaml AWS resources
+```yaml AWS resource
 ---
 apiVersion: elasticache.aws.m.upbound.io/v1beta1
 kind: ReplicationGroup
@@ -212,7 +216,7 @@ spec:
       key: password
 ```
 
-*A `ValkeyInstance` on AWS and its composed resources.*
+*A `ValkeyInstance` on AWS and its composed resource.*
 
 ```yaml Object
 ---
@@ -237,11 +241,15 @@ spec:
   parameters:
     maxmemory-policy: allkeys-lru
   secretName: orders-cache-login
+  aws:
+    instanceType: cache.t4g.small
   gcp:
     instanceType: HIGHMEM_MEDIUM
+  oci:
+    memoryGB: 16
 ```
 
-```yaml GCP resources
+```yaml GCP resource
 ---
 apiVersion: memorystore.gcp.m.upbound.io/v1beta1
 kind: Instance
@@ -278,7 +286,7 @@ spec:
       projectId: shop-project
 ```
 
-*A `ValkeyInstance` on GCP and its composed resources.*
+*A `ValkeyInstance` on GCP and its composed resource.*
 
 ```yaml Object
 ---
@@ -303,11 +311,15 @@ spec:
   parameters:
     maxmemory-policy: allkeys-lru
   secretName: orders-cache-login
+  aws:
+    instanceType: cache.t4g.small
+  gcp:
+    instanceType: HIGHMEM_MEDIUM
   oci:
     memoryGB: 16
 ```
 
-```yaml OCI resources
+```yaml OCI resource
 ---
 apiVersion: redis.oci.m.upbound.io/v1alpha1
 kind: RedisCluster
@@ -328,7 +340,7 @@ spec:
     - ocid1.networksecuritygroup.oc1..deployment
 ```
 
-*A `ValkeyInstance` on OCI and its composed resources.*
+*A `ValkeyInstance` on OCI and its composed resource.*
 
 ## Platform Decisions
 
