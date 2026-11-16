@@ -657,7 +657,8 @@ that means there.
 
 Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
 them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later.
+should validating them be decided later. Each limit holds as of its source: the provider release
+named, or the cloud's documentation as read in November 2026.
 
 | Field                                     | Cloud | Limit                                    | Source                                                                           |
 | ----------------------------------------- | ----- | ---------------------------------------- | -------------------------------------------------------------------------------- |
@@ -665,12 +666,12 @@ should validating them be decided later.
 | `backup.retentionDays`                    | Azure | 7 to 35                                  | `backupRetentionDays`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0         |
 | `backup.retentionDays`, `pointInTimeDays` | OCI   | up to 35                                 | OCI Database with PostgreSQL docs, backups and point-in-time recovery            |
 | `backup.pointInTimeDays`                  | GCP   | 1 to 7; 1 to 35 on `ENTERPRISE_PLUS`     | `transactionLogRetentionDays`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0 |
-| `storage.sizeGB`                          | GCP   | at least 10; 20 on `HYPERDISK_BALANCED`  | `settings.diskSize`, `DatabaseInstance` CRD                                      |
+| `storage.sizeGB`                          | GCP   | at least 10; 20 on `HYPERDISK_BALANCED`  | `settings.diskSize`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
 | `storage.iops`, `throughputMBps`          | AWS   | only from 400 GiB of disk                | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0       |
 | `storage.iops`                            | OCI   | steps of 75,000                          | `storageDetails.iops`, `PsqlDbSystem` CRD, crossplane-provider-oci v2.0.0        |
-| `gcp.edition`                             | GCP   | `ENTERPRISE`, `ENTERPRISE_PLUS`          | `settings.edition`, `DatabaseInstance` CRD                                       |
-| `gcp.diskType`                            | GCP   | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED` | `settings.diskType`, `DatabaseInstance` CRD                                      |
-| `azure.storageTier`                       | Azure | `P4` to `P80`                            | `storageTier`, `FlexibleServer` CRD                                              |
+| `gcp.edition`                             | GCP   | `ENTERPRISE`, `ENTERPRISE_PLUS`          | `settings.edition`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0            |
+| `gcp.diskType`                            | GCP   | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED` | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
+| `azure.storageTier`                       | Azure | `P4` to `P80`                            | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                 |
 
 *Limits each cloud enforces on PostgreSQL.*
 

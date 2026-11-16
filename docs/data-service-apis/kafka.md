@@ -338,17 +338,18 @@ that means there.
 
 Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
 them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later.
+should validating them be decided later. Each limit holds as of its source: the provider release
+named, or the cloud's documentation as read in November 2026.
 
-| Field            | Cloud | Limit                          | Source                                                                      |
-| ---------------- | ----- | ------------------------------ | --------------------------------------------------------------------------- |
-| `version`        | all   | the versions each cloud offers | each cloud's docs                                                           |
-| `brokers`        | AWS   | a multiple of the zone count   | `numberOfBrokerNodes`, MSK `Cluster` CRD, provider-upjet-aws v2.4.0         |
-| `brokers`        | OCI   | 1 to 30                        | `brokerShape.nodeCount`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0 |
-| `storage.sizeGB` | GCP   | at least 100                   | `disk_size_gib`, `google_managed_kafka_cluster` docs                        |
-| `storage.sizeGB` | OCI   | at least 50                    | `brokerShape.storageSizeInGbs`, `KafkaCluster` CRD                          |
-| `gcp.vcpus`      | GCP   | at least 3                     | `vcpu_count`, `google_managed_kafka_cluster` docs                           |
-| `gcp.memoryGB`   | GCP   | 1 to 8 per vCPU                | `memory_bytes`, `google_managed_kafka_cluster` docs                         |
+| Field            | Cloud | Limit                          | Source                                                                             |
+| ---------------- | ----- | ------------------------------ | ---------------------------------------------------------------------------------- |
+| `version`        | all   | the versions each cloud offers | each cloud's docs                                                                  |
+| `brokers`        | AWS   | a multiple of the zone count   | `numberOfBrokerNodes`, MSK `Cluster` CRD, provider-upjet-aws v2.4.0                |
+| `brokers`        | OCI   | 1 to 30                        | `brokerShape.nodeCount`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0        |
+| `storage.sizeGB` | GCP   | at least 100                   | `disk_size_gib`, `google_managed_kafka_cluster` docs                               |
+| `storage.sizeGB` | OCI   | at least 50                    | `brokerShape.storageSizeInGbs`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0 |
+| `gcp.vcpus`      | GCP   | at least 3                     | `vcpu_count`, `google_managed_kafka_cluster` docs                                  |
+| `gcp.memoryGB`   | GCP   | 1 to 8 per vCPU                | `memory_bytes`, `google_managed_kafka_cluster` docs                                |
 
 *Limits each cloud enforces on Kafka.*
 

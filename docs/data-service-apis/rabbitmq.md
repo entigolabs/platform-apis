@@ -237,7 +237,8 @@ The platform makes these settings itself:
 
 Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
 them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later.
+should validating them be decided later. Each limit holds as of its source: the provider release
+named, or the cloud's documentation as read in November 2026.
 
 | Field                    | Cloud | Limit                | Source                                         |
 | ------------------------ | ----- | -------------------- | ---------------------------------------------- |
