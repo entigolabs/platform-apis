@@ -125,15 +125,6 @@ spec:
                   server's max_connections applies.
                   Default: fixed, 0.
                 minimum: 0
-              grant:
-                type: object
-                properties:
-                  users:
-                    type: array
-                    description: |-
-                      Users granted to this user.
-                    items:
-                      type: string
             x-kubernetes-validations:
             - rule: |-
                 (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')

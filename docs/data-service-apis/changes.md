@@ -123,11 +123,12 @@ spec:
 
 `MariaDBUser` changes as follows:
 
-| Today                                                                                         | Design                     | Reason                                                    |
-| --------------------------------------------------------------------------------------------- | -------------------------- | --------------------------------------------------------- |
-| `databaseRef`, `table`, `privileges`                                                          | one entry of `databases`   | One login per application and instance (rule 12)          |
-| `databaseRef.namespace`, ignored today                                                        | honoured within the Zone   | References cross namespaces within the Zone (rule 11)     |
-| user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit | Today's defaults are too low for a production application |
+| Today                                                                                         | Design                     | Reason                                                                                                                                    |
+| --------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `databaseRef`, `table`, `privileges`                                                          | one entry of `databases`   | One login per application and instance (rule 12)                                                                                          |
+| `databaseRef.namespace`, ignored today                                                        | honoured within the Zone   | References cross namespaces within the Zone (rule 11)                                                                                     |
+| user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit | Today's defaults are too low for a production application                                                                                 |
+| `grant.users`                                                                                 | removed                    | The names never reached MariaDB: each one only created another copy of the user's own grant, and privileges applied only when one was set |
 
 *Changes to MariaDB.*
 

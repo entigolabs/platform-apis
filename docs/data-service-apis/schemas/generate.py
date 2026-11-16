@@ -526,7 +526,6 @@ write("mariadbuser", xrd(
                                    minimum=0),
         "maxUserConnections": field("integer", "Connections allowed at once; 0 is no limit of the user's own, so only the server's max_connections applies.", default="fixed, 0",
                                     minimum=0),
-        "grant": obj({"users": array(field("string"), "Users granted to this user.")}),
     }, rules=[NAME_RULE]),
     obj({"connectionSecret": field("string", "The Secret with this user's login (rule 6).")}),
     required_spec=["instanceRef", "databases"]))
