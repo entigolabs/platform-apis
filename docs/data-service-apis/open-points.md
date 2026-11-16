@@ -44,3 +44,23 @@ the switch happens decides whether applications lose their connection.
 | On request, overlapping | The platform keeps two logins per user and moves the Secret to the other one; the old login works until the next rotation | No downtime, but twice the logins, and only for users inside an engine, not its admin login |
 
 *Ways to rotate a credential.*
+
+#### 3 How do users see a resource's health?
+
+**Context.** A resource's status reports what the cloud runs, such as its version, size and
+endpoint. Its metrics, such as CPU, storage used and connections, live in each cloud's monitoring
+service, to which platform users usually have no access. Infralib deploys Prometheus, Grafana and
+Mimir in every cluster.
+
+**Problem.** A user cannot see whether a resource is healthy. A disk that fills up to `maxSizeGB`,
+exhausted connections or a failed backup show only when the application breaks.
+
+**Options:**
+
+| Option                     | Health                                                                                                                              | Cost                                                                                                                                  |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| None in the platform       | Users ask the platform team, who read the cloud's console                                                                           | Nothing to build; problems surface as outages                                                                                         |
+| Console link in the status | `status.<cloud>.consoleURL` opens the resource in its cloud's console                                                               | Little to build; useful only to users with access to the cloud                                                                        |
+| Metrics in the cluster     | The platform exports each resource's cloud metrics into Prometheus, labelled by object and namespace, with standard alerts per kind | An exporter per cloud (CloudWatch, Cloud Monitoring, OCI Monitoring, Azure Monitor); users see health in the Grafana they already use |
+
+*Ways users see a resource's health.*
