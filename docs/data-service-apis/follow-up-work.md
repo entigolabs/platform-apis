@@ -4,7 +4,10 @@ Work outside the design that it depends on or leads to.
 
 #### 1 Implementation on each cloud
 
-The implementation of the design on each cloud. Known so far:
+Each cloud gets its own implementation of the design, built on its managed services and its
+Crossplane provider.
+
+Known so far:
 
 - A floor (`sizeGB`, Valkey's `version`) is set in `initProvider`, which Crossplane uses at
   creation only, and in `forProvider` only when the spec requests more than the resource has, with
@@ -27,8 +30,9 @@ The implementation of the design on each cloud. Known so far:
 
 #### 2 Migration from current APIs
 
-The path from today's kinds to the design, whose differences are listed in
-[changes.md](changes.md). Known so far for the migration itself:
+Existing objects of today's kinds move to the design without losing their cloud resources.
+
+The differences are listed in [API Changes](changes.md). Known so far for the migration itself:
 
 - The renamed and changed kinds need new XRDs. `MSK` is cluster-scoped today, while `KafkaCluster`
   is namespaced and shared within its Zone (rule 11).
@@ -38,9 +42,10 @@ The path from today's kinds to the design, whose differences are listed in
 
 #### 3 Cloud identity for applications
 
-An application's cloud identity, through which applications gain access to buckets, artifact
-repositories and other cloud services. The identity belongs to the application, not to the
-resource it uses. Known so far:
+Each application gets a cloud identity of its own, through which it reaches buckets, artifact
+repositories and other cloud services.
+
+The identity belongs to the application, not to the resource it uses. Known so far:
 
 - Portal applications currently reach buckets only through the keys of `S3Bucket`, because `WebApp`
   sets no service account
@@ -56,14 +61,18 @@ resource it uses. Known so far:
 
 #### 4 Allow list of kinds in Zone Argo CD projects
 
-A Zone's AppProject blocks `*.m.upbound.io` but allows every other namespaced kind, so a namespaced
+A Zone's Argo CD project allows only the kinds the Zone's role permits.
+
+Today the AppProject blocks `*.m.upbound.io` but allows every other namespaced kind, so a namespaced
 provider outside it, such as provider-sql or provider-kubernetes, can be synced past the platform's
 functions. Its `namespaceResourceWhitelist` should list the groups the Zone's role allows, so a
 provider installed later is blocked by default.
 
 #### 5 Cloud rejections in Argo CD health
 
-Argo CD's health check for `*.entigo.com` kinds
+Argo CD shows an object whose cloud rejected it as `Degraded`, with the cloud's message.
+
+Its health check for `*.entigo.com` kinds
 ([`modules/k8s/argocd/values.yaml`](https://github.com/entigolabs/entigo-infralib/blob/main/modules/k8s/argocd/values.yaml)
 in [entigo-infralib](https://github.com/entigolabs/entigo-infralib)) marks an object `Degraded` only
 on `Synced` or `LastAsyncOperation` false. Until it also reads `CloudAccepted` (rule 10), a value
