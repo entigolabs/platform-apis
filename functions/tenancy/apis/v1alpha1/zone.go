@@ -27,6 +27,8 @@ type ZoneSpec struct {
 	// +kubebuilder:default=false
 	ClusterPermissions bool `json:"clusterPermissions,omitempty"`
 
+	AppProject *AppProject `json:"appProject,omitempty"`
+
 	GranularNamespaceNetworkPolicy *bool `json:"granularNamespaceNetworkPolicy,omitempty"`
 
 	// List of namespaces to manage as part of the Zone.
@@ -35,6 +37,13 @@ type ZoneSpec struct {
 	// List of node pool configurations for cluster-autoscaler
 	// +kubebuilder:validation:MinItems=1
 	Pools []Pool `json:"pools"`
+
+	RoleMapping []RoleMapping `json:"roleMapping,omitempty"`
+}
+
+type AppProject struct {
+	// OIDC groups with full access to applications
+	ContributorGroups []string `json:"contributorGroups,omitempty"`
 }
 
 type Namespace struct {
@@ -67,4 +76,9 @@ type Requirement struct {
 
 	// Array of values for instance-type or availability-zone
 	Values []string `json:"values,omitempty"`
+}
+
+type RoleMapping struct {
+	RoleRef string   `json:"roleRef"`
+	Groups  []string `json:"groups"`
 }

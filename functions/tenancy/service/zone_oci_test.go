@@ -39,6 +39,7 @@ func ociRequired(templateImage string) map[string][]resource.Required {
 				"dataKMSKey":        "data",
 				"podSecurity":       "baseline",
 				"tags":              map[string]any{"env": "test"},
+				"namespaceRole":     map[string]any{"rules": []any{}},
 			},
 		}),
 		ClusterKey: obj(map[string]any{
@@ -485,7 +486,7 @@ func TestOCIZoneAppProjectGetsRolesFromRoleGrants(t *testing.T) {
 	}}}}
 
 	objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...), required, nil, logging.NewNopLogger(),
-		apis.CloudProviderOCI, apis.Authz{Organization: "Jev", Workspace: "Jev"})
+		apis.CloudProviderOCI, apis.Authz{Grants: true, Organization: "Jev", Workspace: "Jev"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -505,23 +506,27 @@ func TestOCIZoneAppProjectGetsRolesFromRoleGrants(t *testing.T) {
 	}
 }
 
-func TestOCIZoneWithoutAuthzHasNoAppProjectRoles(t *testing.T) {
+func TestOCIZoneWithoutAuthzKeepsTheGroupRoles(t *testing.T) {
 	objs, err := GenerateZoneObjects(ociZone("team-a", flexRequirements()...), ociRequired("ocid1.image.tools"), nil,
-		logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{})
+		logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{Organization: "Jev", Workspace: "Jev"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	project := objs[GetAppProjectKey("team-a")].(*argocd.AppProject)
-	if len(project.Spec.Roles) != 0 {
-		t.Errorf("without an organization the AppProject must have no roles, got %v", project.Spec.Roles)
+	names := make([]string, 0, len(project.Spec.Roles))
+	for _, role := range project.Spec.Roles {
+		names = append(names, role.Name)
+	}
+	if diff := cmp.Diff([]string{RoleMaintainer, RoleObserver, RoleContributor, RoleCICD}, names); diff != "" {
+		t.Errorf("without authz.enabled the AppProject keeps the group roles of main (-want +got):\n%s", diff)
 	}
 }
 
-func TestOCIZoneGetsNoGroupRBAC(t *testing.T) {
+func TestOCIZoneWithAuthzGetsNoGroupRBAC(t *testing.T) {
 	zone := ociZone("team-a", flexRequirements()...)
 	zone.Spec.Namespaces = []v1alpha1.Namespace{{Name: "team-a-ns"}}
 	objs, err := GenerateZoneObjects(zone, ociRequired("ocid1.image.tools"), nil,
-		logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{})
+		logging.NewNopLogger(), apis.CloudProviderOCI, apis.Authz{Grants: true, Organization: "Jev", Workspace: "Jev"})
 	if err != nil {
 		t.Fatal(err)
 	}

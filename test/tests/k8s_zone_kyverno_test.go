@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -23,11 +24,10 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			return
 		}
 
-		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; zones no longer get group RBAC
-		// contributorKeyID := os.Getenv(ContributorKeyIDEnv)
-		// contributorSecret := os.Getenv(ContributorSecretEnv)
-		// maintainerKeyID := os.Getenv(MaintainerKeyIDEnv)
-		// maintainerSecret := os.Getenv(MaintainerSecretEnv)
+		contributorKeyID := os.Getenv(ContributorKeyIDEnv)
+		contributorSecret := os.Getenv(ContributorSecretEnv)
+		maintainerKeyID := os.Getenv(MaintainerKeyIDEnv)
+		maintainerSecret := os.Getenv(MaintainerSecretEnv)
 
 		t.Run("NamespacePodSecurity", func(t *testing.T) {
 			t.Parallel()
@@ -61,31 +61,30 @@ func testZoneKyverno(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			t.Parallel()
 			testKyvernoPodNodeSelector(t, cluster)
 		})
-		// TODO: restore with RoleGrant-based checks once authz-controller runs in the e2e cluster; zones no longer get group RBAC
-		// if contributorKeyID != "" && contributorSecret != "" {
-		// 	waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
-		// 	t.Run("ContributorDeny", func(t *testing.T) {
-		// 		t.Parallel()
-		// 		contributor := roleKubectlOptions(t, cluster, contributorKeyID, contributorSecret)
-		// 		testKyvernoContributorDeny(t, contributor)
-		// 	})
-		// } else {
-		// 	t.Logf("SKIPPING ContributorDeny: %s OR %s ENV VARS NOT SET", ContributorKeyIDEnv, ContributorSecretEnv)
-		// }
-		// if maintainerKeyID != "" && maintainerSecret != "" {
-		// 	waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "maintainer")
-		// 	maintainer := roleKubectlOptions(t, cluster, maintainerKeyID, maintainerSecret)
-		// 	t.Run("MaintainerNamespaceDeny", func(t *testing.T) {
-		// 		t.Parallel()
-		// 		testKyvernoMaintainerNamespaceDeny(t, cluster, maintainer)
-		// 	})
-		// 	t.Run("MaintainerInfralibZoneDeny", func(t *testing.T) {
-		// 		t.Parallel()
-		// 		testKyvernoMaintainerInfralibZoneDeny(t, cluster, maintainer)
-		// 	})
-		// } else {
-		// 	t.Logf("SKIPPING MaintainerNamespaceDeny AND MaintainerInfralibZoneDeny: %s OR %s ENV VARS NOT SET", MaintainerKeyIDEnv, MaintainerSecretEnv)
-		// }
+		if contributorKeyID != "" && contributorSecret != "" {
+			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
+			t.Run("ContributorDeny", func(t *testing.T) {
+				t.Parallel()
+				contributor := roleKubectlOptions(t, cluster, contributorKeyID, contributorSecret)
+				testKyvernoContributorDeny(t, contributor)
+			})
+		} else {
+			t.Logf("SKIPPING ContributorDeny: %s OR %s ENV VARS NOT SET", ContributorKeyIDEnv, ContributorSecretEnv)
+		}
+		if maintainerKeyID != "" && maintainerSecret != "" {
+			waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "maintainer")
+			maintainer := roleKubectlOptions(t, cluster, maintainerKeyID, maintainerSecret)
+			t.Run("MaintainerNamespaceDeny", func(t *testing.T) {
+				t.Parallel()
+				testKyvernoMaintainerNamespaceDeny(t, cluster, maintainer)
+			})
+			t.Run("MaintainerInfralibZoneDeny", func(t *testing.T) {
+				t.Parallel()
+				testKyvernoMaintainerInfralibZoneDeny(t, cluster, maintainer)
+			})
+		} else {
+			t.Logf("SKIPPING MaintainerNamespaceDeny AND MaintainerInfralibZoneDeny: %s OR %s ENV VARS NOT SET", MaintainerKeyIDEnv, MaintainerSecretEnv)
+		}
 	})
 }
 

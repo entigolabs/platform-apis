@@ -62,7 +62,7 @@ func (g *GroupImpl) GetSequence(object client.Object) base.Sequence {
 	switch object.GetObjectKind().GroupVersionKind().Kind {
 	case apis.XRKindZone:
 		return base.NewSequence(true, []string{"namespace-.*", "launchtemplate-.*", "kyverno-mutate-.*"}, []string{"netpol-.*", "role-.*", "sidecar-.*", "kyverno-validate-.*"},
-			[]string{"rpa-.*", "ae-.*"}, []string{"nodepool-.*"})
+			[]string{"rbacrole-.*", "rpa-.*", "ae-.*", "crb-.*"}, []string{"rb-.*", "nodepool-.*"})
 	default:
 		return base.Sequence{}
 	}
@@ -101,7 +101,7 @@ func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructur
 		if err != nil {
 			return nil, err
 		}
-		if err := env.ValidateFor(g.cloudProvider); err != nil {
+		if err := env.ValidateFor(g.cloudProvider, g.authz); err != nil {
 			return nil, err
 		}
 		if g.cloudProvider == apis.CloudProviderOCI {
