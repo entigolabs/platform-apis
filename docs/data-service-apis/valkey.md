@@ -148,8 +148,9 @@ The cloud-specific fields:
 ## Composed Resources
 
 The platform composes the resources below from the `ValkeyInstance` in [Kinds](#kinds), on each
-cloud in turn. A value commented `# set by the platform` comes from the deployment, not from the
-object. The resources per cloud:
+cloud in turn. A comment names the source of each value the object does not hold as written:
+`platform` for a value the platform sets, and `deployment` for one the deployment sets. The
+resources per cloud:
 
 ```yaml Object
 ---
@@ -159,9 +160,8 @@ metadata:
   name: orders-cache
   namespace: shop
 spec:
-  # Common
-  version: "8.1"                      # the least version; raising it upgrades
-  highAvailability: true               # a replica in another zone, with automatic failover
+  version: "8.1"
+  highAvailability: true
   replicas: 1
   deletionProtection: true
   maintenance:
@@ -170,16 +170,13 @@ spec:
       hourUTC: 5
     autoMinorVersionUpgrade: true
   backup:
-    retentionDays: 7                   # 0 disables backups
+    retentionDays: 7
     startHourUTC: 3
-  parameters:                          # Valkey settings, within each cloud's allowlist
+  parameters:
     maxmemory-policy: allkeys-lru
-  secretName: orders-cache-login       # unset, orders-cache-credentials (rule 6)
-  # Cloud-specific; every block also takes id (rule 9)
+  secretName: orders-cache-login
   aws:
-    instanceType: cache.t4g.small      # the ElastiCache node type
-    # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
-    # fromBackup: orders-cache-final   # a snapshot name, at creation only
+    instanceType: cache.t4g.small
 ```
 
 ```yaml AWS resources
@@ -187,31 +184,31 @@ spec:
 apiVersion: elasticache.aws.m.upbound.io/v1beta1
 kind: ReplicationGroup
 metadata:
-  name: orders-cache-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  name: orders-cache-7f3a2c    # name + UID hash
   namespace: shop
 spec:
   forProvider:
-    region: eu-north-1                   # the deployment's region
+    region: eu-north-1         # deployment
     description: orders-cache
     engine: valkey
     engineVersion: "8.1"
     nodeType: cache.t4g.small
-    numCacheClusters: 2                  # replicas + 1
+    numCacheClusters: 2        # replicas + 1
     multiAzEnabled: true
     automaticFailoverEnabled: true
     maintenanceWindow: sun:05:00-sun:06:00
     autoMinorVersionUpgrade: "true"
     snapshotRetentionLimit: 7
     snapshotWindow: 03:00-04:00
-    parameterGroupName: orders-cache-7f3a2c  # a composed parameter group holding parameters
-    subnetGroupName: deployment-cache    # set by the platform
-    securityGroupIds:                    # set by the platform
+    parameterGroupName: orders-cache-7f3a2c  # composed from parameters
+    subnetGroupName: deployment-cache  # platform
+    securityGroupIds:          # platform
     - sg-0123456789abcdef0
-    transitEncryptionEnabled: true       # set by the platform
-    atRestEncryptionEnabled: "true"      # set by the platform
-    kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # set by the platform
-    authTokenSecretRef:                  # set by the platform
-      name: orders-cache-credentials
+    transitEncryptionEnabled: true  # platform
+    atRestEncryptionEnabled: "true"  # platform
+    kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
+    authTokenSecretRef:        # platform
+      name: orders-cache-login
       key: password
 ```
 
@@ -225,9 +222,8 @@ metadata:
   name: orders-cache
   namespace: shop
 spec:
-  # Common
-  version: "8.1"                      # the least version; raising it upgrades
-  highAvailability: true               # a replica in another zone, with automatic failover
+  version: "8.1"
+  highAvailability: true
   replicas: 1
   deletionProtection: true
   maintenance:
@@ -236,14 +232,13 @@ spec:
       hourUTC: 5
     autoMinorVersionUpgrade: true
   backup:
-    retentionDays: 7                   # 0 disables backups
+    retentionDays: 7
     startHourUTC: 3
-  parameters:                          # Valkey settings, within each cloud's allowlist
+  parameters:
     maxmemory-policy: allkeys-lru
-  secretName: orders-cache-login       # unset, orders-cache-credentials (rule 6)
-  # Cloud-specific; every block also takes id (rule 9)
+  secretName: orders-cache-login
   gcp:
-    instanceType: HIGHMEM_MEDIUM       # the Memorystore node type
+    instanceType: HIGHMEM_MEDIUM
 ```
 
 ```yaml GCP resources
@@ -251,19 +246,19 @@ spec:
 apiVersion: memorystore.gcp.m.upbound.io/v1beta1
 kind: Instance
 metadata:
-  name: orders-cache-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  name: orders-cache-7f3a2c    # name + UID hash
   namespace: shop
 spec:
   forProvider:
-    project: shop-project                # set by the platform
-    location: europe-north1              # the deployment's region
+    project: shop-project      # platform
+    location: europe-north1    # deployment
     engineVersion: VALKEY_8_1
     nodeType: HIGHMEM_MEDIUM
-    mode: CLUSTER_DISABLED               # set by the platform
-    shardCount: 1                        # set by the platform
+    mode: CLUSTER_DISABLED     # platform
+    shardCount: 1              # platform
     replicaCount: 1
     zoneDistributionConfig:
-      mode: MULTI_ZONE                   # SINGLE_ZONE without highAvailability
+      mode: MULTI_ZONE
     deletionProtectionEnabled: true
     maintenancePolicy:
       weeklyMaintenanceWindow:
@@ -271,14 +266,14 @@ spec:
         startTime:
           hours: 5
     automatedBackupConfig:
-      retention: 604800s                 # 7 days, in seconds
+      retention: 604800s       # 7 days
       fixedFrequencySchedule:
         startTime:
           hours: 3
     engineConfigs:
       maxmemory-policy: allkeys-lru
-    transitEncryptionMode: SERVER_AUTHENTICATION  # set by the platform
-    desiredPscAutoConnections:           # set by the platform
+    transitEncryptionMode: SERVER_AUTHENTICATION  # platform
+    desiredPscAutoConnections:  # platform
     - network: projects/shop-project/global/networks/deployment
       projectId: shop-project
 ```
@@ -293,9 +288,8 @@ metadata:
   name: orders-cache
   namespace: shop
 spec:
-  # Common
-  version: "8.1"                      # the least version; raising it upgrades
-  highAvailability: true               # a replica in another zone, with automatic failover
+  version: "8.1"
+  highAvailability: true
   replicas: 1
   deletionProtection: true
   maintenance:
@@ -304,14 +298,13 @@ spec:
       hourUTC: 5
     autoMinorVersionUpgrade: true
   backup:
-    retentionDays: 7                   # 0 disables backups
+    retentionDays: 7
     startHourUTC: 3
-  parameters:                          # Valkey settings, within each cloud's allowlist
+  parameters:
     maxmemory-policy: allkeys-lru
-  secretName: orders-cache-login       # unset, orders-cache-credentials (rule 6)
-  # Cloud-specific; every block also takes id (rule 9)
+  secretName: orders-cache-login
   oci:
-    memoryGB: 16                       # per node
+    memoryGB: 16
 ```
 
 ```yaml OCI resources
@@ -319,19 +312,19 @@ spec:
 apiVersion: redis.oci.m.upbound.io/v1alpha1
 kind: RedisCluster
 metadata:
-  name: orders-cache-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  name: orders-cache-7f3a2c    # name + UID hash
   namespace: shop
 spec:
   forProvider:
-    compartmentId: ocid1.compartment.oc1..zone  # set by the platform
+    compartmentId: ocid1.compartment.oc1..zone  # platform
     displayName: orders-cache-7f3a2c
     softwareVersion: VALKEY_8_1
     clusterMode: NONSHARDED
-    nodeCount: 2                         # replicas + 1
+    nodeCount: 2               # replicas + 1
     nodeMemoryInGbs: 16
-    ociCacheConfigSetId: ocid1.ocicacheconfigset.oc1..orders  # a composed config set holding parameters
-    subnetId: ocid1.subnet.oc1..deployment  # set by the platform
-    nsgIds:                              # set by the platform
+    ociCacheConfigSetId: ocid1.ocicacheconfigset.oc1..orders  # composed from parameters
+    subnetId: ocid1.subnet.oc1..deployment  # platform
+    nsgIds:                    # platform
     - ocid1.networksecuritygroup.oc1..deployment
 ```
 

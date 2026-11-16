@@ -135,8 +135,8 @@ false` is refused on a bucket that ever had `retention`.
 ## Composed Resources
 
 The platform composes the resources below from the `Bucket` in [Kinds](#kinds), on each cloud in
-turn. A value commented `# set by the platform` comes from the deployment, not from the object. The
-resources per cloud:
+turn. A comment names the source of each value the object does not hold as written: `platform` for a
+value the platform sets, and `deployment` for one the deployment sets. The resources per cloud:
 
 ```yaml Object
 ---
@@ -146,19 +146,18 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
-  # Common
   versioning: true
   deletionProtection: true
   lifecycleRules:
-  - prefix: logs/                      # optional; the whole bucket without it
-    expireAfterDays: 30                # delete objects this old
-    deleteNoncurrentAfterDays: 7       # delete replaced versions this old
+  - prefix: logs/
+    expireAfterDays: 30
+    deleteNoncurrentAfterDays: 7
     transitions:
     - afterDays: 90
-      tier: Archive                    # Infrequent or Archive
-  retention:                           # objects cannot be changed or deleted for this long
+      tier: Archive
+  retention:
     days: 30
-    locked: false                      # true cannot be undone on any cloud
+    locked: false
   cors:
   - origins:
     - https://shop.example.com
@@ -166,8 +165,7 @@ spec:
     - GET
     - PUT
     maxAgeSeconds: 3600
-  softDeleteDays: 7                    # ignored on AWS and OCI
-  # Cloud-specific: every block takes id (rule 9)
+  softDeleteDays: 7
 ```
 
 ```yaml AWS resources
@@ -175,13 +173,13 @@ spec:
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket
 metadata:
-  name: orders-files-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  name: orders-files-7f3a2c    # name + UID hash
   namespace: shop
 spec:
   forProvider:
-    region: eu-north-1                   # the deployment's region
-    objectLockEnabled: true              # retention is set
-    forceDestroy: false                  # set by the platform
+    region: eu-north-1         # deployment
+    objectLockEnabled: true
+    forceDestroy: false        # platform
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: BucketVersioning
@@ -207,7 +205,7 @@ spec:
     bucketRef:
       name: orders-files-7f3a2c
     rule:
-    - id: rule-0                         # set by the platform
+    - id: rule-0               # platform
       status: Enabled
       filter:
       - prefix: logs/
@@ -217,7 +215,7 @@ spec:
       - noncurrentDays: 7
       transition:
       - days: 90
-        storageClass: GLACIER            # tier: Archive
+        storageClass: GLACIER
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: BucketObjectLockConfiguration
@@ -232,7 +230,7 @@ spec:
     rule:
       defaultRetention:
         days: 30
-        mode: GOVERNANCE                 # COMPLIANCE when locked
+        mode: GOVERNANCE
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: BucketCorsConfiguration
@@ -263,19 +261,18 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
-  # Common
   versioning: true
   deletionProtection: true
   lifecycleRules:
-  - prefix: logs/                      # optional; the whole bucket without it
-    expireAfterDays: 30                # delete objects this old
-    deleteNoncurrentAfterDays: 7       # delete replaced versions this old
+  - prefix: logs/
+    expireAfterDays: 30
+    deleteNoncurrentAfterDays: 7
     transitions:
     - afterDays: 90
-      tier: Archive                    # Infrequent or Archive
-  retention:                           # objects cannot be changed or deleted for this long
+      tier: Archive
+  retention:
     days: 30
-    locked: false                      # true cannot be undone on any cloud
+    locked: false
   cors:
   - origins:
     - https://shop.example.com
@@ -283,8 +280,7 @@ spec:
     - GET
     - PUT
     maxAgeSeconds: 3600
-  softDeleteDays: 7                    # ignored on AWS and OCI
-  # Cloud-specific: every block takes id (rule 9)
+  softDeleteDays: 7
 ```
 
 ```yaml GCP resources
@@ -292,15 +288,15 @@ spec:
 apiVersion: storage.gcp.m.upbound.io/v1beta1
 kind: Bucket
 metadata:
-  name: orders-files-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  name: orders-files-7f3a2c    # name + UID hash
   namespace: shop
 spec:
   forProvider:
-    project: shop-project                # set by the platform
-    location: EUROPE-NORTH1              # the deployment's region
-    uniformBucketLevelAccess: true       # set by the platform
-    publicAccessPrevention: enforced     # set by the platform
-    forceDestroy: false                  # set by the platform
+    project: shop-project      # platform
+    location: EUROPE-NORTH1    # deployment
+    uniformBucketLevelAccess: true  # platform
+    publicAccessPrevention: enforced  # platform
+    forceDestroy: false        # platform
     versioning:
       enabled: true
     lifecycleRule:
@@ -322,9 +318,9 @@ spec:
         age: 90
       action:
         type: SetStorageClass
-        storageClass: ARCHIVE            # tier: Archive
+        storageClass: ARCHIVE
     retentionPolicy:
-      retentionPeriod: 2592000           # 30 days, in seconds
+      retentionPeriod: 2592000  # 30 days
       isLocked: false
     cors:
     - origin:
@@ -334,7 +330,7 @@ spec:
       - PUT
       maxAgeSeconds: 3600
     softDeletePolicy:
-      retentionDurationSeconds: 604800   # 7 days, in seconds
+      retentionDurationSeconds: 604800  # 7 days
 ```
 
 *A `Bucket` on GCP and its composed resources.*
@@ -347,19 +343,18 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
-  # Common
   versioning: true
   deletionProtection: true
   lifecycleRules:
-  - prefix: logs/                      # optional; the whole bucket without it
-    expireAfterDays: 30                # delete objects this old
-    deleteNoncurrentAfterDays: 7       # delete replaced versions this old
+  - prefix: logs/
+    expireAfterDays: 30
+    deleteNoncurrentAfterDays: 7
     transitions:
     - afterDays: 90
-      tier: Archive                    # Infrequent or Archive
-  retention:                           # objects cannot be changed or deleted for this long
+      tier: Archive
+  retention:
     days: 30
-    locked: false                      # true cannot be undone on any cloud
+    locked: false
   cors:
   - origins:
     - https://shop.example.com
@@ -367,8 +362,7 @@ spec:
     - GET
     - PUT
     maxAgeSeconds: 3600
-  softDeleteDays: 7                    # ignored on AWS and OCI
-  # Cloud-specific: every block takes id (rule 9)
+  softDeleteDays: 7
 ```
 
 ```yaml OCI resources
@@ -376,17 +370,17 @@ spec:
 apiVersion: objectstorage.oci.m.upbound.io/v1alpha1
 kind: Bucket
 metadata:
-  name: orders-files-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  name: orders-files-7f3a2c    # name + UID hash
   namespace: shop
 spec:
   forProvider:
-    compartmentId: ocid1.compartment.oc1..zone  # set by the platform
-    namespace: tenancy-namespace         # set by the platform
+    compartmentId: ocid1.compartment.oc1..zone  # platform
+    namespace: tenancy-namespace  # platform
     name: orders-files-7f3a2c
-    accessType: NoPublicAccess           # set by the platform
+    accessType: NoPublicAccess  # platform
     versioning: Enabled
     retentionRules:
-    - displayName: retention             # set by the platform
+    - displayName: retention   # platform
       duration:
       - timeAmount: "30"
         timeUnit: DAYS
@@ -398,11 +392,11 @@ metadata:
   namespace: shop
 spec:
   forProvider:
-    namespace: tenancy-namespace         # set by the platform
+    namespace: tenancy-namespace  # platform
     bucketRef:
       name: orders-files-7f3a2c
     rules:
-    - name: rule-0-expire                # set by the platform
+    - name: rule-0-expire      # platform
       action: DELETE
       isEnabled: true
       target: objects
@@ -411,7 +405,7 @@ spec:
       objectNameFilter:
       - inclusionPrefixes:
         - logs/
-    - name: rule-0-noncurrent            # set by the platform
+    - name: rule-0-noncurrent  # platform
       action: DELETE
       isEnabled: true
       target: previous-object-versions
@@ -420,8 +414,8 @@ spec:
       objectNameFilter:
       - inclusionPrefixes:
         - logs/
-    - name: rule-0-archive               # set by the platform
-      action: ARCHIVE                    # tier: Archive
+    - name: rule-0-archive     # platform
+      action: ARCHIVE
       isEnabled: true
       target: objects
       timeAmount: "90"
@@ -441,19 +435,18 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
-  # Common
   versioning: true
   deletionProtection: true
   lifecycleRules:
-  - prefix: logs/                      # optional; the whole bucket without it
-    expireAfterDays: 30                # delete objects this old
-    deleteNoncurrentAfterDays: 7       # delete replaced versions this old
+  - prefix: logs/
+    expireAfterDays: 30
+    deleteNoncurrentAfterDays: 7
     transitions:
     - afterDays: 90
-      tier: Archive                    # Infrequent or Archive
-  retention:                           # objects cannot be changed or deleted for this long
+      tier: Archive
+  retention:
     days: 30
-    locked: false                      # true cannot be undone on any cloud
+    locked: false
   cors:
   - origins:
     - https://shop.example.com
@@ -461,8 +454,7 @@ spec:
     - GET
     - PUT
     maxAgeSeconds: 3600
-  softDeleteDays: 7                    # ignored on AWS and OCI
-  # Cloud-specific: every block takes id (rule 9)
+  softDeleteDays: 7
 ```
 
 ```yaml Azure resources
@@ -470,17 +462,17 @@ spec:
 apiVersion: storage.azure.m.upbound.io/v1beta1
 kind: Account
 metadata:
-  name: ordersfiles7f3a2c                # the object's name and a hash, letters and digits only
+  name: ordersfiles7f3a2c      # name + UID hash, alphanumeric
   namespace: shop
 spec:
   forProvider:
-    location: northeurope                # the deployment's region
-    resourceGroupName: zone-shop         # set by the platform
-    accountKind: StorageV2               # set by the platform
-    accountTier: Standard                # set by the platform
-    accountReplicationType: ZRS          # set by the platform
-    sharedAccessKeyEnabled: false        # set by the platform
-    allowNestedItemsToBePublic: false    # set by the platform
+    location: northeurope      # deployment
+    resourceGroupName: zone-shop  # platform
+    accountKind: StorageV2     # platform
+    accountTier: Standard      # platform
+    accountReplicationType: ZRS  # platform
+    sharedAccessKeyEnabled: false  # platform
+    allowNestedItemsToBePublic: false  # platform
     blobProperties:
       versioningEnabled: true
       corsRule:
@@ -489,9 +481,9 @@ spec:
         allowedMethods:
         - GET
         - PUT
-        allowedHeaders:                  # set by the platform; Azure requires it
+        allowedHeaders:        # platform
         - "*"
-        exposedHeaders:                  # set by the platform; Azure requires it
+        exposedHeaders:        # platform
         - "*"
         maxAgeInSeconds: 3600
       deleteRetentionPolicy:
@@ -506,7 +498,7 @@ spec:
   forProvider:
     storageAccountIdRef:
       name: ordersfiles7f3a2c
-    containerAccessType: private         # set by the platform
+    containerAccessType: private  # platform
 ---
 apiVersion: storage.azure.m.upbound.io/v1beta1
 kind: ManagementPolicy
@@ -518,17 +510,17 @@ spec:
     storageAccountIdRef:
       name: ordersfiles7f3a2c
     rule:
-    - name: rule-0                       # set by the platform
+    - name: rule-0             # platform
       enabled: true
       filters:
         blobTypes:
         - blockBlob
         prefixMatch:
-        - orders-files-7f3a2c/logs/      # the container name and the prefix
+        - orders-files-7f3a2c/logs/
       actions:
         baseBlob:
           deleteAfterDaysSinceModificationGreaterThan: 30
-          tierToArchiveAfterDaysSinceModificationGreaterThan: 90  # tier: Archive
+          tierToArchiveAfterDaysSinceModificationGreaterThan: 90
         version:
           deleteAfterDaysSinceCreation: 7
 ---

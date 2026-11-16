@@ -235,8 +235,9 @@ v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2
 ## Composed Resources
 
 The platform composes the resources below from the `MariaDBInstance` in [Kinds](#kinds), on each
-cloud in turn. A value commented `# set by the platform` comes from the deployment, not from the
-object. The resources per cloud:
+cloud in turn. A comment names the source of each value the object does not hold as written:
+`platform` for a value the platform sets, and `deployment` for one the deployment sets. The
+resources per cloud:
 
 ```yaml Object
 ---
@@ -246,14 +247,14 @@ metadata:
   name: orders-db
   namespace: shop
 spec:
-  version: "11.4"                      # the full "11.4.10" with minor upgrades off
+  version: "11.4"
   storage:
     sizeGB: 20
     autoGrow: true
-    maxSizeGB: 100                     # autoGrow ceiling
+    maxSizeGB: 100
     iops: 12000
     throughputMBps: 500
-  highAvailability: false              # a standby in another zone
+  highAvailability: false
   deletionProtection: true
   maintenance:
     window:
@@ -262,16 +263,14 @@ spec:
     autoMinorVersionUpgrade: true
     allowMajorVersionUpgrade: false
   backup:
-    retentionDays: 7                   # 0 disables backups
+    retentionDays: 7
     startHourUTC: 2
-  parameters:                          # MariaDB settings
+  parameters:
     max_connections: "200"
-  parameterApplyMethod: Immediate      # or NextRestart
-  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
-  aws:                                 # also takes id (rule 9)
-    instanceType: db.t4g.small         # the RDS instance class
-    # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
-    # fromBackup: orders-final         # an RDS snapshot ID, instead of restore
+  parameterApplyMethod: Immediate
+  secretName: orders-db-admin
+  aws:
+    instanceType: db.t4g.small
 ```
 
 ```yaml AWS resources
@@ -279,11 +278,11 @@ spec:
 apiVersion: rds.aws.m.upbound.io/v1beta1
 kind: Instance
 metadata:
-  name: orders-db-7f3a2c                 # the object's name and a hash of its UID (rule 9)
+  name: orders-db-7f3a2c       # name + UID hash
   namespace: shop
 spec:
   forProvider:
-    region: eu-north-1                   # the deployment's region
+    region: eu-north-1         # deployment
     engine: mariadb
     engineVersion: "11.4"
     instanceClass: db.t4g.small
@@ -291,7 +290,7 @@ spec:
     maxAllocatedStorage: 100
     iops: 12000
     storageThroughput: 500
-    storageType: gp3                     # set by the platform
+    storageType: gp3           # platform
     multiAz: false
     deletionProtection: true
     maintenanceWindow: sun:03:00-sun:03:30
@@ -299,18 +298,18 @@ spec:
     allowMajorVersionUpgrade: false
     backupRetentionPeriod: 7
     backupWindow: 02:00-02:30
-    parameterGroupName: orders-db-7f3a2c # a composed ParameterGroup holding parameters
-    username: dbadmin                    # set by the platform
-    autoGeneratePassword: true           # set by the platform
+    parameterGroupName: orders-db-7f3a2c  # composed from parameters
+    username: dbadmin          # platform
+    autoGeneratePassword: true  # platform
     passwordSecretRef:
-      name: orders-db-dbadmin
+      name: orders-db-admin
       key: password
-    dbSubnetGroupName: deployment-db     # set by the platform
-    vpcSecurityGroupIds:                 # set by the platform
+    dbSubnetGroupName: deployment-db  # platform
+    vpcSecurityGroupIds:       # platform
     - sg-0123456789abcdef0
-    publiclyAccessible: false            # set by the platform
-    storageEncrypted: true               # set by the platform
-    kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # set by the platform
+    publiclyAccessible: false  # platform
+    storageEncrypted: true     # platform
+    kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
 *A `MariaDBInstance` on AWS and its composed resources.*

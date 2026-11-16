@@ -128,9 +128,10 @@ so applications share a platform registry and only path-scoped access is per app
 ## Composed Resources
 
 The platform composes the resources below from the `ArtifactRepository` in [Kinds](#kinds), on each
-cloud in turn. A value commented `# set by the platform` comes from the deployment, not from the
-object. Azure has no pair: a repository there is a path in the platform's registry, created by the
-first push, with no resource of its own. The resources per cloud:
+cloud in turn. A comment names the source of each value the object does not hold as written:
+`platform` for a value the platform sets, and `deployment` for one the deployment sets. Azure has no
+pair: a repository there is a path in the platform's registry, created by the first push, with no
+resource of its own. The resources per cloud:
 
 ```yaml Object
 ---
@@ -140,8 +141,8 @@ metadata:
   name: orders-api
   namespace: shop
 spec:
-  name: orders-api                     # immutable; defaults to the object name
-  path: backend                        # immutable; the image path is shop/backend/orders-api
+  name: orders-api
+  path: backend
   deletionProtection: true
   immutableTags: false
   lifecycleRules:
@@ -153,7 +154,6 @@ spec:
     keepCount: 20
   - untagged: true
     expireAfterDays: 7
-  # every cloud block takes id (rule 9); observing fails on Azure
 ```
 
 ```yaml AWS resources
@@ -161,16 +161,16 @@ spec:
 apiVersion: ecr.aws.m.upbound.io/v1beta1
 kind: Repository
 metadata:
-  name: orders-api-7f3a2c                # the object's name and a hash of its UID (rule 9)
+  name: orders-api-7f3a2c      # name + UID hash
   namespace: shop
   annotations:
-    crossplane.io/external-name: shop/backend/orders-api  # the image path
+    crossplane.io/external-name: shop/backend/orders-api
 spec:
   forProvider:
-    region: eu-north-1                   # the deployment's region
-    imageTagMutability: MUTABLE          # IMMUTABLE with immutableTags
-    forceDelete: true                    # set by the platform
-    encryptionConfiguration:             # set by the platform
+    region: eu-north-1         # deployment
+    imageTagMutability: MUTABLE
+    forceDelete: true          # platform
+    encryptionConfiguration:   # platform
     - encryptionType: KMS
       kmsKey: arn:aws:kms:eu-north-1:111122223333:key/data
 ---
@@ -211,8 +211,8 @@ metadata:
   name: orders-api
   namespace: shop
 spec:
-  name: orders-api                     # immutable; defaults to the object name
-  path: backend                        # immutable; the image path is shop/backend/orders-api
+  name: orders-api
+  path: backend
   deletionProtection: true
   immutableTags: false
   lifecycleRules:
@@ -224,7 +224,6 @@ spec:
     keepCount: 20
   - untagged: true
     expireAfterDays: 7
-  # every cloud block takes id (rule 9); observing fails on Azure
 ```
 
 ```yaml GCP resources
@@ -232,23 +231,23 @@ spec:
 apiVersion: artifact.gcp.m.upbound.io/v1beta1
 kind: RegistryRepository
 metadata:
-  name: orders-api-7f3a2c                # the object's name and a hash of its UID (rule 9)
+  name: orders-api-7f3a2c      # name + UID hash
   namespace: shop
   annotations:
-    crossplane.io/external-name: shop-backend-orders-api  # the image path, with hyphens
+    crossplane.io/external-name: shop-backend-orders-api
 spec:
   forProvider:
-    project: shop-project                # set by the platform
-    location: europe-north1              # the deployment's region
-    format: DOCKER                       # set by the platform
+    project: shop-project      # platform
+    location: europe-north1    # deployment
+    format: DOCKER             # platform
     dockerConfig:
       immutableTags: false
-    cleanupPolicies:                     # the keepCount rules for some tags are skipped
-    - id: untagged-7-days                # set by the platform
+    cleanupPolicies:
+    - id: untagged-7-days      # platform
       action: DELETE
       condition:
         tagState: UNTAGGED
-        olderThan: 604800s               # 7 days
+        olderThan: 604800s     # 7 days
 ```
 
 *An `ArtifactRepository` on GCP and its composed resources.*
@@ -261,8 +260,8 @@ metadata:
   name: orders-api
   namespace: shop
 spec:
-  name: orders-api                     # immutable; defaults to the object name
-  path: backend                        # immutable; the image path is shop/backend/orders-api
+  name: orders-api
+  path: backend
   deletionProtection: true
   immutableTags: false
   lifecycleRules:
@@ -274,7 +273,6 @@ spec:
     keepCount: 20
   - untagged: true
     expireAfterDays: 7
-  # every cloud block takes id (rule 9); observing fails on Azure
 ```
 
 ```yaml OCI resources
@@ -282,14 +280,14 @@ spec:
 apiVersion: artifacts.oci.m.upbound.io/v1alpha1
 kind: ContainerRepository
 metadata:
-  name: orders-api-7f3a2c                # the object's name and a hash of its UID (rule 9)
+  name: orders-api-7f3a2c      # name + UID hash
   namespace: shop
 spec:
   forProvider:
-    compartmentId: ocid1.compartment.oc1..zone  # set by the platform
-    displayName: shop/backend/orders-api # the image path
+    compartmentId: ocid1.compartment.oc1..zone  # platform
+    displayName: shop/backend/orders-api
     isImmutable: false
-    isPublic: false                      # set by the platform
+    isPublic: false            # platform
 ```
 
 *An `ArtifactRepository` on OCI and its composed resources.*
