@@ -201,10 +201,10 @@ no customer key. provider-kafka logs in with the superuser's Vault secret.
 
 **GCP:** nothing is composed, since its provider has no Managed Kafka resource.
 
-The same `KafkaCluster`, from [Kinds](#kinds), is composed into different resources on each cloud:
-the platform uses the block of the cloud it runs on and ignores the others. A comment names the
-source of each value the object does not hold as written: `platform` for a value the platform sets,
-and `deployment` for one the deployment sets. The object and its resources:
+The `KafkaCluster` from [Kinds](#kinds) is composed into the resources below on the cloud it runs
+on: the platform uses that cloud's block and ignores the others. A comment names the source of each
+value the object does not hold as written: `platform` for a value the platform sets, and
+`deployment` for one the deployment sets. The object and its resources:
 
 ```yaml Object
 ---
