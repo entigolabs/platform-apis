@@ -24,7 +24,7 @@ ACLs, no topic creation through the Kafka admin API and no broker settings.
 
 ## Kinds
 
-Kafka is offered as three kinds, each shown below with a manifest a user writes.
+Kafka is offered as three kinds, each with the manifest a user writes.
 
 ### KafkaCluster
 

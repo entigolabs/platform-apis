@@ -20,7 +20,7 @@ for PostgreSQL flexible server (Azure).
 
 ## Kinds
 
-PostgreSQL is offered as three kinds, each shown below with a manifest a user writes.
+PostgreSQL is offered as three kinds, each with the manifest a user writes.
 
 ### PostgreSQLInstance
 
@@ -144,10 +144,9 @@ The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
 ### PostgreSQLUser
 
-`PostgreSQLUser` and `PostgreSQLDatabase` act inside PostgreSQL, through provider-sql, so they are
-the same on every cloud. Their `name` and `instanceRef` are immutable, `instanceRef` may name
-another namespace of the same Zone (rule 11), and their defaults are written by the admission policy
-(rule 5).
+`PostgreSQLUser` acts inside PostgreSQL, through provider-sql, so it is the same on every cloud. Its
+`name` and `instanceRef` are immutable, `instanceRef` may name another namespace of the same Zone
+(rule 11), and its defaults are written by the admission policy (rule 5).
 
 A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
 which other users receive through `grant.roles`.
@@ -179,6 +178,10 @@ spec:
 *A `PostgreSQLUser` that receives the `reporting` role.*
 
 ### PostgreSQLDatabase
+
+`PostgreSQLDatabase` acts inside PostgreSQL, through provider-sql, so it is the same on every cloud.
+Its `name` and `instanceRef` are immutable, `instanceRef` may name another namespace of the same
+Zone (rule 11), and its defaults are written by the admission policy (rule 5).
 
 `extensions` creates an extension in that database; on Azure a server must also allow it in
 `azure.extensions` ([Allow

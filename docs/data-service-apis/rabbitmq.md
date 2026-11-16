@@ -23,7 +23,7 @@ RabbitMQ's own concepts. GCP, OCI and Azure have none.
 
 ## Kinds
 
-RabbitMQ is offered as three kinds, each shown below with a manifest a user writes.
+RabbitMQ is offered as three kinds, each with the manifest a user writes.
 
 ### RabbitMQBroker
 
@@ -65,8 +65,8 @@ The status adds `managementEndpoint` (the management console URL), and `status.a
 
 ### RabbitMQUser
 
-`RabbitMQUser` and `RabbitMQVirtualHost` act inside RabbitMQ, so that each application has its own
-login instead of the broker's admin login.
+`RabbitMQUser` acts inside RabbitMQ, so that each application has its own login instead of the
+broker's admin login.
 
 Amazon MQ does not manage RabbitMQ users through its own API; users, virtual hosts and permissions
 are created through RabbitMQ's management API, with the broker's admin login ([Amazon MQ for
@@ -106,9 +106,10 @@ spec:
 
 ### RabbitMQVirtualHost
 
-A virtual host is an isolated set of queues and exchanges inside the broker, comparable to a
-database in PostgreSQL; deleting one deletes its queues and messages, so it has
-`deletionProtection`. A new virtual host grants nothing until a user is given permissions on it.
+`RabbitMQVirtualHost` acts inside RabbitMQ, through its management API, as `RabbitMQUser` does. A
+virtual host is an isolated set of queues and exchanges inside the broker, comparable to a database
+in PostgreSQL; deleting one deletes its queues and messages, so it has `deletionProtection`. A new
+virtual host grants nothing until a user is given permissions on it.
 
 An example:
 

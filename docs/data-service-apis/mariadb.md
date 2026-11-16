@@ -21,7 +21,7 @@ MySQL services are not MariaDB (rule 7), and Azure Database for MariaDB is retir
 
 ## Kinds
 
-MariaDB is offered as three kinds, each shown below with a manifest a user writes.
+MariaDB is offered as three kinds, each with the manifest a user writes.
 
 ### MariaDBInstance
 
@@ -117,9 +117,9 @@ The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
 ### MariaDBUser
 
-`MariaDBUser` and `MariaDBDatabase` act inside MariaDB, through provider-sql. Their `name` and
-`instanceRef` are immutable, `instanceRef` may name another namespace of the same Zone (rule 11),
-and their defaults are written by the admission policy (rule 5).
+`MariaDBUser` acts inside MariaDB, through provider-sql. Its `name` and `instanceRef` are immutable,
+`instanceRef` may name another namespace of the same Zone (rule 11), and its defaults are written by
+the admission policy (rule 5).
 
 A user's databases and privileges are a list, `databases`, with one entry per database, so an
 application that uses two databases on one instance needs one login, as rule 12 requires. Each entry
@@ -168,6 +168,10 @@ spec:
 *A `MariaDBUser` with privileges on two databases.*
 
 ### MariaDBDatabase
+
+`MariaDBDatabase` acts inside MariaDB, through provider-sql. Its `name` and `instanceRef` are
+immutable, `instanceRef` may name another namespace of the same Zone (rule 11), and its defaults are
+written by the admission policy (rule 5).
 
 An example:
 
