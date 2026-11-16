@@ -23,3 +23,24 @@ not present the design as one family.
 | A new group per category, `database.data.entigo.com` and so on | As with one new group                                                            | As with one new group, with longer names                                            |
 
 *Ways to move today's objects to the design.*
+
+#### 2 How are credentials rotated?
+
+**Context.** The platform generates every credential: an instance's admin password, the password of
+each database, RabbitMQ and Kafka user, and a Valkey cache's password; a `KafkaUser` on GCP has a
+service account key instead. Applications read it from one Secret with the same keys on every cloud
+(rule 6).
+
+**Problem.** Nothing in the API replaces a credential, so a leaked or aged one stays valid. Once a
+credential is replaced, an application keeps the old value until it reads the Secret again, so how
+the switch happens decides whether applications lose their connection.
+
+**Options:**
+
+| Option                  | Rotation                                                                                                                  | Cost                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| None in the API         | A credential changes only when its object is recreated, or by hand in the cloud                                           | Nothing to build; no answer to a leaked credential                                          |
+| On request, at once     | A field such as `spec.rotation`: changing it writes a new credential into the same Secret, and the old one stops working  | Applications fail until they read the Secret again                                          |
+| On request, overlapping | The platform keeps two logins per user and moves the Secret to the other one; the old login works until the next rotation | No downtime, but twice the logins, and only for users inside an engine, not its admin login |
+
+*Ways to rotate a credential.*

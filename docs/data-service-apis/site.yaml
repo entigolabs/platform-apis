@@ -81,7 +81,7 @@ nav:
 - {file: changes.md, label: API Changes, compare: true, tabs: sections, subsectionTabs: true}
 - {file: follow-up-work.md, label: Follow-Up Work, divider: true, foldItems: true}
 - {file: deferred-capabilities.md, label: Deferred Capabilities}
-- {file: open-points.md, label: Open Points, checklist: true}
+- {file: open-points.md, label: Open Points, checklist: true, foldItems: true}
 - {file: revisions.md, label: Revisions, divider: true}
 - label: Feedback
   feedback: true
