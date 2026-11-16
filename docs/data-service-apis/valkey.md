@@ -69,23 +69,16 @@ spec:
 *A `ValkeyInstance` with its common fields and a block per cloud.*
 
 Replicas serve reads, and high availability places at least one of them in another zone, so
-`highAvailability: true` with `replicas: 0` is rejected. On OCI, which sizes nodes by memory only,
-the deployment default `oci.memoryGB` sizes an instance whose spec is empty.
+`highAvailability: true` with `replicas: 0` is rejected.
 
-`version` is Valkey's major and minor, such as `"8.1"`, the only form all three clouds take
-(ElastiCache rejects `8` and `8.x`; GCP and OCI name versions `VALKEY_8_1`). With
+`version` is Valkey's major and minor, such as `"8.1"`, the only form all three clouds take. With
 `maintenance.autoMinorVersionUpgrade` on, the cloud can move the cache to a newer minor, so
 `version` is a floor: raising it upgrades the cache, lowering it is rejected, the status shows the
 running version, and the platform never moves the cache back to `version`.
 
-`aws.parameterGroupName` uses an existing ElastiCache parameter group in place of `parameters`. A
-parameter group applies to one major version (family `valkey<major>`), so a change of the major is
-rejected unless `aws.parameterGroupName` changes or is removed in the same edit.
-
-The status adds `readerEndpoint: { host, port }` (on OCI from `replicasFqdn`), and
-`aws.finalBackup`, the ID the final snapshot will receive. A deleted cache is restored with
-`aws.fromBackup` and that ID, which the status loses with the cache, so it is taken from the cloud
-console.
+The status adds `readerEndpoint: { host, port }`. A deleted cache is restored with its cloud block's
+`fromBackup` and the final backup's ID, which the status loses with the cache, so it is taken from
+the cloud console.
 
 The cloud blocks of the status:
 
@@ -137,7 +130,15 @@ ignored, with the reason (rule 1), and a field of a cloud's block appears only f
 
 *Fields of `ValkeyInstance` and their provider fields.*
 
+**AWS:** ElastiCache rejects a version without its minor, such as `8` or `8.x`. A parameter group
+applies to one major version (family `valkey<major>`), so a change of the major is rejected unless
+`aws.parameterGroupName` changes or is removed in the same edit. `status.aws.finalBackup` is the ID
+the final snapshot will receive.
+
 **GCP:** the provider's Memorystore `Instance` offers no password authentication.
+
+**OCI:** nodes are sized by memory only, so the deployment default `oci.memoryGB` sizes an instance
+whose spec is empty. `readerEndpoint` comes from `replicasFqdn`.
 
 ## Composed Resources
 

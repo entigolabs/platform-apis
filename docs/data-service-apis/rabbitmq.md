@@ -57,9 +57,7 @@ spec:
 
 The platform names the broker, the engine is always RabbitMQ, and Amazon MQ requires minor version
 upgrades, so none of these is a field. `highAvailability` chooses the deployment mode, and
-`parameters`, a map, is rendered into `rabbitmq.conf`. `aws.publiclyAccessible` is set at creation
-only: Amazon MQ replaces a broker to change it (`ForceNew` in
-[terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)).
+`parameters`, a map, is rendered into `rabbitmq.conf`.
 
 The status adds `managementEndpoint` (the management console URL), and `status.aws` holds `id` and
 `engineVersion`. The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host),
@@ -148,6 +146,9 @@ The table names what each field maps to in the cloud's provider:
 | `aws.id`                 | the broker ID                                                            |
 
 *Fields of `RabbitMQBroker` and their provider fields.*
+
+**AWS:** `aws.publiclyAccessible` is set at creation only: Amazon MQ replaces a broker to change it
+(`ForceNew` in [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)).
 
 ## Composed Resources
 

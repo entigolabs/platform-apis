@@ -103,41 +103,18 @@ spec:
 
 *A `PostgreSQLInstance` created from another instance's backups.*
 
-The size is in the cloud blocks, as `instanceType` with the cloud's own name, because RDS has fixed
-classes while OCI and GCP take CPU and memory, which no neutral size expresses. With deployment
-defaults, a user without a size requirement can omit it. On GCP the size belongs to an edition:
-`db-custom-*` to `ENTERPRISE`, `db-perf-optimized-*` to `ENTERPRISE_PLUS`, which Cloud SQL selects
-by default from PostgreSQL 16. The platform therefore always sets `gcp.edition`, and a deployment's
-defaults for `gcp.edition` and `gcp.instanceType` must belong together.
-
 `version` is the major version, such as `"17"`, and the cloud applies minor versions in the
-maintenance window. Only RDS can disable minor upgrades, and it then needs a full version
-(`engineVersion` in `rds.aws.m.upbound.io_instances`, [provider-upjet-aws
-v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0)), so a user
-who sets `maintenance.autoMinorVersionUpgrade: false` writes the full version, such as `"17.7"`, and
-changes it to upgrade. A parameter group applies to one major version, so a major change is rejected
-unless `aws.parameterGroupName` changes or is removed in the same edit.
+maintenance window.
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and
-lowering it is rejected. The platform rounds it up to a size the cloud accepts: at least 20 GiB on
-AWS, and the next of Azure's 12 fixed sizes; AWS itself rounds an increase under 10% up to 10%.
-Rounding and `autoGrow` can take the disk past `sizeGB`, so the status reports the actual size, and
-the platform never shrinks the disk back to `sizeGB`.
-
-`aws.parameterGroupName` uses an existing RDS parameter group in place of `parameters`.
-
-Azure's same-zone standby keeps no copy in another zone, so `highAvailability: true` maps to its
-zone-redundant mode only.
+lowering it is rejected. The cloud may round it up and `autoGrow` can take the disk further, so the
+status reports the actual size, and the platform never shrinks the disk back to `sizeGB`.
 
 The kind is one database server. Read replicas belong to a cluster-shaped kind, if one is added.
 
-In the status, `storage.sizeGB` stays empty on OCI, which reports no size. `status.aws.finalBackup`
-is the ID the final snapshot will receive; GCP's provider reports only `finalBackupDescription`, and
-OCI and Azure take no final backup. A deleted instance is restored with the cloud block's
-`fromBackup` and the final backup's ID, which the status loses with the instance, so it is taken
-from the cloud console. `endpoint.host` is a hostname on AWS and Azure and an IP address on GCP and
-OCI. The running minor version, the latest restorable time and the instance state are reported by
-only some providers, so they go in the cloud blocks:
+The final backup's ID, which `fromBackup` needs, is lost with the instance's status, so it is taken
+from the cloud console. The running minor version, the latest restorable time and the instance state
+are reported by only some providers, so they go in the cloud blocks:
 
 ```yaml
 status:
@@ -285,17 +262,32 @@ ignored, with the reason (rule 1), and a field of a cloud's block appears only f
 *Fields of `PostgreSQLInstance` and their provider fields.*
 
 **AWS:** provider keys are from the CRDs of [provider-upjet-aws
-v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
+v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). Only RDS can
+turn minor upgrades off, and it then needs a full version (`engineVersion` in
+`rds.aws.m.upbound.io_instances`), so a user who sets `maintenance.autoMinorVersionUpgrade: false`
+writes the full version, such as `"17.7"`, and changes it to upgrade. A parameter group applies to
+one major version, so a major change is rejected unless `aws.parameterGroupName` changes or is
+removed in the same edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an
+increase under 10% up to 10%. `status.aws.finalBackup` is the ID the final snapshot will receive.
 
 **GCP:** provider keys are from the CRDs of [provider-upjet-gcp
 v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0). `updateTrack`
-only delays minor upgrades.
+only delays minor upgrades. The size belongs to an edition: `db-custom-*` to `ENTERPRISE`,
+`db-perf-optimized-*` to `ENTERPRISE_PLUS`, which Cloud SQL selects by default from PostgreSQL 16.
+The platform therefore always sets `gcp.edition`, and a deployment's defaults for `gcp.edition` and
+`gcp.instanceType` must belong together. The provider reports only `finalBackupDescription`, and
+`endpoint.host` is an IP address.
 
 **OCI:** provider keys are from the CRDs of [crossplane-provider-oci
-v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0).
+v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0). `storage.sizeGB`
+stays empty in the status, since OCI reports no size. No final backup is taken, and `endpoint.host`
+is an IP address.
 
 **Azure:** provider keys are from the CRDs of [provider-upjet-azure
 v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/v2.8.0).
+`storage.sizeGB` is rounded up to the next of Azure's 12 fixed sizes. Azure's same-zone standby
+keeps no copy in another zone, so `highAvailability: true` maps to its zone-redundant mode only. No
+final backup is taken.
 
 ## Composed Resources
 

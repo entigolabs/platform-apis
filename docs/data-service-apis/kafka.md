@@ -61,13 +61,10 @@ spec:
 
 *A `KafkaCluster` with its common fields and a block per cloud.*
 
-A cluster's size is its brokers times each broker's size. AWS and OCI take a broker size and count;
-GCP takes the cluster's total vCPU and memory and chooses the brokers itself. The size is therefore
-in each cloud's block (`aws.instanceType`, `oci.instanceType` with `oci.ocpus`, `gcp.vcpus` and
-`gcp.memoryGB`), and `brokers` is ignored on GCP. No cloud offers a maintenance window.
+A cluster's size is its brokers times each broker's size. The clouds size them differently, so the
+size is in each cloud's block (rule 2). No cloud offers a maintenance window.
 
-The status adds `bootstrapServers`, the listener applications use (`bootstrapBrokersSaslScram` on
-AWS, `bootstrap_address` on GCP, `kafkaBootstrapUrls` on OCI). `brokers` stays empty on GCP.
+The status adds `bootstrapServers`, the listener applications use.
 
 The cloud blocks of the status:
 
@@ -156,11 +153,10 @@ spec:
 
 *A `KafkaTopic` whose Kafka name differs from its object name.*
 
-Created through the Kafka admin API on every cloud. `name` is the topic's Kafka name, which can hold
-what a Kubernetes name cannot, such as `Orders` or `orders_v2`. Applications use that name, so it
-cannot carry a hash like rule 9's cloud names, and two `KafkaTopic` objects on one cluster could
-request the same topic and both manage it. The platform rejects the newer one instead, naming the
-object that holds the name.
+`name` is the topic's Kafka name, which can hold what a Kubernetes name cannot, such as `Orders` or
+`orders_v2`. Applications use that name, so it cannot carry a hash like rule 9's cloud names, and
+two `KafkaTopic` objects on one cluster could request the same topic and both manage it. The
+platform rejects the newer one instead, naming the object that holds the name.
 
 ## Mapping
 
@@ -186,8 +182,16 @@ ignored, with the reason (rule 1), and a field of a cloud's block appears only f
 
 *Fields of `KafkaCluster` and their provider fields.*
 
+**AWS:** the size is the broker type, `aws.instanceType`, times `brokers`. `bootstrapServers` is
+`bootstrapBrokersSaslScram`.
+
 **GCP:** the mapping names fields of the Terraform resource `google_managed_kafka_cluster`, since no
-Crossplane provider has one yet.
+Crossplane provider has one yet. GCP takes the cluster's total vCPU and memory, `gcp.vcpus` and
+`gcp.memoryGB`, and chooses the brokers itself, so `brokers` is ignored and stays empty in the
+status. `bootstrapServers` is `bootstrap_address`.
+
+**OCI:** the size is the broker shape, `oci.instanceType` with `oci.ocpus`, times `brokers`.
+`bootstrapServers` is `kafkaBootstrapUrls`.
 
 ## Composed Resources
 

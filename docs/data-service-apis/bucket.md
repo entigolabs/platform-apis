@@ -72,8 +72,7 @@ names ([Cloud identity for applications](follow-up-work.md#3-cloud-identity-for-
 Follow-Up Work).
 
 A `Bucket` has no secret: it holds no credentials. The status adds `url`, `bucketName` and `region`,
-which an application needs to find the bucket. On OCI, `status.oci.retentionLockedFrom` is the date
-a locked retention takes effect.
+which an application needs to find the bucket.
 
 The cloud blocks of the status:
 
@@ -121,6 +120,8 @@ ignored, with the reason (rule 1), and a field of a cloud's block appears only f
 off again (`aws_s3_bucket_object_lock_configuration` in
 [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so `versioning:
 false` is refused on a bucket that ever had `retention`.
+
+**OCI:** `status.oci.retentionLockedFrom` is the date a locked retention takes effect.
 
 **Azure:** versioning, lifecycle, CORS and soft delete belong to the storage account, so each
 `Bucket` has its own account, with the account's keys turned off (`sharedAccessKeyEnabled: false`).

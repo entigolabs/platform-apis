@@ -71,8 +71,7 @@ other: whoever configures them gives each its own registry, or keeps their names
 A lifecycle rule has one selector (`tagPrefixes`, `tagPatterns`, `untagged`, or none for every
 image) and one bound (`keepCount` newest, or `expireAfterDays` since the push). `lifecycleRules`
 defaults per deployment, so a repository whose spec is empty is still cleaned up; set, it replaces
-the default. `immutableTags` defaults per deployment. ECR's `IMMUTABLE_WITH_EXCLUSION` and
-`MUTABLE_WITH_EXCLUSION` modes, which only ECR has, are not offered.
+the default. `immutableTags` defaults per deployment.
 
 The status adds `uri`, the image URI, such as
 `123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/backend/orders-api`. There is no connection
@@ -112,6 +111,9 @@ ignored, with the reason (rule 1), and a field of a cloud's block appears only f
 | `azure.id`           |                                     |                                                                                                                                                                                                                                                        |                                                                                                          | accepted, but observing fails: an Azure repository has no resource of its own             |
 
 *Fields of `ArtifactRepository` and their provider fields.*
+
+**AWS:** ECR's `IMMUTABLE_WITH_EXCLUSION` and `MUTABLE_WITH_EXCLUSION` modes, which only ECR has,
+are not offered.
 
 **GCP:** a separate Artifact Registry repository per application keeps immutability and cleanup per
 application, as on ECR and OCIR.

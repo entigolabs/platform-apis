@@ -89,24 +89,16 @@ spec:
 *A `MariaDBInstance` created from another instance's backups.*
 
 `version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`, and RDS
-applies minor versions in the maintenance window. RDS takes a version without its minor only while
-minor upgrades are on (`engineVersion` in `rds.aws.m.upbound.io_instances`, provider-upjet-aws
-v2.4.0), so a user who sets `maintenance.autoMinorVersionUpgrade: false` writes the full version,
-such as `"11.4.10"`, and changes it to upgrade. A major change is a change in the first two numbers.
-A parameter group applies to one major version, so a major change is rejected unless
-`aws.parameterGroupName` changes or is removed in the same edit.
+applies minor versions in the maintenance window. A major change is a change in the first two
+numbers.
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and
-lowering it is rejected. The platform rounds it up to 20 GiB, the RDS minimum, and RDS itself rounds
-an increase under 10% up to 10%. Rounding and `autoGrow` can take the disk past `sizeGB`, so the
+lowering it is rejected. The cloud may round it up and `autoGrow` can take the disk further, so the
 status reports the actual size, and the platform never shrinks the disk back to `sizeGB`.
 
-`aws.parameterGroupName` uses an existing RDS parameter group in place of `parameters`.
-
-In the status, `aws.finalBackup` is the ID the final snapshot will receive. A deleted instance is
-restored with `aws.fromBackup` and that ID, which the status loses with the instance, so it is taken
-from the AWS console. The running minor version, the latest restorable time and the instance state
-go in the `aws` block:
+A deleted instance is restored with `aws.fromBackup` and the final snapshot's ID, which the status
+loses with the instance, so it is taken from the AWS console. The running minor version, the latest
+restorable time and the instance state go in the `aws` block:
 
 ```yaml
 status:
@@ -230,7 +222,13 @@ The table names what each field maps to in the cloud's provider:
 *Fields of `MariaDBInstance` and their provider fields.*
 
 **AWS:** provider keys are from the CRDs of [provider-upjet-aws
-v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
+v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). RDS takes a
+version without its minor only while minor upgrades are on (`engineVersion` in
+`rds.aws.m.upbound.io_instances`), so a user who sets `maintenance.autoMinorVersionUpgrade: false`
+writes the full version, such as `"11.4.10"`, and changes it to upgrade. A parameter group applies
+to one major version, so a major change is rejected unless `aws.parameterGroupName` changes or is
+removed in the same edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an
+increase under 10% up to 10%. `status.aws.finalBackup` is the ID the final snapshot will receive.
 
 ## Composed Resources
 
