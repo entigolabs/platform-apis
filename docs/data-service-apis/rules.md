@@ -1,6 +1,6 @@
 # Design Rules
 
-The rules every data service API follows, and the alternatives weighed against them.
+The rules every data service API follows.
 
 ## Rules
 
@@ -47,6 +47,11 @@ fields, so the schema can check them. A deployment uses the block of the cloud i
 ignores the others, so one manifest can carry settings for several clouds and be applied on any of
 them. Only one block may hold the `id` of an existing resource to observe, since a resource exists
 on one cloud.
+
+A machine size is such a setting, named as the cloud names it, such as `db.t4g.small` in
+`spec.aws.instanceType`. A size stated as CPU and memory would need the platform to pick the nearest
+cloud size across fixed and flexible sizes, families and availability per region, on four clouds.
+The size's deployment default (rule 5) spares users from knowing the cloud's names.
 
 This follows the Zone API, which uses shared keys with cloud-native values and prefixed keys for one
 cloud's settings
@@ -220,24 +225,3 @@ shared between applications or instances; access for people is not covered by th
 access is therefore read from one object. A set of permissions shared by several users exists only
 where the engine has one, such as PostgreSQL's roles. The platform adds no permission mechanism that
 no engine has.
-
-## Alternatives Considered
-
-These designs were weighed and rejected; each is followed by the reason.
-
-#### 1 Users write every field
-
-The user writes every field, including each cloud's `instanceType`.
-
-**Rejected:** Every user then needs to know the cloud's size names and versions, which is the cloud
-knowledge infralib exists to abstract. Deployment defaults keep the same schema and allow a user to
-write only what they care about.
-
-#### 2 Platform-picked sizes
-
-The user states CPU and memory, or a named size, and the platform selects the nearest
-cloud size.
-
-**Rejected:** Picking has to handle fixed and flexible sizes, burstable and dedicated families, and
-availability per region, on four clouds. Deployment defaults solve the same need with no picking
-logic.

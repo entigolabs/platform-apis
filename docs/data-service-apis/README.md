@@ -37,8 +37,7 @@ Status: a draft awaiting the agreement of the `platform-apis` maintainers, track
 
 Each page of the design holds the following, in the order of the menu:
 
-- [Design Rules](rules.md): the rules every data service API follows, and the alternatives weighed
-  against them.
+- [Design Rules](rules.md): the rules every data service API follows.
 - One page per service, showing how it applies the rules: [PostgreSQL](postgresql.md),
   [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md), [RabbitMQ](rabbitmq.md),
   [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md). The site shows each in

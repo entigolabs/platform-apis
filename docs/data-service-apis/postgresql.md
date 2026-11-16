@@ -18,7 +18,6 @@ for PostgreSQL flexible server (Azure).
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
-- [Alternatives Considered](#alternatives-considered)
 
 ## Kinds
 
@@ -663,9 +662,3 @@ named, or the cloud's documentation as read in November 2026.
 | `azure.storageTier`                       | Azure | `P4` to `P80`                            | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                 |
 
 *Limits each cloud enforces on PostgreSQL.*
-
-## Alternatives Considered
-
-Allowing only OCI's fixed shapes, so that `oci.instanceType` is one name as on the other clouds, was
-rejected: the platform would have to keep the catalog current, and a customer needing a custom
-combination of OCPUs and memory could not have it.
