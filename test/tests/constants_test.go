@@ -224,6 +224,7 @@ const (
 	ValkeyNamespaceName   = "test-valkey"
 	ValkeyApplicationName = "test-valkey"
 	ValkeyLifecycleName   = "test-valkey-lifecycle"
+	ValkeyParametersName  = "test-valkey-parameters"
 
 	ValkeyInstanceKind         = "valkeyinstances.database.entigo.com"
 	ValkeyReplicationGroupKind = "replicationgroup.elasticache.aws.m.upbound.io"

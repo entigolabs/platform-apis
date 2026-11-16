@@ -202,16 +202,19 @@ func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.Kube
 	syncWithRetry(t, argocd, ZoneApplicationName)
 
 	t.Run("zone-readiness", func(t *testing.T) {
+		// On a freshly provisioned environment a Zone builds its IAM role chain, access entry and node
+		// group one reconcile after another and takes a little over six minutes to become Ready; on a
+		// warm environment it is seconds. Fifteen minutes keeps the first run of the day from failing here.
 		t.Run("zone-a", func(t *testing.T) {
 			t.Parallel()
-			waitSyncedAndReady(t, cluster, ZoneKind, ZoneAName, 30, 10*time.Second)
+			waitSyncedAndReady(t, cluster, ZoneKind, ZoneAName, 90, 10*time.Second)
 			waitZoneNodegroupReady(t, cluster, ZoneAName)
 			waitZoneNodesReady(t, cluster, ZoneAName)
 			preCreateTestNamespaces(t, cfg, cluster)
 		})
 		t.Run("zone-b", func(t *testing.T) {
 			t.Parallel()
-			waitSyncedAndReady(t, cluster, ZoneKind, ZoneBName, 30, 10*time.Second)
+			waitSyncedAndReady(t, cluster, ZoneKind, ZoneBName, 90, 10*time.Second)
 			waitZoneNodegroupReady(t, cluster, ZoneBName)
 			waitZoneNodesReady(t, cluster, ZoneBName)
 		})
