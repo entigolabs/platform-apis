@@ -17,6 +17,7 @@ ACLs, no topic creation through the Kafka admin API and no broker settings.
 
 - [Kinds](#kinds)
 - [Mapping](#mapping)
+- [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
@@ -191,6 +192,121 @@ The cloud-specific fields:
 | `oci.ocpus`        | `brokerShape.ocpuCount`                                   |
 
 *Cloud-specific fields of `KafkaCluster`.*
+
+## Composed Resources
+
+The platform composes the resources below from the `KafkaCluster` in [Kinds](#kinds), on each cloud
+in turn. A value commented `# set by the platform` comes from the deployment, not from the object.
+GCP has no pair: its provider has no Managed Kafka resource. The resources per cloud:
+
+```yaml Object
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaCluster
+metadata:
+  name: orders-kafka
+  namespace: shop
+spec:
+  # Common
+  version: "3.9"                       # each cloud accepts the versions it offers
+  brokers: 3
+  storage:
+    sizeGB: 100                        # per broker
+  highAvailability: true               # survive the loss of one zone
+  deletionProtection: true
+  parameters:                          # broker settings, within each cloud's allowlist
+    auto.create.topics.enable: "false"
+  # Cloud-specific; every block also takes id (rule 9)
+  aws:
+    instanceType: kafka.m7g.large      # the broker instance type
+```
+
+```yaml AWS resources
+---
+apiVersion: kafka.aws.m.upbound.io/v1beta1
+kind: Cluster
+metadata:
+  name: orders-kafka-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1                   # the deployment's region
+    clusterName: orders-kafka-7f3a2c
+    kafkaVersion: "3.9"
+    numberOfBrokerNodes: 3
+    brokerNodeGroupInfo:
+      instanceType: kafka.m7g.large
+      storageInfo:
+        ebsStorageInfo:
+          volumeSize: 100
+      clientSubnets:                     # set by the platform
+      - subnet-0123456789abcdef0
+      - subnet-0123456789abcdef1
+      - subnet-0123456789abcdef2
+      securityGroups:                    # set by the platform
+      - sg-0123456789abcdef0
+    configurationInfo:                   # a composed Configuration holding parameters
+      arn: arn:aws:kafka:eu-north-1:111122223333:configuration/orders-kafka-7f3a2c
+      revision: 1
+    clientAuthentication:                # set by the platform
+      sasl:
+        scram: true
+    encryptionInfo:                      # set by the platform
+      encryptionAtRestKmsKeyArn: arn:aws:kms:eu-north-1:111122223333:key/data
+```
+
+*A `KafkaCluster` on AWS and its composed resources.*
+
+```yaml Object
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaCluster
+metadata:
+  name: orders-kafka
+  namespace: shop
+spec:
+  # Common
+  version: "3.9"                       # each cloud accepts the versions it offers
+  brokers: 3
+  storage:
+    sizeGB: 100                        # per broker
+  highAvailability: true               # survive the loss of one zone
+  deletionProtection: true
+  parameters:                          # broker settings, within each cloud's allowlist
+    auto.create.topics.enable: "false"
+  # Cloud-specific; every block also takes id (rule 9)
+  oci:
+    instanceType: VM.Standard.E5.Flex  # the broker shape
+    ocpus: 2                           # per broker, required with a .Flex shape
+```
+
+```yaml OCI resources
+---
+apiVersion: managedkafka.oci.m.upbound.io/v1alpha1
+kind: KafkaCluster
+metadata:
+  name: orders-kafka-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    compartmentId: ocid1.compartment.oc1..zone  # set by the platform
+    displayName: orders-kafka-7f3a2c
+    kafkaVersion: "3.9"
+    clusterType: PRODUCTION              # DEVELOPMENT without highAvailability
+    coordinationType: ZOOKEEPER          # set by the platform: ZOOKEEPER for Kafka 3, KRAFT from 4.0
+    brokerShape:
+    - nodeCount: 3
+      nodeShape: VM.Standard.E5.Flex
+      ocpuCount: 2
+      storageSizeInGbs: 100
+    clusterConfigId: ocid1.kafkaclusterconfig.oc1..orders  # a composed KafkaClusterConfig holding parameters
+    clusterConfigVersion: 1
+    accessSubnets:                       # set by the platform
+    - subnets:
+      - ocid1.subnet.oc1..deployment
+```
+
+*A `KafkaCluster` on OCI and its composed resources.*
 
 ## Platform Decisions
 

@@ -12,6 +12,7 @@ Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (A
 
 - [Kinds](#kinds)
 - [Mapping](#mapping)
+- [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
@@ -130,6 +131,421 @@ exists only on GCP and Azure. S3 enables Object Lock on an existing bucket too, 
 versioning is on, and never off again (`aws_s3_bucket_object_lock_configuration` in
 [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so `versioning:
 false` is refused on a bucket that ever had `retention`.
+
+## Composed Resources
+
+The platform composes the resources below from the `Bucket` in [Kinds](#kinds), on each cloud in
+turn. A value commented `# set by the platform` comes from the deployment, not from the object. The
+resources per cloud:
+
+```yaml Object
+---
+apiVersion: storage.entigo.com/v1alpha2
+kind: Bucket
+metadata:
+  name: orders-files
+  namespace: shop
+spec:
+  # Common
+  versioning: true
+  deletionProtection: true
+  lifecycleRules:
+  - prefix: logs/                      # optional; the whole bucket without it
+    expireAfterDays: 30                # delete objects this old
+    deleteNoncurrentAfterDays: 7       # delete replaced versions this old
+    transitions:
+    - afterDays: 90
+      tier: Archive                    # Infrequent or Archive
+  retention:                           # objects cannot be changed or deleted for this long
+    days: 30
+    locked: false                      # true cannot be undone on any cloud
+  cors:
+  - origins:
+    - https://shop.example.com
+    methods:
+    - GET
+    - PUT
+    maxAgeSeconds: 3600
+  softDeleteDays: 7                    # ignored on AWS and OCI
+  # Cloud-specific: every block takes id (rule 9)
+```
+
+```yaml AWS resources
+---
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: Bucket
+metadata:
+  name: orders-files-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1                   # the deployment's region
+    objectLockEnabled: true              # retention is set
+    forceDestroy: false                  # set by the platform
+---
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketVersioning
+metadata:
+  name: orders-files-7f3a2c
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1
+    bucketRef:
+      name: orders-files-7f3a2c
+    versioningConfiguration:
+      status: Enabled
+---
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketLifecycleConfiguration
+metadata:
+  name: orders-files-7f3a2c
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1
+    bucketRef:
+      name: orders-files-7f3a2c
+    rule:
+    - id: rule-0                         # set by the platform
+      status: Enabled
+      filter:
+      - prefix: logs/
+      expiration:
+      - days: 30
+      noncurrentVersionExpiration:
+      - noncurrentDays: 7
+      transition:
+      - days: 90
+        storageClass: GLACIER            # tier: Archive
+---
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketObjectLockConfiguration
+metadata:
+  name: orders-files-7f3a2c
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1
+    bucketRef:
+      name: orders-files-7f3a2c
+    rule:
+      defaultRetention:
+        days: 30
+        mode: GOVERNANCE                 # COMPLIANCE when locked
+---
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketCorsConfiguration
+metadata:
+  name: orders-files-7f3a2c
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1
+    bucketRef:
+      name: orders-files-7f3a2c
+    corsRule:
+    - allowedOrigins:
+      - https://shop.example.com
+      allowedMethods:
+      - GET
+      - PUT
+      maxAgeSeconds: 3600
+```
+
+*A `Bucket` on AWS and its composed resources.*
+
+```yaml Object
+---
+apiVersion: storage.entigo.com/v1alpha2
+kind: Bucket
+metadata:
+  name: orders-files
+  namespace: shop
+spec:
+  # Common
+  versioning: true
+  deletionProtection: true
+  lifecycleRules:
+  - prefix: logs/                      # optional; the whole bucket without it
+    expireAfterDays: 30                # delete objects this old
+    deleteNoncurrentAfterDays: 7       # delete replaced versions this old
+    transitions:
+    - afterDays: 90
+      tier: Archive                    # Infrequent or Archive
+  retention:                           # objects cannot be changed or deleted for this long
+    days: 30
+    locked: false                      # true cannot be undone on any cloud
+  cors:
+  - origins:
+    - https://shop.example.com
+    methods:
+    - GET
+    - PUT
+    maxAgeSeconds: 3600
+  softDeleteDays: 7                    # ignored on AWS and OCI
+  # Cloud-specific: every block takes id (rule 9)
+```
+
+```yaml GCP resources
+---
+apiVersion: storage.gcp.m.upbound.io/v1beta1
+kind: Bucket
+metadata:
+  name: orders-files-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    project: shop-project                # set by the platform
+    location: EUROPE-NORTH1              # the deployment's region
+    uniformBucketLevelAccess: true       # set by the platform
+    publicAccessPrevention: enforced     # set by the platform
+    forceDestroy: false                  # set by the platform
+    versioning:
+      enabled: true
+    lifecycleRule:
+    - condition:
+        matchesPrefix:
+        - logs/
+        age: 30
+      action:
+        type: Delete
+    - condition:
+        matchesPrefix:
+        - logs/
+        daysSinceNoncurrentTime: 7
+      action:
+        type: Delete
+    - condition:
+        matchesPrefix:
+        - logs/
+        age: 90
+      action:
+        type: SetStorageClass
+        storageClass: ARCHIVE            # tier: Archive
+    retentionPolicy:
+      retentionPeriod: 2592000           # 30 days, in seconds
+      isLocked: false
+    cors:
+    - origin:
+      - https://shop.example.com
+      method:
+      - GET
+      - PUT
+      maxAgeSeconds: 3600
+    softDeletePolicy:
+      retentionDurationSeconds: 604800   # 7 days, in seconds
+```
+
+*A `Bucket` on GCP and its composed resources.*
+
+```yaml Object
+---
+apiVersion: storage.entigo.com/v1alpha2
+kind: Bucket
+metadata:
+  name: orders-files
+  namespace: shop
+spec:
+  # Common
+  versioning: true
+  deletionProtection: true
+  lifecycleRules:
+  - prefix: logs/                      # optional; the whole bucket without it
+    expireAfterDays: 30                # delete objects this old
+    deleteNoncurrentAfterDays: 7       # delete replaced versions this old
+    transitions:
+    - afterDays: 90
+      tier: Archive                    # Infrequent or Archive
+  retention:                           # objects cannot be changed or deleted for this long
+    days: 30
+    locked: false                      # true cannot be undone on any cloud
+  cors:
+  - origins:
+    - https://shop.example.com
+    methods:
+    - GET
+    - PUT
+    maxAgeSeconds: 3600
+  softDeleteDays: 7                    # ignored on AWS and OCI
+  # Cloud-specific: every block takes id (rule 9)
+```
+
+```yaml OCI resources
+---
+apiVersion: objectstorage.oci.m.upbound.io/v1alpha1
+kind: Bucket
+metadata:
+  name: orders-files-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    compartmentId: ocid1.compartment.oc1..zone  # set by the platform
+    namespace: tenancy-namespace         # set by the platform
+    name: orders-files-7f3a2c
+    accessType: NoPublicAccess           # set by the platform
+    versioning: Enabled
+    retentionRules:
+    - displayName: retention             # set by the platform
+      duration:
+      - timeAmount: "30"
+        timeUnit: DAYS
+---
+apiVersion: objectstorage.oci.m.upbound.io/v1alpha1
+kind: ObjectLifecyclePolicy
+metadata:
+  name: orders-files-7f3a2c
+  namespace: shop
+spec:
+  forProvider:
+    namespace: tenancy-namespace         # set by the platform
+    bucketRef:
+      name: orders-files-7f3a2c
+    rules:
+    - name: rule-0-expire                # set by the platform
+      action: DELETE
+      isEnabled: true
+      target: objects
+      timeAmount: "30"
+      timeUnit: DAYS
+      objectNameFilter:
+      - inclusionPrefixes:
+        - logs/
+    - name: rule-0-noncurrent            # set by the platform
+      action: DELETE
+      isEnabled: true
+      target: previous-object-versions
+      timeAmount: "7"
+      timeUnit: DAYS
+      objectNameFilter:
+      - inclusionPrefixes:
+        - logs/
+    - name: rule-0-archive               # set by the platform
+      action: ARCHIVE                    # tier: Archive
+      isEnabled: true
+      target: objects
+      timeAmount: "90"
+      timeUnit: DAYS
+      objectNameFilter:
+      - inclusionPrefixes:
+        - logs/
+```
+
+*A `Bucket` on OCI and its composed resources.*
+
+```yaml Object
+---
+apiVersion: storage.entigo.com/v1alpha2
+kind: Bucket
+metadata:
+  name: orders-files
+  namespace: shop
+spec:
+  # Common
+  versioning: true
+  deletionProtection: true
+  lifecycleRules:
+  - prefix: logs/                      # optional; the whole bucket without it
+    expireAfterDays: 30                # delete objects this old
+    deleteNoncurrentAfterDays: 7       # delete replaced versions this old
+    transitions:
+    - afterDays: 90
+      tier: Archive                    # Infrequent or Archive
+  retention:                           # objects cannot be changed or deleted for this long
+    days: 30
+    locked: false                      # true cannot be undone on any cloud
+  cors:
+  - origins:
+    - https://shop.example.com
+    methods:
+    - GET
+    - PUT
+    maxAgeSeconds: 3600
+  softDeleteDays: 7                    # ignored on AWS and OCI
+  # Cloud-specific: every block takes id (rule 9)
+```
+
+```yaml Azure resources
+---
+apiVersion: storage.azure.m.upbound.io/v1beta1
+kind: Account
+metadata:
+  name: ordersfiles7f3a2c                # the object's name and a hash, letters and digits only
+  namespace: shop
+spec:
+  forProvider:
+    location: northeurope                # the deployment's region
+    resourceGroupName: zone-shop         # set by the platform
+    accountKind: StorageV2               # set by the platform
+    accountTier: Standard                # set by the platform
+    accountReplicationType: ZRS          # set by the platform
+    sharedAccessKeyEnabled: false        # set by the platform
+    allowNestedItemsToBePublic: false    # set by the platform
+    blobProperties:
+      versioningEnabled: true
+      corsRule:
+      - allowedOrigins:
+        - https://shop.example.com
+        allowedMethods:
+        - GET
+        - PUT
+        allowedHeaders:                  # set by the platform; Azure requires it
+        - "*"
+        exposedHeaders:                  # set by the platform; Azure requires it
+        - "*"
+        maxAgeInSeconds: 3600
+      deleteRetentionPolicy:
+        days: 7
+---
+apiVersion: storage.azure.m.upbound.io/v1beta1
+kind: Container
+metadata:
+  name: orders-files-7f3a2c
+  namespace: shop
+spec:
+  forProvider:
+    storageAccountIdRef:
+      name: ordersfiles7f3a2c
+    containerAccessType: private         # set by the platform
+---
+apiVersion: storage.azure.m.upbound.io/v1beta1
+kind: ManagementPolicy
+metadata:
+  name: orders-files-7f3a2c
+  namespace: shop
+spec:
+  forProvider:
+    storageAccountIdRef:
+      name: ordersfiles7f3a2c
+    rule:
+    - name: rule-0                       # set by the platform
+      enabled: true
+      filters:
+        blobTypes:
+        - blockBlob
+        prefixMatch:
+        - orders-files-7f3a2c/logs/      # the container name and the prefix
+      actions:
+        baseBlob:
+          deleteAfterDaysSinceModificationGreaterThan: 30
+          tierToArchiveAfterDaysSinceModificationGreaterThan: 90  # tier: Archive
+        version:
+          deleteAfterDaysSinceCreation: 7
+---
+apiVersion: storage.azure.m.upbound.io/v1beta1
+kind: ContainerImmutabilityPolicy
+metadata:
+  name: orders-files-7f3a2c
+  namespace: shop
+spec:
+  forProvider:
+    storageContainerResourceManagerIdRef:
+      name: orders-files-7f3a2c
+    immutabilityPeriodInDays: 30
+    locked: false
+```
+
+*A `Bucket` on Azure and its composed resources.*
 
 ## Platform Decisions
 

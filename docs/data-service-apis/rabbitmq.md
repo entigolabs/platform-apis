@@ -16,6 +16,7 @@ RabbitMQ's own concepts. GCP, OCI and Azure have none.
 
 - [Kinds](#kinds)
 - [Mapping](#mapping)
+- [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
@@ -147,6 +148,75 @@ The table names, for every field, the field of each cloud's provider it maps to.
 | `aws.id`                 | the broker ID                                                            |
 
 *Fields of `RabbitMQBroker` on Amazon MQ.*
+
+## Composed Resources
+
+The platform composes the resources below from the `RabbitMQBroker` in [Kinds](#kinds), on each
+cloud in turn. A value commented `# set by the platform` comes from the deployment, not from the
+object. The resources per cloud:
+
+```yaml Object
+---
+apiVersion: mq.entigo.com/v1alpha2
+kind: RabbitMQBroker
+metadata:
+  name: orders-mq
+  namespace: shop
+spec:
+  version: "4.2"                       # RabbitMQ's release line; the cloud manages the patch
+  highAvailability: false              # true: a three-node cluster across zones
+  deletionProtection: true
+  maintenance:
+    window:
+      day: Sun
+      hourUTC: 3
+  parameters:                          # rabbitmq.conf settings, within the cloud's allowlist
+    consumer_timeout: "1800000"
+  secretName: orders-mq-login          # unset, orders-mq-credentials (rule 6)
+  aws:                                 # also takes id (rule 9)
+    instanceType: mq.m7g.medium        # the Amazon MQ host instance type
+    publiclyAccessible: false          # set at creation only
+```
+
+```yaml AWS resources
+---
+apiVersion: mq.aws.m.upbound.io/v1beta1
+kind: Broker
+metadata:
+  name: orders-mq-7f3a2c                 # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1                   # the deployment's region
+    brokerName: orders-mq-7f3a2c         # set by the platform
+    engineType: RabbitMQ                 # set by the platform
+    engineVersion: "4.2"
+    hostInstanceType: mq.m7g.medium
+    deploymentMode: SINGLE_INSTANCE      # CLUSTER_MULTI_AZ with highAvailability
+    autoMinorVersionUpgrade: true        # set by the platform; Amazon MQ requires it
+    maintenanceWindowStartTime:
+      dayOfWeek: SUNDAY
+      timeOfDay: "03:00"
+      timeZone: UTC
+    configuration:                       # a composed Configuration holding parameters
+      id: c-0123456789abcdef
+      revision: 1
+    publiclyAccessible: false
+    subnetIds:                           # set by the platform
+    - subnet-0123456789abcdef0
+    securityGroups:                      # set by the platform
+    - sg-0123456789abcdef0
+    encryptionOptions:                   # set by the platform
+      kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data
+      useAwsOwnedKey: false
+    user:                                # set by the platform
+    - username: admin
+      passwordSecretRef:
+        name: orders-mq-credentials
+        key: password
+```
+
+*A `RabbitMQBroker` on AWS and its composed resources.*
 
 ## Platform Decisions
 

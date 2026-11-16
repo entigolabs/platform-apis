@@ -14,6 +14,7 @@ for PostgreSQL flexible server (Azure).
 
 - [Kinds](#kinds)
 - [Mapping](#mapping)
+- [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
@@ -299,6 +300,322 @@ v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0) a
 [provider-upjet-azure
 v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/v2.8.0). GCP's
 `updateTrack` only delays minor upgrades.
+
+## Composed Resources
+
+The platform composes the resources below from the `PostgreSQLInstance` in [Kinds](#kinds), on each
+cloud in turn. A value commented `# set by the platform` comes from the deployment, not from the
+object. The resources per cloud:
+
+```yaml Object
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLInstance
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  # Common
+  version: "17"                        # the full "17.7" with minor upgrades off
+  storage:
+    sizeGB: 20
+    autoGrow: true
+    maxSizeGB: 100                     # autoGrow ceiling
+    iops: 12000
+    throughputMBps: 500
+  highAvailability: false              # a standby in another zone
+  deletionProtection: true
+  maintenance:
+    window:
+      day: Sun
+      hourUTC: 3
+    autoMinorVersionUpgrade: true
+    allowMajorVersionUpgrade: false
+  backup:
+    retentionDays: 7                   # backups kept; 0 disables them
+    pointInTimeDays: 7                 # how far back restore.pointInTime reaches
+    startHourUTC: 2
+  parameters:                          # PostgreSQL settings
+    max_connections: "200"
+  parameterApplyMethod: Immediate      # or NextRestart
+  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
+  # Cloud-specific; every block also takes id (rule 9)
+  aws:
+    instanceType: db.t4g.small         # the RDS instance class
+    # parameterGroupName: orders-pg17  # an existing group, instead of parameters
+    # fromBackup: orders-final         # an RDS snapshot ID, instead of restore
+```
+
+```yaml AWS resources
+---
+apiVersion: rds.aws.m.upbound.io/v1beta1
+kind: Instance
+metadata:
+  name: orders-db-7f3a2c                 # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1                   # the deployment's region
+    engine: postgres
+    engineVersion: "17"
+    instanceClass: db.t4g.small
+    allocatedStorage: 20
+    maxAllocatedStorage: 100
+    iops: 12000
+    storageThroughput: 500
+    storageType: gp3                     # set by the platform
+    multiAz: false
+    deletionProtection: true
+    maintenanceWindow: sun:03:00-sun:03:30
+    autoMinorVersionUpgrade: true
+    allowMajorVersionUpgrade: false
+    backupRetentionPeriod: 7
+    backupWindow: 02:00-02:30
+    parameterGroupName: orders-db-7f3a2c # a composed ParameterGroup holding parameters
+    username: dbadmin                    # set by the platform
+    autoGeneratePassword: true           # set by the platform
+    passwordSecretRef:
+      name: orders-db-dbadmin
+      key: password
+    dbSubnetGroupName: deployment-db     # set by the platform
+    vpcSecurityGroupIds:                 # set by the platform
+    - sg-0123456789abcdef0
+    publiclyAccessible: false            # set by the platform
+    storageEncrypted: true               # set by the platform
+    kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # set by the platform
+```
+
+*A `PostgreSQLInstance` on AWS and its composed resources.*
+
+```yaml Object
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLInstance
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  # Common
+  version: "17"                        # the full "17.7" with minor upgrades off
+  storage:
+    sizeGB: 20
+    autoGrow: true
+    maxSizeGB: 100                     # autoGrow ceiling
+    iops: 12000
+    throughputMBps: 500
+  highAvailability: false              # a standby in another zone
+  deletionProtection: true
+  maintenance:
+    window:
+      day: Sun
+      hourUTC: 3
+    autoMinorVersionUpgrade: true
+    allowMajorVersionUpgrade: false
+  backup:
+    retentionDays: 7                   # backups kept; 0 disables them
+    pointInTimeDays: 7                 # how far back restore.pointInTime reaches
+    startHourUTC: 2
+  parameters:                          # PostgreSQL settings
+    max_connections: "200"
+  parameterApplyMethod: Immediate      # or NextRestart
+  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
+  # Cloud-specific; every block also takes id (rule 9)
+  gcp:
+    instanceType: db-custom-2-7680     # the Cloud SQL tier
+    edition: ENTERPRISE                # or ENTERPRISE_PLUS
+    diskType: PD_SSD                   # PD_HDD, HYPERDISK_BALANCED
+    # fromBackup: orders-db/1234       # instance and backup run, instead of restore
+```
+
+```yaml GCP resources
+---
+apiVersion: sql.gcp.m.upbound.io/v1beta1
+kind: DatabaseInstance
+metadata:
+  name: orders-db-7f3a2c                 # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    region: europe-north1                # the deployment's region
+    databaseVersion: POSTGRES_17
+    encryptionKeyName: projects/p/locations/europe-north1/keyRings/r/cryptoKeys/data  # set by the platform
+    settings:
+      tier: db-custom-2-7680
+      edition: ENTERPRISE
+      diskType: PD_SSD                   # iops and throughput apply only with Hyperdisk
+      diskSize: 20
+      diskAutoresize: true
+      diskAutoresizeLimit: 100
+      availabilityType: ZONAL
+      deletionProtectionEnabled: true
+      maintenanceWindow:
+        day: 7
+        hour: 3
+      backupConfiguration:
+        enabled: true
+        pointInTimeRecoveryEnabled: true
+        backupRetentionSettings:
+          retainedBackups: 7
+        transactionLogRetentionDays: 7
+        startTime: "02:00"
+      databaseFlags:
+      - name: max_connections
+        value: "200"
+      ipConfiguration:                   # set by the platform
+        ipv4Enabled: false
+        privateNetwork: projects/p/global/networks/deployment
+```
+
+*A `PostgreSQLInstance` on GCP and its composed resources.*
+
+```yaml Object
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLInstance
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  # Common
+  version: "17"                        # the full "17.7" with minor upgrades off
+  storage:
+    sizeGB: 20
+    autoGrow: true
+    maxSizeGB: 100                     # autoGrow ceiling
+    iops: 12000
+    throughputMBps: 500
+  highAvailability: false              # a standby in another zone
+  deletionProtection: true
+  maintenance:
+    window:
+      day: Sun
+      hourUTC: 3
+    autoMinorVersionUpgrade: true
+    allowMajorVersionUpgrade: false
+  backup:
+    retentionDays: 7                   # backups kept; 0 disables them
+    pointInTimeDays: 7                 # how far back restore.pointInTime reaches
+    startHourUTC: 2
+  parameters:                          # PostgreSQL settings
+    max_connections: "200"
+  parameterApplyMethod: Immediate      # or NextRestart
+  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
+  # Cloud-specific; every block also takes id (rule 9)
+  oci:
+    instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
+    ocpus: 2                           # required with a .Flex shape
+    memoryGB: 32                       # required with a .Flex shape
+    # fromBackup: ocid1...             # a backup OCID, instead of restore
+```
+
+```yaml OCI resources
+---
+apiVersion: psql.oci.m.upbound.io/v1alpha1
+kind: PsqlDbSystem
+metadata:
+  name: orders-db-7f3a2c                 # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    compartmentId: ocid1.compartment.oc1..zone  # set by the platform
+    displayName: orders-db-7f3a2c
+    dbVersion: "17"
+    shape: PostgreSQL.VM.Standard.E5.Flex
+    instanceOcpuCount: 2
+    instanceMemorySizeInGbs: 32
+    instanceCount: 1                     # 2 with highAvailability
+    configId: ocid1.postgresqlconfiguration.oc1..orders  # a composed PsqlConfiguration holding parameters
+    storageDetails:
+    - systemType: OCI_OPTIMIZED_STORAGE
+      isRegionallyDurable: false         # true with highAvailability
+      iops: "12000"
+    managementPolicy:
+    - maintenanceWindowStart: SUN 03:00
+      backupPolicy:
+      - kind: DAILY
+        retentionDays: 7
+        backupStart: "02:00"
+      pitrPolicy:
+      - kind: STANDARD
+        restoreDays: 7
+    networkDetails:                      # set by the platform
+    - subnetId: ocid1.subnet.oc1..deployment
+      nsgIds:
+      - ocid1.networksecuritygroup.oc1..deployment
+    credentials:                         # set by the platform
+    - username: dbadmin
+```
+
+*A `PostgreSQLInstance` on OCI and its composed resources.*
+
+```yaml Object
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLInstance
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  # Common
+  version: "17"                        # the full "17.7" with minor upgrades off
+  storage:
+    sizeGB: 20
+    autoGrow: true
+    maxSizeGB: 100                     # autoGrow ceiling
+    iops: 12000
+    throughputMBps: 500
+  highAvailability: false              # a standby in another zone
+  deletionProtection: true
+  maintenance:
+    window:
+      day: Sun
+      hourUTC: 3
+    autoMinorVersionUpgrade: true
+    allowMajorVersionUpgrade: false
+  backup:
+    retentionDays: 7                   # backups kept; 0 disables them
+    pointInTimeDays: 7                 # how far back restore.pointInTime reaches
+    startHourUTC: 2
+  parameters:                          # PostgreSQL settings
+    max_connections: "200"
+  parameterApplyMethod: Immediate      # or NextRestart
+  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
+  # Cloud-specific; every block also takes id (rule 9)
+  azure:
+    instanceType: GP_Standard_D2ds_v5  # the flexible server SKU
+    storageTier: P10                   # P4 to P80; sets the disk's IOPS
+```
+
+```yaml Azure resources
+---
+apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
+kind: FlexibleServer
+metadata:
+  name: orders-db-7f3a2c                 # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    location: northeurope                # the deployment's region
+    resourceGroupName: deployment        # set by the platform
+    version: "17"
+    skuName: GP_Standard_D2ds_v5
+    storageMb: 32768                     # 20 GB rounded up to Azure's next size
+    storageTier: P10
+    autoGrowEnabled: true
+    maintenanceWindow:
+      dayOfWeek: 0
+      startHour: 3
+    backupRetentionDays: 7
+    delegatedSubnetId: /subscriptions/s/resourceGroups/deployment/providers/Microsoft.Network/virtualNetworks/v/subnets/db  # set by the platform
+    privateDnsZoneId: /subscriptions/s/resourceGroups/deployment/providers/Microsoft.Network/privateDnsZones/db.postgres.database.azure.com  # set by the platform
+    publicNetworkAccessEnabled: false    # set by the platform
+    administratorLogin: dbadmin          # set by the platform
+    administratorPasswordSecretRef:      # set by the platform
+      name: orders-db-dbadmin
+      key: password
+```
+
+*A `PostgreSQLInstance` on Azure and its composed resources.*
 
 ## Platform Decisions
 

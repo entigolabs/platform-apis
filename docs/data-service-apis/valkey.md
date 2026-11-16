@@ -15,6 +15,7 @@ needs (rule 6). Azure has none: Azure Managed Redis runs Redis, not Valkey.
 
 - [Kinds](#kinds)
 - [Mapping](#mapping)
+- [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
 - [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
@@ -143,6 +144,198 @@ The cloud-specific fields:
 | `aws.fromBackup`         | `snapshotName`, at creation only |
 
 *Cloud-specific fields of `ValkeyInstance`.*
+
+## Composed Resources
+
+The platform composes the resources below from the `ValkeyInstance` in [Kinds](#kinds), on each
+cloud in turn. A value commented `# set by the platform` comes from the deployment, not from the
+object. The resources per cloud:
+
+```yaml Object
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyInstance
+metadata:
+  name: orders-cache
+  namespace: shop
+spec:
+  # Common
+  version: "8.1"                      # the least version; raising it upgrades
+  highAvailability: true               # a replica in another zone, with automatic failover
+  replicas: 1
+  deletionProtection: true
+  maintenance:
+    window:
+      day: Sun
+      hourUTC: 5
+    autoMinorVersionUpgrade: true
+  backup:
+    retentionDays: 7                   # 0 disables backups
+    startHourUTC: 3
+  parameters:                          # Valkey settings, within each cloud's allowlist
+    maxmemory-policy: allkeys-lru
+  secretName: orders-cache-login       # unset, orders-cache-credentials (rule 6)
+  # Cloud-specific; every block also takes id (rule 9)
+  aws:
+    instanceType: cache.t4g.small      # the ElastiCache node type
+    # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
+    # fromBackup: orders-cache-final   # a snapshot name, at creation only
+```
+
+```yaml AWS resources
+---
+apiVersion: elasticache.aws.m.upbound.io/v1beta1
+kind: ReplicationGroup
+metadata:
+  name: orders-cache-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    region: eu-north-1                   # the deployment's region
+    description: orders-cache
+    engine: valkey
+    engineVersion: "8.1"
+    nodeType: cache.t4g.small
+    numCacheClusters: 2                  # replicas + 1
+    multiAzEnabled: true
+    automaticFailoverEnabled: true
+    maintenanceWindow: sun:05:00-sun:06:00
+    autoMinorVersionUpgrade: "true"
+    snapshotRetentionLimit: 7
+    snapshotWindow: 03:00-04:00
+    parameterGroupName: orders-cache-7f3a2c  # a composed parameter group holding parameters
+    subnetGroupName: deployment-cache    # set by the platform
+    securityGroupIds:                    # set by the platform
+    - sg-0123456789abcdef0
+    transitEncryptionEnabled: true       # set by the platform
+    atRestEncryptionEnabled: "true"      # set by the platform
+    kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # set by the platform
+    authTokenSecretRef:                  # set by the platform
+      name: orders-cache-credentials
+      key: password
+```
+
+*A `ValkeyInstance` on AWS and its composed resources.*
+
+```yaml Object
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyInstance
+metadata:
+  name: orders-cache
+  namespace: shop
+spec:
+  # Common
+  version: "8.1"                      # the least version; raising it upgrades
+  highAvailability: true               # a replica in another zone, with automatic failover
+  replicas: 1
+  deletionProtection: true
+  maintenance:
+    window:
+      day: Sun
+      hourUTC: 5
+    autoMinorVersionUpgrade: true
+  backup:
+    retentionDays: 7                   # 0 disables backups
+    startHourUTC: 3
+  parameters:                          # Valkey settings, within each cloud's allowlist
+    maxmemory-policy: allkeys-lru
+  secretName: orders-cache-login       # unset, orders-cache-credentials (rule 6)
+  # Cloud-specific; every block also takes id (rule 9)
+  gcp:
+    instanceType: HIGHMEM_MEDIUM       # the Memorystore node type
+```
+
+```yaml GCP resources
+---
+apiVersion: memorystore.gcp.m.upbound.io/v1beta1
+kind: Instance
+metadata:
+  name: orders-cache-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    project: shop-project                # set by the platform
+    location: europe-north1              # the deployment's region
+    engineVersion: VALKEY_8_1
+    nodeType: HIGHMEM_MEDIUM
+    mode: CLUSTER_DISABLED               # set by the platform
+    shardCount: 1                        # set by the platform
+    replicaCount: 1
+    zoneDistributionConfig:
+      mode: MULTI_ZONE                   # SINGLE_ZONE without highAvailability
+    deletionProtectionEnabled: true
+    maintenancePolicy:
+      weeklyMaintenanceWindow:
+      - day: SUNDAY
+        startTime:
+          hours: 5
+    automatedBackupConfig:
+      retention: 604800s                 # 7 days, in seconds
+      fixedFrequencySchedule:
+        startTime:
+          hours: 3
+    engineConfigs:
+      maxmemory-policy: allkeys-lru
+    transitEncryptionMode: SERVER_AUTHENTICATION  # set by the platform
+    desiredPscAutoConnections:           # set by the platform
+    - network: projects/shop-project/global/networks/deployment
+      projectId: shop-project
+```
+
+*A `ValkeyInstance` on GCP and its composed resources.*
+
+```yaml Object
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyInstance
+metadata:
+  name: orders-cache
+  namespace: shop
+spec:
+  # Common
+  version: "8.1"                      # the least version; raising it upgrades
+  highAvailability: true               # a replica in another zone, with automatic failover
+  replicas: 1
+  deletionProtection: true
+  maintenance:
+    window:
+      day: Sun
+      hourUTC: 5
+    autoMinorVersionUpgrade: true
+  backup:
+    retentionDays: 7                   # 0 disables backups
+    startHourUTC: 3
+  parameters:                          # Valkey settings, within each cloud's allowlist
+    maxmemory-policy: allkeys-lru
+  secretName: orders-cache-login       # unset, orders-cache-credentials (rule 6)
+  # Cloud-specific; every block also takes id (rule 9)
+  oci:
+    memoryGB: 16                       # per node
+```
+
+```yaml OCI resources
+---
+apiVersion: redis.oci.m.upbound.io/v1alpha1
+kind: RedisCluster
+metadata:
+  name: orders-cache-7f3a2c              # the object's name and a hash of its UID (rule 9)
+  namespace: shop
+spec:
+  forProvider:
+    compartmentId: ocid1.compartment.oc1..zone  # set by the platform
+    displayName: orders-cache-7f3a2c
+    softwareVersion: VALKEY_8_1
+    clusterMode: NONSHARDED
+    nodeCount: 2                         # replicas + 1
+    nodeMemoryInGbs: 16
+    ociCacheConfigSetId: ocid1.ocicacheconfigset.oc1..orders  # a composed config set holding parameters
+    subnetId: ocid1.subnet.oc1..deployment  # set by the platform
+    nsgIds:                              # set by the platform
+    - ocid1.networksecuritygroup.oc1..deployment
+```
+
+*A `ValkeyInstance` on OCI and its composed resources.*
 
 ## Platform Decisions
 
