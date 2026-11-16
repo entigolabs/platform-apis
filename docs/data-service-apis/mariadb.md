@@ -229,6 +229,7 @@ writes the full version, such as `"11.4.10"`, and changes it to upgrade. A param
 to one major version, so a major change is rejected unless `aws.parameterGroupName` changes or is
 removed in the same edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an
 increase under 10% up to 10%. `status.aws.finalBackup` is the ID the final snapshot will receive.
+Storage is gp3.
 
 ## Composed Resources
 
@@ -315,15 +316,14 @@ spec:
 
 The platform makes these settings itself:
 
-| Setting           | Platform's Choice                                                                 |
-| ----------------- | --------------------------------------------------------------------------------- |
-| Network placement | The deployment's subnets and a security group                                     |
-| Public access     | None                                                                              |
-| Encryption        | The platform's data key                                                           |
-| Admin login       | An admin username and a generated password                                        |
-| Storage           | gp3                                                                               |
-| Port              | 3306                                                                              |
-| Tags              | Workspace and Zone tags                                                           |
+| Setting           | Platform's Choice                                                        |
+| ----------------- | ------------------------------------------------------------------------ |
+| Network placement | The deployment's private network                                         |
+| Public access     | None                                                                     |
+| Encryption        | The platform's data key                                                  |
+| Admin login       | An admin username and a generated password                               |
+| Port              | 3306                                                                     |
+| Tags              | Workspace and Zone tags                                                  |
 | Final backup      | A snapshot taken when an instance is deleted, switched on per deployment |
 
 *Settings the platform makes for a `MariaDBInstance`.*

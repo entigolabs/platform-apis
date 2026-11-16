@@ -113,13 +113,18 @@ ignored, with the reason (rule 1), and a field of a cloud's block appears only f
 *Fields of `ArtifactRepository` and their provider fields.*
 
 **AWS:** ECR's `IMMUTABLE_WITH_EXCLUSION` and `MUTABLE_WITH_EXCLUSION` modes, which only ECR has,
-are not offered.
+are not offered. Images are scanned on push by ECR.
 
 **GCP:** a separate Artifact Registry repository per application keeps immutability and cleanup per
-application, as on ECR and OCIR.
+application, as on ECR and OCIR. A registry takes a key only at creation. Images are scanned by
+Artifact Registry's container scanning.
+
+**OCI:** OCIR takes no customer key. Images are scanned by OCI Vulnerability Scanning Service, and
+nodes pull through Oracle's kubelet credential provider (oke-credential-provider-for-ocir).
 
 **Azure:** a registry per application would be one billed SKU each, so applications share a platform
-registry and only path-scoped access is per application.
+registry and only path-scoped access is per application. A registry takes a key only at creation.
+Images are scanned by Defender for Containers.
 
 ## Composed Resources
 
@@ -294,12 +299,12 @@ spec:
 
 The platform makes these settings itself:
 
-| Setting                | Platform's Choice                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Visibility             | Private                                                                                                                                    |
-| Encryption             | The platform's data key on AWS; GCP and Azure take a key only at creation, and OCIR has none                                               |
-| Vulnerability scanning | ECR scan on push, Artifact Registry's container scanning, OCI Vulnerability Scanning Service, Defender for Containers on Azure             |
-| Image pulls            | Keyless pulls by the cluster's nodes; on OCI, through Oracle's kubelet credential provider (oke-credential-provider-for-ocir) on the nodes |
+| Setting                | Platform's Choice                                  |
+| ---------------------- | -------------------------------------------------- |
+| Visibility             | Private                                            |
+| Encryption             | The platform's data key, where the cloud takes one |
+| Vulnerability scanning | The cloud's own scanner                            |
+| Image pulls            | Keyless pulls by the cluster's nodes               |
 
 *Settings the platform makes for an `ArtifactRepository`.*
 

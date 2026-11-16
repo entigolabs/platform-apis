@@ -183,15 +183,19 @@ ignored, with the reason (rule 1), and a field of a cloud's block appears only f
 *Fields of `KafkaCluster` and their provider fields.*
 
 **AWS:** the size is the broker type, `aws.instanceType`, times `brokers`. `bootstrapServers` is
-`bootstrapBrokersSaslScram`.
+`bootstrapBrokersSaslScram`. provider-kafka logs in with IAM. `allow.everyone.if.no.acl.found` is
+`false`, with the admin as a superuser.
 
 **GCP:** the mapping names fields of the Terraform resource `google_managed_kafka_cluster`, since no
 Crossplane provider has one yet. GCP takes the cluster's total vCPU and memory, `gcp.vcpus` and
 `gcp.memoryGB`, and chooses the brokers itself, so `brokers` is ignored and stays empty in the
-status. `bootstrapServers` is `bootstrap_address`.
+status. `bootstrapServers` is `bootstrap_address`. The admin needs explicit ALLOW ACLs on every
+resource.
 
 **OCI:** the size is the broker shape, `oci.instanceType` with `oci.ocpus`, times `brokers`.
-`bootstrapServers` is `kafkaBootstrapUrls`.
+`bootstrapServers` is `kafkaBootstrapUrls`. Data at rest uses the service's own key, since OCI takes
+no customer key. provider-kafka logs in with the superuser's Vault secret.
+`allow.everyone.if.no.acl.found` is `false`, with the admin as a superuser.
 
 ## Composed Resources
 
@@ -322,13 +326,13 @@ spec:
 
 The platform makes these settings itself:
 
-| Setting           | Platform's Choice                                                                                                                                                                                                                                       |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Network placement | The deployment's network                                                                                                                                                                                                                                |
-| Encryption        | TLS in transit; at rest, the platform's data key on AWS and GCP, while OCI has no customer key                                                                                                                                                          |
-| Login mechanism   | Chosen by the platform per cloud, and named in each user's secret                                                                                                                                                                                       |
-| Admin login       | The one provider-kafka uses: IAM on AWS, the superuser's Vault secret on OCI                                                                                                                                                                            |
-| Access            | Denied by default: a topic or group is reachable only by users with an ACL on it and by the admin. MSK and OCI set `allow.everyone.if.no.acl.found=false`, with the admin as a superuser; GCP needs explicit ALLOW ACLs for the admin on every resource |
+| Setting           | Platform's Choice                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| Network placement | The deployment's private network                                                                  |
+| Encryption        | TLS in transit; at rest, the platform's data key where the cloud takes one                        |
+| Login mechanism   | Chosen by the platform per cloud, and named in each user's secret                                 |
+| Admin login       | The one provider-kafka uses                                                                       |
+| Access            | Denied by default: a topic or group is reachable only by users with an ACL on it and by the admin |
 
 *Settings the platform makes for a `KafkaCluster`.*
 

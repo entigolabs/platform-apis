@@ -148,7 +148,10 @@ The table names what each field maps to in the cloud's provider:
 *Fields of `RabbitMQBroker` and their provider fields.*
 
 **AWS:** `aws.publiclyAccessible` is set at creation only: Amazon MQ replaces a broker to change it
-(`ForceNew` in [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)).
+(`ForceNew` in [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)). The
+platform sets `autoMinorVersionUpgrade: true`, which Amazon MQ requires from RabbitMQ 3.13, its
+oldest version. Amazon MQ then applies patch versions in the maintenance window, so `version` holds
+only the release line.
 
 ## Composed Resources
 
@@ -223,14 +226,13 @@ spec:
 
 The platform makes these settings itself:
 
-| Setting           | Platform's Choice                                                                                                                                                                                           |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Network placement | The deployment's subnets and a security group                                                                                                                                                               |
-| Public access     | None, unless `aws.publiclyAccessible` is set                                                                                                                                                                |
-| Encryption        | The platform's data key                                                                                                                                                                                     |
-| Admin login       | An admin user and a generated password                                                                                                                                                                      |
-| Broker name       | Set by the platform                                                                                                                                                                                         |
-| Minor upgrades    | `autoMinorVersionUpgrade: true`, which Amazon MQ requires from RabbitMQ 3.13, its oldest version. Amazon MQ then applies patch versions in the maintenance window, so `version` holds only the release line |
+| Setting           | Platform's Choice                            |
+| ----------------- | -------------------------------------------- |
+| Network placement | The deployment's private network             |
+| Public access     | None, unless `aws.publiclyAccessible` is set |
+| Encryption        | The platform's data key                      |
+| Admin login       | An admin user and a generated password       |
+| Broker name       | Set by the platform                          |
 
 *Settings the platform makes for a `RabbitMQBroker`.*
 

@@ -269,6 +269,7 @@ writes the full version, such as `"17.7"`, and changes it to upgrade. A paramete
 one major version, so a major change is rejected unless `aws.parameterGroupName` changes or is
 removed in the same edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an
 increase under 10% up to 10%. `status.aws.finalBackup` is the ID the final snapshot will receive.
+Storage is gp3.
 
 **GCP:** provider keys are from the CRDs of [provider-upjet-gcp
 v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0). `updateTrack`
@@ -281,13 +282,14 @@ The platform therefore always sets `gcp.edition`, and a deployment's defaults fo
 **OCI:** provider keys are from the CRDs of [crossplane-provider-oci
 v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0). `storage.sizeGB`
 stays empty in the status, since OCI reports no size. No final backup is taken, and `endpoint.host`
-is an IP address.
+is an IP address. Storage is encrypted with the service's own key, since crossplane-provider-oci
+v2.0.0 has no key field for OCI Database with PostgreSQL.
 
 **Azure:** provider keys are from the CRDs of [provider-upjet-azure
 v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/v2.8.0).
 `storage.sizeGB` is rounded up to the next of Azure's 12 fixed sizes. Azure's same-zone standby
 keeps no copy in another zone, so `highAvailability: true` maps to its zone-redundant mode only. No
-final backup is taken.
+final backup is taken. The platform also creates a private DNS zone for the server.
 
 ## Composed Resources
 
@@ -637,16 +639,15 @@ spec:
 
 The platform makes these settings itself:
 
-| Setting           | Platform's Choice                                                                                                                              |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Network placement | The deployment's subnets, and a security group or NSG; on Azure, also a private DNS zone                                                       |
-| Public access     | None                                                                                                                                           |
-| Encryption        | The platform's data key; on OCI, the service's own key, since crossplane-provider-oci v2.0.0 has no key field for OCI Database with PostgreSQL |
-| Admin login       | An admin username and a generated password                                                                                                     |
-| Storage           | gp3 on AWS                                                                                                                                     |
-| Port              | 5432                                                                                                                                           |
-| Tags              | Workspace and Zone tags                                                                                                                        |
-| Final backup      | Taken when an instance is deleted, switched on per deployment, on the clouds that take one (AWS, GCP)                                 |
+| Setting           | Platform's Choice                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------- |
+| Network placement | The deployment's private network                                                         |
+| Public access     | None                                                                                     |
+| Encryption        | The platform's data key, where the cloud takes one                                       |
+| Admin login       | An admin username and a generated password                                               |
+| Port              | 5432                                                                                     |
+| Tags              | Workspace and Zone tags                                                                  |
+| Final backup      | Taken when an instance is deleted, switched on per deployment, where the cloud takes one |
 
 *Settings the platform makes for a `PostgreSQLInstance`.*
 

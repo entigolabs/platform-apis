@@ -119,12 +119,16 @@ ignored, with the reason (rule 1), and a field of a cloud's block appears only f
 **AWS:** S3 enables Object Lock on an existing bucket too, but only once versioning is on, and never
 off again (`aws_s3_bucket_object_lock_configuration` in
 [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so `versioning:
-false` is refused on a bucket that ever had `retention`.
+false` is refused on a bucket that ever had `retention`. Bucket names are globally unique, and S3
+object ownership is enforced.
+
+**GCP:** bucket names are globally unique, and uniform bucket-level access is on.
 
 **OCI:** `status.oci.retentionLockedFrom` is the date a locked retention takes effect.
 
 **Azure:** versioning, lifecycle, CORS and soft delete belong to the storage account, so each
 `Bucket` has its own account, with the account's keys turned off (`sharedAccessKeyEnabled: false`).
+Storage account names are globally unique.
 
 ## Composed Resources
 
@@ -538,12 +542,12 @@ spec:
 
 The platform makes these settings itself:
 
-| Setting        | Platform's Choice                                                       |
-| -------------- | ----------------------------------------------------------------------- |
-| Cloud name     | Set by the platform; globally unique on AWS, GCP and for Azure accounts |
-| Public access  | Blocked                                                                 |
-| Encryption     | The platform's data key                                                 |
-| Access control | IAM only: S3 object ownership enforced, GCS uniform bucket-level access |
+| Setting        | Platform's Choice                                       |
+| -------------- | ------------------------------------------------------- |
+| Cloud name     | Set by the platform, unique where the cloud requires it |
+| Public access  | Blocked                                                 |
+| Encryption     | The platform's data key                                 |
+| Access control | Cloud IAM only                                          |
 
 *Settings the platform makes for a `Bucket`.*
 

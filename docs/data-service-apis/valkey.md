@@ -135,10 +135,13 @@ applies to one major version (family `valkey<major>`), so a change of the major 
 `aws.parameterGroupName` changes or is removed in the same edit. `status.aws.finalBackup` is the ID
 the final snapshot will receive.
 
-**GCP:** the provider's Memorystore `Instance` offers no password authentication.
+**GCP:** the provider's Memorystore `Instance` offers no password authentication. Data at rest uses
+the service's own key, and Memorystore takes no final backup.
 
 **OCI:** nodes are sized by memory only, so the deployment default `oci.memoryGB` sizes an instance
-whose spec is empty. `readerEndpoint` comes from `replicasFqdn`.
+whose spec is empty. `readerEndpoint` comes from `replicasFqdn`. Data at rest uses the service's own
+key. The password is set on a user named `default`, as its SHA-256 hash, which replaces the built-in
+user that has no password. OCI Cache takes manual backups only, so no final backup is taken.
 
 ## Composed Resources
 
@@ -341,12 +344,12 @@ spec:
 
 The platform makes these settings itself:
 
-| Setting           | Platform's Choice                                                                                                                                                                                |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Network placement | The deployment's subnet, and a security group or NSG                                                                                                                                             |
-| Encryption        | TLS in transit; at rest, the platform's data key on AWS                                                                                                                                          |
-| Login             | A generated password; on OCI, a user named `default` with the password's SHA-256 hash, which replaces the built-in user that has no password                                                     |
-| Final backup      | A snapshot taken when a cache is deleted (`finalSnapshotIdentifier`), switched on per deployment, on AWS only: OCI Cache takes manual backups only, and Memorystore has no final backup |
+| Setting           | Platform's Choice                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| Network placement | The deployment's private network                                                                |
+| Encryption        | TLS in transit; at rest, the platform's data key where the cloud takes one                      |
+| Login             | A generated password                                                                            |
+| Final backup      | A snapshot taken when a cache is deleted, switched on per deployment, where the cloud takes one |
 
 *Settings the platform makes for a `ValkeyInstance`.*
 
