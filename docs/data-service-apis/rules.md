@@ -103,10 +103,10 @@ portal and from Argo CD. Observed resources receive no defaults.
 Deletion protection works as today: a `ValidatingAdmissionPolicy` refuses to delete an object
 whose `deletionProtection` is true.
 
-#### 6 Each credential is one Secret with the same keys on every cloud
+#### 6 Applications connect the same way on every cloud
 
-Applications read every credential from one Secret with the same keys, `endpoint`, `port`,
-`username` and `password`, on every cloud.
+An application reads its connection details in the same form on every cloud, so it moves between
+clouds without changes.
 
 Each credential is one Kubernetes Secret in the object's namespace, with the same keys on every
 cloud: `endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint` already

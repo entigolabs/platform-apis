@@ -79,3 +79,7 @@ nav:
 - {file: follow-up-work.md, label: Follow-Up Work, divider: true}
 - {file: deferred-capabilities.md, label: Deferred Capabilities}
 - {file: open-points.md, label: Open Points, checklist: true}
+- label: Feedback
+  feedback: true
+  divider: true
+  intro: "Comments, questions and objections to the design are collected here, and everyone with access to this page reads them. Each person can delete their own entries."
