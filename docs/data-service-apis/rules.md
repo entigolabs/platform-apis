@@ -29,14 +29,14 @@ to a single value of a field, such as turning off a feature that one cloud alway
 
 | Level   | Meaning                                                                                                                                                |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Core    | Works on every cloud. Where a cloud cannot perform an operation the field asks for, the Level column says so, and the object reports the failure.      |
+| Core    | Works on every cloud. Where a cloud cannot perform an operation the field asks for, its Mapping column says so, and the object reports the failure.    |
 | Ignored | Accepted on every cloud, but has no effect on the clouds named in the field's description, which lack it. The resource is created without the setting. |
 
 *Support levels of a field.*
 
 In a schema, a field's description ends with `Ignored on` and the clouds that lack it; each
-service's Mapping table names the same clouds in its Level column. A field without that mark is
-Core.
+service's Mapping table shows the field as ignored in the column of each of those clouds. A field
+without that mark is Core.
 
 #### 2 A setting of one cloud belongs in that cloud's block
 

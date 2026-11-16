@@ -17,7 +17,6 @@ store every OCI artifact alike.
 - [Mapping](#mapping)
 - [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
-- [Ignored Settings](#ignored-settings)
 - [Notes](#notes)
 
 ## Kinds
@@ -97,42 +96,38 @@ status:
 
 ## Mapping
 
-The table names, for every field, the field of each cloud's provider it maps to. Level is the
-field's support level (rule 1).
+The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
+ignored, with the reason (rule 1), and a field of a cloud's block appears only for that cloud:
 
-| Field                | Level                    | AWS (ECR)                       | GCP (Artifact Registry)                                                                                                                                                                                             | OCI (OCIR)                                                             | Azure (ACR)                                                   |
-| -------------------- | ------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- |
-| the repository       |                          | `Repository`                    | one `RegistryRepository` (`format: DOCKER`) per repository                                                                                                                                                          | `ContainerRepository`                                                  | a path in a platform-owned `Registry`; no resource of its own |
-| `observe`            | Core; fails on Azure     | `managementPolicies: [Observe]` | `managementPolicies: [Observe]`                                                                                                                                                                                     | `managementPolicies: [Observe]`                                        | fails; an Azure repository has no resource of its own         |
-| `deletionProtection` | Core                     | platform blocks deletion        | platform blocks deletion                                                                                                                                                                                            | platform blocks deletion                                               | platform blocks deletion                                      |
-| `immutableTags`      | Ignored on Azure         | `imageTagMutability: IMMUTABLE` | `dockerConfig.immutableTags`                                                                                                                                                                                        | `isImmutable`                                                          | ignored; tag locks are set per tag through the Azure CLI only |
-| `lifecycleRules`     | Ignored on OCI and Azure | `LifecyclePolicy`               | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped | ignored; retention is console-only and counts days since the last pull | ignored; only registry-wide untagged retention exists         |
+| Field                | AWS                                 | GCP                                                                                                                                                                                                                                                    | OCI                                                                                                      | Azure                                                                                     |
+| -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| the repository       | `Repository`                        | one `RegistryRepository` (`format: DOCKER`) per repository                                                                                                                                                                                             | `ContainerRepository`                                                                                    | a path in a platform-owned `Registry`; no resource of its own                             |
+| `observe`            | `managementPolicies: [Observe]`     | `managementPolicies: [Observe]`                                                                                                                                                                                                                        | `managementPolicies: [Observe]`                                                                          | fails; an Azure repository has no resource of its own                                     |
+| `deletionProtection` | platform blocks deletion            | platform blocks deletion                                                                                                                                                                                                                               | platform blocks deletion                                                                                 | platform blocks deletion                                                                  |
+| `immutableTags`      | `imageTagMutability: IMMUTABLE`     | `dockerConfig.immutableTags`                                                                                                                                                                                                                           | `isImmutable`                                                                                            | ignored, so tags can be overwritten; tag locks are set per tag through the Azure CLI only |
+| `lifecycleRules`     | `LifecyclePolicy`                   | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped, and the images it covers are kept | ignored, so old images are not cleaned up; retention is console-only and counts days since the last pull | ignored, so old images are not cleaned up; only registry-wide untagged retention exists   |
+| `aws.id`             | the repository name, the whole path | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `gcp.id`             | ----------------------------------- | the repository ID                                                                                                                                                                                                                                      | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `oci.id`             | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | the repository's OCID                                                                                    | ----------------------------------------------------------------------------------------- |
+| `azure.id`           | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | accepted, but observing fails: an Azure repository has no resource of its own             |
 
-*Common fields of `ArtifactRepository` on each cloud.*
+*Fields of `ArtifactRepository` and their provider fields.*
 
-The cloud-specific fields:
+**GCP:** a separate Artifact Registry repository per application keeps immutability and cleanup per
+application, as on ECR and OCIR.
 
-| Field      | Maps To                                                                       |
-| ---------- | ----------------------------------------------------------------------------- |
-| `aws.id`   | the repository name, the whole path                                           |
-| `gcp.id`   | the repository ID                                                             |
-| `oci.id`   | the repository's OCID                                                         |
-| `azure.id` | accepted, but observing fails: an Azure repository has no resource of its own |
-
-*Cloud-specific fields of `ArtifactRepository`.*
-
-A separate Artifact Registry repository per application on GCP keeps immutability and cleanup per
-application, as on ECR and OCIR. On Azure, a registry per application would be one billed SKU each,
-so applications share a platform registry and only path-scoped access is per application.
+**Azure:** a registry per application would be one billed SKU each, so applications share a platform
+registry and only path-scoped access is per application.
 
 ## Composed Resources
+
+**Azure:** nothing is composed, since a repository there is a path in the platform's registry,
+created by the first push, with no resource of its own.
 
 The same `ArtifactRepository`, from [Kinds](#kinds), is composed into different resources on each
 cloud: the platform uses the block of the cloud it runs on and ignores the others. A comment names
 the source of each value the object does not hold as written: `platform` for a value the platform
-sets, and `deployment` for one the deployment sets. Azure has no pair: a repository there is a path
-in the platform's registry, created by the first push, with no resource of its own. The resources
-per cloud:
+sets, and `deployment` for one the deployment sets. The object and its resources:
 
 ```yaml Object
 ---
@@ -305,19 +300,6 @@ The platform makes these settings itself:
 | Image pulls            | Keyless pulls by the cluster's nodes; on OCI, through Oracle's kubelet credential provider (oke-credential-provider-for-ocir) on the nodes |
 
 *Settings the platform makes for an `ArtifactRepository`.*
-
-## Ignored Settings
-
-These settings are accepted on every cloud but have no effect on some (rule 1). The table says what
-that means there.
-
-| Setting                                                       | Ignored On | Effect                                                       |
-| ------------------------------------------------------------- | ---------- | ------------------------------------------------------------ |
-| `immutableTags`                                               | Azure      | Tags can be overwritten.                                     |
-| `lifecycleRules`                                              | OCI, Azure | Old images are not cleaned up.                               |
-| A rule with `tagPatterns`, or with `keepCount` and a selector | GCP        | The whole rule is skipped, so the images it covers are kept. |
-
-*Artifact repository settings that some clouds ignore.*
 
 ## Notes
 

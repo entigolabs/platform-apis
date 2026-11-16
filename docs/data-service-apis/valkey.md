@@ -17,7 +17,6 @@ needs (rule 6). Azure has none: Azure Managed Redis runs Redis, not Valkey.
 - [Mapping](#mapping)
 - [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
-- [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
@@ -112,45 +111,40 @@ in as, so a client that always sends a username and password works unchanged.
 
 ## Mapping
 
-The table names, for every field, the field of each cloud's provider it maps to. Level is the
-field's support level (rule 1).
+The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
+ignored, with the reason (rule 1), and a field of a cloud's block appears only for that cloud:
 
-| Field                                 | Level                                | AWS (ElastiCache replication group)          | GCP (Memorystore `Instance`), no password auth in provider                                                        | OCI (OCI Cache `RedisCluster`)                                             |
-| ------------------------------------- | ------------------------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `observe`                             | Core                                 | `managementPolicies: [Observe]`              | `managementPolicies: [Observe]`                                                                                   | `managementPolicies: [Observe]`                                            |
-| `version`                             | Core                                 | `engineVersion`                              | `engineVersion: VALKEY_8_1`                                                                                       | `softwareVersion: VALKEY_8_1`                                              |
-| `highAvailability`                    | Core; `false` ignored on OCI         | `multiAzEnabled`, automatic failover         | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                         | the service distributes nodes itself; `false` ignored; failover unverified |
-| `replicas`                            | Core                                 | `numCacheClusters` = replicas + 1            | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends                | `nodeCount` = replicas + 1                                                 |
-| `deletionProtection`                  | Core                                 | platform blocks deletion                     | `deletionProtectionEnabled`                                                                                       | platform blocks deletion                                                   |
-| `maintenance.window`                  | Ignored on OCI                       | `maintenanceWindow`                          | `maintenancePolicy.weeklyMaintenanceWindow` (`day`, `startTime.hours`)                                            | ignored; OCI patches on its own schedule                                   |
-| `maintenance.autoMinorVersionUpgrade` | Core; `false` ignored on GCP and OCI | `autoMinorVersionUpgrade`                    | `false` ignored; Memorystore cannot opt out of maintenance                                                        | `false` ignored                                                            |
-| `backup.retentionDays`                | Ignored on OCI                       | `snapshotRetentionLimit`; 0 disables backups | `automatedBackupConfig.retention`, in seconds (`"604800s"` for 7 days); 0 omits the block, which disables backups | ignored; OCI Cache has manual backups only                                 |
-| `backup.startHourUTC`                 | Ignored on OCI                       | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    | ignored                                                                    |
-| `parameters`                          | Core                                 | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | config set, allowlist of about 15 keys                                     |
+| Field                                 | AWS                                          | GCP                                                                                                               | OCI                                                                        |
+| ------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `observe`                             | `managementPolicies: [Observe]`              | `managementPolicies: [Observe]`                                                                                   | `managementPolicies: [Observe]`                                            |
+| `version`                             | `engineVersion`                              | `engineVersion: VALKEY_8_1`                                                                                       | `softwareVersion: VALKEY_8_1`                                              |
+| `highAvailability`                    | `multiAzEnabled`, automatic failover         | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                         | the service distributes nodes itself; `false` ignored; failover unverified |
+| `replicas`                            | `numCacheClusters` = replicas + 1            | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends                | `nodeCount` = replicas + 1                                                 |
+| `deletionProtection`                  | platform blocks deletion                     | `deletionProtectionEnabled`                                                                                       | platform blocks deletion                                                   |
+| `maintenance.window`                  | `maintenanceWindow`                          | `maintenancePolicy.weeklyMaintenanceWindow` (`day`, `startTime.hours`)                                            | ignored; OCI patches on its own schedule                                   |
+| `maintenance.autoMinorVersionUpgrade` | `autoMinorVersionUpgrade`                    | `false` ignored; Memorystore cannot opt out of maintenance                                                        | `false` ignored; OCI applies minor versions on its own schedule            |
+| `backup.retentionDays`                | `snapshotRetentionLimit`; 0 disables backups | `automatedBackupConfig.retention`, in seconds (`"604800s"` for 7 days); 0 omits the block, which disables backups | ignored; OCI Cache has manual backups only                                 |
+| `backup.startHourUTC`                 | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    | ignored                                                                    |
+| `parameters`                          | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | config set, allowlist of about 15 keys                                     |
+| `aws.id`                              | the replication group ID                     | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `gcp.id`                              | -------------------------------------------- | the instance ID                                                                                                   | -------------------------------------------------------------------------- |
+| `aws.instanceType`                    | `nodeType`                                   | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `gcp.instanceType`                    | -------------------------------------------- | `nodeType`                                                                                                        | -------------------------------------------------------------------------- |
+| `oci.id`                              | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | the cluster's OCID                                                         |
+| `aws.parameterGroupName`              | `parameterGroupName`                         | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `oci.memoryGB`                        | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | `nodeMemoryInGbs`                                                          |
+| `aws.fromBackup`                      | `snapshotName`, at creation only             | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 
-*Common fields of `ValkeyInstance` on each cloud.*
+*Fields of `ValkeyInstance` and their provider fields.*
 
-The cloud-specific fields:
-
-| Field                    | Maps To                          |
-| ------------------------ | -------------------------------- |
-| `aws.id`                 | the replication group ID         |
-| `gcp.id`                 | the instance ID                  |
-| `aws.instanceType`       | `nodeType`                       |
-| `gcp.instanceType`       | `nodeType`                       |
-| `oci.id`                 | the cluster's OCID               |
-| `aws.parameterGroupName` | `parameterGroupName`             |
-| `oci.memoryGB`           | `nodeMemoryInGbs`                |
-| `aws.fromBackup`         | `snapshotName`, at creation only |
-
-*Cloud-specific fields of `ValkeyInstance`.*
+**GCP:** the provider's Memorystore `Instance` offers no password authentication.
 
 ## Composed Resources
 
 The same `ValkeyInstance`, from [Kinds](#kinds), is composed into different resources on each cloud:
 the platform uses the block of the cloud it runs on and ignores the others. A comment names the
 source of each value the object does not hold as written: `platform` for a value the platform sets,
-and `deployment` for one the deployment sets. The resources per cloud:
+and `deployment` for one the deployment sets. The object and its resources:
 
 ```yaml Object
 ---
@@ -355,23 +349,9 @@ The platform makes these settings itself:
 
 *Settings the platform makes for a `ValkeyInstance`.*
 
-## Ignored Settings
-
-These settings are accepted on every cloud but have no effect on some (rule 1). The table says what
-that means there.
-
-| Setting                                      | Ignored On | Effect                                                  |
-| -------------------------------------------- | ---------- | ------------------------------------------------------- |
-| `highAvailability: false`                    | OCI        | The service distributes nodes across zones itself.      |
-| `maintenance.window`                         | OCI        | OCI patches on its own schedule.                        |
-| `maintenance.autoMinorVersionUpgrade: false` | GCP, OCI   | New minor versions are applied on the cloud's schedule. |
-| `backup`                                     | OCI        | The cache has no automated backups.                     |
-
-*Valkey settings that some clouds ignore.*
-
 ## Cloud Limits
 
-Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
 them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
 should validating them be decided later. Each limit holds as of its source: the provider release
 named, or the cloud's documentation as read in November 2026.
@@ -385,7 +365,7 @@ named, or the cloud's documentation as read in November 2026.
 | `backup.retentionDays` | AWS   | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0  |
 | `backup.retentionDays` | GCP   | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0 |
 
-*Limits each cloud enforces on Valkey.*
+*Limits the cloud enforces on Valkey.*
 
 ## Notes
 

@@ -133,9 +133,9 @@ spec:
 
 ## Mapping
 
-The table names, for every field, the field of each cloud's provider it maps to.
+The table names what each field maps to in the cloud's provider:
 
-| Field                    | AWS (Amazon MQ `Broker`)                                                 |
+| Field                    | Maps To                                                                  |
 | ------------------------ | ------------------------------------------------------------------------ |
 | `observe`                | `managementPolicies: [Observe]` on every managed resource                |
 | `version`                | `engineVersion`                                                          |
@@ -147,7 +147,7 @@ The table names, for every field, the field of each cloud's provider it maps to.
 | `aws.publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
 | `aws.id`                 | the broker ID                                                            |
 
-*Fields of `RabbitMQBroker` on Amazon MQ.*
+*Fields of `RabbitMQBroker` and their provider fields.*
 
 ## Composed Resources
 
@@ -235,7 +235,7 @@ The platform makes these settings itself:
 
 ## Cloud Limits
 
-Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
 them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
 should validating them be decided later. Each limit holds as of its source: the provider release
 named, or the cloud's documentation as read in November 2026.

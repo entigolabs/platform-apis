@@ -14,7 +14,6 @@ Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (A
 - [Mapping](#mapping)
 - [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
-- [Ignored Settings](#ignored-settings)
 - [Cloud Limits](#cloud-limits)
 - [Notes](#notes)
 
@@ -96,48 +95,42 @@ status:
 
 ## Mapping
 
-The table names, for every field, the field of each cloud's provider it maps to. Level is the
-field's support level (rule 1).
+The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
+ignored, with the reason (rule 1), and a field of a cloud's block appears only for that cloud:
 
-| Field                | Level                  | AWS (S3)                                                                                                                                            | GCP (Cloud Storage)                                       | OCI (Object Storage)                                                                                                                                | Azure (Blob Storage)                                 |
-| -------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| the bucket           |                        | `Bucket`                                                                                                                                            | `Bucket`                                                  | `Bucket`                                                                                                                                            | one storage `Account` and one `Container` per bucket |
-| `observe`            | Core                   | `managementPolicies: [Observe]`                                                                                                                     | `managementPolicies: [Observe]`                           | `managementPolicies: [Observe]`                                                                                                                     | `managementPolicies: [Observe]`                      |
-| `versioning`         | Core                   | `BucketVersioning`                                                                                                                                  | `versioning.enabled`                                      | `versioning`: `Enabled`; `false` is `Disabled` on a new bucket and `Suspended` on one that had it on, which keeps old versions                      | `Account.blobProperties.versioningEnabled`           |
-| `deletionProtection` | Core                   | platform blocks deletion                                                                                                                            | platform blocks deletion                                  | platform blocks deletion                                                                                                                            | platform blocks deletion                             |
-| `lifecycleRules`     | Core                   | `BucketLifecycleConfiguration`                                                                                                                      | `lifecycleRule[]`                                         | `ObjectLifecyclePolicy`                                                                                                                             | `ManagementPolicy`                                   |
-| `tier: Infrequent`   | Core                   | `STANDARD_IA`                                                                                                                                       | `NEARLINE`                                                | `INFREQUENT_ACCESS`                                                                                                                                 | `Cool`                                               |
-| `tier: Archive`      | Core                   | `GLACIER`                                                                                                                                           | `ARCHIVE`                                                 | `ARCHIVE`                                                                                                                                           | `Archive`                                            |
-| `retention`          | Core                   | Object Lock default retention, mode `COMPLIANCE` when `locked` and `GOVERNANCE` when not; needs `versioning`, and Object Lock stays on once enabled | `retentionPolicy.retentionPeriod`, in seconds; `isLocked` | `retentionRules[]`; `locked: true` sets `timeRuleLocked` 15 days ahead, since OCI rejects 14 days or less (tested in OC19), and the rule locks then | `ContainerImmutabilityPolicy`, `locked`              |
-| `cors`               | Ignored on OCI         | `BucketCorsConfiguration`                                                                                                                           | `cors[]`                                                  | ignored; OCI allows every origin                                                                                                                    | `Account.blobProperties.corsRule[]`                  |
-| `softDeleteDays`     | Ignored on AWS and OCI | ignored                                                                                                                                             | `softDeletePolicy.retentionDurationSeconds`, in seconds   | ignored                                                                                                                                             | `Account.blobProperties.deleteRetentionPolicy.days`  |
+| Field                | AWS                                                                                                                                                 | GCP                                                       | OCI                                                                                                                                                 | Azure                                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| the bucket           | `Bucket`                                                                                                                                            | `Bucket`                                                  | `Bucket`                                                                                                                                            | one storage `Account` and one `Container` per bucket                                      |
+| `observe`            | `managementPolicies: [Observe]`                                                                                                                     | `managementPolicies: [Observe]`                           | `managementPolicies: [Observe]`                                                                                                                     | `managementPolicies: [Observe]`                                                           |
+| `versioning`         | `BucketVersioning`                                                                                                                                  | `versioning.enabled`                                      | `versioning`: `Enabled`; `false` is `Disabled` on a new bucket and `Suspended` on one that had it on, which keeps old versions                      | `Account.blobProperties.versioningEnabled`                                                |
+| `deletionProtection` | platform blocks deletion                                                                                                                            | platform blocks deletion                                  | platform blocks deletion                                                                                                                            | platform blocks deletion                                                                  |
+| `lifecycleRules`     | `BucketLifecycleConfiguration`                                                                                                                      | `lifecycleRule[]`                                         | `ObjectLifecyclePolicy`                                                                                                                             | `ManagementPolicy`                                                                        |
+| `tier: Infrequent`   | `STANDARD_IA`                                                                                                                                       | `NEARLINE`                                                | `INFREQUENT_ACCESS`                                                                                                                                 | `Cool`                                                                                    |
+| `tier: Archive`      | `GLACIER`                                                                                                                                           | `ARCHIVE`                                                 | `ARCHIVE`                                                                                                                                           | `Archive`                                                                                 |
+| `retention`          | Object Lock default retention, mode `COMPLIANCE` when `locked` and `GOVERNANCE` when not; needs `versioning`, and Object Lock stays on once enabled | `retentionPolicy.retentionPeriod`, in seconds; `isLocked` | `retentionRules[]`; `locked: true` sets `timeRuleLocked` 15 days ahead, since OCI rejects 14 days or less (tested in OC19), and the rule locks then | `ContainerImmutabilityPolicy`, `locked`                                                   |
+| `cors`               | `BucketCorsConfiguration`                                                                                                                           | `cors[]`                                                  | ignored; OCI allows every origin, though requests still need authorization                                                                          | `Account.blobProperties.corsRule[]`                                                       |
+| `softDeleteDays`     | ignored; deleted objects cannot be recovered, though versioning keeps replaced ones                                                                 | `softDeletePolicy.retentionDurationSeconds`, in seconds   | ignored; deleted objects cannot be recovered, though versioning keeps replaced ones                                                                 | `Account.blobProperties.deleteRetentionPolicy.days`                                       |
+| `aws.id`             | the bucket name                                                                                                                                     | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `gcp.id`             | --------------------------------------------------------------------------------------------------------------------------------------------------- | the bucket name                                           | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `oci.id`             | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | the bucket name; the function adds `n/<namespace>/b/`                                                                                               | ----------------------------------------------------------------------------------------- |
+| `azure.id`           | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | the container's resource ID; the function takes the account, container and resource group |
 
-*Common fields of `Bucket` on each cloud.*
+*Fields of `Bucket` and their provider fields.*
 
-The cloud-specific fields:
-
-| Field      | Maps To                                                                                   |
-| ---------- | ----------------------------------------------------------------------------------------- |
-| `aws.id`   | the bucket name                                                                           |
-| `gcp.id`   | the bucket name                                                                           |
-| `oci.id`   | the bucket name; the function adds `n/<namespace>/b/`                                     |
-| `azure.id` | the container's resource ID; the function takes the account, container and resource group |
-
-*Cloud-specific fields of `Bucket`.*
-
-Azure puts versioning, lifecycle, CORS and soft delete on the storage account, so each `Bucket` has
-its own account, with the account's keys turned off (`sharedAccessKeyEnabled: false`). Soft delete
-exists only on GCP and Azure. S3 enables Object Lock on an existing bucket too, but only once
-versioning is on, and never off again (`aws_s3_bucket_object_lock_configuration` in
+**AWS:** S3 enables Object Lock on an existing bucket too, but only once versioning is on, and never
+off again (`aws_s3_bucket_object_lock_configuration` in
 [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so `versioning:
 false` is refused on a bucket that ever had `retention`.
+
+**Azure:** versioning, lifecycle, CORS and soft delete belong to the storage account, so each
+`Bucket` has its own account, with the account's keys turned off (`sharedAccessKeyEnabled: false`).
 
 ## Composed Resources
 
 The same `Bucket`, from [Kinds](#kinds), is composed into different resources on each cloud: the
 platform uses the block of the cloud it runs on and ignores the others. A comment names the source
 of each value the object does not hold as written: `platform` for a value the platform sets, and
-`deployment` for one the deployment sets. The resources per cloud:
+`deployment` for one the deployment sets. The object and its resources:
 
 ```yaml Object
 ---
@@ -553,21 +546,9 @@ The platform makes these settings itself:
 
 *Settings the platform makes for a `Bucket`.*
 
-## Ignored Settings
-
-These settings are accepted on every cloud but have no effect on some (rule 1). The table says what
-that means there.
-
-| Setting          | Ignored On | Effect                                                                             |
-| ---------------- | ---------- | ---------------------------------------------------------------------------------- |
-| `cors`           | OCI        | Browsers may call the bucket from every origin; requests still need authorization. |
-| `softDeleteDays` | AWS, OCI   | Deleted objects cannot be recovered; versioning keeps replaced ones.               |
-
-*Bucket settings that some clouds ignore.*
-
 ## Cloud Limits
 
-Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
 them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
 should validating them be decided later. Each limit holds as of its source: the provider release
 named, or the cloud's documentation as read in November 2026.
@@ -577,7 +558,7 @@ named, or the cloud's documentation as read in November 2026.
 | `softDeleteDays` | GCP   | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
 | `softDeleteDays` | Azure | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
 
-*Limits each cloud enforces on buckets.*
+*Limits the cloud enforces on buckets.*
 
 ## Notes
 

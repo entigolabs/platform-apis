@@ -200,9 +200,9 @@ spec:
 
 ## Mapping
 
-The table names, for every field, the field of each cloud's provider it maps to.
+The table names what each field maps to in the cloud's provider:
 
-| Field                                  | RDS `Instance`                                                              |
+| Field                                  | Maps To                                                                     |
 | -------------------------------------- | --------------------------------------------------------------------------- |
 | `observe`                              | `managementPolicies: [Observe]` on every managed resource                   |
 | `aws.id`                               | the console's Resource ID (`db-...`)                                        |
@@ -227,9 +227,9 @@ The table names, for every field, the field of each cloud's provider it maps to.
 | `aws.fromBackup`                       | `snapshotIdentifier`                                                        |
 | `aws.parameterGroupName`               | `parameterGroupName`                                                        |
 
-*Fields of `MariaDBInstance` on Amazon RDS.*
+*Fields of `MariaDBInstance` and their provider fields.*
 
-Provider keys are from the CRDs of [provider-upjet-aws
+**AWS:** provider keys are from the CRDs of [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
 
 ## Composed Resources
@@ -332,7 +332,7 @@ The platform makes these settings itself:
 
 ## Cloud Limits
 
-Each cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
+The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
 them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
 should validating them be decided later. Each limit holds as of its source: the provider release
 named, or the cloud's documentation as read in November 2026.
