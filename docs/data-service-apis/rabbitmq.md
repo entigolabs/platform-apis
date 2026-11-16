@@ -44,6 +44,7 @@ spec:
       hourUTC: 3
   parameters:                          # rabbitmq.conf settings, within the cloud's allowlist
     consumer_timeout: "1800000"
+  secretName: orders-mq-login          # unset, orders-mq-credentials (rule 6)
   aws:                                 # also takes id (rule 9)
     instanceType: mq.m7g.medium        # the Amazon MQ host instance type
     publiclyAccessible: false          # set at creation only
@@ -110,13 +111,16 @@ metadata:
   name: orders-app
   namespace: shop
 spec:
+  name: orders_app                     # the user's name in RabbitMQ; unset, metadata.name
   brokerRef:
     name: orders-mq
+    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   permissions:
   - virtualHost: orders
     configure: "^orders\\."
     write: "^orders\\."
     read: "^orders\\."
+  secretName: orders-app-login         # unset, orders-mq-orders-app (rule 6)
 ```
 
 *A `RabbitMQUser` with permissions on one virtual host.*
@@ -137,8 +141,11 @@ metadata:
   name: orders
   namespace: shop
 spec:
+  name: orders                         # the virtual host's name in RabbitMQ; unset, metadata.name
   brokerRef:
     name: orders-mq
+    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+  deletionProtection: true             # deleting it deletes its queues and messages
 ```
 
 *A `RabbitMQVirtualHost` in a broker.*

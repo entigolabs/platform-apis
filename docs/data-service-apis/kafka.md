@@ -135,11 +135,13 @@ metadata:
 spec:
   clusterRef:                          # required
     name: orders-kafka
+    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   consumerGroups:
   - orders
   acls:
   - topic: orders
     operation: Read
+  secretName: orders-app-login         # unset, orders-kafka-orders-app (rule 6)
 ```
 
 *A `KafkaUser` with one consumer group and a read ACL.*
@@ -176,6 +178,7 @@ metadata:
 spec:
   clusterRef:                          # required
     name: orders-kafka
+    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   name: orders_v2                      # the Kafka name; unset, metadata.name
   partitions: 3
   replicationFactor: 3                 # at most the broker count

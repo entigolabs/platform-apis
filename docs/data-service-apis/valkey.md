@@ -51,9 +51,14 @@ spec:
     startHourUTC: 3
   parameters:                          # Valkey settings, within each cloud's allowlist
     maxmemory-policy: allkeys-lru
+  secretName: orders-cache-login       # unset, orders-cache-credentials (rule 6)
   # Cloud-specific; every block also takes id (rule 9)
   aws:
     instanceType: cache.t4g.small      # the ElastiCache node type
+    # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
+    # fromBackup: orders-cache-final   # a snapshot name, at creation only
+  gcp:
+    instanceType: HIGHMEM_MEDIUM       # the Memorystore node type
   oci:
     memoryGB: 16                       # per node
 ```

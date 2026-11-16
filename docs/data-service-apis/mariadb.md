@@ -54,8 +54,11 @@ spec:
   parameters:                          # MariaDB settings
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
+  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
   aws:                                 # also takes id (rule 9)
     instanceType: db.t4g.small         # the RDS instance class
+    # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
+    # fromBackup: orders-final         # an RDS snapshot ID, instead of restore
 ```
 
 *A `MariaDBInstance` with its common fields and its `aws` block.*
@@ -182,8 +185,10 @@ metadata:
   name: orders-app
   namespace: shop
 spec:
+  name: orders_app                     # the user's name in MariaDB; unset, metadata.name
   instanceRef:
     name: orders-db
+    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   databases:                           # one entry per database
   - databaseRef:
       name: orders
@@ -193,9 +198,14 @@ spec:
     table: "*"                         # the default, every table
   - databaseRef:
       name: invoices
+      namespace: billing
     privileges:
     - SELECT
   maxUserConnections: 20               # 0, the default, sets no limit of the user's own
+  maxConnectionsPerHour: 0             # 0, the default, is no limit
+  maxQueriesPerHour: 0
+  maxUpdatesPerHour: 0
+  secretName: orders-app-login         # unset, orders-db-orders-app (rule 6)
 ```
 
 *A `MariaDBUser` with privileges on two databases.*
@@ -212,9 +222,12 @@ metadata:
   name: orders
   namespace: shop
 spec:
+  name: orders                         # the database's name in MariaDB; unset, metadata.name
   instanceRef:
     name: orders-db
+    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   defaultCharacterSet: utf8mb4
+  defaultCollation: utf8mb4_unicode_ci
   deletionProtection: true
 ```
 

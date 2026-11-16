@@ -57,17 +57,22 @@ spec:
   parameters:                          # PostgreSQL settings
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
+  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
   # Cloud-specific; every block also takes id (rule 9)
   aws:
     instanceType: db.t4g.small         # the RDS instance class
+    # parameterGroupName: orders-pg17  # an existing group, instead of parameters
+    # fromBackup: orders-final         # an RDS snapshot ID, instead of restore
   gcp:
     instanceType: db-custom-2-7680     # the Cloud SQL tier
     edition: ENTERPRISE                # or ENTERPRISE_PLUS
     diskType: PD_SSD                   # PD_HDD, HYPERDISK_BALANCED
+    # fromBackup: orders-db/1234       # instance and backup run, instead of restore
   oci:
     instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
     ocpus: 2                           # required with a .Flex shape
     memoryGB: 32                       # required with a .Flex shape
+    # fromBackup: ocid1...             # a backup OCID, instead of restore
   azure:
     instanceType: GP_Standard_D2ds_v5  # the flexible server SKU
     storageTier: P10                   # P4 to P80; sets the disk's IOPS
@@ -247,6 +252,7 @@ spec:
   name: orders_app                     # the role's name in PostgreSQL; unset, metadata.name
   instanceRef:
     name: orders-db
+    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   login: true
   createDb: false
   createRole: false
@@ -254,6 +260,7 @@ spec:
   grant:
     roles:
     - reporting
+  secretName: orders-app-login         # unset, orders-db-orders-app (rule 6)
 ```
 
 *A `PostgreSQLUser` that receives the `reporting` role.*
@@ -276,10 +283,15 @@ metadata:
   name: orders
   namespace: shop
 spec:
+  name: orders                         # the database's name in PostgreSQL; unset, metadata.name
   instanceRef:
     name: orders-db
+    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   owner: orders_app                    # a role name in PostgreSQL
   encoding: UTF8
+  lcCType: en_US.UTF-8
+  lcCollate: en_US.UTF-8
+  dbTemplate: template0                # the template database
   extensions:
   - postgis
   extensionConfig:
