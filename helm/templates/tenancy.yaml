@@ -31,6 +31,8 @@ spec:
             env:
               - name: CLOUD_PROVIDER
                 value: {{ .Values.global.cloudProvider }}
+              - name: AUTHZ_ENABLED
+                value: {{ .Values.authz.enabled | quote }}
             {{- if .Values.authz.organization }}
               - name: AUTHZ_ORGANIZATION
                 value: {{ .Values.authz.organization | quote }}
