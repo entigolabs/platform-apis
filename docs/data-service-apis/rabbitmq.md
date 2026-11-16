@@ -121,7 +121,7 @@ spec:
     read: "^orders\\."
 ```
 
-*An application's login with permissions on one virtual host.*
+*A `RabbitMQUser` with permissions on one virtual host.*
 
 ### RabbitMQVirtualHost
 
@@ -143,7 +143,7 @@ spec:
     name: orders-mq
 ```
 
-*A virtual host in a broker.*
+*A `RabbitMQVirtualHost` in a broker.*
 
 ## Platform Decisions
 

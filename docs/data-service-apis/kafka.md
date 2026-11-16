@@ -142,7 +142,7 @@ spec:
     operation: Read
 ```
 
-*An application's login with one consumer group and a read ACL.*
+*A `KafkaUser` with one consumer group and a read ACL.*
 
 | Cloud | Identity                                           | Login                                   |
 | ----- | -------------------------------------------------- | --------------------------------------- |
@@ -183,7 +183,7 @@ spec:
     retention.ms: "604800000"
 ```
 
-*A topic whose Kafka name differs from its object's name.*
+*A `KafkaTopic` whose Kafka name differs from its object name.*
 
 Created through the Kafka admin API on every cloud. `name` is the topic's Kafka name, which can hold
 what a Kubernetes name cannot, such as `Orders` or `orders_v2`. Applications use that name, so it

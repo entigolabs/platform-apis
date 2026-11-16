@@ -114,7 +114,7 @@ spec:
     instanceType: db.t4g.small         # was instanceType
 ```
 
-*A PostgreSQL instance, today and in the design.*
+*A `PostgreSQLInstance`, today and in the design.*
 
 ## MariaDB
 
@@ -168,7 +168,7 @@ spec:
     - INSERT
 ```
 
-*A MariaDB user, today and in the design.*
+*A `MariaDBUser`, today and in the design.*
 
 ## Valkey
 
@@ -235,7 +235,7 @@ spec:
     instanceType: cache.t4g.small      # was instanceType
 ```
 
-*A Valkey instance, today and in the design.*
+*A `ValkeyInstance`, today and in the design.*
 
 ## Kafka
 
@@ -315,7 +315,7 @@ spec:
     retention.ms: "604800000"
 ```
 
-*A Kafka cluster and topic, today and in the design.*
+*`MSK` and `Topic` today, `KafkaCluster` and `KafkaTopic` in the design.*
 
 ## RabbitMQ
 
@@ -385,7 +385,7 @@ spec:
 # removed: brokerName, engineType, autoMinorVersionUpgrade
 ```
 
-*A RabbitMQ broker, today and in the design.*
+*A `RabbitMQBroker`, today and in the design.*
 
 ## Bucket
 
@@ -431,7 +431,7 @@ spec:
 # removed: createServiceAccount, serviceAccountName
 ```
 
-*A bucket, today and in the design.*
+*`S3Bucket` today, `Bucket` in the design.*
 
 ## ArtifactRepository
 
@@ -472,4 +472,4 @@ spec:
   immutableTags: true                  # new
 ```
 
-*An artifact repository, today and in the design.*
+*`Repository` today, `ArtifactRepository` in the design.*

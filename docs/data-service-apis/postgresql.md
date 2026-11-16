@@ -95,7 +95,7 @@ spec:
     instanceType: db.t4g.small
 ```
 
-*An instance created from another instance's backups.*
+*A `PostgreSQLInstance` created from another instance's backups.*
 
 The size is in the cloud blocks, as `instanceType` with the cloud's own name, because RDS has fixed
 classes while OCI and GCP take CPU and memory, which no neutral size expresses. With deployment
@@ -257,7 +257,7 @@ spec:
     - reporting
 ```
 
-*An application's login that receives the `reporting` role.*
+*A `PostgreSQLUser` that receives the `reporting` role.*
 
 ### PostgreSQLDatabase
 
@@ -289,7 +289,7 @@ spec:
   deletionProtection: true
 ```
 
-*A database with the PostGIS extension in its own schema.*
+*A `PostgreSQLDatabase` with the PostGIS extension in its own schema.*
 
 ## Platform Decisions
 

@@ -80,7 +80,7 @@ spec:
     instanceType: db.t4g.small
 ```
 
-*An instance created from another instance's backups.*
+*A `MariaDBInstance` created from another instance's backups.*
 
 `version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`, and RDS
 applies minor versions in the maintenance window. RDS takes a version without its minor only while
@@ -203,7 +203,7 @@ spec:
   maxUserConnections: 20               # 0, the default, sets no limit of the user's own
 ```
 
-*An application's login with privileges on two databases.*
+*A `MariaDBUser` with privileges on two databases.*
 
 ### MariaDBDatabase
 
@@ -223,7 +223,7 @@ spec:
   deletionProtection: true
 ```
 
-*A database with its default character set.*
+*A `MariaDBDatabase` with its default character set.*
 
 ## Platform Decisions
 
