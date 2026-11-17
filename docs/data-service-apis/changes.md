@@ -6,7 +6,7 @@ not listed keeps its name and meaning.
 
 ## Contents
 
-- [All Kinds](#all-kinds)
+- [All Services](#all-services)
 - [PostgreSQL](#postgresql)
 - [MariaDB](#mariadb)
 - [Valkey](#valkey)
@@ -15,7 +15,7 @@ not listed keeps its name and meaning.
 - [Bucket](#bucket)
 - [ArtifactRepository](#artifactrepository)
 
-## All Kinds
+## All Services
 
 Changes shared by all kinds, stated once here:
 
