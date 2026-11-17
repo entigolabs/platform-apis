@@ -44,6 +44,8 @@ Each page of the design holds the following, in the order of the menu:
 - [Service Designs](postgresql.md): the design of each service, its mapping to each cloud and the
   draft schemas of its kinds.
 - [API Changes](changes.md): every change from today's APIs to the design, per kind.
+- [Related Work](related-work.md): the projects the design draws on, and the alternatives it was
+  chosen over.
 - [Open Points](open-points.md): questions to decide before implementation.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
 - [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
