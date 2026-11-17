@@ -1,6 +1,6 @@
 # Model and Principles
 
-How every data service API is built, and the principles each follows.
+Every data service API is built from the parts in Model and follows the principles after them.
 
 ## Model
 
@@ -27,15 +27,15 @@ them.
 #### 1 The common spec states needs, not products
 
 One manifest works wherever its kind is offered: it says what is needed, such as a version or a disk
-size, not which product provides it. What provides it is the kind's implementation: a cloud's
-managed service, such as RDS, or software in the cluster, such as CloudNativePG. Each deployment
-chooses its implementation in a class (principle 5).
+size, not which product provides it. The product or software that provides it is the kind's
+implementation: a cloud's managed service, such as RDS, or software in the cluster, such as
+CloudNativePG. Each deployment chooses its implementation in a class (principle 5).
 
 A need belongs in the common spec when two or more implementations can meet it, and a user can state
 it without knowing which one runs underneath, such as a version, a disk size, high availability or
-backups. What only one implementation has goes into its provider config (principle 2). This keeps
-the common spec from shrinking into a wrapper around provider configs: a manifest is only as
-portable as its common fields.
+backups. A setting that only one implementation has goes into its provider config (principle 2).
+This keeps the common spec from shrinking into a wrapper around provider configs: a manifest is only
+as portable as its common fields.
 
 Each class reports in its status which portable features its implementation supports, such as
 `HighAvailability`, `ReadReplicas` and `DisasterRecovery`. An object that asks for a feature its
