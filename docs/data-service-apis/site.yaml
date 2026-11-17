@@ -17,7 +17,7 @@ nav:
   label: Overview
   id: overview
   home: true
-- {file: model.md, label: Model}
+- {file: model.md, label: Model, divider: true}
 - file: principles.md
   label: Principles
   aliases: {rules: ""}               # links to the former Design Rules page
