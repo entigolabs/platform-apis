@@ -92,7 +92,7 @@ spec:
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLCluster                # was PostgreSQLInstance
+kind: PostgreSQLCluster
 metadata:
   name: orders-db
 spec:
@@ -189,7 +189,7 @@ spec:
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: MariaDBServer                    # was MariaDBInstance
+kind: MariaDBServer
 metadata:
   name: orders-db
 spec:
@@ -375,7 +375,7 @@ spec:
 ```yaml
 ---
 apiVersion: queue.entigo.com/v1alpha2
-kind: KafkaCluster                     # was MSK
+kind: KafkaCluster
 metadata:
   name: events
   namespace: platform                  # new: namespaced
@@ -419,7 +419,7 @@ spec:
 ```yaml
 ---
 apiVersion: queue.entigo.com/v1alpha2
-kind: KafkaTopic                       # was Topic
+kind: KafkaTopic
 metadata:
   name: orders
   namespace: shop
@@ -561,7 +561,7 @@ spec:
 ```yaml
 ---
 apiVersion: storage.entigo.com/v1alpha2
-kind: Bucket                           # was S3Bucket
+kind: Bucket
 metadata:
   name: orders-files
 spec:
@@ -604,7 +604,7 @@ spec:
 ```yaml
 ---
 apiVersion: artifact.entigo.com/v1alpha2
-kind: ArtifactRepository               # was Repository
+kind: ArtifactRepository
 metadata:
   name: orders-api
   namespace: shop
