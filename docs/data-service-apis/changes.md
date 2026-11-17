@@ -131,21 +131,103 @@ and `name` and `clusterRef` become immutable.
 
 ## MariaDB
 
-### MariaDBInstance
+### MariaDBServer
 
-`MariaDBInstance` changes as [`PostgreSQLInstance`](#postgresqlcluster) does, on AWS only, without
-`backup.pointInTimeDays`.
+`MariaDBInstance` becomes `MariaDBServer`:
+
+| Today                                                                                                                            | Design                                                               | Reason                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| kind `MariaDBInstance`                                                                                                           | kind `MariaDBServer`                                                 | MariaDB's own term for one server; a new kind, served beside today's, so objects move one at a time (principle 8) |
+| `engineVersion`                                                                                                                  | `version`                                                            | The major version, such as `"11.4"`; a full version only with minor upgrades off                                  |
+| `instanceType`                                                                                                                   | `instanceType` in the `MariaDBRDSConfig` entry                       | A size named by its product is a setting of one implementation (principle 2)                                      |
+| `allocatedStorage`                                                                                                               | `storage.sizeGB`                                                     | The size at creation and a floor afterwards                                                                       |
+| `iops`                                                                                                                           | `storage.iops`                                                       | Grouped with the other storage settings (principle 13)                                                            |
+| (none)                                                                                                                           | `storage.autoGrow`, `storage.maxSizeGB`, `storage.throughputMBps`    | New common settings                                                                                               |
+| `multiAZ`                                                                                                                        | `highAvailability`                                                   | Named after the need, not the AWS feature                                                                         |
+| `maintenanceWindow` (RDS string)                                                                                                 | `maintenanceWindow` (`day`, `hourUTC`)                               | One form everywhere                                                                                               |
+| `backupRetentionPeriod`                                                                                                          | `backup.retentionDays`                                               | Grouped under backup (principle 13)                                                                               |
+| `backupWindow` (RDS string)                                                                                                      | `backup.startHourUTC`                                                | One form everywhere                                                                                               |
+| (none)                                                                                                                           | `backup.pointInTimeDays`                                             | New common setting                                                                                                |
+| `parameterGroupName`                                                                                                             | `parameterGroupName` in the `MariaDBRDSConfig` entry                 | An RDS concept (principle 2)                                                                                      |
+| `parameterGroupParameters` (a map with a reserved `applyMethod` key)                                                             | `parameters` and `parameterApplyMethod`                              | The apply method becomes its own field                                                                            |
+| (none)                                                                                                                           | `parametersRef`                                                      | Settings shared through a `MariaDBParameters`                                                                     |
+| `snapshotIdentifier`                                                                                                             | `fromBackup` in the `MariaDBRDSConfig` entry                         | A backup ID belongs to one implementation (principle 2)                                                           |
+| (none)                                                                                                                           | `restore.fromInstance`, `restore.pointInTime`                        | Restore from another server                                                                                       |
+| (none)                                                                                                                           | `className`                                                          | The deployment's defaults and limits come from a class (principle 5)                                              |
+| (none)                                                                                                                           | `readReplicas`, `disasterRecovery`                                   | New portable features (principle 1)                                                                               |
+| `status.endpoint.address`                                                                                                        | `status.endpoint.host`                                               | The same word everywhere                                                                                          |
+| `status.dbInstanceIdentifier`, `status.resourceId`, `status.status`, `status.latestRestorableTime`                               | `status.provider`                                                    | Values of one implementation (principle 4)                                                                        |
+| `status.finalSnapshotIdentifier`                                                                                                 | `status.provider.finalBackup`                                        | A value of one implementation (principle 4)                                                                       |
+| (none)                                                                                                                           | `status.providerConfig`, `status.effective`, `status.readerEndpoint` | The applied entry, each value's source, and the read address (principles 4 and 6)                                 |
+| `status.endpoint.hostedZoneId`, `status.vpcSecurityGroupIds`, `status.kmsKeyId`, `status.storageEncrypted`, `status.storageType` | removed                                                              | Settings the platform makes (principle 4)                                                                         |
+| `status.parameterGroupName`, `status.snapshotIdentifier`                                                                         | removed                                                              | Echoes of the spec                                                                                                |
+
+*Changes from `MariaDBInstance` to `MariaDBServer`.*
+
+An example, today and in the design:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha1
+kind: MariaDBInstance
+metadata:
+  name: orders-db
+spec:
+  engineVersion: "11.4"
+  instanceType: db.t4g.small
+  allocatedStorage: 20
+  multiAZ: false
+  deletionProtection: true
+  maintenanceWindow: "Sun:03:00-Sun:03:30"
+  backupRetentionPeriod: 7
+  backupWindow: "02:00-02:30"
+  parameterGroupParameters:
+    max_connections: "200"
+    applyMethod: pending-reboot
+```
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBServer                    # was MariaDBInstance
+metadata:
+  name: orders-db
+spec:
+  version: "11.4"                      # was engineVersion
+  storage:
+    sizeGB: 20                         # was allocatedStorage
+  highAvailability: false              # was multiAZ
+  deletionProtection: true
+  maintenanceWindow:                   # now day and hourUTC
+    day: Sun
+    hourUTC: 3
+  backup:
+    retentionDays: 7                   # was backupRetentionPeriod
+    startHourUTC: 2                    # was backupWindow
+  parameters:                          # was parameterGroupParameters
+    max_connections: "200"
+  parameterApplyMethod: NextRestart    # was applyMethod: pending-reboot
+  providerConfigs:                     # new
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: MariaDBRDSConfig
+    spec:
+      instanceType: db.t4g.small       # was instanceType
+```
+
+*`MariaDBInstance` today, `MariaDBServer` in the design.*
 
 ### MariaDBUser
 
 `MariaDBUser` changes as follows:
 
-| Today                                                                                         | Design                     | Reason                                                                                                                                    |
-| --------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `databaseRef`, `table`, `privileges`                                                          | one entry of `databases`   | One login per application and instance (principle 12)                                                                                          |
-| `databaseRef.namespace`, ignored today                                                        | honoured within the Zone   | References cross namespaces within the Zone (principle 11)                                                                                     |
-| user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit | Today's defaults are too low for a production application                                                                                 |
-| `grant.users`                                                                                 | removed                    | The names never reached MariaDB: each one only created another copy of the user's own grant, and privileges applied only when one was set |
+| Today                                                                                         | Design                                | Reason                                                                                                                                    |
+| --------------------------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `instanceRef`                                                                                 | `serverRef`, naming a `MariaDBServer` | The parent's new kind (principle 8)                                                                                                       |
+| `name` and `instanceRef`, changeable                                                          | `name` and `serverRef`, immutable     | The login is created once, on one server                                                                                                  |
+| `databaseRef`, `table`, `privileges`                                                          | one entry of `databases`              | One login per application and instance (principle 12)                                                                                     |
+| `databaseRef.namespace`, ignored today                                                        | honoured within the Zone              | References cross namespaces within the Zone (principle 11)                                                                                |
+| user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit            | Today's defaults are too low for a production application                                                                                 |
+| `grant.users`                                                                                 | removed                               | The names never reached MariaDB: each one only created another copy of the user's own grant, and privileges applied only when one was set |
 
 *Changes to `MariaDBUser`.*
 
@@ -174,7 +256,7 @@ kind: MariaDBUser
 metadata:
   name: orders-app
 spec:
-  instanceRef:
+  serverRef:                           # was instanceRef
     name: orders-db
   databases:                           # was databaseRef and privileges
   - databaseRef:
@@ -188,7 +270,8 @@ spec:
 
 ### MariaDBDatabase
 
-`MariaDBDatabase` keeps its fields.
+`MariaDBDatabase` keeps its fields; `instanceRef` becomes `serverRef`, naming a `MariaDBServer`,
+and `name` and `serverRef` become immutable.
 
 ## Valkey
 

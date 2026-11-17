@@ -1,0 +1,396 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: mariadbservers.database.entigo.com
+spec:
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: MariaDBServer
+    plural: mariadbservers
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              className:
+                type: string
+                description: |-
+                  The MariaDBClass: the deployment's defaults, enforced values and implementation
+                  (principle 5). Unset, the default class. Set at creation only.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: className is immutable
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the id in its provider config
+                  entry, and never changes or deletes it. Every other common field is then
+                  rejected (principle 9). Set at creation only.
+              version:
+                type: string
+                description: |-
+                  The major version, which has two numbers, such as "11.4". With
+                  autoMinorVersionUpgrade false, the full version, such as "11.4.10".
+                  Default: the class's template.
+                pattern: ^[0-9]+\.[0-9]+(\.[0-9]+)?$
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      Disk size in GB at creation, and its floor after: raising it grows the disk,
+                      lowering it is rejected. The disk can be larger: it is rounded up to a size the
+                      implementation accepts, and autoGrow can take it further. The status shows the
+                      real size.
+                      Default: the class's template.
+                    minimum: 1
+                    x-kubernetes-validations:
+                    - rule: self >= oldSelf
+                      message: storage.sizeGB cannot decrease
+                  autoGrow:
+                    type: boolean
+                    description: |-
+                      Grow the disk as it fills.
+                      Default: fixed, true.
+                  maxSizeGB:
+                    type: integer
+                    description: |-
+                      The size autoGrow stops at.
+                      Default: the class's template.
+                    minimum: 1
+                  iops:
+                    type: integer
+                    description: |-
+                      Provisioned IOPS.
+                    minimum: 1
+                  throughputMBps:
+                    type: integer
+                    description: |-
+                      Provisioned throughput in MB/s.
+                    minimum: 1
+                x-kubernetes-validations:
+                - rule: |-
+                    !has(self.maxSizeGB)
+                    || !has(self.sizeGB)
+                    || self.maxSizeGB >= self.sizeGB
+                  message: maxSizeGB must be at least sizeGB
+              highAvailability:
+                type: boolean
+                description: |-
+                  A standby in another zone, with automatic failover. Refused where the class does
+                  not support HighAvailability (principle 1).
+                  Default: the class's template.
+              readReplicas:
+                type: integer
+                description: |-
+                  Read-only copies identical to the primary. Refused where the class does not
+                  support ReadReplicas (principle 1).
+                  Default: fixed, 0.
+                minimum: 0
+              disasterRecovery:
+                type: object
+                description: |-
+                  A copy in another workspace that can become the primary. Refused where the class
+                  does not support DisasterRecovery (principle 1).
+                properties:
+                  workspaces:
+                    type: array
+                    description: |-
+                      The Entigo workspaces that hold this database: the primary, and those holding a
+                      replica that can take over.
+                    items:
+                      type: string
+                    minItems: 2
+                  primary:
+                    type: string
+                    description: |-
+                      The workspace that accepts writes. Changing it in every workspace fails over.
+                required:
+                - workspaces
+                - primary
+                x-kubernetes-validations:
+                - rule: self.primary in self.workspaces
+                  message: primary must be one of workspaces
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              maintenanceWindow:
+                type: object
+                description: |-
+                  The weekly hour, in UTC, in which the cloud applies updates.
+                properties:
+                  day:
+                    type: string
+                    enum:
+                    - Mon
+                    - Tue
+                    - Wed
+                    - Thu
+                    - Fri
+                    - Sat
+                    - Sun
+                  hourUTC:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                required:
+                - day
+                - hourUTC
+              autoMinorVersionUpgrade:
+                type: boolean
+                description: |-
+                  Apply new minor versions in the maintenance window. false keeps the minor
+                  written in version.
+                  Default: the class's template.
+              allowMajorVersionUpgrade:
+                type: boolean
+                description: |-
+                  Allow version to change to a later major.
+                  Default: fixed, false.
+              backup:
+                type: object
+                properties:
+                  retentionDays:
+                    type: integer
+                    description: |-
+                      Days automated backups are kept, within the implementation's own range
+                      (principle 10). 0 turns automated backups and point-in-time restore off.
+                      Default: the class's template.
+                    minimum: 0
+                  pointInTimeDays:
+                    type: integer
+                    description: |-
+                      Days back restore.pointInTime can reach.
+                      Default: fixed, the lower of retentionDays and the implementation's maximum; none with retentionDays 0.
+                    minimum: 1
+                  startHourUTC:
+                    type: integer
+                    description: |-
+                      The hour, in UTC, the daily backup starts.
+                    minimum: 0
+                    maximum: 23
+                x-kubernetes-validations:
+                - rule: |-
+                    !has(self.pointInTimeDays)
+                    || !has(self.retentionDays)
+                    || self.retentionDays > 0
+                  message: pointInTimeDays needs backups, which retentionDays 0 disables
+              parametersRef:
+                type: object
+                description: |-
+                  Reusable MariaDB settings, merged after the class's.
+                properties:
+                  name:
+                    type: string
+                    description: |-
+                      A MariaDBParameters in this namespace.
+                required:
+                - name
+              parameters:
+                type: object
+                description: |-
+                  MariaDB settings for this object only, merged after parametersRef.
+                additionalProperties:
+                  type: string
+              parameterApplyMethod:
+                type: string
+                description: |-
+                  The moment changed parameters take effect. Immediate restarts the instance where
+                  a setting needs it.
+                  Default: fixed, Immediate.
+                enum:
+                - Immediate
+                - NextRestart
+              restore:
+                type: object
+                description: |-
+                  Create the server from another server's backups. Set at creation only.
+                properties:
+                  fromInstance:
+                    type: string
+                    description: |-
+                      A MariaDBServer in this namespace.
+                  pointInTime:
+                    type: string
+                    description: |-
+                      The time to restore fromInstance to. Unset, the latest restorable time.
+                    format: date-time
+                required:
+                - fromInstance
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (principle 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <instance>-dbadmin.
+              providerConfigs:
+                type: array
+                description: |-
+                  Settings of single implementations, one entry per kind (principle 2). The
+                  deployment applies the entry whose kind its class names and ignores the others.
+                items:
+                  type: object
+                  properties:
+                    apiVersion:
+                      type: string
+                      description: |-
+                        The provider config kind's group and version, such as
+                        aws.database.entigo.com/v1alpha1.
+                    kind:
+                      type: string
+                      description: |-
+                        The provider config kind, such as PostgreSQLRDSConfig.
+                    spec:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      description: |-
+                        The settings, checked by the implementation that applies them (principle 10).
+                    ref:
+                      type: object
+                      description: |-
+                        The settings in a separate object of this kind, instead of spec.
+                      properties:
+                        name:
+                          type: string
+                          description: |-
+                            An object of this kind in the same namespace.
+                      required:
+                      - name
+                  required:
+                  - apiVersion
+                  - kind
+                  x-kubernetes-validations:
+                  - rule: has(self.spec) != has(self.ref)
+                    message: an entry holds either spec or ref
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - apiVersion
+                - kind
+            x-kubernetes-validations:
+            - rule: |-
+                (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
+              message: observe is immutable
+            - rule: |-
+                !(has(self.observe) && self.observe)
+                || (!has(self.version) && !has(self.storage) && !has(self.highAvailability) && !has(self.readReplicas) && !has(self.disasterRecovery) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.autoMinorVersionUpgrade) && !has(self.allowMajorVersionUpgrade) && !has(self.backup) && !has(self.parametersRef) && !has(self.parameters) && !has(self.parameterApplyMethod) && !has(self.restore))
+              message: an observed resource takes no other common field
+            - rule: |-
+                has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || self.restore == oldSelf.restore)
+              message: restore is set at creation only
+            - rule: |-
+                !has(self.version)
+                || !has(oldSelf.version)
+                || (self.version.split('.')[0] + '.' + self.version.split('.')[1]) == (oldSelf.version.split('.')[0] + '.' + oldSelf.version.split('.')[1])
+                || (has(self.allowMajorVersionUpgrade) && self.allowMajorVersionUpgrade)
+              message: a major version change needs allowMajorVersionUpgrade
+            - rule: |-
+                !has(self.version)
+                || (self.version.split('.').size() == 3) == (has(self.autoMinorVersionUpgrade) && !self.autoMinorVersionUpgrade)
+              message: version takes a minor exactly when autoMinorVersionUpgrade is false
+          status:
+            type: object
+            properties:
+              version:
+                type: string
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      The actual disk size.
+                  autoGrow:
+                    type: boolean
+                  maxSizeGB:
+                    type: integer
+                  iops:
+                    type: integer
+                  throughputMBps:
+                    type: integer
+              highAvailability:
+                type: boolean
+              readReplicas:
+                type: integer
+              maintenanceWindow:
+                type: object
+                properties:
+                  day:
+                    type: string
+                  hourUTC:
+                    type: integer
+              autoMinorVersionUpgrade:
+                type: boolean
+              backup:
+                type: object
+                properties:
+                  retentionDays:
+                    type: integer
+                  pointInTimeDays:
+                    type: integer
+                  startHourUTC:
+                    type: integer
+              endpoint:
+                type: object
+                description: |-
+                  The address applications connect to.
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: integer
+              readerEndpoint:
+                type: string
+                description: |-
+                  The read address: one balanced host, or the replicas' hosts where the
+                  implementation has none (principle 6).
+              connectionSecret:
+                type: string
+                description: |-
+                  The admin Secret, <instance>-dbadmin (principle 6).
+              disasterRecovery:
+                type: object
+                description: |-
+                  This workspace's role.
+                properties:
+                  role:
+                    type: string
+                    enum:
+                    - Primary
+                    - Replica
+              providerConfig:
+                type: object
+                description: |-
+                  The provider config entries applied and ignored, as <apiVersion>, <kind>
+                  (principle 4).
+                properties:
+                  applied:
+                    type: string
+                  ignored:
+                    type: array
+                    items:
+                      type: string
+              effective:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Each effective value and its source: the class's template, the object, or the
+                  class's enforced (principle 4).
+              provider:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Values of the applied implementation, in the shape its provider config kind's
+                  status defines (principle 4).
+        required:
+        - spec

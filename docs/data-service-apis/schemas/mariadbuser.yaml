@@ -25,25 +25,25 @@ spec:
                 description: |-
                   The user's name in the engine, which may hold what a Kubernetes name cannot.
                   Unset, metadata.name. Set at creation only.
-              instanceRef:
+              serverRef:
                 type: object
                 description: |-
-                  The MariaDBInstance this object lives in.
+                  The MariaDBServer this object lives in.
                 properties:
                   name:
                     type: string
                     description: |-
-                      The MariaDBInstance.
+                      The MariaDBServer.
                   namespace:
                     type: string
                     description: |-
-                      The MariaDBInstance's namespace, which must be in this object's Zone (principle
+                      The MariaDBServer's namespace, which must be in this object's Zone (principle
                       11). Unset, this object's namespace.
                 required:
                 - name
                 x-kubernetes-validations:
                 - rule: self == oldSelf
-                  message: instanceRef is immutable
+                  message: serverRef is immutable
               secretName:
                 type: string
                 description: |-
@@ -53,7 +53,7 @@ spec:
               databases:
                 type: array
                 description: |-
-                  The databases this user may use on the instance, each with its privileges.
+                  The databases this user may use on the server, each with its privileges.
                 items:
                   type: object
                   properties:
@@ -70,8 +70,8 @@ spec:
                         namespace:
                           type: string
                           description: |-
-                            The MariaDBDatabase's namespace, which must be in this object's Zone (rule 11).
-                            Unset, this object's namespace.
+                            The MariaDBDatabase's namespace, which must be in this object's Zone (principle
+                            11). Unset, this object's namespace.
                           maxLength: 63
                       required:
                       - name
@@ -130,7 +130,7 @@ spec:
                 (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
               message: name is immutable
             required:
-            - instanceRef
+            - serverRef
             - databases
           status:
             type: object

@@ -1,0 +1,103 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: mariadbrdsconfigs.aws.database.entigo.com
+spec:
+  group: aws.database.entigo.com
+  scope: Namespaced
+  names:
+    kind: MariaDBRDSConfig
+    plural: mariadbrdsconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for Amazon RDS (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The Amazon RDS ID of an existing resource to observe (principle 9). Only with
+                  observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+              instanceType:
+                type: string
+                description: |-
+                  The RDS instance class, such as db.t4g.small.
+                  Default: the class's template.
+              parameterGroupName:
+                type: string
+                description: |-
+                  An existing RDS parameter group to use, in place of the object's parameters. A
+                  major version change needs a new one, since a group fits one major version.
+              fromBackup:
+                type: string
+                description: |-
+                  An RDS snapshot ID to create the server from, such as
+                  status.provider.finalBackup of a deleted server. Set at creation only; not with
+                  restore.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: fromBackup is set at creation only
+              readReplicas:
+                type: array
+                description: |-
+                  Read replicas of their own sizes, instead of the readReplicas count; not with
+                  it.
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: |-
+                        The replica's name, which its cloud name ends with.
+                    instanceType:
+                      type: string
+                      description: |-
+                        The RDS instance class of this replica.
+                    parametersRef:
+                      type: object
+                      description: |-
+                        Engine settings for this replica only.
+                      properties:
+                        name:
+                          type: string
+                      required:
+                      - name
+                  required:
+                  - name
+                  - instanceType
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for Amazon RDS (principle 4).
+            properties:
+              instanceType:
+                type: string
+              finalBackup:
+                type: string
+                description: |-
+                  The ID the final backup receives when the server is deleted, for fromBackup.
+              state:
+                type: string
+              identifier:
+                type: string
+              resourceId:
+                type: string
+              latestRestorableTime:
+                type: string
+                format: date-time
+        required:
+        - spec
+    subresources:
+      status: {}

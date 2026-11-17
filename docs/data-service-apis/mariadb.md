@@ -3,15 +3,20 @@
 MariaDB is an open-source relational database that began as a fork of MySQL, used by applications
 for their transactional data.
 
-Three kinds: `MariaDBInstance`, one database server; `MariaDBUser`, one application's login on an
-instance, with its permissions; and `MariaDBDatabase`, one database on an instance.
+Three kinds for users: `MariaDBServer`, one database server with its standby and read replicas;
+`MariaDBUser`, one application's login on a server, with its permissions; and `MariaDBDatabase`, one
+database on a server. Two kinds shape them: `MariaDBClass`, a deployment's defaults and limits,
+written by Entigo, and `MariaDBParameters`, reusable MariaDB settings.
 
-Built on Amazon RDS (AWS), so `aws` is the only cloud block. GCP, OCI and Azure have none: their
-MySQL services are not MariaDB (principle 7), and Azure Database for MariaDB is retired.
+Built on Amazon RDS (AWS), with the provider config kind `MariaDBRDSConfig`. GCP, OCI and Azure have
+no implementation: their MySQL services are not MariaDB (principle 7), and Azure Database for
+MariaDB is retired.
 
 ## Contents
 
 - [Kinds](#kinds)
+- [Read Replicas](#read-replicas)
+- [Disaster Recovery](#disaster-recovery)
 - [Mapping](#mapping)
 - [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
@@ -19,21 +24,22 @@ MySQL services are not MariaDB (principle 7), and Azure Database for MariaDB is 
 
 ## Kinds
 
-MariaDB is offered as three kinds, each with the manifest a user writes.
+MariaDB is offered as five kinds, each with the manifest its owner writes.
 
-### MariaDBInstance
+### MariaDBServer
 
-A user creates a `MariaDBInstance` with a manifest like the one below. Its comments note value
-ranges and what holds on one cloud only:
+A user creates a `MariaDBServer` with a manifest like the one below. It names its class and carries
+a provider config entry for RDS (principle 2):
 
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: MariaDBInstance
+kind: MariaDBServer
 metadata:
   name: orders-db
   namespace: shop
 spec:
+  className: standard                  # unset, the deployment's default class (principle 5)
   version: "11.4"                      # the full "11.4.10" with minor upgrades off
   storage:
     sizeGB: 20
@@ -42,85 +48,161 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false              # a standby in another zone
+  readReplicas: 0                      # read-only copies identical to the primary
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  autoMinorVersionUpgrade: true
+  allowMajorVersionUpgrade: false
   backup:
-    retentionDays: 7                   # 0 disables backups
+    retentionDays: 7                   # backups kept; 0 disables them
     startHourUTC: 2
-  parameters:                          # MariaDB settings
+  parametersRef:
+    name: orders-tuning                # a MariaDBParameters in this namespace
+  parameters:                          # this server's own settings, merged last
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
   secretName: orders-db-admin          # unset, orders-db-dbadmin (principle 6)
-  aws:                                 # also takes id (principle 9)
-    instanceType: db.t4g.small         # the RDS instance class
-    # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
-    # fromBackup: orders-final         # an RDS snapshot ID, instead of restore
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: MariaDBRDSConfig
+    spec:
+      instanceType: db.t4g.small       # the RDS instance class
+      # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
+      # fromBackup: orders-final       # an RDS snapshot ID, instead of restore
 ```
 
-*A `MariaDBInstance` with its common fields and its `aws` block.*
+*A `MariaDBServer` with its common fields and an entry for RDS.*
 
-`restore` creates an instance from another instance's backups, at a point in time. A deleted
-instance is restored instead with `aws.fromBackup` and an RDS snapshot ID. Both are set at creation
-only and cannot be combined:
+`restore` creates a server from another server's backups, at a point in time. A deleted server is
+restored instead with its provider config's `fromBackup` and an RDS snapshot ID. Both are set at
+creation only and cannot be combined:
 
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: MariaDBInstance
+kind: MariaDBServer
 metadata:
   name: orders-db-restored
   namespace: shop
 spec:
   version: "11.4"
   restore:
-    fromInstance: orders-db            # a MariaDBInstance in this namespace
+    fromInstance: orders-db            # a MariaDBServer in this namespace
     pointInTime: "2026-11-01T10:00:00Z"
-  aws:
-    instanceType: db.t4g.small
 ```
 
-*A `MariaDBInstance` created from another instance's backups.*
+*A `MariaDBServer` created from another server's backups.*
 
 `version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`, and RDS
 applies minor versions in the maintenance window. A major change is a change in the first two
 numbers.
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and
-lowering it is rejected. The cloud may round it up and `autoGrow` can take the disk further, so the
-status reports the actual size, and the platform never shrinks the disk back to `sizeGB`.
+lowering it is rejected. RDS may round it up and `autoGrow` can take the disk further, so the status
+reports the actual size, and the platform never shrinks the disk back to `sizeGB`.
 
-A deleted instance is restored with `aws.fromBackup` and the final snapshot's ID, which the status
-loses with the instance, so it is taken from the AWS console. The running minor version, the latest
-restorable time and the instance state go in the `aws` block:
+`highAvailability`, `readReplicas` and `disasterRecovery` are portable features: an object that
+requests one its class does not support is refused when applied (principle 1).
+
+The final snapshot's ID, which `fromBackup` needs, is lost with the server's status, so it is taken
+from the AWS console. The status shows the common fields, which entry applied, where each effective
+value came from, and the RDS values of `MariaDBRDSConfig` (principle 4):
 
 ```yaml
 status:
-  aws:
+  version: "11.4"
+  endpoint:
+    host: orders-db-7f3a2c.abc.eu-north-1.rds.amazonaws.com
+    port: 3306
+  connectionSecret: orders-db-admin
+  providerConfig:
+    applied: aws.database.entigo.com/v1alpha1, MariaDBRDSConfig
+  effective:
+    backup.retentionDays: { value: 7, source: object }
+    deletionProtection: { value: true, source: class/standard/enforced }
+    instanceType: { value: db.t4g.small, source: object/MariaDBRDSConfig }
+  provider:                            # the shape MariaDBRDSConfig's status defines
     finalBackup: ...
     identifier: ...
     resourceId: ...
-    engineVersionActual: "11.4.10"
     latestRestorableTime: ...
-    status: available
+    state: available
 ```
 
-*The `aws` block of a `MariaDBInstance` status.*
+*A `MariaDBServer` status on AWS.*
 
 The admin login is in the secret `<instance>-dbadmin`, with the keys of principle 6.
 
+### MariaDBClass
+
+Entigo writes each deployment's classes, with the defaults a server starts with (`template`), the
+values it cannot change (`enforced`) and, in a disaster recovery workspace, a smaller `standby`
+(principle 5):
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBClass
+metadata:
+  name: standard
+  annotations:
+    database.entigo.com/is-default-class: "true"
+spec:
+  template:
+    version: "11.4"
+    storage:
+      sizeGB: 50
+      maxSizeGB: 500
+    backup:
+      retentionDays: 14
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: MariaDBRDSConfig
+      spec:
+        instanceType: db.t4g.medium
+  enforced:
+    deletionProtection: true
+```
+
+*A `MariaDBClass` for RDS.*
+
+On RDS, a class reports `HighAvailability`, `ReadReplicas` and `DisasterRecovery` in
+`status.supportedFeatures`.
+
+### MariaDBParameters
+
+`MariaDBParameters` holds MariaDB settings that several servers or a class share. A class, a server
+and a server's provider config may each reference one, and their settings merge key by key in that
+order, followed by the server's own `parameters`:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBParameters
+metadata:
+  name: orders-tuning
+  namespace: shop
+spec:
+  parameters:
+    innodb_lock_wait_timeout: "120"
+    long_query_time: "2"
+```
+
+*A `MariaDBParameters` a user shares between their servers.*
+
+A `MariaDBParameters` names no other, so references never chain. Settings RDS does not allow are
+rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
+
 ### MariaDBUser
 
-`MariaDBUser` acts inside MariaDB, through provider-sql. Its `name` and `instanceRef` are immutable,
-`instanceRef` may name another namespace of the same Zone (principle 11), and its defaults are
-written by the admission policy (principle 5).
+`MariaDBUser` acts inside MariaDB, through provider-sql, so it is the same in every implementation.
+Its `name` and `serverRef` are immutable, `serverRef` may name another namespace of the same Zone
+(principle 11), and it has no class or provider configs.
 
 A user's databases and privileges are a list, `databases`, with one entry per database, so an
-application that uses two databases on one instance needs one login, as principle 12 requires. Each
+application that uses two databases on one server needs one login, as principle 12 requires. Each
 entry becomes one provider-sql `Grant`, and each `databaseRef` takes `namespace` too (principle 11).
 provider-sql writes the four secret keys principle 6 names for MariaDB users too
 ([`pkg/clients/mysql/mysql.go`](https://github.com/crossplane-contrib/provider-sql/blob/v0.16.1/pkg/clients/mysql/mysql.go),
@@ -141,7 +223,7 @@ metadata:
   namespace: shop
 spec:
   name: orders_app                     # the user's name in MariaDB; unset, metadata.name
-  instanceRef:
+  serverRef:
     name: orders-db
     namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   databases:                           # one entry per database
@@ -167,9 +249,9 @@ spec:
 
 ### MariaDBDatabase
 
-`MariaDBDatabase` acts inside MariaDB, through provider-sql. Its `name` and `instanceRef` are
-immutable, `instanceRef` may name another namespace of the same Zone (principle 11), and its
-defaults are written by the admission policy (principle 5).
+`MariaDBDatabase` acts inside MariaDB, through provider-sql, so it is the same in every
+implementation. Its `name` and `serverRef` are immutable, `serverRef` may name another namespace of
+the same Zone (principle 11), and it has no class or provider configs.
 
 An example:
 
@@ -182,7 +264,7 @@ metadata:
   namespace: shop
 spec:
   name: orders                         # the database's name in MariaDB; unset, metadata.name
-  instanceRef:
+  serverRef:
     name: orders-db
     namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   defaultCharacterSet: utf8mb4
@@ -192,61 +274,144 @@ spec:
 
 *A `MariaDBDatabase` with its default character set.*
 
-## Mapping
+## Read Replicas
 
-The table names what each field maps to in the cloud's provider:
+A `MariaDBServer` requests read replicas as [Common Design](common-design.md#read-replicas)
+describes. RDS has no balanced read endpoint for a server's replicas, so `readerEndpoint` lists
+their hosts. Two replicas identical to the primary:
 
-| Field                                  | Maps To                                                                     |
-| -------------------------------------- | --------------------------------------------------------------------------- |
-| `observe`                              | `managementPolicies: [Observe]` on every managed resource                   |
-| `aws.id`                               | the console's Resource ID (`db-...`)                                        |
-| `version`                              | `engineVersion`; the full version with minor upgrades off                   |
-| `aws.instanceType`                     | `instanceClass`                                                             |
-| `storage.sizeGB`                       | `allocatedStorage`; below 20 rounded up to 20                               |
-| `storage.autoGrow`                     | on with `maxAllocatedStorage`                                               |
-| `storage.maxSizeGB`                    | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      |
-| `storage.iops`                         | `iops`                                                                      |
-| `storage.throughputMBps`               | `storageThroughput`                                                         |
-| `highAvailability`                     | `multiAz`                                                                   |
-| `deletionProtection`                   | `deletionProtection`                                                        |
-| `maintenance.window`                   | `maintenanceWindow: sun:03:00-sun:03:30`                                    |
-| `maintenance.autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                   |
-| `maintenance.allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                  |
-| `backup.retentionDays`                 | `backupRetentionPeriod`; 0 disables backups                                 |
-| `backup.startHourUTC`                  | `backupWindow`, 30 minutes                                                  |
-| `parameters`                           | a `ParameterGroup` of family `mariadb<major>`                               |
-| `parameterApplyMethod`                 | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |
-| `restore.fromInstance`                 | `restoreToPointInTime.sourceDbInstanceIdentifier`                           |
-| `restore.pointInTime`                  | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        |
-| `aws.fromBackup`                       | `snapshotIdentifier`                                                        |
-| `aws.parameterGroupName`               | `parameterGroupName`                                                        |
-
-*Fields of `MariaDBInstance` and their provider fields.*
-
-**AWS:** provider keys are from the CRDs of [provider-upjet-aws
-v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). RDS takes a
-version without its minor only while minor upgrades are on (`engineVersion` in
-`rds.aws.m.upbound.io_instances`), so a user who sets `maintenance.autoMinorVersionUpgrade: false`
-writes the full version, such as `"11.4.10"`, and changes it to upgrade. A parameter group applies
-to one major version, so a major change is rejected unless `aws.parameterGroupName` changes or is
-removed in the same edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an
-increase under 10% up to 10%. `status.aws.finalBackup` is the ID the final snapshot will receive.
-Storage is gp3.
-
-## Composed Resources
-
-A comment names the source of each value the object does not hold as written: `platform` for a value
-the platform sets, and `deployment` for one the deployment sets. The `MariaDBInstance` from
-[Kinds](#kinds) is composed into the resource below on AWS, the only cloud that offers it:
-
-```yaml Object
+```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: MariaDBInstance
+kind: MariaDBServer
 metadata:
   name: orders-db
   namespace: shop
 spec:
+  version: "11.4"
+  highAvailability: true               # a standby, not a read replica
+  readReplicas: 2
+```
+
+*A `MariaDBServer` with two read replicas.*
+
+A reporting replica of its own size:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBServer
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  version: "11.4"
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: MariaDBRDSConfig
+    spec:
+      instanceType: db.m7g.xlarge
+      readReplicas:                    # replicas of their own sizes, instead of the count
+      - name: reporting
+        instanceType: db.r7g.2xlarge
+```
+
+*A `MariaDBServer` with a reporting replica of its own size.*
+
+## Disaster Recovery
+
+A `MariaDBServer` keeps a copy in another workspace as [Common
+Design](common-design.md#disaster-recovery) describes:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBServer
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  className: standard
+  version: "11.4"
+  disasterRecovery:
+    workspaces:                        # the Entigo workspaces that hold this database
+    - prod
+    - prod-dr
+    primary: prod                      # the one that accepts writes
+```
+
+*A `MariaDBServer` with a disaster recovery copy in another workspace.*
+
+## Mapping
+
+The first table names what each common field maps to in RDS. A setting RDS lacks shows as ignored,
+with the reason (principle 1):
+
+| Field                      | AWS                                                                              |
+| -------------------------- | -------------------------------------------------------------------------------- |
+| `observe`                  | `managementPolicies: [Observe]`                                                  |
+| `version`                  | `engineVersion`; the full version with minor upgrades off                        |
+| `storage.sizeGB`           | `allocatedStorage`; below 20 rounded up to 20                                    |
+| `storage.autoGrow`         | on with `maxAllocatedStorage`                                                    |
+| `storage.maxSizeGB`        | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling           |
+| `storage.iops`             | `iops`                                                                           |
+| `storage.throughputMBps`   | `storageThroughput`                                                              |
+| `highAvailability`         | `multiAz`                                                                        |
+| `readReplicas`             | one RDS read replica `Instance` each, with `replicateSourceDb`                   |
+| `disasterRecovery`         | a cross-region read replica `Instance` in the DR workspace; promoted on failover |
+| `deletionProtection`       | `deletionProtection`                                                             |
+| `maintenanceWindow`        | `maintenanceWindow: sun:03:00-sun:03:30`                                         |
+| `autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                        |
+| `allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                       |
+| `backup.retentionDays`     | `backupRetentionPeriod`; 0 disables backups                                      |
+| `backup.pointInTimeDays`   | the same setting; above `retentionDays` rejected                                 |
+| `backup.startHourUTC`      | `backupWindow`, 30 minutes                                                       |
+| `parameters`               | a `ParameterGroup` of family `mariadb<major>`                                    |
+| `parametersRef`            | merged into `parameters`                                                         |
+| `parameterApplyMethod`     | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot`      |
+| `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                                |
+| `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`             |
+
+*Common fields of `MariaDBServer` and their provider fields.*
+
+The second names the provider config kind and what its fields map to:
+
+| Field                | AWS                                                                     |
+| -------------------- | ----------------------------------------------------------------------- |
+| kind                 | `MariaDBRDSConfig`                                                      |
+| `id`                 | the console's Resource ID (`db-...`)                                    |
+| `instanceType`       | `instanceClass`                                                         |
+| `fromBackup`         | `snapshotIdentifier`                                                    |
+| `parameterGroupName` | `parameterGroupName`                                                    |
+| `readReplicas`       | one RDS read replica `Instance` per entry, with its own `instanceClass` |
+
+*Fields of `MariaDBRDSConfig`.*
+
+**AWS:** provider keys are from the CRDs of [provider-upjet-aws
+v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). RDS takes a
+version without its minor only while minor upgrades are on (`engineVersion` in
+`rds.aws.m.upbound.io_instances`), so a user who sets `autoMinorVersionUpgrade: false` writes the
+full version, such as `"11.4.10"`, and changes it to upgrade. A parameter group applies to one major
+version, so a major change is rejected unless `parameterGroupName` changes or is removed in the same
+edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an increase under 10% up to
+10%. `status.provider.finalBackup` is the ID the final snapshot will receive. Storage is gp3.
+
+## Composed Resources
+
+The `MariaDBServer` from [Kinds](#kinds) is composed into the resource below on AWS, the only cloud
+that offers it. A comment names the source of each value the object does not hold as written:
+`platform` for a value the platform sets, and `deployment` for one the deployment sets. The object
+and its resource:
+
+```yaml Object
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBServer
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  className: standard
   version: "11.4"
   storage:
     sizeGB: 20
@@ -255,22 +420,27 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
+  readReplicas: 0
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  autoMinorVersionUpgrade: true
+  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
     startHourUTC: 2
+  parametersRef:
+    name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
   secretName: orders-db-admin
-  aws:
-    instanceType: db.t4g.small
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: MariaDBRDSConfig
+    spec:
+      instanceType: db.t4g.small
 ```
 
 ```yaml AWS resource
@@ -298,7 +468,7 @@ spec:
     allowMajorVersionUpgrade: false
     backupRetentionPeriod: 7
     backupWindow: 02:00-02:30
-    parameterGroupName: orders-db-7f3a2c  # composed from parameters
+    parameterGroupName: orders-db-7f3a2c  # composed from parametersRef and parameters
     username: dbadmin          # platform
     autoGeneratePassword: true  # platform
     passwordSecretRef:
@@ -312,23 +482,23 @@ spec:
     kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
-*A `MariaDBInstance` on AWS and its composed resource.*
+*A `MariaDBServer` on AWS and its composed resource.*
 
 ## Platform Decisions
 
 The platform makes these settings itself:
 
-| Setting           | Platform's Choice                                                        |
-| ----------------- | ------------------------------------------------------------------------ |
-| Network placement | The deployment's private network                                         |
-| Public access     | None                                                                     |
-| Encryption        | The platform's data key                                                  |
-| Admin login       | An admin username and a generated password                               |
-| Port              | 3306                                                                     |
-| Tags              | Workspace and Zone tags                                                  |
-| Final backup      | A snapshot taken when an instance is deleted, switched on per deployment |
+| Setting           | Platform's Choice                                                     |
+| ----------------- | --------------------------------------------------------------------- |
+| Network placement | The deployment's private network                                      |
+| Public access     | None                                                                  |
+| Encryption        | The platform's data key                                               |
+| Admin login       | An admin username and a generated password                            |
+| Port              | 3306                                                                  |
+| Tags              | Workspace and Zone tags                                               |
+| Final backup      | A snapshot taken when a server is deleted, switched on per deployment |
 
-*Settings the platform makes for a `MariaDBInstance`.*
+*Settings the platform makes for a `MariaDBServer`.*
 
 ## Cloud Limits
 

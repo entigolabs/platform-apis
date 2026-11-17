@@ -159,6 +159,63 @@ it acts inside the engine, which is the same everywhere, and follows its parent'
 A reference to another namespace is accepted only when both namespaces carry the same
 `tenancy.entigo.com/zone` label (principle 11).
 
+## Read Replicas
+
+`readReplicas: N` requests N read-only copies of a database, identical to the primary: the same
+size, the same engine parameters and the same class layers. Applications send reads to them through
+the secret's `readerEndpoint` key. Replicas of another size, such as one large replica for
+reporting, exist only in some implementations, so they are written in the provider config instead
+of the count, each with its own size and, where the implementation allows it, its own engine
+parameters.
+
+The rules for replicas:
+
+- **The count or the layout, not both.** An object that sets `readReplicas` and a replica layout in
+  its applied provider config is refused, so the number of replicas is never ambiguous.
+- **Scaling down is predictable.** Replicas are named `<instance>-ro-<index>`, and scaling down
+  removes the highest index first.
+- **The reader endpoint follows the implementation.** Where it has a balanced read endpoint,
+  `readerEndpoint` holds it; elsewhere it lists the replicas' hosts.
+- **A replica runs the primary's major version.** Read replicas use physical replication, which
+  needs the same major version; a copy on a newer version belongs to upgrades and migration.
+
+## Disaster Recovery
+
+`disasterRecovery` keeps a copy of a database in another Entigo workspace, usually in another
+region, that can become the primary when the primary's region is lost. The same manifest is applied
+in both workspaces, and each takes its role from `primary`, which names one of `workspaces`. With
+`workspaces: [prod, prod-dr]` and `primary: prod`:
+
+1. In `prod`, the platform creates the primary as usual.
+2. In `prod-dr`, that workspace's own platform creates a replica of it in its own region. The DR
+   workspace owns the replica, so losing the primary's region does not also take down the platform
+   that must promote it.
+3. To fail over, the user changes `primary` to `prod-dr` in Git, and `prod-dr`'s platform promotes
+   its replica.
+
+The manifest names no region: each workspace's class decides where its copy runs. A replica that
+only waits should be small, so a class in the DR workspace can hold a `standby` provider config,
+applied only while that workspace is not primary; on promotion, the platform resizes the replica to
+the object's own size, which adds that time to the recovery. Where recovery time matters more than
+cost, the class leaves `standby` empty.
+
+The rules for disaster recovery:
+
+- **The source is found by tags.** The DR platform cannot see the primary's resource, and cloud
+  names differ between clusters, so the primary platform tags the resource with the workspace, the
+  Zone and a DR group (`<namespace>/<name>`), and the DR platform finds it with the tag check of
+  [Observed Resources](#observed-resources).
+- **Credentials survive the outage.** The primary platform keeps the generated passwords in a store
+  that replicates across regions, such as AWS Secrets Manager replica secrets, which the DR side
+  reads through External Secrets. An encrypted replica also needs a key in the DR region.
+- **The old primary is fenced.** When the old primary's workspace returns, its platform sees in Git
+  that it is no longer primary, stops writes, and rebuilds the database as a replica, before
+  anything else.
+- **Each workspace's secret holds its local endpoint,** so applications in the DR region connect
+  locally.
+- **The feature gate applies.** A class that cannot replicate across regions does not report
+  `DisasterRecovery`, so a manifest that uses it fails when applied, not during an outage.
+
 ## Validation
 
 Provider config entries are opaque to the core schema (principle 10). Each implementation checks the

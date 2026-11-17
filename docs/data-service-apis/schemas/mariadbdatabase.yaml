@@ -25,25 +25,25 @@ spec:
                 description: |-
                   The database's name in the engine, which may hold what a Kubernetes name cannot.
                   Unset, metadata.name. Set at creation only.
-              instanceRef:
+              serverRef:
                 type: object
                 description: |-
-                  The MariaDBInstance this object lives in.
+                  The MariaDBServer this object lives in.
                 properties:
                   name:
                     type: string
                     description: |-
-                      The MariaDBInstance.
+                      The MariaDBServer.
                   namespace:
                     type: string
                     description: |-
-                      The MariaDBInstance's namespace, which must be in this object's Zone (principle
+                      The MariaDBServer's namespace, which must be in this object's Zone (principle
                       11). Unset, this object's namespace.
                 required:
                 - name
                 x-kubernetes-validations:
                 - rule: self == oldSelf
-                  message: instanceRef is immutable
+                  message: serverRef is immutable
               defaultCharacterSet:
                 type: string
                 description: |-
@@ -62,7 +62,7 @@ spec:
                 (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
               message: name is immutable
             required:
-            - instanceRef
+            - serverRef
           status:
             type: object
             properties: {}

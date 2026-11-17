@@ -210,30 +210,50 @@ for kind, spec in {"PostgreSQLRDSConfig": {"instanceType": "db.m7g.large",
 update("PostgreSQLRDSConfig changing fromBackup rejected", "PostgreSQLRDSConfig",
        {"fromBackup": "rds:a"}, {"fromBackup": "rds:b"}, False, "set at creation only")
 
-print("\n# MariaDBInstance")
-create("two-number version accepted", "MariaDBInstance", {"version": "11.4", "aws": {}})
-create("one-number version rejected", "MariaDBInstance", {"version": "11"}, False, "should match")
-MA = {"version": "11.4", "aws": {"parameterGroupName": "orders-mariadb114"}}
-create("MariaDB aws.fromBackup accepted", "MariaDBInstance",
-       {"aws": {"fromBackup": "orders-final"}})
-create("MariaDB aws.parameterGroupName with parameters rejected", "MariaDBInstance",
-       w(MA, parameters={"max_connections": "200"}), False, "cannot be used together")
-MAU = w(MA, maintenance={"allowMajorVersionUpgrade": True})
-update("MariaDB major change keeping the parameter group rejected", "MariaDBInstance", MAU,
-       w(MAU, version="11.8"), False, "needs a new aws.parameterGroupName")
-update("MariaDB major change with a new parameter group accepted", "MariaDBInstance", MAU,
-       w(MAU, version="11.8", aws={"parameterGroupName": "orders-mariadb118"}))
-MP = {"version": "11.4.10", "maintenance": {"autoMinorVersionUpgrade": False}, "aws": {}}
-create("MariaDB full version with minor upgrades off accepted", "MariaDBInstance", MP)
-create("MariaDB full version with minor upgrades on rejected", "MariaDBInstance",
-       w(MP, maintenance=None), False, "takes a minor exactly")
-create("MariaDB major only with minor upgrades off rejected", "MariaDBInstance",
+print("\n# MariaDBServer")
+MRDS = {"apiVersion": "aws.database.entigo.com/v1alpha1", "kind": "MariaDBRDSConfig",
+        "spec": {"instanceType": "db.t4g.small"}}
+MA = {"version": "11.4", "storage": {"sizeGB": 20}, "providerConfigs": [MRDS]}
+create("MariaDB valid spec", "MariaDBServer", MA)
+create("MariaDB one-number version rejected", "MariaDBServer", w(MA, version="11"), False,
+       "should match")
+MP = w(MA, version="11.4.10", autoMinorVersionUpgrade=False)
+create("MariaDB full version with minor upgrades off accepted", "MariaDBServer", MP)
+create("MariaDB full version with minor upgrades on rejected", "MariaDBServer",
+       w(MA, version="11.4.10"), False, "takes a minor exactly")
+create("MariaDB major only with minor upgrades off rejected", "MariaDBServer",
        w(MP, version="11.4"), False, "takes a minor exactly")
-update("MariaDB minor change accepted", "MariaDBInstance", MP, w(MP, version="11.4.11"))
-update("MariaDB major change without allowMajorVersionUpgrade rejected", "MariaDBInstance", MP,
-       w(MP, version="11.8.3"), False, "allowMajorVersionUpgrade")
-update("MariaDB lowering storage.sizeGB rejected", "MariaDBInstance",
-       w(MA, storage={"sizeGB": 50}), w(MA, storage={"sizeGB": 40}), False, "cannot decrease")
+update("MariaDB minor change accepted", "MariaDBServer", MP, w(MP, version="11.4.11"))
+update("MariaDB major change without allowMajorVersionUpgrade rejected", "MariaDBServer", MA,
+       w(MA, version="11.8"), False, "allowMajorVersionUpgrade")
+update("MariaDB major change with allowMajorVersionUpgrade accepted", "MariaDBServer",
+       w(MA, allowMajorVersionUpgrade=True), w(MA, version="11.8", allowMajorVersionUpgrade=True))
+update("MariaDB lowering storage.sizeGB rejected", "MariaDBServer", MA,
+       w(MA, storage={"sizeGB": 10}), False, "cannot decrease")
+create("MariaDB maxSizeGB below sizeGB rejected", "MariaDBServer",
+       w(MA, storage={"sizeGB": 100, "maxSizeGB": 50}), False, "maxSizeGB must be at least sizeGB")
+create("MariaDB readReplicas accepted", "MariaDBServer", w(MA, readReplicas=2))
+create("MariaDB disasterRecovery accepted", "MariaDBServer",
+       w(MA, disasterRecovery={"workspaces": ["prod", "prod-dr"], "primary": "prod"}))
+create("MariaDB observe with an entry accepted", "MariaDBServer",
+       {"observe": True, "providerConfigs": [{**MRDS, "spec": {"id": "db-ABC"}}]})
+create("MariaDB pointInTime without fromInstance rejected", "MariaDBServer",
+       w(MA, restore={"pointInTime": "2026-11-01T10:00:00Z"}), False, "Required value")
+update("MariaDB adding restore later rejected", "MariaDBServer", MA,
+       w(MA, restore={"fromInstance": "a"}), False, "restore is set at creation only")
+create("MariaDBClass valid class", "MariaDBClass",
+       {"template": {"version": "11.4", "providerConfig": MRDS}, "enforced": {"deletionProtection": True}})
+create("MariaDBClass disasterRecovery rejected", "MariaDBClass",
+       {"template": {"disasterRecovery": {"workspaces": ["a", "b"], "primary": "a"}}}, False,
+       "unknown field")
+create("MariaDBParameters accepted", "MariaDBParameters", {"parameters": {"long_query_time": "2"}})
+MRS = {"instanceType": "db.t4g.small", "parameterGroupName": "orders-mariadb114",
+       "readReplicas": [{"name": "reporting", "instanceType": "db.r7g.2xlarge"}]}
+create("MariaDBRDSConfig valid spec", "MariaDBRDSConfig", MRS)
+create("MariaDBRDSConfig unknown field rejected", "MariaDBRDSConfig", {**MRS, "unknownSetting": 1},
+       False, "unknown field")
+update("MariaDBRDSConfig changing fromBackup rejected", "MariaDBRDSConfig",
+       {"fromBackup": "a"}, {"fromBackup": "b"}, False, "set at creation only")
 
 print("\n# ValkeyInstance")
 VA = {"version": "8.1", "aws": {"parameterGroupName": "orders-valkey8"}}
@@ -366,8 +386,7 @@ update("removing name rejected", "ArtifactRepository", CR, w(CR, name=None), Fal
 
 
 print("\n# Portability: one object applies on every cloud")
-SIZES = {"MariaDBInstance": {"aws": {"instanceType": "db.t4g.small"}},
-         "ValkeyInstance": {"aws": {"instanceType": "cache.t4g.small"},
+SIZES = {"ValkeyInstance": {"aws": {"instanceType": "cache.t4g.small"},
                             "gcp": {"instanceType": "SHARED_CORE_NANO"}, "oci": {"memoryGB": 16}},
          "KafkaCluster": {"aws": {"instanceType": "kafka.m7g.large"},
                           "gcp": {"vcpus": 3, "memoryGB": 12},
@@ -379,8 +398,7 @@ for kind, spec in SIZES.items():
            {"instanceType": "db.t4g.small"}, False, "unknown field")
 
 print("\n# Shared rules on every resource kind")
-BLOCKS = {"MariaDBInstance": ["aws"],
-          "ValkeyInstance": ["aws", "gcp", "oci"], "KafkaCluster": ["aws", "gcp", "oci"],
+BLOCKS = {"ValkeyInstance": ["aws", "gcp", "oci"], "KafkaCluster": ["aws", "gcp", "oci"],
           "RabbitMQBroker": ["aws"], "Bucket": ["aws", "gcp", "oci", "azure"],
           "ArtifactRepository": ["aws", "gcp", "oci", "azure"]}
 for kind, blocks in BLOCKS.items():
@@ -401,13 +419,7 @@ for kind, blocks in BLOCKS.items():
         update(f"{kind}: removing observe with {c}.id rejected", kind, ob, {c: {"id": "x"}}, False,
                "observe is immutable")
 
-print("\n# More MariaDBInstance and KafkaTopic rules")
-create("MariaDB maxSizeGB below sizeGB rejected", "MariaDBInstance",
-       {"storage": {"sizeGB": 100, "maxSizeGB": 50}}, False, "maxSizeGB must be at least sizeGB")
-create("MariaDB pointInTime without fromInstance rejected", "MariaDBInstance",
-       {"restore": {"pointInTime": "2026-11-01T10:00:00Z"}}, False, "Required value")
-update("MariaDB adding restore later rejected", "MariaDBInstance", {"version": "11.4"},
-       {"version": "11.4", "restore": {"fromInstance": "a"}}, False, "restore is set at creation only")
+print("\n# More KafkaTopic rules")
 update("KafkaTopic changing clusterRef rejected", "KafkaTopic", {"clusterRef": {"name": "c1"}},
        {"clusterRef": {"name": "c2"}}, False, "clusterRef is immutable")
 
@@ -430,7 +442,7 @@ create("PostgreSQLDatabase unknown extension rejected", "PostgreSQLDatabase",
        w(PD, extensions=["pg_cron"]), False, "Unsupported value")
 update("PostgreSQLDatabase adding name later rejected", "PostgreSQLDatabase", PD,
        w(PD, name="orders"), False, "name is immutable")
-MU = {"instanceRef": {"name": "orders-db"},
+MU = {"serverRef": {"name": "orders-db"},
       "databases": [{"databaseRef": {"name": "orders"}, "privileges": ["SELECT", "INSERT"]}]}
 create("MariaDBUser valid spec", "MariaDBUser", MU)
 create("MariaDBUser on two databases accepted", "MariaDBUser",
@@ -451,11 +463,11 @@ create("MariaDBUser lowercase privilege rejected", "MariaDBUser",
 update("MariaDBUser adding a database accepted", "MariaDBUser", MU,
        w(MU, databases=MU["databases"] + [{"databaseRef": {"name": "invoices"},
                                            "privileges": ["SELECT"]}]))
-MD = {"instanceRef": {"name": "orders-db"}}
+MD = {"serverRef": {"name": "orders-db"}}
 create("MariaDBDatabase valid spec", "MariaDBDatabase", w(MD, defaultCharacterSet="utf8mb4"))
-update("MariaDBDatabase changing instanceRef rejected", "MariaDBDatabase", MD,
-       {"instanceRef": {"name": "orders-db", "namespace": "shop-platform"}}, False,
-       "instanceRef is immutable")
+update("MariaDBDatabase changing serverRef rejected", "MariaDBDatabase", MD,
+       {"serverRef": {"name": "orders-db", "namespace": "shop-platform"}}, False,
+       "serverRef is immutable")
 
 
 print("\n# Connection secret names")

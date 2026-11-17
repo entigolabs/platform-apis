@@ -48,9 +48,12 @@ nav:
     - {file: mariadb.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
     - <<: *schemas
       files:
-      - {file: schemas/mariadbinstance.yaml, label: MariaDBInstance}
+      - {file: schemas/mariadbserver.yaml, label: MariaDBServer}
+      - {file: schemas/mariadbclass.yaml, label: MariaDBClass}
+      - {file: schemas/mariadbparameters.yaml, label: MariaDBParameters}
       - {file: schemas/mariadbuser.yaml, label: MariaDBUser}
       - {file: schemas/mariadbdatabase.yaml, label: MariaDBDatabase}
+      - {file: schemas/mariadbrdsconfig.yaml, label: MariaDBRDSConfig}
   - label: Valkey
     tabs:
     - {file: valkey.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}

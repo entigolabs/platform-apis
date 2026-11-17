@@ -197,195 +197,7 @@ def window(ext=None, sc=False):
                required=["day", "hourUTC"])
 
 
-# --- PostgreSQL and MariaDB: one shared instance spec --------------------------------------
-
-def size_field(floor, ext=None):
-    if not floor:
-        return field("integer", "Disk size in GB at creation.", ext, default=DEPLOY, minimum=1)
-    return field("integer", "Disk size in GB at creation, and its floor after: raising it grows "
-                 "the disk, lowering it is rejected. The disk can be larger: it is rounded up to a "
-                 "size the cloud accepts, and autoGrow can take it further. The status shows the "
-                 "real size.", ext,
-                 default=DEPLOY, minimum=1, **{"x-kubernetes-validations": [
-                     {"rule": "self >= oldSelf", "message": "storage.sizeGB cannot decrease"}]})
-
-
-def restore_block(kind):
-    return obj({
-        "fromInstance": field("string", f"A {kind} in this namespace."),
-        "pointInTime": field("string", "The time to restore fromInstance to. Unset, the latest "
-                             "restorable time.", format="date-time"),
-    }, "Create the instance from another instance's backups. Create time only.",
-        required=["fromInstance"])
-
-
-def from_backup_field(text):
-    return field("string", text + " Create time only; not with restore.")
-
-
-def from_backup_rules(clouds):
-    """fromBackup lives in the cloud blocks (principle 2): set at creation only, never with restore."""
-    rules = []
-    for c in clouds:
-        has = f"(has(self.{c}) && has(self.{c}.fromBackup))"
-        had = f"(has(oldSelf.{c}) && has(oldSelf.{c}.fromBackup))"
-        rules.append((f"{has} == {had} && (!{has} || "
-                      f"self.{c}.fromBackup == oldSelf.{c}.fromBackup)",
-                      f"{c}.fromBackup is set at creation only"))
-        rules.append((f"!{has} || !has(self.restore)",
-                      f"{c}.fromBackup cannot be combined with restore"))
-    return rules
-
-
-def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc, extra_rules=(),
-                from_backup=False, major=lambda v: v, minor_ext=None, pitr=None, size_ext=None):
-    pitr = from_backup if pitr is None else pitr
-    common = {
-        "version": field("string", version_text, minor_ext, DEPLOY, sc, pattern=version_pattern),
-        "storage": obj({
-            "sizeGB": size_field(from_backup, size_ext),
-            "autoGrow": field("boolean", "Grow the disk as it fills.",
-                              "Ignored for false on OCI, "
-                              "whose storage always grows.", "fixed, true", sc),
-            "maxSizeGB": field("integer", "The size autoGrow stops at.",
-                               "Ignored on OCI and Azure.", DEPLOY, sc, minimum=1),
-            "iops": field("integer", "Provisioned IOPS.",
-                          "Ignored on Azure, and on GCP without Hyperdisk.", None, sc, minimum=1),
-            "throughputMBps": field("integer", "Provisioned throughput in MB/s.",
-                                    "Ignored on OCI, Azure, and GCP without Hyperdisk.", None, sc,
-                                    minimum=1),
-        }, rules=[("!has(self.maxSizeGB) || !has(self.sizeGB) || self.maxSizeGB >= self.sizeGB",
-                   "maxSizeGB must be at least sizeGB")]),
-        "highAvailability": field("boolean", "A standby in another zone, with automatic "
-                                  "failover.", default=DEPLOY),
-        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
-                                    default="fixed, true"),
-        "maintenance": obj({
-            "window": window(),
-            "autoMinorVersionUpgrade": field(
-                "boolean", "Apply new minor versions in the maintenance window. false keeps "
-                "the minor written in version.", "Ignored for false on "
-                                                 "GCP, OCI and Azure.", DEPLOY, sc),
-            "allowMajorVersionUpgrade": field(
-                "boolean", "Allow version to change to a later major.",
-                "A major upgrade on OCI, which has none, fails (principle 10).", "fixed, false", sc),
-        }),
-        "backup": obj({
-            "retentionDays": field("integer", "Days automated backups are kept, within the "
-                                   "cloud's own range, which the cloud checks (principle 10). 0 "
-                                   "turns automated backups and point-in-time restore off.",
-                                   "Ignored for 0 on Azure, which "
-                                   "always keeps backups.", DEPLOY, sc, minimum=0),
-            **({"pointInTimeDays": field(
-                "integer", "Days back restore.pointInTime can reach, within the cloud's own "
-                "range. AWS and Azure keep one window for both, so above retentionDays is "
-                "rejected there.",
-                default="fixed, the lower of retentionDays and the cloud's maximum; none "
-                "with retentionDays 0",
-                minimum=1)} if pitr else {}),
-            "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
-                                  "Ignored on Azure.", None, sc, minimum=0,
-                                  maximum=23),
-        }, rules=[("!has(self.pointInTimeDays) || !has(self.retentionDays) || "
-                   "self.retentionDays > 0",
-                   "pointInTimeDays needs backups, which retentionDays 0 disables")]
-           if pitr else None),
-        "parameters": string_map(f"{engine} settings, by name. Keys outside the cloud's "
-                                 "allowlist are rejected."),
-        **({"parameterApplyMethod": field(
-            "string", "The moment changed parameters take effect. Immediate restarts the instance "
-            "where a setting needs it; RDS rejects such settings with Immediate.",
-            "Ignored for NextRestart on GCP, OCI and Azure, where a change "
-            "that needs a restart restarts the instance at once.", "fixed, Immediate", sc,
-            enum=["Immediate", "NextRestart"])} if from_backup else {}),
-        "restore": restore_block(kind),
-        "secretName": secret_name("<instance>-dbadmin"),
-    }
-    rules = [
-        ("has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || "
-         "self.restore == oldSelf.restore)", "restore is set at creation only"),
-        ("!has(self.version) || !has(oldSelf.version) || "
-         f"{major('self.version')} == {major('oldSelf.version')} || "
-         "(has(self.maintenance) && has(self.maintenance.allowMajorVersionUpgrade) && "
-         "self.maintenance.allowMajorVersionUpgrade)",
-         "a major version change needs maintenance.allowMajorVersionUpgrade"),
-    ]
-    spec = resource_spec(common, blocks, "database instance", rules + list(extra_rules))
-    status = obj({
-        "version": field("string"),
-        "storage": obj({"sizeGB": field("integer", "The actual disk size.") if from_backup
-                        else field("integer"), "autoGrow": field("boolean"),
-                        "maxSizeGB": field("integer"), "iops": field("integer"),
-                        "throughputMBps": field("integer")}),
-        "highAvailability": field("boolean"),
-        "maintenance": obj({"window": obj({"day": field("string"), "hourUTC": field("integer")}),
-                            "autoMinorVersionUpgrade": field("boolean")}),
-        "backup": obj({"retentionDays": field("integer"),
-                       **({"pointInTimeDays": field("integer")} if pitr else {}),
-                       "startHourUTC": field("integer")}),
-        "endpoint": endpoint(),
-        "connectionSecret": field("string", f"The admin Secret, <instance>-dbadmin (principle 6)."),
-        **STATUS_BLOCKS[kind],
-    })
-    return xrd(kind, plural, "database.entigo.com", spec, status)
-
-
 S = lambda: field("string")
-STATUS_BLOCKS = {
-    "PostgreSQLInstance": {
-        "aws": obj({"instanceType": S(), "finalBackup": field(
-                        "string", "The ID the final snapshot receives when the instance is "
-                        "deleted, for aws.fromBackup."),
-                    "identifier": S(), "resourceId": S(),
-                    "engineVersionActual": S(),
-                    "latestRestorableTime": field("string", format="date-time"),
-                    "status": S()}),
-        "gcp": obj({"instanceType": S(), "id": S(), "connectionName": S(),
-                    "maintenanceVersion": S()}),
-        "oci": obj({"instanceType": S(), "id": S(), "instanceOcpuCount": field("number"),
-                    "instanceMemorySizeInGbs": field("integer"), "state": S()}),
-        "azure": obj({"instanceType": S(), "id": S()}),
-    },
-    "MariaDBInstance": {
-        "aws": obj({"instanceType": S(), "finalBackup": field(
-                        "string", "The ID the final snapshot receives when the instance is "
-                        "deleted, for aws.fromBackup."),
-                    "identifier": S(), "resourceId": S(),
-                    "engineVersionActual": S(),
-                    "latestRestorableTime": field("string", format="date-time"),
-                    "status": S()}),
-    },
-}
-
-# PostgreSQL's kinds are written below, under Provider configs and classes.
-
-MARIADB_MAJOR = lambda v: f"({v}.split('.')[0] + '.' + {v}.split('.')[1])"
-
-write("mariadbinstance", db_instance(
-    "MariaDBInstance", "mariadbinstances", "MariaDB",
-    "The major version, which has two numbers, such as \"11.4\". With "
-    "maintenance.autoMinorVersionUpgrade false, the full version, such as \"11.4.10\".",
-    "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
-    {"aws": {"instanceType": field("string", "The RDS instance class, such as db.t4g.small.",
-                                   default=DEPLOY),
-             "parameterGroupName": field("string", "An existing RDS parameter group to use, in "
-                                         "place of parameters."),
-             "fromBackup": from_backup_field("An RDS snapshot ID to create the instance from.")}},
-    sc=True, extra_rules=from_backup_rules(["aws"]) + [
-        ("!has(self.aws) || !has(self.aws.parameterGroupName) || !has(self.parameters)",
-         "aws.parameterGroupName and parameters cannot be used together"),
-        ("!has(oldSelf.aws) || !has(oldSelf.aws.parameterGroupName) || !has(self.version) || "
-         "!has(oldSelf.version) || " + MARIADB_MAJOR("self.version") + " == "
-         + MARIADB_MAJOR("oldSelf.version") + " || !has(self.aws) || "
-         "!has(self.aws.parameterGroupName) || "
-         "self.aws.parameterGroupName != oldSelf.aws.parameterGroupName",
-         "a major version change needs a new aws.parameterGroupName, since a parameter group "
-         "fits one major version"),
-        ("!has(self.version) || (self.version.split('.').size() == 3) == "
-         "(has(self.maintenance) && has(self.maintenance.autoMinorVersionUpgrade) && "
-         "!self.maintenance.autoMinorVersionUpgrade)",
-         "version takes a minor exactly when maintenance.autoMinorVersionUpgrade is false"),
-    ], from_backup=True, pitr=False, major=MARIADB_MAJOR))
 
 # --- Kinds inside a database instance: users and databases ---------------------------------
 
@@ -442,13 +254,13 @@ write("mariadbuser", xrd(
     "MariaDBUser", "mariadbusers", "database.entigo.com",
     obj({
         "name": engine_name("user"),
-        "instanceRef": parent_ref("MariaDBInstance", "instanceRef"),
+        "serverRef": parent_ref("MariaDBServer", "serverRef"),
         "secretName": secret_name("<instance>-<user>"),
         "databases": array(obj({
             "databaseRef": obj({"name": field("string", "The MariaDBDatabase.", maxLength=253),
                                 "namespace": field("string", "The MariaDBDatabase's namespace, "
-                                                   "which must be in this object's Zone (rule "
-                                                   "11). Unset, this object's namespace.",
+                                                   "which must be in this object's Zone "
+                                                   "(principle 11). Unset, this object's namespace.",
                                                    maxLength=63)},
                                "The database the privileges apply to.", required=["name"]),
             "table": field("string", "The tables the privileges apply to.", default="fixed, *",
@@ -457,7 +269,7 @@ write("mariadbuser", xrd(
                                       "`[^`]+`)*[)])$", maxLength=256),
                                 "Privileges granted, such as SELECT.", minItems=1, maxItems=32),
         }, required=["databaseRef", "privileges"]),
-            "The databases this user may use on the instance, each with its privileges.",
+            "The databases this user may use on the server, each with its privileges.",
             minItems=1, maxItems=16,
             **{"x-kubernetes-validations": [{
                 "rule": "self.all(a, self.exists_one(b, b.databaseRef == a.databaseRef && "
@@ -473,20 +285,20 @@ write("mariadbuser", xrd(
                                     minimum=0),
     }, rules=[NAME_RULE]),
     obj({"connectionSecret": field("string", "The Secret with this user's login (principle 6).")}),
-    required_spec=["instanceRef", "databases"]))
+    required_spec=["serverRef", "databases"]))
 
 write("mariadbdatabase", xrd(
     "MariaDBDatabase", "mariadbdatabases", "database.entigo.com",
     obj({
         "name": engine_name("database"),
-        "instanceRef": parent_ref("MariaDBInstance", "instanceRef"),
+        "serverRef": parent_ref("MariaDBServer", "serverRef"),
         "defaultCharacterSet": field("string", "The default character set."),
         "defaultCollation": field("string", "The default collation."),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
     }, rules=[NAME_RULE]),
     obj({}),
-    required_spec=["instanceRef"]))
+    required_spec=["serverRef"]))
 
 # --- Valkey -------------------------------------------------------------------------------
 
@@ -956,12 +768,10 @@ def replica_layout(size_text):
 DEFAULT = "the class's template"
 
 
-def pg_common(observe=True):
-    """PostgreSQLCluster's common fields (principle 1), grouped as principle 13 says."""
+def db_common(engine, version_text, version_pattern):
+    """A database's common fields (principle 1), grouped as principle 13 says."""
     return {
-        "version": field("string", "The major version, such as \"17\". With "
-                         "autoMinorVersionUpgrade false, the full version, such as \"17.7\".",
-                         default=DEFAULT, pattern="^[0-9]+(\\.[0-9]+)?$"),
+        "version": field("string", version_text, default=DEFAULT, pattern=version_pattern),
         "storage": obj({
             "sizeGB": field("integer", "Disk size in GB at creation, and its floor after: raising "
                             "it grows the disk, lowering it is rejected. The disk can be larger: "
@@ -1014,11 +824,11 @@ def pg_common(observe=True):
         }, rules=[("!has(self.pointInTimeDays) || !has(self.retentionDays) || "
                    "self.retentionDays > 0",
                    "pointInTimeDays needs backups, which retentionDays 0 disables")]),
-        "parametersRef": obj({"name": field("string", "A PostgreSQLParameters in this "
+        "parametersRef": obj({"name": field("string", f"A {engine}Parameters in this "
                                             "namespace.")},
-                             "Reusable PostgreSQL settings, merged after the class's.",
+                             f"Reusable {engine} settings, merged after the class's.",
                              required=["name"]),
-        "parameters": string_map("PostgreSQL settings for this object only, merged after "
+        "parameters": string_map(f"{engine} settings for this object only, merged after "
                                  "parametersRef."),
         "parameterApplyMethod": field("string", "The moment changed parameters take effect. Immediate "
                                       "restarts the instance where a setting needs it.",
@@ -1027,68 +837,89 @@ def pg_common(observe=True):
     }
 
 
-pg_spec_common = pg_common()
-pg_spec = obj({
-    "className": field("string", "The PostgreSQLClass: the deployment's defaults, enforced "
-                       "values and implementation (principle 5). Unset, the default class. Set at "
-                       "creation only.", **{"x-kubernetes-validations": [
-                           {"rule": "self == oldSelf", "message": "className is immutable"}]}),
-    "observe": field("boolean", "true observes an existing resource, named by the id in its "
-                     "provider config entry, and never changes or deletes it. Every other common "
-                     "field is then rejected (principle 9). Set at creation only."),
-    **pg_spec_common,
-    "restore": obj({
-        "fromInstance": field("string", "A PostgreSQLCluster in this namespace."),
-        "pointInTime": field("string", "The time to restore fromInstance to. Unset, the latest "
-                             "restorable time.", format="date-time"),
-    }, "Create the cluster from another cluster's backups. Set at creation only.",
-        required=["fromInstance"]),
-    "secretName": secret_name("<instance>-dbadmin"),
-    "providerConfigs": provider_configs(),
-}, rules=[
-    ("(has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)",
-     "observe is immutable"),
-    ("!(has(self.observe) && self.observe) || (" + " && ".join(
-        f"!has(self.{k})" for k in [*pg_spec_common, "restore"]) + ")",
-     "an observed resource takes no other common field"),
-    ("has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || "
-     "self.restore == oldSelf.restore)", "restore is set at creation only"),
-    ("!has(self.version) || !has(oldSelf.version) || "
-     "self.version.split('.')[0] == oldSelf.version.split('.')[0] || "
-     "(has(self.allowMajorVersionUpgrade) && self.allowMajorVersionUpgrade)",
-     "a major version change needs allowMajorVersionUpgrade"),
-    ("!has(self.version) || self.version.contains('.') == "
-     "(has(self.autoMinorVersionUpgrade) && !self.autoMinorVersionUpgrade)",
-     "version takes a minor exactly when autoMinorVersionUpgrade is false"),
-])
+def db_spec(kind, class_kind, common, same_major, has_minor):
+    """A database's spec: its class, observe, the common fields, restore and provider configs."""
+    return obj({
+        "className": field("string", f"The {class_kind}: the deployment's defaults, enforced "
+                           "values and implementation (principle 5). Unset, the default class. "
+                           "Set at creation only.", **{"x-kubernetes-validations": [
+                               {"rule": "self == oldSelf", "message": "className is immutable"}]}),
+        "observe": field("boolean", "true observes an existing resource, named by the id in its "
+                         "provider config entry, and never changes or deletes it. Every other "
+                         "common field is then rejected (principle 9). Set at creation only."),
+        **common,
+        "restore": obj({
+            "fromInstance": field("string", f"A {kind} in this namespace."),
+            "pointInTime": field("string", "The time to restore fromInstance to. Unset, the latest "
+                                 "restorable time.", format="date-time"),
+        }, f"Create the {kind_noun(kind)} from another {kind_noun(kind)}'s backups. Set at "
+           "creation only.", required=["fromInstance"]),
+        "secretName": secret_name("<instance>-dbadmin"),
+        "providerConfigs": provider_configs(),
+    }, rules=[
+        ("(has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)",
+         "observe is immutable"),
+        ("!(has(self.observe) && self.observe) || (" + " && ".join(
+            f"!has(self.{k})" for k in [*common, "restore"]) + ")",
+         "an observed resource takes no other common field"),
+        ("has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || "
+         "self.restore == oldSelf.restore)", "restore is set at creation only"),
+        ("!has(self.version) || !has(oldSelf.version) || " + same_major + " || "
+         "(has(self.allowMajorVersionUpgrade) && self.allowMajorVersionUpgrade)",
+         "a major version change needs allowMajorVersionUpgrade"),
+        ("!has(self.version) || " + has_minor + " == "
+         "(has(self.autoMinorVersionUpgrade) && !self.autoMinorVersionUpgrade)",
+         "version takes a minor exactly when autoMinorVersionUpgrade is false"),
+    ])
+
+
+def kind_noun(kind):
+    return "cluster" if kind.endswith("Cluster") else "server"
+
+
+def db_status(engine):
+    """A database's status: the common fields as they run, the address and the provider's values."""
+    return obj({
+        "version": S(),
+        "storage": obj({"sizeGB": field("integer", "The actual disk size."),
+                        "autoGrow": field("boolean"), "maxSizeGB": field("integer"),
+                        "iops": field("integer"), "throughputMBps": field("integer")}),
+        "highAvailability": field("boolean"),
+        "readReplicas": field("integer"),
+        "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
+        "autoMinorVersionUpgrade": field("boolean"),
+        "backup": obj({"retentionDays": field("integer"), "pointInTimeDays": field("integer"),
+                       "startHourUTC": field("integer")}),
+        "endpoint": endpoint(),
+        "readerEndpoint": field("string", "The read address: one balanced host, or the replicas' "
+                                "hosts where the implementation has none (principle 6)."),
+        "connectionSecret": field("string", "The admin Secret, <instance>-dbadmin (principle 6)."),
+        "disasterRecovery": obj({"role": field("string", enum=["Primary", "Replica"])},
+                                "This workspace's role."),
+        "providerConfig": obj({"applied": S(), "ignored": array(S())},
+                              "The provider config entries applied and ignored, as <apiVersion>, "
+                              "<kind> (principle 4)."),
+        "effective": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
+                      "description": desc("Each effective value and its source: the class's "
+                                          "template, the object, or the class's enforced "
+                                          "(principle 4).")},
+        "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
+                     "description": desc("Values of the applied implementation, in the shape its "
+                                         "provider config kind's status defines (principle 4).")},
+    })
+
+
+def pg_common():
+    return db_common("PostgreSQL", "The major version, such as \"17\". With "
+                     "autoMinorVersionUpgrade false, the full version, such as \"17.7\".",
+                     "^[0-9]+(\\.[0-9]+)?$")
+
+
+pg_spec = db_spec("PostgreSQLCluster", "PostgreSQLClass", pg_common(),
+                  "self.version.split('.')[0] == oldSelf.version.split('.')[0]",
+                  "self.version.contains('.')")
 S = lambda: field("string")
-pg_status = obj({
-    "version": S(),
-    "storage": obj({"sizeGB": field("integer", "The actual disk size."),
-                    "autoGrow": field("boolean"), "maxSizeGB": field("integer"),
-                    "iops": field("integer"), "throughputMBps": field("integer")}),
-    "highAvailability": field("boolean"),
-    "readReplicas": field("integer"),
-    "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
-    "autoMinorVersionUpgrade": field("boolean"),
-    "backup": obj({"retentionDays": field("integer"), "pointInTimeDays": field("integer"),
-                   "startHourUTC": field("integer")}),
-    "endpoint": endpoint(),
-    "readerEndpoint": field("string", "The read address: one balanced host, or the replicas' "
-                            "hosts where the implementation has none (principle 6)."),
-    "connectionSecret": field("string", "The admin Secret, <instance>-dbadmin (principle 6)."),
-    "disasterRecovery": obj({"role": field("string", enum=["Primary", "Replica"])},
-                            "This workspace's role."),
-    "providerConfig": obj({"applied": S(), "ignored": array(S())},
-                          "The provider config entries applied and ignored, as <apiVersion>, "
-                          "<kind> (principle 4)."),
-    "effective": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
-                  "description": desc("Each effective value and its source: the class's "
-                                      "template, the object, or the class's enforced (principle 4).")},
-    "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
-                 "description": desc("Values of the applied implementation, in the shape its "
-                                     "provider config kind's status defines (principle 4).")},
-})
+pg_status = db_status("PostgreSQL")
 write("postgresqlcluster", xrd("PostgreSQLCluster", "postgresqlclusters", "database.entigo.com",
                                pg_spec, pg_status))
 
@@ -1143,3 +974,40 @@ write("postgresqlflexibleserverconfig", provider_config_crd(
                              default=DEFAULT),
         "readReplicas": replica_layout("The flexible server SKU of this replica."),
     }, {"instanceType": S(), "state": S()}))
+
+# --- MariaDB -------------------------------------------------------------------------------
+
+MARIADB_MAJOR = lambda v: f"({v}.split('.')[0] + '.' + {v}.split('.')[1])"
+
+
+def mariadb_common():
+    return db_common("MariaDB", "The major version, which has two numbers, such as \"11.4\". With "
+                     "autoMinorVersionUpgrade false, the full version, such as \"11.4.10\".",
+                     "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$")
+
+
+write("mariadbserver", xrd("MariaDBServer", "mariadbservers", "database.entigo.com",
+                           db_spec("MariaDBServer", "MariaDBClass", mariadb_common(),
+                                   MARIADB_MAJOR("self.version") + " == "
+                                   + MARIADB_MAJOR("oldSelf.version"),
+                                   "(self.version.split('.').size() == 3)"),
+                           db_status("MariaDB")))
+write("mariadbclass", class_crd("MariaDBClass", "mariadbclasses", "database.entigo.com",
+                                {k: v for k, v in mariadb_common().items()
+                                 if k != "disasterRecovery"}))
+write("mariadbparameters", parameters_crd("MariaDBParameters", "mariadbparameters",
+                                          "database.entigo.com", "MariaDB"))
+write("mariadbrdsconfig", provider_config_crd(
+    "MariaDBRDSConfig", "mariadbrdsconfigs", "aws.database.entigo.com", "Amazon RDS", {
+        "instanceType": field("string", "The RDS instance class, such as db.t4g.small.",
+                              default=DEFAULT),
+        "parameterGroupName": field("string", "An existing RDS parameter group to use, in place "
+                                    "of the object's parameters. A major version change needs a "
+                                    "new one, since a group fits one major version."),
+        "fromBackup": from_backup("An RDS snapshot ID to create the server from, such as "
+                                  "status.provider.finalBackup of a deleted server."),
+        "readReplicas": replica_layout("The RDS instance class of this replica."),
+    }, {"instanceType": S(), "finalBackup": field(
+        "string", "The ID the final backup receives when the server is deleted, for fromBackup."),
+        "state": S(), "identifier": S(), "resourceId": S(),
+        "latestRestorableTime": field("string", format="date-time")}))
