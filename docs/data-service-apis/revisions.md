@@ -9,18 +9,15 @@ the last is agreed.
 
 - Settings of one implementation move from the fixed cloud blocks into an open list of provider
   configs, one kind per implementation, so a new cloud or an on-premises implementation never
-  changes the core kinds (principles 2, 3 and 8). From Rein Remmel's proposal.
-- Operator-owned classes hold a deployment's defaults (`template`) and the values a team cannot
-  change (`enforced`), replacing defaults passed through infralib (principle 5).
-- An object that asks for a portable feature its class does not support is refused instead of
-  ignored (principle 1).
-- Provider config entries are checked by their implementation, and by CI against every
-  implementation's published schema (principle 10).
-- Field groups exist only as units or subsystems (principle 13).
-- PostgreSQL: `PostgreSQLInstance` becomes `PostgreSQLCluster`, with `PostgreSQLClass`,
-  `PostgreSQLParameters` and a provider config kind per implementation; users and databases name it
-  in `clusterRef`.
-- PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
+  changes the core kinds (principles 2, 3 and 8). From Rein Remmel's proposal. - Classes hold a
+  deployment's defaults (`template`) and the values a team cannot change (`enforced`), replacing
+  defaults passed through infralib (principle 5). - An object that asks for a portable feature its
+  class does not support is refused instead of ignored (principle 1). - Provider config entries are
+  checked by their implementation, and by CI against every implementation's published schema
+  (principle 10). - Field groups exist only as units or subsystems (principle 13). - PostgreSQL:
+  `PostgreSQLInstance` becomes `PostgreSQLCluster`, with `PostgreSQLClass`, `PostgreSQLParameters`
+  and a provider config kind per implementation; users and databases name it in `clusterRef`. -
+  PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
   (`disasterRecovery`).
 
 #### 1 2026-11-16

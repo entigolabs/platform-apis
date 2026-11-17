@@ -4,19 +4,14 @@ How every data service API is built, and the principles each follows.
 
 ## Model
 
-Three roles take part. A user is a team that runs its applications in a Zone and writes data service
-objects there. An operator runs an infralib deployment: its cluster and the cloud account behind it.
-An implementer builds an implementation: Entigo for the clouds infralib deploys to, or anyone else
-for their own environment, such as a customer's platform team.
-
 Each data service has four parts, which the principles below rely on:
 
-| Part            | What it is                                                                                       | Owned by                  | Example                                  |
-| --------------- | ------------------------------------------------------------------------------------------------ | ------------------------- | ---------------------------------------- |
-| Core kind       | What a user asks for, the same wherever it runs                                                  | the user                  | a `PostgreSQLCluster`                    |
-| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | an implementer            | RDS, Cloud SQL, CloudNativePG            |
-| Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the user, or the operator | a `PostgreSQLRDSConfig` with an RDS size |
-| Class           | A deployment's choice of implementation, its defaults and the values a user cannot change        | the operator              | a `PostgreSQLClass` named `standard`     |
+| Part            | What it is                                                                                       | Owned by       | Example                                  |
+| --------------- | ------------------------------------------------------------------------------------------------ | -------------- | ---------------------------------------- |
+| Core kind       | What a user asks for, the same wherever it runs                                                  | the user       | a `PostgreSQLCluster`                    |
+| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | Entigo         | RDS, Cloud SQL, CloudNativePG            |
+| Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the user       | a `PostgreSQLRDSConfig` with an RDS size |
+| Class           | A deployment's choice of implementation, its defaults and the values a user cannot change        | Entigo         | a `PostgreSQLClass` named `standard`     |
 
 *The parts of a data service.*
 
@@ -82,8 +77,8 @@ encryption keys, is decided by the platform.
 
 #### 3 Adding an implementation never changes the core kinds
 
-Implementing a kind on another cloud, on-premises or by another implementer never changes the core
-kinds' schemas, so manifests written before keep working.
+Implementing a kind on another cloud, on-premises or outside Entigo never changes the core kinds'
+schemas, so manifests written before keep working.
 
 The core schemas name no cloud and no vendor. A new implementation brings its own provider config
 kind, what turns the core kind into its resources, and the classes that select it.
@@ -106,11 +101,11 @@ so.
 
 #### 5 A class sets the defaults and limits of a deployment
 
-Each deployment's operator describes how it provides a kind in classes, and an object names its
-class; defaults are written once, when the object is created.
+Entigo describes how each deployment provides a kind in classes, and an object names its class;
+defaults are written once, when the object is created.
 
-A class, such as a `PostgreSQLClass`, is cluster-scoped and owned by the deployment's operator. It
-holds two parts of the object's spec, each with the common fields and one provider config:
+A class, such as a `PostgreSQLClass`, is cluster-scoped and written by Entigo for each deployment.
+It holds two parts of the object's spec, each with the common fields and one provider config:
 
 | Part       | Effect                                                                               |
 | ---------- | ------------------------------------------------------------------------------------ |
@@ -167,9 +162,9 @@ never substituted: MySQL is not MariaDB.
 
 The `platform-apis` chart holds this knowledge: a deployment passes only its cloud, and the chart
 installs each service's core kinds, its provider config kinds and its classes where the service is
-implemented. A per-service switch lets an operator leave a service out, never add one that the
-deployment lacks. A manifest of a kind that is not installed is rejected by the Kubernetes API
-server when it is applied, before any function runs.
+implemented. A per-service switch leaves a service out, never add one that the deployment lacks. A
+manifest of a kind that is not installed is rejected by the Kubernetes API server when it is
+applied, before any function runs.
 
 #### 8 A kind's name says what it is and who owns it
 
@@ -194,8 +189,8 @@ The kinds around it follow from that name:
 A provider config is specific to one implementation by definition, so naming the product is
 accurate. The engine comes first, so the kinds sort together. An on-premises implementation is
 grouped by the platform it runs on, `kubernetes`, with the product in the kind, as
-`PostgreSQLCNPGConfig` for CloudNativePG. An implementer other than Entigo uses its own domain, so
-names never collide. Each provider config kind versions on its own.
+`PostgreSQLCNPGConfig` for CloudNativePG. An implementation built outside Entigo uses its own
+domain, so names never collide. Each provider config kind versions on its own.
 
 #### 9 A kind either creates its resource or observes an existing one
 
@@ -288,6 +283,6 @@ no engine has.
 Fields are grouped only when they work as a unit or form a subsystem, never for tidiness.
 
 A unit is a set of values that mean nothing apart, such as `maintenanceWindow: { day, hourUTC }`,
-`restore: { fromInstance, pointInTime }` or one lifecycle rule. A subsystem is an area that
-operators and classes treat as a whole, such as `storage` and `backup`, as CloudNativePG, Crunchy
-and Zalando group them. Any other field stays at the top level, such as `autoMinorVersionUpgrade`.
+`restore: { fromInstance, pointInTime }` or one lifecycle rule. A subsystem is an area that classes
+treat as a whole, such as `storage` and `backup`, as CloudNativePG, Crunchy and Zalando group them.
+Any other field stays at the top level, such as `autoMinorVersionUpgrade`.

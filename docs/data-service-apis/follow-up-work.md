@@ -9,29 +9,28 @@ Crossplane provider.
 
 Known so far:
 
-- A floor (`sizeGB`, Valkey's `version`) is set in `initProvider`, which Crossplane uses at
-  creation only, and in `forProvider` only when the spec requests more than the resource has, with
+- A floor (`sizeGB`, Valkey's `version`) is set in `initProvider`, which Crossplane uses at creation
+  only, and in `forProvider` only when the spec requests more than the resource has, with
   `LateInitialize` omitted. Sending an older value back would shrink a GCP disk, replace an Azure
-  server, or be refused by upjet as a Valkey downgrade, which blocks every later change.
-- provider-kafka finds a topic by name only, so the duplicate-name check of `KafkaTopic` must run in
-  the function.
-- An observed resource's admin login, which kinds such as `KafkaUser` need in order to act inside
-  it, comes from where the cloud keeps one: provider-kafka's IAM role on MSK, the RDS-managed master
-  secret where the instance has one, and the superuser's Vault secret on OCI Kafka. Where the cloud
-  keeps none, the implementation chooses how the login is supplied.
-- No Crossplane provider for RabbitMQ's management API was found, which `RabbitMQUser` and
+  server, or be refused by upjet as a Valkey downgrade, which blocks every later change. -
+  provider-kafka finds a topic by name only, so the duplicate-name check of `KafkaTopic` must run in
+  the function. - An observed resource's admin login, which kinds such as `KafkaUser` need in order
+  to act inside it, comes from where the cloud keeps one: provider-kafka's IAM role on MSK, the
+  RDS-managed master secret where the instance has one, and the superuser's Vault secret on OCI
+  Kafka. Where the cloud keeps none, the implementation chooses how the login is supplied. - No
+  Crossplane provider for RabbitMQ's management API was found, which `RabbitMQUser` and
   `RabbitMQVirtualHost` need. The Terraform `rabbitmq` provider covers users, virtual hosts and
-  permissions and could be wrapped with upjet.
-- The `platform-apis` chart takes the deployment's cloud and installs each service where it is
-  implemented (principle 7). Today infralib's per-cloud values switch services off, such as
+  permissions and could be wrapped with upjet. - The `platform-apis` chart takes the deployment's
+  cloud and installs each service where it is implemented (principle 7). Today infralib's per-cloud
+  values switch services off, such as
   [values-oracle.yaml](https://github.com/entigolabs/entigo-infralib/blob/main/modules/k8s/platform-apis/values-oracle.yaml)
   in the `platform-apis` module; once the chart holds the support matrix, those values keep only an
-  operator's opt-out.
-- Each implementation is a Composition for the core kind, labelled with its provider config kind,
-  such as `data.entigo.com/provider-config: PostgreSQLRDSConfig.aws.database.entigo.com`. The
-  admission policy that writes a class's defaults (principle 5) also writes the object's composition
-  selector with that label, and Crossplane picks the Composition by it: a composite resource without
-  a Composition reference takes one whose labels match its selector (checked in Crossplane v2.4.3).
+  opt-out. - Each implementation is a Composition for the core kind, labelled with its provider
+  config kind, such as `data.entigo.com/provider-config:
+  PostgreSQLRDSConfig.aws.database.entigo.com`. The admission policy that writes a class's defaults
+  (principle 5) also writes the object's composition selector with that label, and Crossplane picks
+  the Composition by it: a composite resource without a Composition reference takes one whose labels
+  match its selector (checked in Crossplane v2.4.3).
 
 #### 2 Migration from current APIs
 

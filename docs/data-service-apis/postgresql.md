@@ -2,11 +2,11 @@
 
 PostgreSQL is an open-source relational database, used by applications for their transactional data.
 
-Three kinds for users: `PostgreSQLCluster`, one database cluster with its standby and read
-replicas; `PostgreSQLUser`, one application's login on a cluster, with its permissions; and
+Three kinds for users: `PostgreSQLCluster`, one database cluster with its standby and read replicas;
+`PostgreSQLUser`, one application's login on a cluster, with its permissions; and
 `PostgreSQLDatabase`, one database on a cluster. Two kinds shape them: `PostgreSQLClass`, a
-deployment's defaults and limits, written by its operator, and `PostgreSQLParameters`, reusable
-PostgreSQL settings.
+deployment's defaults and limits, written by Entigo, and `PostgreSQLParameters`, reusable PostgreSQL
+settings.
 
 Built on Amazon RDS (AWS), Cloud SQL (GCP), OCI Database with PostgreSQL (OCI) and Azure Database
 for PostgreSQL flexible server (Azure), each with a provider config kind of its own:
@@ -197,7 +197,7 @@ The admin login is in the secret `<instance>-dbadmin`, with the keys of principl
 
 ### PostgreSQLClass
 
-A deployment's operator writes its classes: cluster-scoped objects that hold the defaults an object
+Entigo writes each deployment's classes: cluster-scoped objects that hold the defaults an object
 starts with (`template`) and the values it cannot change (`enforced`), each with common fields and
 one provider config, whose kind selects the implementation (principle 5):
 
@@ -446,8 +446,8 @@ spec:
 The manifest names no region: each workspace's class decides where its copy runs. A replica that
 only waits should be small, so a class in the DR workspace can hold a `standby` provider config,
 applied only while that workspace is not primary; on promotion, the platform resizes the replica to
-the cluster's own size, which adds that time to the recovery. An operator who values recovery time
-over cost leaves `standby` empty.
+the cluster's own size, which adds that time to the recovery. Where recovery time matters more than
+cost, the class leaves `standby` empty.
 
 The rules for disaster recovery:
 
