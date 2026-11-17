@@ -32,6 +32,8 @@ the last is agreed.
   `RabbitMQAmazonMQConfig`; `maintenance.window` becomes `maintenanceWindow`.
 - Bucket: `Bucket` gains `BucketClass` and a provider configuration kind per implementation, which
   holds the `id` of a bucket to observe.
+- ArtifactRepository: `ArtifactRepository` gains `ArtifactRepositoryClass` and a provider
+  configuration kind per implementation; `immutableTags` and `lifecycleRules` default from the class.
 - PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
   (`disasterRecovery`).
 

@@ -12,7 +12,6 @@ from pathlib import Path
 import yaml
 
 OUT = Path(sys.argv[1])
-CLOUD_NAMES = {"aws": "AWS", "gcp": "GCP", "oci": "OCI", "azure": "Azure"}
 
 
 class Literal(str):
@@ -97,45 +96,6 @@ def array(items, text=None, ext=None, sc=False, default=None, **kw):
 
 
 IMMUTABLE = [("self == oldSelf", "is immutable")]
-
-
-def cloud_block(cloud, kind_noun, settings=None):
-    props = {"id": field("string", f"The {CLOUD_NAMES[cloud]} ID of an existing {kind_noun} "
-                         "to observe (principle 9). Only with observe.",
-                         **{"x-kubernetes-validations": [{"rule": "self == oldSelf",
-                                                          "message": "id is immutable"}]})}
-    props.update(settings or {})
-    return obj(props, f"Settings for {CLOUD_NAMES[cloud]} only (principle 2).")
-
-
-def resource_spec(common, blocks, kind_noun, rules=None, observe_ext=None):
-    """Spec of a kind that represents a cloud resource: observe, common fields, cloud blocks."""
-    props = {"observe": field(
-        "boolean",
-        "true observes an existing resource, named by the cloud block's id, and never changes "
-        "or deletes it. Every other field is then rejected (principle 9). Set at creation only.",
-        observe_ext)}
-    props.update(common)
-    props.update({c: cloud_block(c, kind_noun, s) for c, s in blocks.items()})
-    has = [f"has(self.{c})" for c in blocks]
-    ids = " || ".join(f"(has(self.{c}) && has(self.{c}.id))" for c in blocks)
-    all_rules = []
-    if len(blocks) > 1:
-        id_set = [f"(has(self.{c}) && has(self.{c}.id))" for c in blocks]
-        all_rules.append((f"[{', '.join(id_set)}].filter(b, b).size() <= 1",
-                          "at most one cloud block may hold an id"))
-    all_rules.append((f"(has(self.observe) && self.observe) == ({ids})",
-                      "observe and the cloud block's id go together"))
-    all_rules.append(("(has(self.observe) && self.observe) == "
-                      "(has(oldSelf.observe) && oldSelf.observe)", "observe is immutable"))
-    others = [f"!has(self.{k})" for k in common]
-    others += [f"!has(self.{c}.{k})" for c, s in blocks.items() for k in (s or {})]
-    if others:
-        all_rules.append(("!(has(self.observe) && self.observe) || (" + " && ".join(
-            (o if o.count(".") == 1 else f"(!has(self.{o.split('.')[1]}) || {o})") for o in others) + ")",
-            "an observed resource takes no other field than its cloud block's id"))
-    all_rules += rules or []
-    return obj(props, rules=all_rules)
 
 
 def parent_ref(kind, name):
@@ -392,55 +352,6 @@ write("rabbitmquser", xrd(
 # --- Bucket -------------------------------------------------------------------------------
 
 # --- ArtifactRepository ---------------------------------------------------------------------
-
-write("artifactrepository", xrd(
-    "ArtifactRepository", "artifactrepositories", "artifact.entigo.com",
-    resource_spec({
-        "name": field("string", "The image name. Unset, the object's name. Set at creation "
-                      "only."),
-        "path": field("string", "A prefix between the namespace and the name: the image path "
-                      "is <namespace>/<path>/<name>, or <namespace>/<name> unset. Set at "
-                      "creation only."),
-        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
-                                    default="fixed, true"),
-        "immutableTags": field("boolean", "A pushed tag cannot be pushed again.",
-                               "Ignored on Azure.", DEPLOY),
-        "lifecycleRules": array(obj({
-            "tagPrefixes": array(field("string"), "Images with a tag starting with one of "
-                                 "these."),
-            "tagPatterns": array(field("string"), "Images with a tag matching one of these "
-                                 "wildcards.", "Ignored on GCP, OCI and Azure, "
-                                               "which then skip the whole rule."),
-            "untagged": field("boolean", "Images without a tag."),
-            "keepCount": field("integer", "Keep this many newest images. With tagPrefixes or "
-                               "untagged, only on AWS; GCP keeps the newest only of all images.",
-                               "Ignored with a selector on GCP, OCI and "
-                               "Azure, which then skip the whole rule.", minimum=1),
-            "expireAfterDays": field("integer", "Delete images this long after their push.",
-                                     minimum=1),
-        }, "One selector, or none for every image, and one bound.", rules=[
-            ("(has(self.tagPrefixes) ? 1 : 0) + (has(self.tagPatterns) ? 1 : 0) + "
-             "(has(self.untagged) ? 1 : 0) <= 1", "at most one selector"),
-            ("has(self.keepCount) != has(self.expireAfterDays)",
-             "exactly one of keepCount and expireAfterDays"),
-        ]), "Delete old images. Set, it replaces the deployment's rules.", "Ignored on OCI "
-                                                                           "and Azure.",
-           default=DEPLOY),
-    }, {"aws": None, "gcp": None, "oci": None, "azure": None}, "repository", [
-        ("(has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')",
-         "name is immutable"),
-        ("(has(self.path) ? self.path : '') == (has(oldSelf.path) ? oldSelf.path : '')",
-         "path is immutable"),
-    ], observe_ext="Observing fails on Azure, where a repository "
-                   "has no resource of its own (principle 10)."),
-    obj({
-        "uri": field("string", "The image URI, such as "
-                     "123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/orders-api."),
-        "aws": obj({"arn": S()}),
-        "gcp": obj({"id": S()}),
-        "oci": obj({"id": S()}),
-        "azure": obj({"registryId": S()}),
-    })))
 
 # --- Provider configurations and classes (principles 2, 5 and 8) ---------------------------------
 
@@ -1148,3 +1059,74 @@ write("bucketobjectstorageconfig", provider_config_crd(
 write("bucketblobstorageconfig", provider_config_crd(
     "BucketBlobStorageConfig", "bucketblobstorageconfigs", "azure.storage.entigo.com",
     "Azure Blob Storage", {}, {"accountId": S(), "containerId": S()}))
+
+# --- ArtifactRepository ----------------------------------------------------------------------
+
+
+def artifact_repository_common():
+    """ArtifactRepository's common fields (principle 1)."""
+    return {
+        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
+                                    default="fixed, true"),
+        "immutableTags": field("boolean", "A pushed tag cannot be pushed again.", default=DEFAULT),
+        "lifecycleRules": array(obj({
+            "tagPrefixes": array(field("string"), "Images with a tag starting with one of "
+                                 "these."),
+            "tagPatterns": array(field("string"), "Images with a tag matching one of these "
+                                 "wildcards."),
+            "untagged": field("boolean", "Images without a tag."),
+            "keepCount": field("integer", "Keep this many newest images.", minimum=1),
+            "expireAfterDays": field("integer", "Delete images this long after their push.",
+                                     minimum=1),
+        }, "One selector, or none for every image, and one bound.", rules=[
+            ("(has(self.tagPrefixes) ? 1 : 0) + (has(self.tagPatterns) ? 1 : 0) + "
+             "(has(self.untagged) ? 1 : 0) <= 1", "at most one selector"),
+            ("has(self.keepCount) != has(self.expireAfterDays)",
+             "exactly one of keepCount and expireAfterDays"),
+        ]), "Delete old images. Set, it replaces the class's rules.", default=DEFAULT),
+    }
+
+
+write("artifactrepository", xrd(
+    "ArtifactRepository", "artifactrepositories", "artifact.entigo.com",
+    class_spec("ArtifactRepositoryClass", artifact_repository_common(), {
+        "name": field("string", "The image name. Unset, the object's name. Set at creation "
+                      "only."),
+        "path": field("string", "A prefix between the namespace and the name: the image path "
+                      "is <namespace>/<path>/<name>, or <namespace>/<name> unset. Set at "
+                      "creation only."),
+    }, [], [
+        ("(has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')",
+         "name is immutable"),
+        ("(has(self.path) ? self.path : '') == (has(oldSelf.path) ? oldSelf.path : '')",
+         "path is immutable"),
+    ]),
+    obj({
+        "uri": field("string", "The image URI, such as "
+                     "123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/orders-api."),
+        "providerConfig": obj({"applied": S(), "ignored": array(S())},
+                              "The provider configuration entries applied and ignored, as "
+                              "<apiVersion>, <kind> (principle 4)."),
+        "effective": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
+                      "description": desc("Each effective value and its source: the class's "
+                                          "template, the object, or the class's enforced "
+                                          "(principle 4).")},
+        "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
+                     "description": desc("Values of the applied implementation, in the shape its "
+                                         "provider configuration kind's status defines "
+                                         "(principle 4).")},
+    })))
+write("artifactrepositoryclass", class_crd("ArtifactRepositoryClass", "artifactrepositoryclasses",
+                                           "artifact.entigo.com", artifact_repository_common()))
+write("artifactrepositoryecrconfig", provider_config_crd(
+    "ArtifactRepositoryECRConfig", "artifactrepositoryecrconfigs", "aws.artifact.entigo.com",
+    "Amazon ECR", {}, {"arn": S()}))
+write("artifactrepositoryartifactregistryconfig", provider_config_crd(
+    "ArtifactRepositoryArtifactRegistryConfig", "artifactrepositoryartifactregistryconfigs",
+    "gcp.artifact.entigo.com", "Artifact Registry", {}, {"id": S()}))
+write("artifactrepositoryocirconfig", provider_config_crd(
+    "ArtifactRepositoryOCIRConfig", "artifactrepositoryocirconfigs", "oci.artifact.entigo.com",
+    "OCIR", {}, {"id": S()}))
+write("artifactrepositoryacrconfig", provider_config_crd(
+    "ArtifactRepositoryACRConfig", "artifactrepositoryacrconfigs", "azure.artifact.entigo.com",
+    "Azure Container Registry", {}, {"registryId": S()}))

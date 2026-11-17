@@ -1,0 +1,209 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: artifactrepositoryclasses.artifact.entigo.com
+spec:
+  group: artifact.entigo.com
+  scope: Cluster
+  names:
+    kind: ArtifactRepositoryClass
+    plural: artifactrepositoryclasses
+  versions:
+  - name: v1alpha2
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              template:
+                type: object
+                description: |-
+                  Defaults, written into an object when it is created; the object may change them.
+                properties:
+                  deletionProtection: &id001
+                    type: boolean
+                    description: |-
+                      Deleting the object is denied while true.
+                      Default: fixed, true.
+                  immutableTags: &id002
+                    type: boolean
+                    description: |-
+                      A pushed tag cannot be pushed again.
+                      Default: the class's template.
+                  lifecycleRules: &id003
+                    type: array
+                    description: |-
+                      Delete old images. Set, it replaces the class's rules.
+                      Default: the class's template.
+                    items:
+                      type: object
+                      description: |-
+                        One selector, or none for every image, and one bound.
+                      properties:
+                        tagPrefixes:
+                          type: array
+                          description: |-
+                            Images with a tag starting with one of these.
+                          items:
+                            type: string
+                        tagPatterns:
+                          type: array
+                          description: |-
+                            Images with a tag matching one of these wildcards.
+                          items:
+                            type: string
+                        untagged:
+                          type: boolean
+                          description: |-
+                            Images without a tag.
+                        keepCount:
+                          type: integer
+                          description: |-
+                            Keep this many newest images.
+                          minimum: 1
+                        expireAfterDays:
+                          type: integer
+                          description: |-
+                            Delete images this long after their push.
+                          minimum: 1
+                      x-kubernetes-validations:
+                      - rule: |-
+                          (has(self.tagPrefixes) ? 1 : 0) + (has(self.tagPatterns) ? 1 : 0) + (has(self.untagged) ? 1 : 0) <= 1
+                        message: at most one selector
+                      - rule: has(self.keepCount) != has(self.expireAfterDays)
+                        message: exactly one of keepCount and expireAfterDays
+                  providerConfig:
+                    type: object
+                    description: |-
+                      The provider configuration: its kind names the implementation this class uses.
+                    properties:
+                      apiVersion:
+                        type: string
+                        description: |-
+                          The provider configuration kind's group and version, such as
+                          aws.database.entigo.com/v1alpha1.
+                      kind:
+                        type: string
+                        description: |-
+                          The provider configuration kind, such as PostgreSQLRDSConfig.
+                      spec:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                        description: |-
+                          The settings.
+                    required:
+                    - apiVersion
+                    - kind
+                  parametersRef:
+                    type: object
+                    description: |-
+                      Engine settings for every object of this class.
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
+              enforced:
+                type: object
+                description: |-
+                  Always applied; an object that sets a different value is refused.
+                properties:
+                  deletionProtection: *id001
+                  immutableTags: *id002
+                  lifecycleRules: *id003
+                  providerConfig:
+                    type: object
+                    description: |-
+                      The provider configuration: its kind names the implementation this class uses.
+                    properties:
+                      apiVersion:
+                        type: string
+                        description: |-
+                          The provider configuration kind's group and version, such as
+                          aws.database.entigo.com/v1alpha1.
+                      kind:
+                        type: string
+                        description: |-
+                          The provider configuration kind, such as PostgreSQLRDSConfig.
+                      spec:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                        description: |-
+                          The settings.
+                    required:
+                    - apiVersion
+                    - kind
+                  parametersRef:
+                    type: object
+                    description: |-
+                      Engine settings for every object of this class.
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
+              standby:
+                type: object
+                description: |-
+                  Settings for a disaster recovery replica in this workspace.
+                properties:
+                  providerConfig:
+                    type: object
+                    description: |-
+                      Applied only while this workspace is not the primary of disasterRecovery, such
+                      as a smaller size for a pilot-light replica.
+                    properties:
+                      apiVersion:
+                        type: string
+                        description: |-
+                          The provider configuration kind's group and version, such as
+                          aws.database.entigo.com/v1alpha1.
+                      kind:
+                        type: string
+                        description: |-
+                          The provider configuration kind, such as PostgreSQLRDSConfig.
+                      spec:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                        description: |-
+                          The settings.
+                    required:
+                    - apiVersion
+                    - kind
+            x-kubernetes-validations:
+            - rule: |-
+                !has(self.template)
+                || !has(self.enforced)
+                || !has(self.template.providerConfig)
+                || !has(self.enforced.providerConfig)
+                || (self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion && self.template.providerConfig.kind == self.enforced.providerConfig.kind)
+              message: template and enforced name the same provider configuration kind
+          status:
+            type: object
+            properties:
+              supportedFeatures:
+                type: array
+                description: |-
+                  The portable features the implementation supports, written by the implementation
+                  (principle 1).
+                items:
+                  type: string
+                  enum:
+                  - HighAvailability
+                  - ReadReplicas
+                  - DisasterRecovery
+        required:
+        - spec
+    subresources:
+      status: {}

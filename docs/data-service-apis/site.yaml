@@ -111,6 +111,11 @@ nav:
     - <<: *schemas
       files:
       - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
+      - {file: schemas/artifactrepositoryclass.yaml, label: ArtifactRepositoryClass}
+      - {file: schemas/artifactrepositoryecrconfig.yaml, label: ArtifactRepositoryECRConfig}
+      - {file: schemas/artifactrepositoryartifactregistryconfig.yaml, label: ArtifactRepositoryArtifactRegistryConfig}
+      - {file: schemas/artifactrepositoryocirconfig.yaml, label: ArtifactRepositoryOCIRConfig}
+      - {file: schemas/artifactrepositoryacrconfig.yaml, label: ArtifactRepositoryACRConfig}
 - {file: changes.md, label: API Changes, compare: true, tabs: sections, subsectionTabs: true}
 - {file: open-points.md, label: Open Points, divider: true, checklist: true, foldItems: true}
 - {file: follow-up-work.md, label: Follow-Up Work, foldItems: true}

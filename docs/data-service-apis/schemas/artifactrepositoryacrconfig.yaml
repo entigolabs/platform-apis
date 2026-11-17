@@ -1,0 +1,43 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: artifactrepositoryacrconfigs.azure.artifact.entigo.com
+spec:
+  group: azure.artifact.entigo.com
+  scope: Namespaced
+  names:
+    kind: ArtifactRepositoryACRConfig
+    plural: artifactrepositoryacrconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for Azure Container Registry (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The Azure Container Registry ID of an existing resource to observe (principle
+                  9). Only with observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for Azure Container Registry (principle 4).
+            properties:
+              registryId:
+                type: string
+        required:
+        - spec
+    subresources:
+      status: {}

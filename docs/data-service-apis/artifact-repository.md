@@ -3,11 +3,14 @@
 An artifact registry stores container images, Helm charts and other OCI artifacts, which deployments
 pull and CI pushes.
 
-One kind: `ArtifactRepository`, one application's image path, such as `shop/orders-api`, with its
-tags.
+One kind for users: `ArtifactRepository`, one application's image path, such as `shop/orders-api`,
+with its tags. One kind shapes it: `ArtifactRepositoryClass`, a deployment's defaults and limits,
+written by Entigo.
 
 Built on ECR (AWS), Artifact Registry (GCP), OCIR (OCI) and Azure Container Registry (Azure), which
-store every OCI artifact alike.
+store every OCI artifact alike, each with a provider configuration kind of its own:
+`ArtifactRepositoryECRConfig`, `ArtifactRepositoryArtifactRegistryConfig`,
+`ArtifactRepositoryOCIRConfig` and `ArtifactRepositoryACRConfig`.
 
 ## Contents
 
@@ -19,17 +22,19 @@ store every OCI artifact alike.
 
 ## Kinds
 
-The artifact registry is offered as one kind, shown below with a manifest a user writes.
+The artifact registry is offered as two kinds, each with the manifest its owner writes.
 
 ### ArtifactRepository
 
-The clouds disagree on what a repository is: ECR and OCIR have one repository per image path, an
-Artifact Registry repository holds many images, and an Azure registry holds repositories it creates
-on the first push, with no resource of their own. The API's unit is the image path, because that is
-what an application owns.
+The implementations define a repository differently: ECR and OCIR have one repository per image
+path, an Artifact Registry repository holds many images, and an Azure registry holds repositories it
+creates on the first push, with no resource of their own. The API's unit is the image path, because
+an application owns its image path.
 
-A user creates an `ArtifactRepository` with a manifest like the one below. Its comments note value
-ranges and what holds on one cloud only:
+A user creates an `ArtifactRepository` with a manifest like the one below. A repository has no
+setting of a single implementation, so its manifest carries no provider configuration entry; an
+entry holds only the `id` of an existing repository to observe (principle 9), which fails on Azure,
+where a repository has no resource of its own:
 
 ```yaml
 ---
@@ -39,6 +44,7 @@ metadata:
   name: orders-api
   namespace: shop
 spec:
+  className: standard                  # unset, the deployment's default class (principle 5)
   name: orders-api                     # immutable; defaults to the object name
   path: backend                        # immutable; the image path is shop/backend/orders-api
   deletionProtection: true
@@ -52,7 +58,6 @@ spec:
     keepCount: 20
   - untagged: true
     expireAfterDays: 7
-  # every cloud block takes id (principle 9); observing fails on Azure
 ```
 
 *An `ArtifactRepository` with its common fields.*
@@ -61,40 +66,67 @@ The image path always starts with the namespace: `<namespace>/<path>/<name>`, or
 `<namespace>/<name>` without `path`. A registry holds each path once, and the provider finds a
 repository by its path alone (`aws_ecr_repository: config.NameAsIdentifier` in [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0)), so two
-objects asking for one path would both manage it, and deleting either would delete the other's
+objects requesting one path would both manage it, and deleting either would delete the other's
 images (the platform sets `forceDelete`). Namespace names are unique in a cluster, so the prefix
 rules that out within one cluster. Clusters that push to one registry are not checked against each
-other: whoever configures them gives each its own registry, or keeps their namespace names distinct.
+other: their operator gives each its own registry, or keeps their namespace names distinct.
 
 A lifecycle rule has one selector (`tagPrefixes`, `tagPatterns`, `untagged`, or none for every
 image) and one bound (`keepCount` newest, or `expireAfterDays` since the push). `lifecycleRules`
-defaults per deployment, so a repository whose spec is empty is still cleaned up; set, it replaces
-the default. `immutableTags` defaults per deployment.
+and `immutableTags` take the class's defaults, so a repository whose spec is empty is still cleaned
+up; `lifecycleRules` set on the object replace the class's rules.
 
-The status adds `uri`, the image URI, such as
-`123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/backend/orders-api`. There is no connection
-secret.
-
-The cloud blocks of the status:
+There is no connection secret. The status shows `uri`, the image URI, with which entry applied,
+where each effective value came from, and the applied implementation's own values (principle 4):
 
 ```yaml
 status:
-  aws:
+  uri: 123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/backend/orders-api
+  providerConfig:
+    applied: aws.artifact.entigo.com/v1alpha1, ArtifactRepositoryECRConfig
+  effective:
+    immutableTags: { value: false, source: object }
+    deletionProtection: { value: true, source: class/standard/enforced }
+  provider:                            # the shape ArtifactRepositoryECRConfig's status defines
     arn: ...
-  gcp:
-    id: ...
-  oci:
-    id: ...
-  azure:
-    registryId: ...
 ```
 
-*The cloud blocks of an `ArtifactRepository` status.*
+*An `ArtifactRepository` status on AWS.*
+
+### ArtifactRepositoryClass
+
+Entigo writes each deployment's classes, with the defaults a repository starts with (`template`)
+and the values it cannot change (`enforced`) (principle 5):
+
+```yaml
+---
+apiVersion: artifact.entigo.com/v1alpha2
+kind: ArtifactRepositoryClass
+metadata:
+  name: standard
+  annotations:
+    artifact.entigo.com/is-default-class: "true"
+spec:
+  template:
+    immutableTags: true
+    lifecycleRules:
+    - untagged: true
+      expireAfterDays: 7
+    - keepCount: 100
+    providerConfig:
+      apiVersion: aws.artifact.entigo.com/v1alpha1
+      kind: ArtifactRepositoryECRConfig
+      spec: {}
+  enforced:
+    deletionProtection: true
+```
+
+*An `ArtifactRepositoryClass` for ECR.*
 
 ## Mapping
 
-The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
-ignored, with the reason (principle 1), and a field of a cloud's block appears only for that cloud:
+The first table names what each common field maps to in the implementation's provider. A setting
+the implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field                | AWS                                 | GCP                                                                                                                                                                                                                                                    | OCI                                                                                                      | Azure                                                                                     |
 | -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -103,12 +135,17 @@ ignored, with the reason (principle 1), and a field of a cloud's block appears o
 | `deletionProtection` | platform blocks deletion            | platform blocks deletion                                                                                                                                                                                                                               | platform blocks deletion                                                                                 | platform blocks deletion                                                                  |
 | `immutableTags`      | `imageTagMutability: IMMUTABLE`     | `dockerConfig.immutableTags`                                                                                                                                                                                                                           | `isImmutable`                                                                                            | ignored, so tags can be overwritten; tag locks are set per tag through the Azure CLI only |
 | `lifecycleRules`     | `LifecyclePolicy`                   | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped, and the images it covers are kept | ignored, so old images are not cleaned up; retention is console-only and counts days since the last pull | ignored, so old images are not cleaned up; only registry-wide untagged retention exists   |
-| `aws.id`             | the repository name, the whole path |                                                                                                                                                                                                                                                        |                                                                                                          |                                                                                           |
-| `gcp.id`             |                                     | the repository ID                                                                                                                                                                                                                                      |                                                                                                          |                                                                                           |
-| `oci.id`             |                                     |                                                                                                                                                                                                                                                        | the repository's OCID                                                                                    |                                                                                           |
-| `azure.id`           |                                     |                                                                                                                                                                                                                                                        |                                                                                                          | accepted, but observing fails: an Azure repository has no resource of its own             |
 
-*Fields of `ArtifactRepository` and their provider fields.*
+*Common fields of `ArtifactRepository` and their provider fields.*
+
+The second names the implementation's provider configuration kind and what its fields map to:
+
+| Field | AWS                                 | GCP                                        | OCI                            | Azure                                                                         |
+| ----- | ----------------------------------- | ------------------------------------------ | ------------------------------ | ----------------------------------------------------------------------------- |
+| kind  | `ArtifactRepositoryECRConfig`       | `ArtifactRepositoryArtifactRegistryConfig` | `ArtifactRepositoryOCIRConfig` | `ArtifactRepositoryACRConfig`                                                 |
+| `id`  | the repository name, the whole path | the repository ID                          | the repository's OCID          | accepted, but observing fails: an Azure repository has no resource of its own |
+
+*Fields of each provider configuration kind.*
 
 **AWS:** ECR's `IMMUTABLE_WITH_EXCLUSION` and `MUTABLE_WITH_EXCLUSION` modes, which only ECR has,
 are not offered. Images are scanned on push by ECR.
@@ -130,9 +167,9 @@ Images are scanned by Defender for Containers.
 created by the first push, with no resource of its own.
 
 The `ArtifactRepository` from [Kinds](#kinds) is composed into the resources below on the cloud it
-runs on: the platform uses that cloud's block and ignores the others. A comment names the source of
-each value the object does not hold as written: `platform` for a value the platform sets, and
-`deployment` for one the deployment sets. The object and its resources:
+runs on: the platform applies the entry of its class's kind and ignores the others. A comment names
+the source of each value the object does not hold as written: `platform` for a value the platform
+sets, and `deployment` for one the deployment sets. The object and its resources:
 
 ```yaml Object
 ---
@@ -142,6 +179,7 @@ metadata:
   name: orders-api
   namespace: shop
 spec:
+  className: standard
   name: orders-api
   path: backend
   deletionProtection: true
@@ -212,6 +250,7 @@ metadata:
   name: orders-api
   namespace: shop
 spec:
+  className: standard
   name: orders-api
   path: backend
   deletionProtection: true
@@ -261,6 +300,7 @@ metadata:
   name: orders-api
   namespace: shop
 spec:
+  className: standard
   name: orders-api
   path: backend
   deletionProtection: true

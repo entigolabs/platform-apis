@@ -1,0 +1,43 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: artifactrepositoryecrconfigs.aws.artifact.entigo.com
+spec:
+  group: aws.artifact.entigo.com
+  scope: Namespaced
+  names:
+    kind: ArtifactRepositoryECRConfig
+    plural: artifactrepositoryecrconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for Amazon ECR (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The Amazon ECR ID of an existing resource to observe (principle 9). Only with
+                  observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for Amazon ECR (principle 4).
+            properties:
+              arn:
+                type: string
+        required:
+        - spec
+    subresources:
+      status: {}

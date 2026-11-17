@@ -445,45 +445,43 @@ for kind in ["BucketS3Config", "BucketCloudStorageConfig", "BucketObjectStorageC
     update(f"{kind} changing id rejected", kind, {"id": "a"}, {"id": "b"}, False, "id is immutable")
 
 print("\n# ArtifactRepository")
+ECR = {"apiVersion": "aws.artifact.entigo.com/v1alpha1", "kind": "ArtifactRepositoryECRConfig",
+       "spec": {}}
 CR = {"name": "orders-api", "path": "shop",
       "lifecycleRules": [{"tagPrefixes": ["develop"], "keepCount": 10},
-                         {"untagged": True, "expireAfterDays": 7}, {"keepCount": 50}]}
-create("valid spec", "ArtifactRepository", CR)
-create("two selectors rejected", "ArtifactRepository",
+                         {"untagged": True, "expireAfterDays": 7}, {"keepCount": 50}],
+      "providerConfigs": [ECR]}
+create("ArtifactRepository valid spec", "ArtifactRepository", CR)
+create("ArtifactRepository two selectors rejected", "ArtifactRepository",
        w(CR, lifecycleRules=[{"tagPrefixes": ["a"], "untagged": True, "keepCount": 1}]), False,
        "at most one selector")
-create("two bounds rejected", "ArtifactRepository",
+create("ArtifactRepository two bounds rejected", "ArtifactRepository",
        w(CR, lifecycleRules=[{"keepCount": 1, "expireAfterDays": 1}]), False, "exactly one")
-create("no bound rejected", "ArtifactRepository", w(CR, lifecycleRules=[{"untagged": True}]),
-       False, "exactly one")
-update("changing name rejected", "ArtifactRepository", CR, w(CR, name="x"), False,
-       "name is immutable")
-update("changing path rejected", "ArtifactRepository", CR, w(CR, path="x"), False,
-       "path is immutable")
-update("adding path later rejected", "ArtifactRepository", w(CR, path=None), CR, False, "path is immutable")
-update("removing name rejected", "ArtifactRepository", CR, w(CR, name=None), False, "name is immutable")
-
-
-
-print("\n# Shared rules on every resource kind")
-BLOCKS = {"ArtifactRepository": ["aws", "gcp", "oci", "azure"]}
-for kind, blocks in BLOCKS.items():
-    if len(blocks) > 1:
-        create(f"{kind}: two cloud blocks accepted", kind, {blocks[0]: {}, blocks[1]: {}})
-        create(f"{kind}: ids in two cloud blocks rejected", kind,
-               {"observe": True, blocks[0]: {"id": "a"}, blocks[1]: {"id": "b"}}, False,
-               "at most one cloud block may hold an id")
-    for c in blocks:
-        create(f"{kind}: observe without {c}.id rejected", kind, {"observe": True, c: {}}, False,
-               "go together")
-        create(f"{kind}: {c}.id without observe rejected", kind, {c: {"id": "x"}}, False,
-               "go together")
-        ob = {"observe": True, c: {"id": "x"}}
-        create(f"{kind}: observing by {c}.id accepted", kind, ob)
-        update(f"{kind}: changing {c}.id rejected", kind, ob, {"observe": True, c: {"id": "y"}},
-               False, "id is immutable")
-        update(f"{kind}: removing observe with {c}.id rejected", kind, ob, {c: {"id": "x"}}, False,
-               "observe is immutable")
+create("ArtifactRepository no bound rejected", "ArtifactRepository",
+       w(CR, lifecycleRules=[{"untagged": True}]), False, "exactly one")
+update("ArtifactRepository changing name rejected", "ArtifactRepository", CR, w(CR, name="x"),
+       False, "name is immutable")
+update("ArtifactRepository changing path rejected", "ArtifactRepository", CR, w(CR, path="x"),
+       False, "path is immutable")
+update("ArtifactRepository adding path later rejected", "ArtifactRepository", w(CR, path=None), CR,
+       False, "path is immutable")
+update("ArtifactRepository removing name rejected", "ArtifactRepository", CR, w(CR, name=None),
+       False, "name is immutable")
+create("ArtifactRepository an aws block, the former form, rejected", "ArtifactRepository",
+       w(CR, aws={}), False, "unknown field")
+create("ArtifactRepository observe with an entry accepted", "ArtifactRepository",
+       {"observe": True, "providerConfigs": [{**ECR, "spec": {"id": "shop/orders-api"}}]})
+create("ArtifactRepository observe with a common field rejected", "ArtifactRepository",
+       {"observe": True, "immutableTags": True, "providerConfigs": [{**ECR, "spec": {"id": "x"}}]},
+       False, "takes no other common field")
+create("ArtifactRepositoryClass valid class", "ArtifactRepositoryClass",
+       {"template": {"immutableTags": True, "lifecycleRules": [{"untagged": True, "expireAfterDays": 7}],
+                     "providerConfig": ECR}, "enforced": {"deletionProtection": True}})
+for kind in ["ArtifactRepositoryECRConfig", "ArtifactRepositoryArtifactRegistryConfig",
+             "ArtifactRepositoryOCIRConfig", "ArtifactRepositoryACRConfig"]:
+    create(f"{kind} with an id accepted", kind, {"id": "shop/orders-api"})
+    create(f"{kind} unknown field rejected", kind, {"unknownSetting": 1}, False, "unknown field")
+    update(f"{kind} changing id rejected", kind, {"id": "a"}, {"id": "b"}, False, "id is immutable")
 
 print("\n# More KafkaTopic rules")
 update("KafkaTopic changing clusterRef rejected", "KafkaTopic", {"clusterRef": {"name": "c1"}},

@@ -20,23 +20,20 @@ spec:
           spec:
             type: object
             properties:
+              className:
+                type: string
+                description: |-
+                  The ArtifactRepositoryClass: the deployment's defaults, enforced values and
+                  implementation (principle 5). Unset, the default class. Set at creation only.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: className is immutable
               observe:
                 type: boolean
                 description: |-
-                  true observes an existing resource, named by the cloud block's id, and never
-                  changes or deletes it. Every other field is then rejected (principle 9). Set at
-                  creation only.
-                  Observing fails on Azure, where a repository has no resource of its own
-                  (principle 10).
-              name:
-                type: string
-                description: |-
-                  The image name. Unset, the object's name. Set at creation only.
-              path:
-                type: string
-                description: |-
-                  A prefix between the namespace and the name: the image path is
-                  <namespace>/<path>/<name>, or <namespace>/<name> unset. Set at creation only.
+                  true observes an existing resource, named by the id in its provider
+                  configuration entry, and never changes or deletes it. Every other common field
+                  is then rejected (principle 9). Set at creation only.
               deletionProtection:
                 type: boolean
                 description: |-
@@ -46,14 +43,12 @@ spec:
                 type: boolean
                 description: |-
                   A pushed tag cannot be pushed again.
-                  Ignored on Azure.
-                  Default: per deployment.
+                  Default: the class's template.
               lifecycleRules:
                 type: array
                 description: |-
-                  Delete old images. Set, it replaces the deployment's rules.
-                  Ignored on OCI and Azure.
-                  Default: per deployment.
+                  Delete old images. Set, it replaces the class's rules.
+                  Default: the class's template.
                 items:
                   type: object
                   description: |-
@@ -69,7 +64,6 @@ spec:
                       type: array
                       description: |-
                         Images with a tag matching one of these wildcards.
-                        Ignored on GCP, OCI and Azure, which then skip the whole rule.
                       items:
                         type: string
                     untagged:
@@ -79,9 +73,7 @@ spec:
                     keepCount:
                       type: integer
                       description: |-
-                        Keep this many newest images. With tagPrefixes or untagged, only on AWS; GCP
-                        keeps the newest only of all images.
-                        Ignored with a selector on GCP, OCI and Azure, which then skip the whole rule.
+                        Keep this many newest images.
                       minimum: 1
                     expireAfterDays:
                       type: integer
@@ -94,72 +86,66 @@ spec:
                     message: at most one selector
                   - rule: has(self.keepCount) != has(self.expireAfterDays)
                     message: exactly one of keepCount and expireAfterDays
-              aws:
-                type: object
+              name:
+                type: string
                 description: |-
-                  Settings for AWS only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The AWS ID of an existing repository to observe (principle 9). Only with
-                      observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
-              gcp:
-                type: object
+                  The image name. Unset, the object's name. Set at creation only.
+              path:
+                type: string
                 description: |-
-                  Settings for GCP only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The GCP ID of an existing repository to observe (principle 9). Only with
-                      observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
-              oci:
-                type: object
+                  A prefix between the namespace and the name: the image path is
+                  <namespace>/<path>/<name>, or <namespace>/<name> unset. Set at creation only.
+              providerConfigs:
+                type: array
                 description: |-
-                  Settings for OCI only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The OCI ID of an existing repository to observe (principle 9). Only with
-                      observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
-              azure:
-                type: object
-                description: |-
-                  Settings for Azure only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The Azure ID of an existing repository to observe (principle 9). Only with
-                      observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
+                  Settings of single implementations, one entry per kind (principle 2). The
+                  deployment applies the entry whose kind its class names and ignores the others.
+                items:
+                  type: object
+                  properties:
+                    apiVersion:
+                      type: string
+                      description: |-
+                        The provider configuration kind's group and version, such as
+                        aws.database.entigo.com/v1alpha1.
+                    kind:
+                      type: string
+                      description: |-
+                        The provider configuration kind, such as PostgreSQLRDSConfig.
+                    spec:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      description: |-
+                        The settings, checked by the implementation that applies them (principle 10).
+                    ref:
+                      type: object
+                      description: |-
+                        The settings in a separate object of this kind, instead of spec.
+                      properties:
+                        name:
+                          type: string
+                          description: |-
+                            An object of this kind in the same namespace.
+                      required:
+                      - name
+                  required:
+                  - apiVersion
+                  - kind
+                  x-kubernetes-validations:
+                  - rule: has(self.spec) != has(self.ref)
+                    message: an entry holds either spec or ref
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - apiVersion
+                - kind
             x-kubernetes-validations:
-            - rule: |-
-                [(has(self.aws) && has(self.aws.id)), (has(self.gcp) && has(self.gcp.id)), (has(self.oci) && has(self.oci.id)), (has(self.azure) && has(self.azure.id))].filter(b, b).size() <= 1
-              message: at most one cloud block may hold an id
-            - rule: |-
-                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)) || (has(self.gcp) && has(self.gcp.id)) || (has(self.oci) && has(self.oci.id)) || (has(self.azure) && has(self.azure.id)))
-              message: observe and the cloud block's id go together
             - rule: |-
                 (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
               message: observe is immutable
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.name) && !has(self.path) && !has(self.deletionProtection) && !has(self.immutableTags) && !has(self.lifecycleRules))
-              message: an observed resource takes no other field than its cloud block's id
+                || (!has(self.deletionProtection) && !has(self.immutableTags) && !has(self.lifecycleRules))
+              message: an observed resource takes no other common field
             - rule: |-
                 (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
               message: name is immutable
@@ -174,25 +160,29 @@ spec:
                 description: |-
                   The image URI, such as 123456789012.dkr.ecr.eu-
                   north-1.amazonaws.com/shop/orders-api.
-              aws:
+              providerConfig:
                 type: object
+                description: |-
+                  The provider configuration entries applied and ignored, as <apiVersion>, <kind>
+                  (principle 4).
                 properties:
-                  arn:
+                  applied:
                     type: string
-              gcp:
+                  ignored:
+                    type: array
+                    items:
+                      type: string
+              effective:
                 type: object
-                properties:
-                  id:
-                    type: string
-              oci:
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Each effective value and its source: the class's template, the object, or the
+                  class's enforced (principle 4).
+              provider:
                 type: object
-                properties:
-                  id:
-                    type: string
-              azure:
-                type: object
-                properties:
-                  registryId:
-                    type: string
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Values of the applied implementation, in the shape its provider configuration
+                  kind's status defines (principle 4).
         required:
         - spec

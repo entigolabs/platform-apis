@@ -898,7 +898,7 @@ The platform makes these settings itself:
 | Admin login       | An admin username and a generated password                                               |
 | Port              | 5432                                                                                     |
 | Tags              | Workspace and Zone tags                                                                  |
-| Final backup      | Taken when an instance is deleted, switched on per deployment, where the cloud takes one |
+| Final backup      | Taken when a cluster is deleted, switched on per deployment, where the cloud takes one   |
 
 *Settings the platform makes for a `PostgreSQLCluster`.*
 

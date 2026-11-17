@@ -600,13 +600,15 @@ spec:
 
 `Repository` becomes `ArtifactRepository`:
 
-| Today                           | Design                                                  | Reason                                                                 |
-| ------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
-| kind `Repository`               | kind `ArtifactRepository`                               | Holds any OCI artifact, and named after the concept (principle 8)           |
-| `path`, free-form               | `path` under the namespace: `<namespace>/<path>/<name>` | Namespaces keep paths apart in a cluster; image paths change           |
-| (none)                          | `immutableTags`                                         | Today a deployment-wide setting; ECR's two exclusion modes are dropped |
-| `status.repositoryUri`          | `status.uri`                                            | The same word on every cloud                                           |
-| deployment-wide lifecycle rules | `lifecycleRules`, defaulting per deployment             | Rules per repository, with the same fields                             |
+| Today                           | Design                                                             | Reason                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| kind `Repository`               | kind `ArtifactRepository`                                          | Holds any OCI artifact, and named after the concept (principle 8)                           |
+| `path`, free-form               | `path` under the namespace: `<namespace>/<path>/<name>`            | Namespaces keep paths apart in a cluster; image paths change                                |
+| (none)                          | `immutableTags`                                                    | Today a deployment-wide setting, now a class default; ECR's two exclusion modes are dropped |
+| `status.repositoryUri`          | `status.uri`                                                       | The same word everywhere                                                                    |
+| deployment-wide lifecycle rules | `lifecycleRules`, defaulting from the class                        | Rules per repository, with the same fields (principle 5)                                    |
+| (none)                          | `className`, and `id` in a provider configuration entry to observe | The kind's class (principle 5), and observing an existing repository (principle 9)          |
+| (none)                          | `status.providerConfig`, `status.effective`, `status.provider`     | The applied entry, each value's source, and the implementation's own values (principle 4)   |
 
 *Changes from `Repository` to `ArtifactRepository`.*
 
