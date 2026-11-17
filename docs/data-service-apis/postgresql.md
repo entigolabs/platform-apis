@@ -156,9 +156,9 @@ lowering it is rejected. The implementation may round it up and `autoGrow` can t
 further, so the status reports the actual size, and the platform never shrinks the disk back to
 `sizeGB`.
 
-`highAvailability`, `readReplicas` and `disasterRecovery` are portable features: an object that asks
-for one its class does not support is refused when applied (principle 1). Read Replicas and Disaster
-Recovery, below, describe the last two.
+`highAvailability`, `readReplicas` and `disasterRecovery` are portable features: an object that
+requests one its class does not support is refused when applied (principle 1). Read Replicas and
+Disaster Recovery, below, describe the last two.
 
 The final backup's ID, which `fromBackup` needs, is lost with the cluster's status, so it is taken
 from the cloud console. Besides the common fields, the status shows which entry applied, where each

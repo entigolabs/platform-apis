@@ -115,9 +115,9 @@ ignored, with the reason (principle 1), and a field of a cloud's block appears o
 
 **AWS:** S3 enables Object Lock on an existing bucket too, but only once versioning is on, and never
 off again (`aws_s3_bucket_object_lock_configuration` in
-[terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so `versioning:
-false` is refused on a bucket that ever had `retention`. Bucket names are globally unique, and S3
-object ownership is enforced.
+[terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)), so
+`versioning: false` is refused on a bucket that ever had `retention`. Bucket names are globally
+unique, and S3 object ownership is enforced.
 
 **GCP:** bucket names are globally unique, and uniform bucket-level access is on.
 

@@ -19,14 +19,14 @@ not listed keeps its name and meaning.
 
 Changes shared by all kinds, stated once here:
 
-| Today                                                                              | Design                                                   | Reason                                                                                     |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `v1alpha1`                                                                         | `v1alpha2`                                               | Fields move, so the version changes                                                        |
+| Today                                                                              | Design                                                   | Reason                                                                                          |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `v1alpha1`                                                                         | `v1alpha2`                                               | Fields move, so the version changes                                                             |
 | XRD schema defaults, and deployment values the function applies on every reconcile | defaults written into the object once, at creation       | A changed default never changes a running resource (principle 5)                                |
 | (none)                                                                             | `observe`, and a block per cloud with an `id`            | Observing an existing resource, and each cloud's settings in its own block (principles 2 and 9) |
 | (none)                                                                             | `secretName`                                             | Overrides the secret's name (principle 6)                                                       |
 | a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | References cross namespaces within the Zone (principle 11)                                      |
-| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The user sees why the cloud refused (principle 10)                                              |
+| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The refusal's cause shows on the object (principle 10)                                          |
 | AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.<cloud>`                    | The status reports the resource's actual values (principle 4)                                   |
 
 *Changes shared by all kinds.*

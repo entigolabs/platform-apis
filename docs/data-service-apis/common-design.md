@@ -23,7 +23,7 @@ Each provider config kind versions on its own.
 
 ## Installation
 
-The `platform-apis` chart decides which kinds a deployment installs (principle 7). A deployment
+The `platform-apis` chart determines which kinds a deployment installs (principle 7). A deployment
 passes only its cloud, and the chart installs each service's core kinds, its provider config kinds
 and its classes where the service is implemented. A per-service switch leaves a service out, never
 adds one that the deployment lacks. A manifest of a kind that is not installed is rejected by the
@@ -45,7 +45,7 @@ config:
 The class's provider config kind selects the implementation, as `StorageClass.provisioner` does, so
 a class has no separate field for it. A class whose provider config names a kind the deployment does
 not install is refused when applied. A class name is the portable contract: every deployment defines
-its own `standard`, and a chart that says `className: standard` works wherever a class of that name
+its own `standard`, and a chart that sets `className: standard` works wherever a class of that name
 exists. Without `className`, the object takes the deployment's default class.
 
 The effective spec is built in three layers, the last winning: the class's `template`, then the
@@ -107,8 +107,8 @@ other services, and `<instance>-<user>` for a user object. Every kind with a sec
 optional `secretName` to override that name. The platform never overwrites a Secret that another
 object or person owns: joined names can collide, as a user named `dbadmin` with the admin's secret,
 or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second object reports which
-object holds the name, and `secretName` resolves it. It also allows a user to use a name its
-application already expects.
+object holds the name, and `secretName` resolves it. It also allows a user to keep a name
+its application already uses.
 
 ## Observed Resources
 
@@ -127,14 +127,14 @@ spec:
 
 *An observed resource on AWS.*
 
-The ID is one value the user copies from the cloud's console. The platform turns it into whatever the provider needs. An observed resource takes no other
-spec fields.
+The ID is one value the user copies from the cloud's console. The platform converts it into the form
+the provider takes. An observed resource takes no other spec fields.
 
 A resource can be observed only when its workspace tag (a label on GCP) names this cluster's
 workspace, and only from a namespace of the Zone its Zone tag names, or from any Zone when it has no
 Zone tag. Its owner sets the tags in the cloud. The platform reads them before it uses the resource,
-and a resource that fails the check is refused with `CloudAccepted: False`. The same check lets a
-disaster recovery workspace find the resource it replicates, from the workspaces the object's
+and a resource that fails the check is refused with `CloudAccepted: False`. The same check allows a
+disaster recovery workspace to locate the resource it replicates, from the workspaces the object's
 `disasterRecovery` names.
 
 The check holds only because users can create the platform's kinds and nothing else: kcp serves no
@@ -195,7 +195,7 @@ in both workspaces, and each takes its role from `primary`, which names one of `
 3. To fail over, the user changes `primary` to `prod-dr` in Git, and `prod-dr`'s platform promotes
    its replica.
 
-The manifest names no region: each workspace's class decides where its copy runs. A replica that
+The manifest names no region: each workspace's class determines where its copy runs. A replica that
 only waits should be small, so a class in the DR workspace can hold a `standby` provider config,
 applied only while that workspace is not primary; on promotion, the platform resizes the replica to
 the object's own size, which adds that time to the recovery. Where recovery time matters more than
@@ -203,15 +203,15 @@ cost, the class leaves `standby` empty.
 
 The rules for disaster recovery:
 
-- **The source is found by tags.** The DR platform cannot see the primary's resource, and cloud
+- **The source is found by tags.** The DR platform cannot read the primary's resource, and cloud
   names differ between clusters, so the primary platform tags the resource with the workspace, the
   Zone and a DR group (`<namespace>/<name>`), and the DR platform finds it with the tag check of
   [Observed Resources](#observed-resources).
 - **Credentials survive the outage.** The primary platform keeps the generated passwords in a store
   that replicates across regions, such as AWS Secrets Manager replica secrets, which the DR side
   reads through External Secrets. An encrypted replica also needs a key in the DR region.
-- **The old primary is fenced.** When the old primary's workspace returns, its platform sees in Git
-  that it is no longer primary, stops writes, and rebuilds the database as a replica, before
+- **The old primary is fenced.** When the old primary's workspace returns, its platform reads from
+  Git that it is no longer primary, stops writes, and rebuilds the database as a replica, before
   anything else.
 - **Each workspace's secret holds its local endpoint,** so applications in the DR region connect
   locally.
@@ -226,9 +226,10 @@ schema, so that CI checks every entry of a manifest, including those for other d
 it is applied anywhere.
 
 When the cloud rejects a value, the error appears only on the provider's own object, not on the
-user's. The platform therefore also shows it on the user's object, as the condition `CloudAccepted:
-False` and as a warning event. An operation that the running implementation cannot perform, such as
-an upgrade its service does not offer, is reported the same way, without reaching the cloud.
+user's. The platform therefore also shows it on the user's object, as the condition
+`CloudAccepted: False` and as a warning event. An operation that the running implementation cannot
+perform, such as an upgrade its service does not offer, is reported the same way, without reaching
+the cloud.
 
 Deletion protection is enforced by a `ValidatingAdmissionPolicy`, which refuses to delete an object
 whose `deletionProtection` is true.

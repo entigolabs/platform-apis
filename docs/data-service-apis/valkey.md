@@ -118,9 +118,9 @@ status:
 
 *A `ValkeyServer` status on AWS.*
 
-The connection secret is `<instance>-credentials`, with `endpoint`, `port` (6379), `username:
-default`, `password` and `readerEndpoint`. `default` is the user Valkey logs a password-only client
-in as, so a client that always sends a username and password works unchanged.
+The connection secret is `<instance>-credentials`, with `endpoint`, `port` (6379),
+`username: default`, `password` and `readerEndpoint`. `default` is the user a password-only client
+authenticates as, so a client that always sends a username and password works unchanged.
 
 ### ValkeyClass
 
