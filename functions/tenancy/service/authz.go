@@ -23,12 +23,13 @@ const (
 	argoApplicationGroup = "argoproj.io"
 	argoMetaGroup        = "argocd.meta.entigo.com"
 	argoWildcard         = "*"
+	argoClustersResource = "clusters"
 )
 
 var (
 	projectResources = map[string]map[string]string{
 		argoApplicationGroup: {"applications": "applications", "applicationsets": "applicationsets"},
-		argoMetaGroup:        {"logs": "logs", "exec": "exec", "repositories": "repositories", "clusters": "clusters"},
+		argoMetaGroup:        {"logs": "logs", "exec": "exec", "repositories": "repositories", argoClustersResource: argoClustersResource},
 	}
 	argoVerbActions = map[string]string{"get": "get", "list": "get", "watch": "get", "create": "create",
 		"update": "update", "patch": "update", "delete": "delete", "sync": "sync", "override": "override",
@@ -213,7 +214,8 @@ func projectResourcesOf(rule authz.Rule) []string {
 	names := make([]string, 0)
 	for _, group := range groups {
 		for resource, name := range projectResources[group] {
-			if slices.Contains(rule.Resources, argoWildcard) || slices.Contains(rule.Resources, resource) {
+			wildcard := slices.Contains(rule.Resources, argoWildcard) && resource != argoClustersResource
+			if wildcard || slices.Contains(rule.Resources, resource) {
 				names = append(names, name)
 			}
 		}

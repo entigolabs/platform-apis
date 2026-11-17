@@ -30,11 +30,11 @@ const (
 	authzZoneName            = "main"
 	readEverythingRuleJson   = `{"apiGroups":["*"],"resources":["*"],"verbs":["get","list","watch"]}`
 	zoneReadonlyRole         = "zone-readonly"
-	zoneReadonlyPoliciesJson = `["p, proj:main:zone-readonly, applications, get, main/*, allow","p, proj:main:zone-readonly, applicationsets, get, main/*, allow","p, proj:main:zone-readonly, clusters, get, main/*, allow","p, proj:main:zone-readonly, exec, get, main/*, allow","p, proj:main:zone-readonly, logs, get, main/*, allow","p, proj:main:zone-readonly, repositories, get, main/*, allow"]`
+	zoneReadonlyPoliciesJson = `["p, proj:main:zone-readonly, applications, get, main/*, allow","p, proj:main:zone-readonly, applicationsets, get, main/*, allow","p, proj:main:zone-readonly, exec, get, main/*, allow","p, proj:main:zone-readonly, logs, get, main/*, allow","p, proj:main:zone-readonly, repositories, get, main/*, allow"]`
 
 	contractRolesJson = `[` +
 		`{"name":"ct-n1","description":"RoleDefinition ct-n1","groups":["ct-n1@jev/jev"],"policies":["p, proj:main:ct-n1, applications, get, main/*, allow"]},` +
-		`{"name":"ct-n10","description":"RoleDefinition ct-n10","groups":["ct-n10@jev/jev"],"policies":["p, proj:main:ct-n10, applications, *, main/*, allow","p, proj:main:ct-n10, applicationsets, *, main/*, allow","p, proj:main:ct-n10, clusters, *, main/*, allow","p, proj:main:ct-n10, exec, *, main/*, allow","p, proj:main:ct-n10, logs, *, main/*, allow","p, proj:main:ct-n10, repositories, *, main/*, allow"]},` +
+		`{"name":"ct-n10","description":"RoleDefinition ct-n10","groups":["ct-n10@jev/jev"],"policies":["p, proj:main:ct-n10, applications, *, main/*, allow","p, proj:main:ct-n10, applicationsets, *, main/*, allow","p, proj:main:ct-n10, exec, *, main/*, allow","p, proj:main:ct-n10, logs, *, main/*, allow","p, proj:main:ct-n10, repositories, *, main/*, allow"]},` +
 		`{"name":"ct-n2","description":"RoleDefinition ct-n2","groups":["ct-n2@jev/jev"],"policies":["p, proj:main:ct-n2, applications, update, main/*, allow"]},` +
 		`{"name":"ct-n3","description":"RoleDefinition ct-n3","groups":["ct-n3@jev/jev"],"policies":["p, proj:main:ct-n3, applicationsets, sync, main/*, allow"]},` +
 		`{"name":"ct-n5","description":"RoleDefinition ct-n5","groups":["ct-n5@jev/jev"],"policies":["p, proj:main:ct-n5, logs, get, main/*, allow"]},` +
@@ -1143,9 +1143,14 @@ func TestZoneAppProjectRoles(t *testing.T) {
 			"Like roleMapping maintainer in main, holders of applications * may mint cicd tokens, readers may not",
 			append([]string{roleDefinitionJson("zone-maintainer", `{"apiGroups":["*"],"resources":["*"],"verbs":["*"]}`)}, readonly...),
 			[]string{roleGrantJson("martin", "zone-maintainer", "", zone), roleGrantJson("readers", zoneReadonlyRole, "", "")},
-			`[{"name":"zone-maintainer","description":"RoleDefinition zone-maintainer","groups":["zone-maintainer@jev/jev/main"],"policies":["p, proj:main:zone-maintainer, applications, *, main/*, allow","p, proj:main:zone-maintainer, applicationsets, *, main/*, allow","p, proj:main:zone-maintainer, clusters, *, main/*, allow","p, proj:main:zone-maintainer, exec, *, main/*, allow","p, proj:main:zone-maintainer, logs, *, main/*, allow","p, proj:main:zone-maintainer, repositories, *, main/*, allow"]},`+
+			`[{"name":"zone-maintainer","description":"RoleDefinition zone-maintainer","groups":["zone-maintainer@jev/jev/main"],"policies":["p, proj:main:zone-maintainer, applications, *, main/*, allow","p, proj:main:zone-maintainer, applicationsets, *, main/*, allow","p, proj:main:zone-maintainer, exec, *, main/*, allow","p, proj:main:zone-maintainer, logs, *, main/*, allow","p, proj:main:zone-maintainer, repositories, *, main/*, allow"]},`+
 				`{"name":"zone-readonly","description":"RoleDefinition zone-readonly","groups":["zone-readonly@jev/jev"],"policies":`+zoneReadonlyPoliciesJson+`}]`,
 			"zone-maintainer@jev/jev/main"),
+		"AppProject/clusters comes only from a rule naming it": authzCase(
+			"A * resource leaves project-scoped clusters out like the roles of main, a rule naming clusters still grants it",
+			[]string{roleDefinitionJson("cluster-registrar", `{"apiGroups":["argocd.meta.entigo.com"],"resources":["clusters"],"verbs":["get"]}`)},
+			[]string{roleGrantJson("registrars", "cluster-registrar", "", "")},
+			`[{"name":"cluster-registrar","description":"RoleDefinition cluster-registrar","groups":["cluster-registrar@jev/jev"],"policies":["p, proj:main:cluster-registrar, clusters, get, main/*, allow"]}]`),
 		"AppProject/A RoleDefinition named cicd does not replace the CI/CD role": authzCase(
 			"The cicd name belongs to the fixed CI/CD role of main",
 			[]string{roleDefinitionJson("cicd", readEverythingRuleJson)}, []string{roleGrantJson("pipelines", "cicd", "", "")}, ""),
