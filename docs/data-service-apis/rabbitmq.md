@@ -104,10 +104,10 @@ spec:
 
 ### RabbitMQVirtualHost
 
-`RabbitMQVirtualHost` acts inside RabbitMQ, through its management API, as `RabbitMQUser` does. A
-virtual host is an isolated set of queues and exchanges inside the broker, comparable to a database
-in PostgreSQL; deleting one deletes its queues and messages, so it has `deletionProtection`. A new
-virtual host grants nothing until a user is given permissions on it.
+`RabbitMQVirtualHost` acts inside RabbitMQ, through its management API. A virtual host is an
+isolated set of queues and exchanges inside the broker; deleting one deletes its queues and
+messages, so it has `deletionProtection`. A new virtual host grants nothing until a user is given
+permissions on it.
 
 An example:
 
