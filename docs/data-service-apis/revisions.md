@@ -17,7 +17,6 @@ the last is agreed.
 - Provider config entries are checked by their implementation, and by CI against every
   implementation's published schema (rule 10).
 - Field groups exist only as units or subsystems (rule 13).
-- Writing an Implementation describes how anyone adds one.
 - PostgreSQL: `PostgreSQLInstance` becomes `PostgreSQLCluster`, with `PostgreSQLClass`,
   `PostgreSQLParameters` and a provider config kind per implementation; users and databases name it
   in `clusterRef`.

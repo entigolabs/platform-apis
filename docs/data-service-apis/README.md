@@ -33,6 +33,23 @@ in [API Changes](changes.md).
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
 
+## The Model
+
+Each data service has four parts, which the rules rely on:
+
+| Part            | What it is                                                                                       | Owned by                  | Example                                  |
+| --------------- | ------------------------------------------------------------------------------------------------ | ------------------------- | ---------------------------------------- |
+| Core kind       | What a team asks for, the same wherever it runs                                                  | the team                  | a `PostgreSQLCluster`                    |
+| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | Entigo, or a third party  | RDS, Cloud SQL, CloudNativePG            |
+| Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the team, or the operator | a `PostgreSQLRDSConfig` with an RDS size |
+| Class           | A deployment's choice of implementation, its defaults and the values a team cannot change        | the deployment's operator | a `PostgreSQLClass` named `standard`     |
+
+*The parts of a data service.*
+
+A team writes a core kind that names a class, and may add a provider config for each implementation
+it can run on. Each deployment applies the provider config of its class's implementation, and the
+implementation turns the result into running resources.
+
 ## Pages
 
 Each page of the design holds the following, in the order of the menu:

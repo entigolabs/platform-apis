@@ -27,6 +27,11 @@ Known so far:
   [values-oracle.yaml](https://github.com/entigolabs/entigo-infralib/blob/main/modules/k8s/platform-apis/values-oracle.yaml)
   in the `platform-apis` module; once the chart holds the support matrix, those values keep only an
   operator's opt-out.
+- Each implementation is a Composition for the core kind, labelled with its provider config kind,
+  such as `data.entigo.com/provider-config: PostgreSQLRDSConfig.aws.database.entigo.com`. The
+  admission policy that writes a class's defaults (rule 5) also writes the object's composition
+  selector with that label, and Crossplane picks the Composition by it: a composite resource without
+  a Composition reference takes one whose labels match its selector (checked in Crossplane v2.4.3).
 
 #### 2 Migration from current APIs
 

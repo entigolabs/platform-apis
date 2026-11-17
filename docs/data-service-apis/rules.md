@@ -2,23 +2,6 @@
 
 The rules every data service API follows.
 
-## The Model
-
-Each data service has four parts, which the rules below rely on:
-
-| Part            | What it is                                                                                       | Owned by                  | Example                                  |
-| --------------- | ------------------------------------------------------------------------------------------------ | ------------------------- | ---------------------------------------- |
-| Core kind       | What a team asks for, the same wherever it runs                                                  | the team                  | a `PostgreSQLCluster`                    |
-| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | Entigo, or a third party  | RDS, Cloud SQL, CloudNativePG            |
-| Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the team, or the operator | a `PostgreSQLRDSConfig` with an RDS size |
-| Class           | A deployment's choice of implementation, its defaults and the values a team cannot change        | the deployment's operator | a `PostgreSQLClass` named `standard`     |
-
-*The parts of a data service.*
-
-A team writes a core kind that names a class, and may add a provider config for each implementation
-it can run on. Each deployment applies the provider config of its class's implementation, and the
-implementation turns the result into running resources.
-
 ## Rules
 
 These rules apply to every data service API, and each service's page shows how it applies them.
@@ -77,8 +60,7 @@ Implementing a kind on another cloud, on-premises or by a third party never chan
 schemas, so manifests written before keep working.
 
 The core schemas name no cloud and no vendor. A new implementation brings its own provider config
-kind, the Composition that turns the core kind into its resources, and the classes that select it
-(Writing an Implementation, below).
+kind, what turns the core kind into its resources, and the classes that select it.
 
 #### 4 The status reports what actually runs
 
@@ -123,10 +105,9 @@ key by key in the same order.
 
 The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
 version 1.36. It copies the class's `template` into the object when it is created and keeps the
-values on updates, so a later change to a class never resizes or upgrades a running resource. The
-same policy writes the composition selector that picks the implementation. `enforced` applies all
-the time: it is policy, and an object that no longer complies after a class tightens it reports that
-in a condition. Observed resources receive no defaults.
+values on updates, so a later change to a class never resizes or upgrades a running resource.
+`enforced` applies all the time: it is policy, and an object that no longer complies after a class
+tightens it reports that in a condition. Observed resources receive no defaults.
 
 Deletion protection is enforced by a `ValidatingAdmissionPolicy`, which refuses to delete an object
 whose `deletionProtection` is true.
@@ -284,29 +265,3 @@ A unit is a set of values that mean nothing apart, such as `maintenanceWindow: {
 `restore: { fromInstance, pointInTime }` or one lifecycle rule. A subsystem is an area that
 operators and classes treat as a whole, such as `storage` and `backup`, as CloudNativePG, Crunchy
 and Zalando group them. Any other field stays at the top level, such as `autoMinorVersionUpgrade`.
-
-## Writing an Implementation
-
-An implementation provides a core kind on one platform, such as `PostgreSQLCluster` on RDS or on
-CloudNativePG. Entigo ships the implementations for the clouds infralib deploys to; anyone can add
-another without changing the core kinds (rule 3).
-
-An implementation consists of:
-
-| Part                   | What it is                                                                                                                                    |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| A provider config kind | Its own settings, named and grouped as rule 8 says, with a published schema and a `ValidatingAdmissionPolicy` for its entries (rule 10)       |
-| A Composition          | Built for the core kind and labelled `data.entigo.com/provider-config: <kind>.<group>`; its function turns the effective spec into resources |
-| Classes                | Written by each deployment's operator, with a provider config of the implementation's kind                                                    |
-
-*The parts of an implementation.*
-
-When an object is created, the admission policy of rule 5 writes a composition selector with the
-label of its class's provider config kind, and Crossplane runs the Composition that carries that
-label. The Composition receives the effective spec, after the class's layers. In return, the
-implementation:
-
-- reports the portable features it supports in its classes' status (rule 1);
-- reports `status.effective`, `status.providerConfig` and its own `status.provider` (rule 4);
-- writes the connection secret with the keys of rule 6;
-- reports rejections and operations it cannot perform as `CloudAccepted: False` (rule 10).
