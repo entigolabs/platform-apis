@@ -4,15 +4,17 @@ How every data service API is built, and the principles each follows.
 
 ## Model
 
-Two roles take part. A user is a team that runs its applications in a Zone and writes data service
+Three roles take part. A user is a team that runs its applications in a Zone and writes data service
 objects there. An operator runs an infralib deployment: its cluster and the cloud account behind it.
+An implementer builds an implementation: Entigo for the clouds infralib deploys to, or anyone else
+for their own environment, such as a customer's platform team.
 
 Each data service has four parts, which the principles below rely on:
 
 | Part            | What it is                                                                                       | Owned by                  | Example                                  |
 | --------------- | ------------------------------------------------------------------------------------------------ | ------------------------- | ---------------------------------------- |
 | Core kind       | What a user asks for, the same wherever it runs                                                  | the user                  | a `PostgreSQLCluster`                    |
-| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | Entigo, or a third party  | RDS, Cloud SQL, CloudNativePG            |
+| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | an implementer            | RDS, Cloud SQL, CloudNativePG            |
 | Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the user, or the operator | a `PostgreSQLRDSConfig` with an RDS size |
 | Class           | A deployment's choice of implementation, its defaults and the values a user cannot change        | the operator              | a `PostgreSQLClass` named `standard`     |
 
@@ -80,8 +82,8 @@ encryption keys, is decided by the platform.
 
 #### 3 Adding an implementation never changes the core kinds
 
-Implementing a kind on another cloud, on-premises or by a third party never changes the core kinds'
-schemas, so manifests written before keep working.
+Implementing a kind on another cloud, on-premises or by another implementer never changes the core
+kinds' schemas, so manifests written before keep working.
 
 The core schemas name no cloud and no vendor. A new implementation brings its own provider config
 kind, what turns the core kind into its resources, and the classes that select it.
@@ -192,8 +194,8 @@ The kinds around it follow from that name:
 A provider config is specific to one implementation by definition, so naming the product is
 accurate. The engine comes first, so the kinds sort together. An on-premises implementation is
 grouped by the platform it runs on, `kubernetes`, with the product in the kind, as
-`PostgreSQLCNPGConfig` for CloudNativePG. A third party uses its own domain, so names never collide.
-Each provider config kind versions on its own.
+`PostgreSQLCNPGConfig` for CloudNativePG. An implementer other than Entigo uses its own domain, so
+names never collide. Each provider config kind versions on its own.
 
 #### 9 A kind either creates its resource or observes an existing one
 
