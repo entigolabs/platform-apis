@@ -48,7 +48,8 @@ The class's provider configuration kind selects the implementation, as `StorageC
 does, so a class has no separate field for it. A class whose provider configuration names a kind the
 deployment does not install is refused when applied. A class name is the portable contract: every
 deployment defines its own `standard`, and a chart that sets `className: standard` works wherever a
-class of that name exists. Without `className`, the object takes the deployment's default class.
+class of that name exists. Without `className`, the object takes the deployment's default class, the
+one annotated `<group>/is-default-class: "true"`, as a default StorageClass is.
 
 The effective spec is built in three layers, the last winning: the class's `template`, then the
 object with its matching provider configuration entry, then the class's `enforced`. Engine
