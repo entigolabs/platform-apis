@@ -41,7 +41,7 @@ Each page of the design holds the following, in the order of the menu:
 - [Model and Principles](principles.md): the parts every data service API is built from, and the
   principles each follows.
 - [Common Design](common-design.md): the mechanisms that apply the principles to every service.
-- Service Designs: one page per service, holding what is particular to it:
+- [Service Designs](postgresql.md): one page per service, holding what is particular to it:
   [PostgreSQL](postgresql.md), [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md),
   [RabbitMQ](rabbitmq.md), [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md).
   The site shows each in three tabs: its design, how each cloud implements it, and the draft
