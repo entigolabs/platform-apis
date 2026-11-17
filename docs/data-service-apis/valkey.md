@@ -257,7 +257,7 @@ on: the platform applies the entry of its class's kind and ignores the others. A
 source of each value the object does not hold as written: `platform` for a value the platform sets,
 and `deployment` for one the deployment sets. The object and its resources:
 
-```yaml Object
+```yaml Object on AWS
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: ValkeyServer
@@ -328,9 +328,9 @@ spec:
       key: password
 ```
 
-*`ValkeyServer` and its composed resource.*
+*`ValkeyServer` on AWS and its composed resource.*
 
-```yaml Object
+```yaml Object on GCP
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: ValkeyServer
@@ -406,9 +406,9 @@ spec:
       projectId: shop-project
 ```
 
-*`ValkeyServer` and its composed resource.*
+*`ValkeyServer` on GCP and its composed resource.*
 
-```yaml Object
+```yaml Object on OCI
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: ValkeyServer
@@ -466,7 +466,7 @@ spec:
     - ocid1.networksecuritygroup.oc1..deployment
 ```
 
-*`ValkeyServer` without `highAvailability` and its composed resource.*
+*`ValkeyServer` on OCI without `highAvailability` and its composed resource.*
 
 ## Platform Decisions
 

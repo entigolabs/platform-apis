@@ -6,18 +6,23 @@ Every data service API is built from the parts in Model and follows the principl
 
 Each data service is built from four parts:
 
-| Part                   | Definition                                                                                       | Owned by | Example                                  |
-| ---------------------- | ------------------------------------------------------------------------------------------------ | -------- | ---------------------------------------- |
-| Core kind              | The resource a user requests, the same wherever it runs                                          | the user | a `PostgreSQLCluster`                    |
-| Implementation         | The provider of a core kind on one platform: a cloud's managed service, or software in a cluster | Entigo   | RDS, Cloud SQL, CloudNativePG            |
-| Provider configuration | The settings that exist only in one implementation, in a kind that implementation defines        | the user | a `PostgreSQLRDSConfig` with an RDS size |
-| Class                  | A deployment's choice of implementation, its defaults and the values a user cannot change        | Entigo   | a `PostgreSQLClass` named `standard`     |
+| Part                   | Definition                                                                                                       | Owned by | Example                                  |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------- |
+| Core kind              | A portable API type a user writes, the same wherever it runs                                                     | the user | a `PostgreSQLCluster`                    |
+| Implementation         | The managed service or in-cluster software that implements a core kind on one platform                           | Entigo   | RDS, Cloud SQL, CloudNativePG            |
+| Provider configuration | The settings that exist only in one implementation, in a provider configuration kind that implementation defines | the user | a `PostgreSQLRDSConfig` with an RDS size |
+| Class                  | A deployment's choice of implementation, its defaults and the values a user cannot change                        | Entigo   | a `PostgreSQLClass` named `standard`     |
 
 *Data service parts and their owners.*
 
 A user writes a core kind that names a class, and may add a provider configuration for each
 implementation it can run on. Each deployment applies the provider configuration of its class's
 implementation, and the implementation turns the result into running resources.
+
+Two terms sound alike. A Crossplane provider, such as provider-upjet-aws, is the controller that
+creates an implementation's cloud resources. A provider configuration kind, such as
+`PostgreSQLRDSConfig`, is an API type of this design; it is not the `ProviderConfig` a Crossplane
+provider uses for its credentials.
 
 ## Principles
 

@@ -16,6 +16,9 @@ their names from it:
 
 *Related kind names, groups and examples.*
 
+The groups in this page's examples, such as `database.entigo.com`, are provisional: the API group
+the kinds take is still open.
+
 The engine comes first, so the kinds sort together. The product is the implementation's own short
 name, such as RDS, Cloud SQL or MSK; where it has none, the platform's name stands in for it, as in
 `PostgreSQLOCIConfig` for OCI Database with PostgreSQL. An on-premises implementation is grouped by
@@ -138,10 +141,11 @@ workspace, and only from a namespace of the Zone its Zone tag names, or from any
 Zone tag. Its owner sets the tags in the cloud. The platform reads them before it uses the resource,
 and a resource that fails the check is refused with `CloudAccepted: False`.
 
-The check holds only because users can create the platform's kinds and nothing else: kcp serves no
-provider kinds, and a Zone's Argo CD project and roles allow only the platform's and Kubernetes' own
-groups. A user who could create a provider's resource directly could observe anything without the
-check.
+The check holds only where users can create the platform's kinds and nothing else, so it has a
+prerequisite: kcp serves no provider kinds, and a Zone's Argo CD project and roles allow only the
+platform's and Kubernetes' own groups. Today's Argo CD project does not yet limit itself to an
+allowlist of groups. A user who could create a provider's resource directly could observe anything
+without the check.
 
 ## Resource Names
 

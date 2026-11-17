@@ -253,7 +253,7 @@ A comment names the source of each value the object does not hold as written: `p
 the platform sets, and `deployment` for one the deployment sets. The `RabbitMQBroker` from
 [Kinds](#kinds) is composed into the resource below on AWS, the only cloud that offers it:
 
-```yaml Object
+```yaml Object on AWS
 ---
 apiVersion: mq.entigo.com/v1alpha2
 kind: RabbitMQBroker
@@ -317,7 +317,7 @@ spec:
         key: password
 ```
 
-*`RabbitMQBroker` and its composed resource.*
+*`RabbitMQBroker` on AWS and its composed resource.*
 
 ## Platform Decisions
 

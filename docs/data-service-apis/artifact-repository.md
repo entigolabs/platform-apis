@@ -171,7 +171,7 @@ runs on: the platform applies the entry of its class's kind and ignores the othe
 the source of each value the object does not hold as written: `platform` for a value the platform
 sets, and `deployment` for one the deployment sets. The object and its resources:
 
-```yaml Object
+```yaml Object on AWS
 ---
 apiVersion: artifact.entigo.com/v1alpha2
 kind: ArtifactRepository
@@ -240,9 +240,9 @@ spec:
       ]}
 ```
 
-*`ArtifactRepository` and its composed resources.*
+*`ArtifactRepository` on AWS and its composed resources.*
 
-```yaml Object
+```yaml Object on GCP
 ---
 apiVersion: artifact.entigo.com/v1alpha2
 kind: ArtifactRepository
@@ -290,9 +290,9 @@ spec:
         olderThan: 604800s     # 7 days
 ```
 
-*`ArtifactRepository` and its composed resource.*
+*`ArtifactRepository` on GCP and its composed resource.*
 
-```yaml Object
+```yaml Object on OCI
 ---
 apiVersion: artifact.entigo.com/v1alpha2
 kind: ArtifactRepository
@@ -331,7 +331,7 @@ spec:
     isPublic: false            # platform
 ```
 
-*`ArtifactRepository` and its composed resource.*
+*`ArtifactRepository` on OCI and its composed resource.*
 
 ## Platform Decisions
 

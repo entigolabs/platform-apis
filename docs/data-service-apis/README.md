@@ -3,7 +3,7 @@
 The Portable Data Service APIs give each data service in
 [`platform-apis`](https://github.com/entigolabs/platform-apis), from PostgreSQL to buckets, one form
 that every cloud infralib deploys to can implement with its own managed service. One manifest then
-works on AWS, GCP, OCI and Azure alike.
+works on every deployment with a compatible implementation, on AWS, GCP, OCI or Azure.
 
 ```mermaid
 flowchart LR
@@ -56,8 +56,8 @@ The menu groups the pages of the design:
 
 - **Design:** [Model & Principles](principles.md), the parts every data service API is built from
   and the rules each follows; [Common Design](common-design.md), the mechanisms every service
-  shares, and [Service Designs](postgresql.md), a page per service; [API Changes](changes.md), every
-  change from today's APIs per kind, and [Related Work](related-work.md).
+  shares, and [Service Designs](service-designs.md), a page per service; [API Changes](changes.md),
+  every change from today's APIs per kind, and [Related Work](related-work.md).
 - **Open items:** [Open Points](open-points.md), [Follow-Up Work](follow-up-work.md) and
   [Deferred Capabilities](deferred-capabilities.md).
 

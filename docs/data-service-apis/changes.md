@@ -1,8 +1,9 @@
 # API Changes
 
-Every change from the data service APIs on `main` of
-[`platform-apis`](https://github.com/entigolabs/platform-apis) to this design, per kind. A field
-not listed keeps its name and meaning.
+Every change from the data service APIs of
+[`platform-apis`](https://github.com/entigolabs/platform-apis) release
+[`v0.2.100`](https://github.com/entigolabs/platform-apis/tree/v0.2.100) (commit `4ae2a66`) to this
+design, per kind. A field not listed keeps its name and meaning.
 
 ## Contents
 
@@ -17,22 +18,25 @@ not listed keeps its name and meaning.
 
 ## All Services
 
-Changes shared by all kinds, stated once here:
+These changes span all data services. Applicability varies by kind.
 
-| Today                                                                              | Design                                                   | Reason                                                                            |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `v1alpha1`                                                                         | `v1alpha2`                                               | Fields move, so the version changes                                               |
-| XRD schema defaults, and deployment values the function applies on every reconcile | defaults written into the object once, at creation       | A changed default never changes a running resource (principle 5)                  |
-| (none)                                                                             | `className`, naming a class of the kind                  | A deployment's defaults and limits come from a class (principle 5)                |
-| (none)                                                                             | `providerConfigs`, one entry per implementation          | Settings of one implementation belong in its provider configuration (principle 2) |
-| (none)                                                                             | `observe`, and `id` in a provider configuration entry    | Observing an existing resource (principle 9)                                      |
-| (none)                                                                             | `secretName`                                             | Overrides the secret's name (principle 6)                                         |
-| a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | References cross namespaces within the Zone (principle 11)                        |
-| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The refusal's cause shows on the object (principle 10)                            |
-| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.provider`                   | The status reports the resource's actual values (principle 4)                     |
-| (none)                                                                             | `status.providerConfig`, `status.effective`              | The applied entry and each value's source (principle 4)                           |
+| Today                                                                              | Design                                                   | Applies To                                                                                                                           | Reason                                                                            |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `v1alpha1`                                                                         | `v1alpha2`                                               | All kinds                                                                                                                            | Fields move, so the version changes                                               |
+| XRD schema defaults, and deployment values the function applies on every reconcile | defaults written into the object once, at creation       | All kinds                                                                                                                            | A changed default never changes a running resource (principle 5)                  |
+| (none)                                                                             | `className`, naming a class of the kind                  | Kinds with a class                                                                                                                   | A deployment's defaults and limits come from a class (principle 5)                |
+| (none)                                                                             | `providerConfigs`, one entry per implementation          | Kinds with a class                                                                                                                   | Settings of one implementation belong in its provider configuration (principle 2) |
+| (none)                                                                             | `observe`, and `id` in a provider configuration entry    | Kinds with a class                                                                                                                   | Observing an existing resource (principle 9)                                      |
+| (none)                                                                             | `secretName`                                             | `PostgreSQLCluster`, `MariaDBServer`, `ValkeyServer`, `RabbitMQBroker`, `PostgreSQLUser`, `MariaDBUser`, `KafkaUser`, `RabbitMQUser` | Overrides the secret's name (principle 6)                                         |
+| a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | Kinds inside another: users, databases, `KafkaTopic`, `RabbitMQVirtualHost`                                                          | References cross namespaces within the Zone (principle 11)                        |
+| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | All kinds                                                                                                                            | The refusal's cause shows on the object (principle 10)                            |
+| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.provider`                   | Kinds with a class                                                                                                                   | The status reports the resource's actual values (principle 4)                     |
+| (none)                                                                             | `status.providerConfig`, `status.effective`              | Kinds with a class                                                                                                                   | The applied entry and each value's source (principle 4)                           |
 
-*Changes common to all kinds, with reasons.*
+*Shared data service API changes.*
+
+The kinds with a class are `PostgreSQLCluster`, `MariaDBServer`, `ValkeyServer`, `KafkaCluster`,
+`RabbitMQBroker`, `Bucket` and `ArtifactRepository`.
 
 ## PostgreSQL
 

@@ -168,7 +168,7 @@ platform applies the entry of its class's kind and ignores the others. A comment
 each value the object does not hold as written: `platform` for a value the platform sets, and
 `deployment` for one the deployment sets. The object and its resources:
 
-```yaml Object
+```yaml Object on AWS
 ---
 apiVersion: storage.entigo.com/v1alpha2
 kind: Bucket
@@ -282,9 +282,9 @@ spec:
       maxAgeSeconds: 3600
 ```
 
-*`Bucket` and its composed resources.*
+*`Bucket` on AWS and its composed resources.*
 
-```yaml Object
+```yaml Object on GCP
 ---
 apiVersion: storage.entigo.com/v1alpha2
 kind: Bucket
@@ -365,9 +365,9 @@ spec:
       retentionDurationSeconds: 604800  # 7 days
 ```
 
-*`Bucket` and its composed resource.*
+*`Bucket` on GCP and its composed resource.*
 
-```yaml Object
+```yaml Object on OCI
 ---
 apiVersion: storage.entigo.com/v1alpha2
 kind: Bucket
@@ -458,9 +458,9 @@ spec:
         - logs/
 ```
 
-*`Bucket` and its composed resources.*
+*`Bucket` on OCI and its composed resources.*
 
-```yaml Object
+```yaml Object on Azure
 ---
 apiVersion: storage.entigo.com/v1alpha2
 kind: Bucket
@@ -571,7 +571,7 @@ spec:
     locked: false
 ```
 
-*`Bucket` and its composed resources.*
+*`Bucket` on Azure and its composed resources.*
 
 ## Platform Decisions
 

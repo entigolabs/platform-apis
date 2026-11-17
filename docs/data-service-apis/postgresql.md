@@ -421,7 +421,7 @@ runs on: the platform applies the entry of its class's kind and ignores the othe
 the source of each value the object does not hold as written: `platform` for a value the platform
 sets, and `deployment` for one the deployment sets. The object and its resources:
 
-```yaml Object
+```yaml Object on AWS
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: PostgreSQLCluster
@@ -516,9 +516,9 @@ spec:
     kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
-*`PostgreSQLCluster` and its composed resource.*
+*`PostgreSQLCluster` on AWS and its composed resource.*
 
-```yaml Object
+```yaml Object on GCP
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: PostgreSQLCluster
@@ -613,9 +613,9 @@ spec:
         privateNetwork: projects/p/global/networks/deployment
 ```
 
-*`PostgreSQLCluster` and its composed resource.*
+*`PostgreSQLCluster` on GCP and its composed resource.*
 
-```yaml Object
+```yaml Object on OCI
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: PostgreSQLCluster
@@ -709,9 +709,9 @@ spec:
     - username: dbadmin
 ```
 
-*`PostgreSQLCluster` and its composed resource.*
+*`PostgreSQLCluster` on OCI and its composed resource.*
 
-```yaml Object
+```yaml Object on Azure
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: PostgreSQLCluster
@@ -796,7 +796,7 @@ spec:
       key: password
 ```
 
-*`PostgreSQLCluster` and its composed resource.*
+*`PostgreSQLCluster` on Azure and its composed resource.*
 
 ## Platform Decisions
 

@@ -9,7 +9,8 @@ Questions to decide before implementation.
 category groups (`database.`, `queue.`, `mq.`, `storage.` and `artifact.entigo.com`). Six kinds keep
 their names: `RabbitMQBroker`, `KafkaUser`, `PostgreSQLUser`, `PostgreSQLDatabase`, `MariaDBUser`
 and `MariaDBDatabase`. Kubernetes stores the objects of a group and kind in a single version; any
-other version it serves is a conversion of that one.
+other version it serves is a conversion of that one. The groups in the design's examples, such as
+those in [Common Design](common-design.md#naming), are provisional until this point is settled.
 
 **Problem.** An object of a renamed kind can move by itself, but the steps of a move, from today's
 object to the new one without touching the cloud resource, are not designed. The six kinds that keep
@@ -18,7 +19,7 @@ also do not present the design as one family.
 
 **Options:**
 
-| Option                                                         | Migration                                                                                                                                                                                 | Cost                                                                                                                |
+| Option                                                         | Effect                                                                                                                                                                                    | Trade-offs                                                                                                          |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Same groups, renamed kinds beside today's                      | Each object of a renamed kind moves at its user's pace, through `observe` and adoption; the six kinds that keep their names switch at once, by a conversion webhook or a one-time rewrite | Proving for the six kinds that no cloud resource changes; today's kinds stay served until the last object has moved |
 | One new group, `data.entigo.com`                               | Every object moves at its user's pace, the six kinds included                                                                                                                             | Today's kinds stay served, and their functions run, until the last object has moved                                 |
@@ -39,7 +40,7 @@ the switch happens decides whether applications lose their connection.
 
 **Options:**
 
-| Option                  | Rotation                                                                                                                  | Cost                                                                                        |
+| Option                  | Effect                                                                                                                    | Trade-offs                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | None in the API         | A credential changes only when its object is recreated, or by hand in the cloud                                           | Nothing to build; no answer to a leaked credential                                          |
 | On request, at once     | A field such as `spec.rotation`: changing it writes a new credential into the same Secret, and the old one stops working  | Applications fail until they read the Secret again                                          |
@@ -59,7 +60,7 @@ exhausted connections or a failed backup show only when the application breaks.
 
 **Options:**
 
-| Option                     | Health                                                                                                                              | Cost                                                                                                                                  |
+| Option                     | Effect                                                                                                                              | Trade-offs                                                                                                                            |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | None in the platform       | Users ask the platform team, who read the cloud's console                                                                           | Nothing to build; problems surface as outages                                                                                         |
 | Console link in the status | `status.provider.consoleURL` opens the resource in its cloud's console                                                              | Little to build; useful only to users with access to the cloud                                                                        |
@@ -79,7 +80,7 @@ way to require the entry.
 
 **Options:**
 
-| Option                       | Effect                                                                                                                    | Cost                                                                                          |
+| Option                       | Effect                                                                                                                    | Trade-offs                                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | Always fall back             | An object without an entry runs with the class's provider configuration                                                   | Nothing to build; a forgotten entry goes unnoticed                                            |
 | A class can require an entry | A class marks its provider configuration as required, and an object without an entry of that kind is refused when applied | A manifest for several deployments carries an entry for each implementation that requires one |
@@ -96,7 +97,7 @@ limits the classes per Zone.
 
 **Options:**
 
-| Option                   | Effect                                                                                                                                           | Cost                                                 |
+| Option                   | Effect                                                                                                                                           | Trade-offs                                           |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
 | No restriction           | Every Zone may use every class                                                                                                                   | Nothing to build; cost control stays outside the API |
 | A Zone lists its classes | The Zone names the classes its namespaces may use, and an admission policy refuses others, as Gateway API's `allowedRoutes` restricts attachment | A list per Zone to keep current as classes are added |
@@ -115,7 +116,7 @@ state them portably.
 
 **Options:**
 
-| Option                                     | Effect                                                                                                                 | Cost                                                    |
+| Option                                     | Effect                                                                                                                 | Trade-offs                                              |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | The two features only                      | Every other need is a setting of one implementation                                                                    | No portable form for needs such as autoscaling          |
 | A feature once two implementations meet it | A need becomes a portable feature when two or more implementations support it, as principle 1 states for common fields | A design change, and a revision, for each feature added |

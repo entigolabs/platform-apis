@@ -2,7 +2,7 @@
 
 Work outside the design that it depends on or leads to.
 
-#### 1 Implementation on each cloud
+#### 1 Implement the design on each cloud
 
 Each cloud gets its own implementation of the design, built on its managed services and its
 Crossplane provider.
@@ -33,7 +33,7 @@ Known so far:
   selector with that label, and Crossplane picks the Composition by it: a composite resource without
   a Composition reference takes one whose labels match its selector (checked in Crossplane v2.4.3).
 
-#### 2 Migration from current APIs
+#### 2 Migrate objects from the current APIs
 
 Existing objects of today's kinds move to the design without losing their cloud resources.
 
@@ -45,7 +45,7 @@ The differences are listed in [API Changes](changes.md). Known so far for the mi
   topics without ACLs, such as FleetComplete's, lose access at the switch, which is therefore agreed
   with that team first.
 
-#### 3 Cloud identity for applications
+#### 3 Give each application a cloud identity
 
 Each application gets a cloud identity of its own, through which it reaches buckets, artifact
 repositories and other cloud services.
@@ -66,16 +66,17 @@ one. Known so far:
   OCIR accepts a user's auth token or an instance principal through Oracle's
   docker-credential-ocir.
 
-#### 4 Allow list of kinds in Zone Argo CD projects
+#### 4 Limit Zone Argo CD projects to an allowlist of kinds
 
 A Zone's Argo CD project allows only the kinds the Zone's role permits.
 
 Today the AppProject blocks `*.m.upbound.io` but allows every other namespaced kind, so a namespaced
 provider outside it, such as provider-sql or provider-kubernetes, can be synced past the platform's
 functions. Its `namespaceResourceWhitelist` should list the groups the Zone's role allows, so a
-provider installed later is blocked by default.
+provider installed later is blocked by default. The `observe` check in
+[Common Design](common-design.md#observed-resources) depends on this allowlist.
 
-#### 5 Cloud rejections in Argo CD health
+#### 5 Show cloud rejections in Argo CD health
 
 Argo CD shows an object whose cloud rejected it as `Degraded`, with the cloud's message.
 

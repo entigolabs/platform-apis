@@ -327,7 +327,7 @@ that offers it. A comment names the source of each value the object does not hol
 `platform` for a value the platform sets, and `deployment` for one the deployment sets. The object
 and its resource:
 
-```yaml Object
+```yaml Object on AWS
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: MariaDBServer
@@ -405,7 +405,7 @@ spec:
     kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
-*`MariaDBServer` and its composed resource.*
+*`MariaDBServer` on AWS and its composed resource.*
 
 ## Platform Decisions
 

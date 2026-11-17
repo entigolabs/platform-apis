@@ -2,14 +2,14 @@
 
 Capabilities considered and omitted for now; the design is complete without them.
 
-#### 1 Per-cluster extension allow list for PostgreSQL
+#### 1 Per-cluster extension allow list for PostgreSQL, deferred as a second list to manage
 
 On Azure a server allows an extension through its `azure.extensions` parameter before any database
 can create it. The design sets it to the platform's whole allowlist on every Azure cluster, so
 databases behave as on the other clouds ([postgresql.md](postgresql.md)); a per-cluster list would
 allow a user to narrow it, at the cost of a second list to manage.
 
-#### 2 MSK Serverless support
+#### 2 MSK Serverless support, deferred since no `KafkaUser` can work on it
 
 MSK Serverless has a different capacity model (throughput limits, no brokers), IAM login only and no
 Kafka ACLs, so no `KafkaUser` can work on it. Observing one is possible; creating one is not

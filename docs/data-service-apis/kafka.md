@@ -312,7 +312,7 @@ on: the platform applies the entry of its class's kind and ignores the others. A
 source of each value the object does not hold as written: `platform` for a value the platform sets,
 and `deployment` for one the deployment sets. The object and its resources:
 
-```yaml Object
+```yaml Object on AWS
 ---
 apiVersion: queue.entigo.com/v1alpha2
 kind: KafkaCluster
@@ -380,9 +380,9 @@ spec:
       encryptionAtRestKmsKeyArn: arn:aws:kms:eu-north-1:111122223333:key/data
 ```
 
-*`KafkaCluster` and its composed resource.*
+*`KafkaCluster` on AWS and its composed resource.*
 
-```yaml Object
+```yaml Object on OCI
 ---
 apiVersion: queue.entigo.com/v1alpha2
 kind: KafkaCluster
@@ -442,7 +442,7 @@ spec:
       - ocid1.subnet.oc1..deployment
 ```
 
-*`KafkaCluster` and its composed resource.*
+*`KafkaCluster` on OCI and its composed resource.*
 
 ## Platform Decisions
 
