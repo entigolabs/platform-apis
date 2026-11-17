@@ -7,7 +7,7 @@ One kind: `ValkeyInstance`, one primary node with read replicas.
 
 Built on ElastiCache (AWS) and OCI Cache (OCI). GCP's Memorystore for Valkey is mapped, but the kind
 exists on GCP only once its Crossplane provider supports password login, which the connection secret
-needs (rule 6). Azure has none: Azure Managed Redis runs Redis, not Valkey.
+needs (principle 6). Azure has none: Azure Managed Redis runs Redis, not Valkey.
 
 [API Changes](changes.md#valkey) lists what changes from today's API.
 
@@ -54,8 +54,8 @@ spec:
     startHourUTC: 3
   parameters:                          # Valkey settings, within each cloud's allowlist
     maxmemory-policy: allkeys-lru
-  secretName: orders-cache-login       # unset, orders-cache-credentials (rule 6)
-  # Cloud-specific; every block also takes id (rule 9)
+  secretName: orders-cache-login       # unset, orders-cache-credentials (principle 6)
+  # Cloud-specific; every block also takes id (principle 9)
   aws:
     instanceType: cache.t4g.small      # the ElastiCache node type
     # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
@@ -105,7 +105,7 @@ in as, so a client that always sends a username and password works unchanged.
 ## Mapping
 
 The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
-ignored, with the reason (rule 1), and a field of a cloud's block appears only for that cloud:
+ignored, with the reason (principle 1), and a field of a cloud's block appears only for that cloud:
 
 | Field                                 | AWS                                          | GCP                                                                                                               | OCI                                                                        |
 | ------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -356,10 +356,10 @@ The platform makes these settings itself:
 
 ## Cloud Limits
 
-The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
-them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later. Each limit holds as of its source: the provider release
-named, or the cloud's documentation as read in November 2026.
+The cloud enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
 | Field                  | Cloud | Limit    | Source                                                                                   |
 | ---------------------- | ----- | -------- | ---------------------------------------------------------------------------------------- |

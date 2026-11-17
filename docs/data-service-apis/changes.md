@@ -22,12 +22,12 @@ Changes shared by all kinds, stated once here:
 | Today                                                                              | Design                                                   | Reason                                                                                     |
 | ---------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `v1alpha1`                                                                         | `v1alpha2`                                               | Fields move, so the version changes                                                        |
-| XRD schema defaults, and deployment values the function applies on every reconcile | defaults written into the object once, at creation       | A changed default never changes a running resource (rule 5)                                |
-| (none)                                                                             | `observe`, and a block per cloud with an `id`            | Observing an existing resource, and each cloud's settings in its own block (rules 2 and 9) |
-| (none)                                                                             | `secretName`                                             | Overrides the secret's name (rule 6)                                                       |
-| a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | References cross namespaces within the Zone (rule 11)                                      |
-| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The user sees why the cloud refused (rule 10)                                              |
-| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.<cloud>`                    | The status reports what the cloud runs (rule 4)                                            |
+| XRD schema defaults, and deployment values the function applies on every reconcile | defaults written into the object once, at creation       | A changed default never changes a running resource (principle 5)                                |
+| (none)                                                                             | `observe`, and a block per cloud with an `id`            | Observing an existing resource, and each cloud's settings in its own block (principles 2 and 9) |
+| (none)                                                                             | `secretName`                                             | Overrides the secret's name (principle 6)                                                       |
+| a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | References cross namespaces within the Zone (principle 11)                                      |
+| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The user sees why the cloud refused (principle 10)                                              |
+| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.<cloud>`                    | The status reports what the cloud runs (principle 4)                                            |
 
 *Changes shared by all kinds.*
 
@@ -39,30 +39,30 @@ Changes shared by all kinds, stated once here:
 
 | Today                                                                                                                   | Design                                                               | Reason                                                                                           |
 | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| kind `PostgreSQLInstance`                                                                                               | kind `PostgreSQLCluster`                                             | PostgreSQL's own term; a new kind, served beside today's, so objects move one at a time (rule 8) |
+| kind `PostgreSQLInstance`                                                                                               | kind `PostgreSQLCluster`                                             | PostgreSQL's own term; a new kind, served beside today's, so objects move one at a time (principle 8) |
 | `engineVersion`                                                                                                         | `version`                                                            | The major version; a full version only with minor upgrades off                                   |
-| `instanceType`                                                                                                          | `instanceType` in the `PostgreSQLRDSConfig` entry                    | A size named by its product is a setting of one implementation (rule 2)                          |
+| `instanceType`                                                                                                          | `instanceType` in the `PostgreSQLRDSConfig` entry                    | A size named by its product is a setting of one implementation (principle 2)                          |
 | `allocatedStorage`                                                                                                      | `storage.sizeGB`                                                     | The size at creation and a floor afterwards                                                      |
-| `iops`                                                                                                                  | `storage.iops`                                                       | Grouped with the other storage settings (rule 13)                                                |
+| `iops`                                                                                                                  | `storage.iops`                                                       | Grouped with the other storage settings (principle 13)                                                |
 | (none)                                                                                                                  | `storage.autoGrow`, `storage.maxSizeGB`, `storage.throughputMBps`    | New common settings                                                                              |
 | `multiAZ`                                                                                                               | `highAvailability`                                                   | Named after the need, not the AWS feature                                                        |
 | `maintenanceWindow` (RDS string)                                                                                        | `maintenanceWindow` (`day`, `hourUTC`)                               | One form everywhere                                                                              |
-| `backupRetentionPeriod`                                                                                                 | `backup.retentionDays`                                               | Grouped under backup (rule 13)                                                                   |
+| `backupRetentionPeriod`                                                                                                 | `backup.retentionDays`                                               | Grouped under backup (principle 13)                                                                   |
 | `backupWindow` (RDS string)                                                                                             | `backup.startHourUTC`                                                | One form everywhere                                                                              |
 | (none)                                                                                                                  | `backup.pointInTimeDays`                                             | New common setting                                                                               |
-| `parameterGroupName`                                                                                                    | `parameterGroupName` in the `PostgreSQLRDSConfig` entry              | An RDS concept (rule 2)                                                                          |
+| `parameterGroupName`                                                                                                    | `parameterGroupName` in the `PostgreSQLRDSConfig` entry              | An RDS concept (principle 2)                                                                          |
 | `parameterGroupParameters` (a map with a reserved `applyMethod` key)                                                    | `parameters` and `parameterApplyMethod`                              | The apply method becomes its own field                                                           |
 | (none)                                                                                                                  | `parametersRef`                                                      | Settings shared through a `PostgreSQLParameters`                                                 |
-| `snapshotIdentifier`                                                                                                    | `fromBackup` in the `PostgreSQLRDSConfig` entry                      | A backup ID belongs to one implementation (rule 2)                                               |
+| `snapshotIdentifier`                                                                                                    | `fromBackup` in the `PostgreSQLRDSConfig` entry                      | A backup ID belongs to one implementation (principle 2)                                               |
 | (none)                                                                                                                  | `restore.fromInstance`, `restore.pointInTime`                        | Restore from another cluster                                                                     |
-| (none)                                                                                                                  | `className`                                                          | The deployment's defaults and limits come from a class (rule 5)                                  |
-| (none)                                                                                                                  | `providerConfigs` entries of other kinds                             | Sizes and settings of other implementations (rule 2)                                             |
-| (none)                                                                                                                  | `readReplicas`, `disasterRecovery`                                   | New portable features (rule 1)                                                                   |
+| (none)                                                                                                                  | `className`                                                          | The deployment's defaults and limits come from a class (principle 5)                                  |
+| (none)                                                                                                                  | `providerConfigs` entries of other kinds                             | Sizes and settings of other implementations (principle 2)                                             |
+| (none)                                                                                                                  | `readReplicas`, `disasterRecovery`                                   | New portable features (principle 1)                                                                   |
 | `status.endpoint.address`                                                                                               | `status.endpoint.host`                                               | The same word everywhere                                                                         |
-| `status.dbInstanceIdentifier`, `status.resourceId`, `status.status`, `status.latestRestorableTime`                      | `status.provider`                                                    | Values of one implementation (rule 4)                                                            |
-| `status.finalSnapshotIdentifier`                                                                                        | `status.provider.finalBackup`                                        | A value of one implementation (rule 4)                                                           |
-| (none)                                                                                                                  | `status.providerConfig`, `status.effective`, `status.readerEndpoint` | The applied entry, each value's source, and where reads go (rules 4 and 6)                       |
-| `status.hostedZoneId`, `status.vpcSecurityGroupIds`, `status.kmsKeyId`, `status.storageEncrypted`, `status.storageType` | removed                                                              | Settings the platform makes (rule 4)                                                             |
+| `status.dbInstanceIdentifier`, `status.resourceId`, `status.status`, `status.latestRestorableTime`                      | `status.provider`                                                    | Values of one implementation (principle 4)                                                            |
+| `status.finalSnapshotIdentifier`                                                                                        | `status.provider.finalBackup`                                        | A value of one implementation (principle 4)                                                           |
+| (none)                                                                                                                  | `status.providerConfig`, `status.effective`, `status.readerEndpoint` | The applied entry, each value's source, and where reads go (principles 4 and 6)                       |
+| `status.hostedZoneId`, `status.vpcSecurityGroupIds`, `status.kmsKeyId`, `status.storageEncrypted`, `status.storageType` | removed                                                              | Settings the platform makes (principle 4)                                                             |
 | `status.parameterGroupName`, `status.snapshotIdentifier`                                                                | removed                                                              | Echoes of the spec                                                                               |
 
 *Changes from `PostgreSQLInstance` to `PostgreSQLCluster`.*
@@ -142,8 +142,8 @@ and `name` and `clusterRef` become immutable.
 
 | Today                                                                                         | Design                     | Reason                                                                                                                                    |
 | --------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `databaseRef`, `table`, `privileges`                                                          | one entry of `databases`   | One login per application and instance (rule 12)                                                                                          |
-| `databaseRef.namespace`, ignored today                                                        | honoured within the Zone   | References cross namespaces within the Zone (rule 11)                                                                                     |
+| `databaseRef`, `table`, `privileges`                                                          | one entry of `databases`   | One login per application and instance (principle 12)                                                                                          |
+| `databaseRef.namespace`, ignored today                                                        | honoured within the Zone   | References cross namespaces within the Zone (principle 11)                                                                                     |
 | user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit | Today's defaults are too low for a production application                                                                                 |
 | `grant.users`                                                                                 | removed                    | The names never reached MariaDB: each one only created another copy of the user's own grant, and privileges applied only when one was set |
 
@@ -199,22 +199,22 @@ spec:
 | Today                                                           | Design                                                       | Reason                                                |
 | --------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
 | `engineVersion`                                                 | `version`                                                    | Major and minor, a floor that only rises              |
-| `instanceType`                                                  | `aws.instanceType`, `gcp.instanceType`                       | A cloud's own node type belongs in its block (rule 2) |
+| `instanceType`                                                  | `aws.instanceType`, `gcp.instanceType`                       | A cloud's own node type belongs in its block (principle 2) |
 | `numCacheClusters`                                              | `replicas`                                                   | Counts replicas only: `numCacheClusters` minus one    |
 | (none)                                                          | `highAvailability`                                           | New common setting; needs at least one replica        |
 | `maintenanceWindow`                                             | `maintenance.window`                                         | One form for every cloud                              |
 | `autoMinorVersionUpgrade`                                       | `maintenance.autoMinorVersionUpgrade`                        | Grouped under maintenance                             |
 | `snapshotRetentionLimit`                                        | `backup.retentionDays`                                       | Grouped under backup                                  |
 | `snapshotWindow`                                                | `backup.startHourUTC`                                        | One form for every cloud                              |
-| `parameterGroupName`                                            | `aws.parameterGroupName`                                     | An ElastiCache concept (rule 2)                       |
+| `parameterGroupName`                                            | `aws.parameterGroupName`                                     | An ElastiCache concept (principle 2)                       |
 | `parameterGroupParameters`                                      | `parameters`                                                 | One map for every cloud                               |
 | (none)                                                          | `aws.fromBackup`                                             | Create a cache from a snapshot, such as the final one |
 | `status.endpoint.address`                                       | `status.endpoint.host`                                       | The same word on every cloud                          |
 | `status.multiAZenabled`                                         | `status.highAvailability`                                    | Named after the need                                  |
 | (none)                                                          | `status.readerEndpoint`, `status.replicas`                   | Where reads go, and how many replicas run             |
-| `status.kmsKeyAlias`, `status.kmsKeyId`, `status.securityGroup` | removed                                                      | Settings the platform makes (rule 4)                  |
+| `status.kmsKeyAlias`, `status.kmsKeyId`, `status.securityGroup` | removed                                                      | Settings the platform makes (principle 4)                  |
 | `status.parameterGroupName`                                     | removed                                                      | An echo of the spec                                   |
-| secret keys `AUTH_TOKEN`, `PORT`, `credentials.json`            | `endpoint`, `port`, `username`, `password`, `readerEndpoint` | The keys of rule 6                                    |
+| secret keys `AUTH_TOKEN`, `PORT`, `credentials.json`            | `endpoint`, `port`, `username`, `password`, `readerEndpoint` | The keys of principle 6                                    |
 
 *Changes to `ValkeyInstance`.*
 
@@ -267,13 +267,13 @@ creates one or observes one:
 
 | Today                                    | Design                                                                                                      | Reason                                                            |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| kind `MSK`, cluster-scoped               | kind `KafkaCluster`, namespaced                                                                             | Named after the engine (rule 8), shared within its Zone (rule 11) |
-| `clusterARN`                             | `observe: true` and `aws.id`                                                                                | Observing is one form for every kind (rule 9)                     |
+| kind `MSK`, cluster-scoped               | kind `KafkaCluster`, namespaced                                                                             | Named after the engine (principle 8), shared within its Zone (principle 11) |
+| `clusterARN`                             | `observe: true` and `aws.id`                                                                                | Observing is one form for every kind (principle 9)                     |
 | (none)                                   | `version`, `brokers`, `storage.sizeGB`, `highAvailability`, `deletionProtection`, `parameters`, cloud sizes | Creating a cluster                                                |
 | `status.brokers`, `status.brokersscram`  | `status.bootstrapServers`                                                                                   | One listener field for every cloud                                |
-| `status.arn`                             | `status.aws.arn`                                                                                            | A cloud ID (rule 4)                                               |
+| `status.arn`                             | `status.aws.arn`                                                                                            | A cloud ID (principle 4)                                               |
 | `status.providerConfig`, `status.region` | removed                                                                                                     | Internal to the platform                                          |
-| topics without an ACL open to every user | topics without an ACL closed                                                                                | Access is granted per user (rule 12)                              |
+| topics without an ACL open to every user | topics without an ACL closed                                                                                | Access is granted per user (principle 12)                              |
 
 *Changes from `MSK` to `KafkaCluster`.*
 
@@ -310,8 +310,8 @@ spec:
 
 | Today         | Design            | Reason                                          |
 | ------------- | ----------------- | ----------------------------------------------- |
-| kind `Topic`  | kind `KafkaTopic` | Named after the engine (rule 8)                 |
-| `clusterName` | `clusterRef`      | A reference with a namespace (rule 11)          |
+| kind `Topic`  | kind `KafkaTopic` | Named after the engine (principle 8)                 |
+| `clusterName` | `clusterRef`      | A reference with a namespace (principle 11)          |
 | `config`      | `parameters`      | The same word as on every other kind            |
 | (none)        | `name`            | A Kafka name that a Kubernetes name cannot hold |
 
@@ -357,8 +357,8 @@ spec:
 
 | Today                                         | Design                                                                         | Reason                                 |
 | --------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
-| `clusterName`                                 | `clusterRef`                                                                   | A reference with a namespace (rule 11) |
-| secret `<cluster>-<user>-k8s`, one JSON value | secret `<cluster>-<user>`: `endpoint`, `username`, `password`, `saslMechanism` | The keys of rule 6                     |
+| `clusterName`                                 | `clusterRef`                                                                   | A reference with a namespace (principle 11) |
+| secret `<cluster>-<user>-k8s`, one JSON value | secret `<cluster>-<user>`: `endpoint`, `username`, `password`, `saslMechanism` | The keys of principle 6                     |
 
 *Changes to `KafkaUser`.*
 
@@ -371,16 +371,16 @@ spec:
 | Today                                                                             | Design                                                                                                                                   | Reason                                                                                       |
 | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `engineVersion`                                                                   | `version`                                                                                                                                | The release line; Amazon MQ manages the patch                                                |
-| `instanceType`                                                                    | `aws.instanceType`                                                                                                                       | A cloud's own size name (rule 2)                                                             |
+| `instanceType`                                                                    | `aws.instanceType`                                                                                                                       | A cloud's own size name (principle 2)                                                             |
 | `deploymentMode`                                                                  | `highAvailability`                                                                                                                       | Named after the need                                                                         |
 | `maintenanceWindowStartTime`                                                      | `maintenance.window`                                                                                                                     | One form for every cloud                                                                     |
 | `configuration.data`                                                              | `parameters`                                                                                                                             | A map the platform renders into `rabbitmq.conf`                                              |
 | `configuration.description`                                                       | removed                                                                                                                                  | Internal to the platform                                                                     |
-| `publiclyAccessible`                                                              | `aws.publiclyAccessible`                                                                                                                 | An Amazon MQ setting (rule 2)                                                                |
+| `publiclyAccessible`                                                              | `aws.publiclyAccessible`                                                                                                                 | An Amazon MQ setting (principle 2)                                                                |
 | `brokerName`, `engineType`, `autoMinorVersionUpgrade`                             | removed                                                                                                                                  | The platform names the broker, the engine is RabbitMQ, and Amazon MQ requires minor upgrades |
 | (none)                                                                            | `deletionProtection`                                                                                                                     | The same guard as on every other kind                                                        |
-| today's Amazon MQ status fields                                                   | `status.endpoint`, `status.managementEndpoint`, `status.highAvailability`, `status.version`; `status.aws.id`, `status.aws.engineVersion` | One form for every cloud (rule 4)                                                            |
-| secrets `<broker>-credentials` (`username`, `password`) and `<broker>-connection` | one secret `<broker>-credentials`: `endpoint`, `port`, `username`, `password`, `managementEndpoint`                                      | The keys of rule 6                                                                           |
+| today's Amazon MQ status fields                                                   | `status.endpoint`, `status.managementEndpoint`, `status.highAvailability`, `status.version`; `status.aws.id`, `status.aws.engineVersion` | One form for every cloud (principle 4)                                                            |
+| secrets `<broker>-credentials` (`username`, `password`) and `<broker>-connection` | one secret `<broker>-credentials`: `endpoint`, `port`, `username`, `password`, `managementEndpoint`                                      | The keys of principle 6                                                                           |
 
 *Changes to `RabbitMQBroker`.*
 
@@ -447,14 +447,14 @@ spec:
 
 | Today                                                        | Design                                                                        | Reason                                                                                                                        |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| kind `S3Bucket`                                              | kind `Bucket`                                                                 | Named after the concept (rule 8)                                                                                              |
+| kind `S3Bucket`                                              | kind `Bucket`                                                                 | Named after the concept (principle 8)                                                                                              |
 | `enableVersioning`                                           | `versioning`                                                                  | The same word on every cloud                                                                                                  |
 | `createServiceAccount`, `serviceAccountName`                 | removed                                                                       | An application's identity is not part of the bucket ([Follow-Up Work 3](follow-up-work.md#3-cloud-identity-for-applications)) |
 | (none)                                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `softDeleteDays` | New settings                                                                                                                  |
 | an IAM role, service account and IAM user with an access key | not created                                                                   | A bucket holds no credentials                                                                                                 |
 | a secret with `AWS_*` and `credentials.json` keys            | removed                                                                       | A bucket holds no credentials                                                                                                 |
 | `status.s3Url`, `status.s3Uri`                               | `status.url`, with `status.bucketName` and `status.region`                    | The same words on every cloud                                                                                                 |
-| encryption, public access and ACL status fields              | removed                                                                       | Settings the platform makes (rule 4)                                                                                          |
+| encryption, public access and ACL status fields              | removed                                                                       | Settings the platform makes (principle 4)                                                                                          |
 
 *Changes from `S3Bucket` to `Bucket`.*
 
@@ -498,7 +498,7 @@ spec:
 
 | Today                           | Design                                                  | Reason                                                                 |
 | ------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
-| kind `Repository`               | kind `ArtifactRepository`                               | Holds any OCI artifact, and named after the concept (rule 8)           |
+| kind `Repository`               | kind `ArtifactRepository`                               | Holds any OCI artifact, and named after the concept (principle 8)           |
 | `path`, free-form               | `path` under the namespace: `<namespace>/<path>/<name>` | Namespaces keep paths apart in a cluster; image paths change           |
 | (none)                          | `immutableTags`                                         | Today a deployment-wide setting; ECR's two exclusion modes are dropped |
 | `status.repositoryUri`          | `status.uri`                                            | The same word on every cloud                                           |

@@ -101,11 +101,11 @@ IMMUTABLE = [("self == oldSelf", "is immutable")]
 
 def cloud_block(cloud, kind_noun, settings=None):
     props = {"id": field("string", f"The {CLOUD_NAMES[cloud]} ID of an existing {kind_noun} "
-                         "to observe (rule 9). Only with observe.",
+                         "to observe (principle 9). Only with observe.",
                          **{"x-kubernetes-validations": [{"rule": "self == oldSelf",
                                                           "message": "id is immutable"}]})}
     props.update(settings or {})
-    return obj(props, f"Settings for {CLOUD_NAMES[cloud]} only (rule 2).")
+    return obj(props, f"Settings for {CLOUD_NAMES[cloud]} only (principle 2).")
 
 
 def resource_spec(common, blocks, kind_noun, rules=None, observe_ext=None):
@@ -113,7 +113,7 @@ def resource_spec(common, blocks, kind_noun, rules=None, observe_ext=None):
     props = {"observe": field(
         "boolean",
         "true observes an existing resource, named by the cloud block's id, and never changes "
-        "or deletes it. Every other field is then rejected (rule 9). Set at creation only.",
+        "or deletes it. Every other field is then rejected (principle 9). Set at creation only.",
         observe_ext)}
     props.update(common)
     props.update({c: cloud_block(c, kind_noun, s) for c, s in blocks.items()})
@@ -141,14 +141,14 @@ def resource_spec(common, blocks, kind_noun, rules=None, observe_ext=None):
 def parent_ref(kind, name):
     return obj({"name": field("string", f"The {kind}."),
                 "namespace": field("string", f"The {kind}'s namespace, which must be in this "
-                                   "object's Zone (rule 11). Unset, this object's "
+                                   "object's Zone (principle 11). Unset, this object's "
                                    "namespace.")},
                f"The {kind} this object lives in.", required=["name"],
                rules=[("self == oldSelf", f"{name} is immutable")])
 
 
 def secret_name(default):
-    return field("string", "The name of the connection Secret (rule 6). The platform never "
+    return field("string", "The name of the connection Secret (principle 6). The platform never "
                  "overwrites a Secret that another object or person owns; set this to avoid one.",
                  default=f"fixed, {default}")
 
@@ -224,7 +224,7 @@ def from_backup_field(text):
 
 
 def from_backup_rules(clouds):
-    """fromBackup lives in the cloud blocks (rule 2): set at creation only, never with restore."""
+    """fromBackup lives in the cloud blocks (principle 2): set at creation only, never with restore."""
     rules = []
     for c in clouds:
         has = f"(has(self.{c}) && has(self.{c}.fromBackup))"
@@ -268,11 +268,11 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
                                                  "GCP, OCI and Azure.", DEPLOY, sc),
             "allowMajorVersionUpgrade": field(
                 "boolean", "Allow version to change to a later major.",
-                "A major upgrade on OCI, which has none, fails (rule 10).", "fixed, false", sc),
+                "A major upgrade on OCI, which has none, fails (principle 10).", "fixed, false", sc),
         }),
         "backup": obj({
             "retentionDays": field("integer", "Days automated backups are kept, within the "
-                                   "cloud's own range, which the cloud checks (rule 10). 0 "
+                                   "cloud's own range, which the cloud checks (principle 10). 0 "
                                    "turns automated backups and point-in-time restore off.",
                                    "Ignored for 0 on Azure, which "
                                    "always keeps backups.", DEPLOY, sc, minimum=0),
@@ -324,7 +324,7 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
                        **({"pointInTimeDays": field("integer")} if pitr else {}),
                        "startHourUTC": field("integer")}),
         "endpoint": endpoint(),
-        "connectionSecret": field("string", f"The admin Secret, <instance>-dbadmin (rule 6)."),
+        "connectionSecret": field("string", f"The admin Secret, <instance>-dbadmin (principle 6)."),
         **STATUS_BLOCKS[kind],
     })
     return xrd(kind, plural, "database.entigo.com", spec, status)
@@ -411,7 +411,7 @@ write("postgresqluser", xrd(
                          default="fixed, true"),
         "grant": obj({"roles": array(field("string"), "Roles granted to this role.")}),
     }, rules=[NAME_RULE]),
-    obj({"connectionSecret": field("string", "The Secret with this user's login (rule 6).")}),
+    obj({"connectionSecret": field("string", "The Secret with this user's login (principle 6).")}),
     required_spec=["clusterRef"]))
 
 write("postgresqldatabase", xrd(
@@ -472,7 +472,7 @@ write("mariadbuser", xrd(
         "maxUserConnections": field("integer", "Connections allowed at once; 0 is no limit of the user's own, so only the server's max_connections applies.", default="fixed, 0",
                                     minimum=0),
     }, rules=[NAME_RULE]),
-    obj({"connectionSecret": field("string", "The Secret with this user's login (rule 6).")}),
+    obj({"connectionSecret": field("string", "The Secret with this user's login (principle 6).")}),
     required_spec=["instanceRef", "databases"]))
 
 write("mariadbdatabase", xrd(
@@ -503,7 +503,7 @@ write("valkeyinstance", xrd(
                                   "Ignored for false on OCI, which distributes nodes itself.",
                                   default=DEPLOY),
         "replicas": field("integer", "Read replicas besides the primary, within the cloud's "
-                          "own limit (rule 10).", default=DEPLOY, minimum=0),
+                          "own limit (principle 10).", default=DEPLOY, minimum=0),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
         "maintenance": obj({
@@ -515,7 +515,7 @@ write("valkeyinstance", xrd(
         }),
         "backup": obj({
             "retentionDays": field("integer", "Days automated backups are kept, within the "
-                                   "cloud's own range (rule 10). 0 turns automated backups "
+                                   "cloud's own range (principle 10). 0 turns automated backups "
                                    "off.", default=DEPLOY, minimum=0),
             "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
                                   minimum=0, maximum=23),
@@ -533,7 +533,7 @@ write("valkeyinstance", xrd(
                                     "Create time only.")},
         "gcp": {"instanceType": field("string", "The Memorystore node type.", default=DEPLOY)},
         "oci": {"memoryGB": field("integer", "Memory per node, within OCI's own range "
-                                  "(rule 10).", default=DEPLOY, minimum=1)},
+                                  "(principle 10).", default=DEPLOY, minimum=1)},
     }, "cache", [
         ("(has(self.aws) && has(self.aws.fromBackup)) == "
          "(has(oldSelf.aws) && has(oldSelf.aws.fromBackup)) && "
@@ -563,7 +563,7 @@ write("valkeyinstance", xrd(
         "replicas": field("integer"),
         "endpoint": endpoint("The primary's address."),
         "readerEndpoint": endpoint("The address that spreads reads over the replicas."),
-        "connectionSecret": field("string", "The Secret <instance>-credentials (rule 6)."),
+        "connectionSecret": field("string", "The Secret <instance>-credentials (principle 6)."),
         "aws": obj({"instanceType": S(), "finalBackup": field(
             "string", "The ID the final snapshot receives when the cache is deleted."),
             "id": S(), "engineVersionActual": S()}),
@@ -595,7 +595,7 @@ write("kafkacluster", xrd(
                                       "kafka.m7g.large.", default=DEPLOY)},
         "gcp": {
             "vcpus": field("integer", "The whole cluster's vCPUs.", default=DEPLOY, minimum=1),
-            "memoryGB": field("integer", "The whole cluster's memory, within GCP's range per vCPU (rule 10).",
+            "memoryGB": field("integer", "The whole cluster's memory, within GCP's range per vCPU (principle 10).",
                               default=DEPLOY, minimum=1),
         },
         "oci": {"instanceType": field("string", "The broker shape. A .Flex shape needs "
@@ -630,7 +630,7 @@ write("kafkauser", xrd(
         }, required=["topic", "operation"]), "Kafka ACLs that allow this user an operation "
             "on a topic."),
     }),
-    obj({"connectionSecret": field("string", "The Secret <cluster>-<user> (rule 6).")}),
+    obj({"connectionSecret": field("string", "The Secret <cluster>-<user> (principle 6).")}),
     required_spec=["clusterRef"]))
 
 write("kafkatopic", xrd(
@@ -684,7 +684,7 @@ write("rabbitmqbroker", xrd(
         "highAvailability": field("boolean"),
         "endpoint": endpoint("The AMQPS address."),
         "managementEndpoint": field("string", "The management console URL."),
-        "connectionSecret": field("string", "The Secret <broker>-credentials (rule 6)."),
+        "connectionSecret": field("string", "The Secret <broker>-credentials (principle 6)."),
         "aws": obj({"instanceType": S(), "id": S(), "engineVersion": S()}),
     })))
 
@@ -720,7 +720,7 @@ write("rabbitmquser", xrd(
         }, required=["virtualHost"]), "RabbitMQ permissions, one entry per virtual host.",
             **{"x-kubernetes-list-type": "map", "x-kubernetes-list-map-keys": ["virtualHost"]}),
     }, rules=[NAME_RULE]),
-    obj({"connectionSecret": field("string", "The Secret <broker>-<user> (rule 6).")}),
+    obj({"connectionSecret": field("string", "The Secret <broker>-<user> (principle 6).")}),
     required_spec=["brokerRef"]))
 
 # --- Bucket -------------------------------------------------------------------------------
@@ -821,7 +821,7 @@ write("artifactrepository", xrd(
         ("(has(self.path) ? self.path : '') == (has(oldSelf.path) ? oldSelf.path : '')",
          "path is immutable"),
     ], observe_ext="Observing fails on Azure, where a repository "
-                   "has no resource of its own (rule 10)."),
+                   "has no resource of its own (principle 10)."),
     obj({
         "uri": field("string", "The image URI, such as "
                      "123456789012.dkr.ecr.eu-north-1.amazonaws.com/shop/orders-api."),
@@ -831,7 +831,7 @@ write("artifactrepository", xrd(
         "azure": obj({"registryId": S()}),
     })))
 
-# --- Provider configs and classes (rules 2, 5 and 8) ----------------------------------------
+# --- Provider configs and classes (principles 2, 5 and 8) ----------------------------------------
 
 FEATURES = ["HighAvailability", "ReadReplicas", "DisasterRecovery"]
 
@@ -874,12 +874,12 @@ def entry_fields(text):
 
 
 def provider_configs():
-    """The open list of provider configs (rule 2): one entry per kind, inline or by reference."""
+    """The open list of provider configs (principle 2): one entry per kind, inline or by reference."""
     return array(
         obj(entry_fields("The settings, checked by the implementation that applies them "
-                         "(rule 10)."), required=["apiVersion", "kind"],
+                         "(principle 10)."), required=["apiVersion", "kind"],
             rules=[("has(self.spec) != has(self.ref)", "an entry holds either spec or ref")]),
-        "Settings of single implementations, one entry per kind (rule 2). The deployment applies "
+        "Settings of single implementations, one entry per kind (principle 2). The deployment applies "
         "the entry whose kind its class names and ignores the others.",
         **{"x-kubernetes-list-type": "map", "x-kubernetes-list-map-keys": ["apiVersion", "kind"]})
 
@@ -892,7 +892,7 @@ def provider_config(text):
 
 
 def class_crd(kind, plural, group, common, extra_rules=()):
-    """A cluster-scoped class (rule 5): template defaults, enforced values, a DR standby."""
+    """A cluster-scoped class (principle 5): template defaults, enforced values, a DR standby."""
     part = lambda text: obj({**common, "providerConfig": provider_config(
         "The provider config: its kind names the implementation this class uses."),
         "parametersRef": obj({"name": field("string"), "namespace": field("string")},
@@ -914,25 +914,25 @@ def class_crd(kind, plural, group, common, extra_rules=()):
     }, rules=[same, *extra_rules])
     status = obj({"supportedFeatures": array(field("string", enum=FEATURES),
                                              "The portable features the implementation supports, "
-                                             "written by the implementation (rule 1).")})
+                                             "written by the implementation (principle 1).")})
     return crd(kind, plural, group, "Cluster", spec, status)
 
 
 def parameters_crd(kind, plural, group, engine):
     return crd(kind, plural, group, "Namespaced", obj({
         "parameters": string_map(f"{engine} settings, by name. Keys outside the implementation's "
-                                 "allowlist are rejected by the cloud (rule 10).")},
+                                 "allowlist are rejected by the cloud (principle 10).")},
         rules=[]), required_spec=["parameters"])
 
 
 def provider_config_crd(kind, plural, group, product, settings, status, rules=()):
     """A provider config kind: one implementation's settings, and its status.provider shape."""
     return crd(kind, plural, group, "Namespaced", obj({
-        "id": field("string", f"The {product} ID of an existing resource to observe (rule 9). "
+        "id": field("string", f"The {product} ID of an existing resource to observe (principle 9). "
                     "Only with observe.", **{"x-kubernetes-validations": [
                         {"rule": "self == oldSelf", "message": "id is immutable"}]}),
-        **settings}, f"Settings for {product} (rule 2).", rules=list(rules)),
-        obj(status, f"The shape of status.provider for {product} (rule 4)."))
+        **settings}, f"Settings for {product} (principle 2).", rules=list(rules)),
+        obj(status, f"The shape of status.provider for {product} (principle 4)."))
 
 
 def from_backup(text):
@@ -957,7 +957,7 @@ DEFAULT = "the class's template"
 
 
 def pg_common(observe=True):
-    """PostgreSQLCluster's common fields (rule 1), grouped as rule 13 says."""
+    """PostgreSQLCluster's common fields (principle 1), grouped as principle 13 says."""
     return {
         "version": field("string", "The major version, such as \"17\". With "
                          "autoMinorVersionUpgrade false, the full version, such as \"17.7\".",
@@ -979,9 +979,9 @@ def pg_common(observe=True):
                    "maxSizeGB must be at least sizeGB")]),
         "highAvailability": field("boolean", "A standby in another zone, with automatic "
                                   "failover. Refused where the class does not support "
-                                  "HighAvailability (rule 1).", default=DEFAULT),
+                                  "HighAvailability (principle 1).", default=DEFAULT),
         "readReplicas": field("integer", "Read-only copies identical to the primary. Refused "
-                              "where the class does not support ReadReplicas (rule 1).",
+                              "where the class does not support ReadReplicas (principle 1).",
                               default="fixed, 0", minimum=0),
         "disasterRecovery": obj({
             "workspaces": array(field("string"), "The Entigo workspaces that hold this database: "
@@ -990,7 +990,7 @@ def pg_common(observe=True):
             "primary": field("string", "The workspace that accepts writes. Changing it in every "
                              "workspace fails over."),
         }, "A copy in another workspace that can become the primary. Refused where the class does "
-           "not support DisasterRecovery (rule 1).", required=["workspaces", "primary"],
+           "not support DisasterRecovery (principle 1).", required=["workspaces", "primary"],
             rules=[("self.primary in self.workspaces", "primary must be one of workspaces")]),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
@@ -1002,7 +1002,7 @@ def pg_common(observe=True):
                                           default="fixed, false"),
         "backup": obj({
             "retentionDays": field("integer", "Days automated backups are kept, within the "
-                                   "implementation's own range (rule 10). 0 turns automated "
+                                   "implementation's own range (principle 10). 0 turns automated "
                                    "backups and point-in-time restore off.", default=DEFAULT,
                                    minimum=0),
             "pointInTimeDays": field("integer", "Days back restore.pointInTime can reach.",
@@ -1030,12 +1030,12 @@ def pg_common(observe=True):
 pg_spec_common = pg_common()
 pg_spec = obj({
     "className": field("string", "The PostgreSQLClass: the deployment's defaults, enforced "
-                       "values and implementation (rule 5). Unset, the default class. Set at "
+                       "values and implementation (principle 5). Unset, the default class. Set at "
                        "creation only.", **{"x-kubernetes-validations": [
                            {"rule": "self == oldSelf", "message": "className is immutable"}]}),
     "observe": field("boolean", "true observes an existing resource, named by the id in its "
                      "provider config entry, and never changes or deletes it. Every other common "
-                     "field is then rejected (rule 9). Set at creation only."),
+                     "field is then rejected (principle 9). Set at creation only."),
     **pg_spec_common,
     "restore": obj({
         "fromInstance": field("string", "A PostgreSQLCluster in this namespace."),
@@ -1075,19 +1075,19 @@ pg_status = obj({
                    "startHourUTC": field("integer")}),
     "endpoint": endpoint(),
     "readerEndpoint": field("string", "Where reads go: one balanced host, or the replicas' "
-                            "hosts where the implementation has none (rule 6)."),
-    "connectionSecret": field("string", "The admin Secret, <instance>-dbadmin (rule 6)."),
+                            "hosts where the implementation has none (principle 6)."),
+    "connectionSecret": field("string", "The admin Secret, <instance>-dbadmin (principle 6)."),
     "disasterRecovery": obj({"role": field("string", enum=["Primary", "Replica"])},
                             "This workspace's role."),
     "providerConfig": obj({"applied": S(), "ignored": array(S())},
                           "The provider config entries applied and ignored, as <apiVersion>, "
-                          "<kind> (rule 4)."),
+                          "<kind> (principle 4)."),
     "effective": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
                   "description": desc("Each effective value and its source: the class's "
-                                      "template, the object, or the class's enforced (rule 4).")},
+                                      "template, the object, or the class's enforced (principle 4).")},
     "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
                  "description": desc("Values of the applied implementation, in the shape its "
-                                     "provider config kind's status defines (rule 4).")},
+                                     "provider config kind's status defines (principle 4).")},
 })
 write("postgresqlcluster", xrd("PostgreSQLCluster", "postgresqlclusters", "database.entigo.com",
                                pg_spec, pg_status))

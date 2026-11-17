@@ -32,8 +32,8 @@ PostgreSQL is offered as five kinds, each with the manifest its owner writes.
 ### PostgreSQLCluster
 
 A team creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
-carries one provider config entry per implementation it may run on (rule 2); each deployment applies
-the entry of its own class's kind and ignores the others:
+carries one provider config entry per implementation it may run on (principle 2); each deployment
+applies the entry of its own class's kind and ignores the others:
 
 ```yaml
 ---
@@ -43,7 +43,7 @@ metadata:
   name: orders-db
   namespace: shop
 spec:
-  className: standard                  # unset, the deployment's default class (rule 5)
+  className: standard                  # unset, the deployment's default class (principle 5)
   version: "17"                        # the full "17.7" with minor upgrades off
   storage:
     sizeGB: 20
@@ -68,7 +68,7 @@ spec:
   parameters:                          # this cluster's own settings, merged last
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
-  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
+  secretName: orders-db-admin          # unset, orders-db-dbadmin (principle 6)
   providerConfigs:                     # one entry per kind; the class's kind applies
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: PostgreSQLRDSConfig
@@ -159,12 +159,12 @@ further, so the status reports the actual size, and the platform never shrinks t
 `sizeGB`.
 
 `highAvailability`, `readReplicas` and `disasterRecovery` are portable features: an object that asks
-for one its class does not support is refused when applied (rule 1). Read Replicas and Disaster
+for one its class does not support is refused when applied (principle 1). Read Replicas and Disaster
 Recovery, below, describe the last two.
 
 The final backup's ID, which `fromBackup` needs, is lost with the cluster's status, so it is taken
 from the cloud console. Besides the common fields, the status shows which entry applied, where each
-effective value came from, and the applied implementation's own values (rule 4):
+effective value came from, and the applied implementation's own values (principle 4):
 
 ```yaml
 status:
@@ -193,13 +193,13 @@ status:
 
 *A `PostgreSQLCluster` status on AWS.*
 
-The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
+The admin login is in the secret `<instance>-dbadmin`, with the keys of principle 6.
 
 ### PostgreSQLClass
 
 A deployment's operator writes its classes: cluster-scoped objects that hold the defaults an object
 starts with (`template`) and the values it cannot change (`enforced`), each with common fields and
-one provider config, whose kind selects the implementation (rule 5):
+one provider config, whose kind selects the implementation (principle 5):
 
 ```yaml
 ---
@@ -238,7 +238,7 @@ spec:
 *A `PostgreSQLClass` for RDS.*
 
 A class's status lists the portable features its implementation supports, written by the
-implementation (rule 1):
+implementation (principle 1):
 
 ```yaml
 status:
@@ -276,13 +276,13 @@ spec:
 
 A `PostgreSQLParameters` names no other: settings layer only through where it is referenced, so
 references never chain. Settings the implementation does not allow are rejected by the cloud and
-reported as `CloudAccepted: False` (rule 10).
+reported as `CloudAccepted: False` (principle 10).
 
 ### PostgreSQLUser
 
 `PostgreSQLUser` acts inside PostgreSQL, through provider-sql, so it is the same in every
 implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
-of the same Zone (rule 11), and it has no class or provider configs.
+of the same Zone (principle 11), and it has no class or provider configs.
 
 A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
 which other users receive through `grant.roles`.
@@ -300,7 +300,7 @@ spec:
   name: orders_app                     # the role's name in PostgreSQL; unset, metadata.name
   clusterRef:
     name: orders-db
-    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+    namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   login: true
   createDb: false
   createRole: false
@@ -308,7 +308,7 @@ spec:
   grant:
     roles:
     - reporting
-  secretName: orders-app-login         # unset, orders-db-orders-app (rule 6)
+  secretName: orders-app-login         # unset, orders-db-orders-app (principle 6)
 ```
 
 *A `PostgreSQLUser` that receives the `reporting` role.*
@@ -317,7 +317,7 @@ spec:
 
 `PostgreSQLDatabase` acts inside PostgreSQL, through provider-sql, so it is the same in every
 implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
-of the same Zone (rule 11), and it has no class or provider configs.
+of the same Zone (principle 11), and it has no class or provider configs.
 
 `extensions` creates an extension in that database. Azure also needs the server to allow it, so
 every Azure cluster allows the whole allowlist, and any database can create any of them, as
@@ -336,7 +336,7 @@ spec:
   name: orders                         # the database's name in PostgreSQL; unset, metadata.name
   clusterRef:
     name: orders-db
-    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+    namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   owner: orders_app                    # a role name in PostgreSQL
   encoding: UTF8
   lcCType: en_US.UTF-8
@@ -356,7 +356,7 @@ spec:
 
 `readReplicas: N` asks for N read-only copies of the cluster, identical to the primary: the same
 size, the same engine parameters and the same class layers. Applications send reads to them through
-the secret's `readerEndpoint` key (rule 6):
+the secret's `readerEndpoint` key (principle 6):
 
 ```yaml
 ---
@@ -408,8 +408,8 @@ The rules for replicas:
   removes the highest index first.
 - **The reader endpoint follows the implementation.** Where it has a balanced read endpoint,
   `readerEndpoint` holds it; elsewhere it lists the replicas' hosts.
-- **A replica runs the primary's major version.** Read replicas use physical replication, which needs
-  the same major version; a copy on a newer version belongs to upgrades and migration.
+- **A replica runs the primary's major version.** Read replicas use physical replication, which
+  needs the same major version; a copy on a newer version belongs to upgrades and migration.
 
 ## Disaster Recovery
 
@@ -453,7 +453,7 @@ The rules for disaster recovery:
 
 - **The source is found by tags.** The DR platform cannot see the primary's cluster, and cloud names
   differ between clusters, so the primary platform tags the resource with the workspace, the Zone
-  and a DR group (`<namespace>/<name>`), and the DR platform finds it with rule 9's tag check.
+  and a DR group (`<namespace>/<name>`), and the DR platform finds it with principle 9's tag check.
 - **Credentials survive the outage.** The primary platform keeps the generated passwords in a store
   that replicates across regions, such as AWS Secrets Manager replica secrets, which the DR side
   reads through External Secrets. An encrypted replica also needs a key in the DR region.
@@ -468,7 +468,7 @@ The rules for disaster recovery:
 ## Mapping
 
 The first table names what each common field maps to in the implementation's provider. A setting the
-implementation lacks shows as ignored, with the reason (rule 1):
+implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field                      | AWS                                                                              | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                |
 | -------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
@@ -949,10 +949,10 @@ The platform makes these settings itself:
 
 ## Cloud Limits
 
-The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
-them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later. Each limit holds as of its source: the provider release
-named, or the cloud's documentation as read in November 2026.
+The cloud enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
 | Field                                     | Cloud | Limit                                    | Source                                                                           |
 | ----------------------------------------- | ----- | ---------------------------------------- | -------------------------------------------------------------------------------- |

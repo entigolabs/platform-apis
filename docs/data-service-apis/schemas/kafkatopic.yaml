@@ -32,8 +32,8 @@ spec:
                   namespace:
                     type: string
                     description: |-
-                      The KafkaCluster's namespace, which must be in this object's Zone (rule 11).
-                      Unset, this object's namespace.
+                      The KafkaCluster's namespace, which must be in this object's Zone (principle
+                      11). Unset, this object's namespace.
                 required:
                 - name
                 x-kubernetes-validations:

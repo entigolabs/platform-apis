@@ -37,8 +37,8 @@ spec:
                   namespace:
                     type: string
                     description: |-
-                      The PostgreSQLCluster's namespace, which must be in this object's Zone (rule
-                      11). Unset, this object's namespace.
+                      The PostgreSQLCluster's namespace, which must be in this object's Zone
+                      (principle 11). Unset, this object's namespace.
                 required:
                 - name
                 x-kubernetes-validations:
@@ -47,7 +47,7 @@ spec:
               secretName:
                 type: string
                 description: |-
-                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  The name of the connection Secret (principle 6). The platform never overwrites a
                   Secret that another object or person owns; set this to avoid one.
                   Default: fixed, <instance>-<user>.
               login:
@@ -91,6 +91,6 @@ spec:
               connectionSecret:
                 type: string
                 description: |-
-                  The Secret with this user's login (rule 6).
+                  The Secret with this user's login (principle 6).
         required:
         - spec

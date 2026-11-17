@@ -54,7 +54,7 @@ spec:
     keepCount: 20
   - untagged: true
     expireAfterDays: 7
-  # every cloud block takes id (rule 9); observing fails on Azure
+  # every cloud block takes id (principle 9); observing fails on Azure
 ```
 
 *An `ArtifactRepository` with its common fields.*
@@ -96,7 +96,7 @@ status:
 ## Mapping
 
 The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
-ignored, with the reason (rule 1), and a field of a cloud's block appears only for that cloud:
+ignored, with the reason (principle 1), and a field of a cloud's block appears only for that cloud:
 
 | Field                | AWS                                 | GCP                                                                                                                                                                                                                                                    | OCI                                                                                                      | Azure                                                                                     |
 | -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |

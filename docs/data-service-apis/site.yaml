@@ -3,8 +3,8 @@ title: Portable Data Service APIs
 checklistCollection: openpoints
 revisions: revisions.md                       # the newest revision's number and date show under the title
 selectorChoices: [AWS, GCP, OCI, Azure]       # every cloud; one a service lacks is shown disabled
-itemLinks:                                # "rule N" in the text links to rule N
-- {word: rule, file: rules.md}
+itemLinks:                                # "principle N" in the text links to principle N
+- {word: principle, file: principles.md}
 schemaTab: &schemas                       # shared by every service's Schemas tab
   label: Schemas
   intro: "Each kind is defined by its schema: a Crossplane composite resource definition (XRD) for a kind the platform composes, and a CustomResourceDefinition for a class, parameters or a provider config. A schema holds the kind's fields, their descriptions and the rules the API checks."
@@ -15,9 +15,10 @@ nav:
   label: Overview
   id: overview
   home: true
-- file: rules.md
-  label: Design Rules
-  foldItems: [Rules]                      # each rule shows its opening sentence; the rest folds
+- file: principles.md
+  label: Model and Principles
+  aliases: {rules: ""}               # links to the former Design Rules page
+  foldItems: [Principles]                      # each rule shows its opening sentence; the rest folds
 - label: Services
   aliases: {schemas: "*/schemas"}
   tabs:

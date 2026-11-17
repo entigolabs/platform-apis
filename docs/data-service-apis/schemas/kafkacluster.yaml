@@ -24,7 +24,7 @@ spec:
                 type: boolean
                 description: |-
                   true observes an existing resource, named by the cloud block's id, and never
-                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  changes or deletes it. Every other field is then rejected (principle 9). Set at
                   creation only.
               version:
                 type: string
@@ -67,12 +67,13 @@ spec:
               aws:
                 type: object
                 description: |-
-                  Settings for AWS only (rule 2).
+                  Settings for AWS only (principle 2).
                 properties:
                   id:
                     type: string
                     description: |-
-                      The AWS ID of an existing Kafka cluster to observe (rule 9). Only with observe.
+                      The AWS ID of an existing Kafka cluster to observe (principle 9). Only with
+                      observe.
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
@@ -84,12 +85,13 @@ spec:
               gcp:
                 type: object
                 description: |-
-                  Settings for GCP only (rule 2).
+                  Settings for GCP only (principle 2).
                 properties:
                   id:
                     type: string
                     description: |-
-                      The GCP ID of an existing Kafka cluster to observe (rule 9). Only with observe.
+                      The GCP ID of an existing Kafka cluster to observe (principle 9). Only with
+                      observe.
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
@@ -102,18 +104,19 @@ spec:
                   memoryGB:
                     type: integer
                     description: |-
-                      The whole cluster's memory, within GCP's range per vCPU (rule 10).
+                      The whole cluster's memory, within GCP's range per vCPU (principle 10).
                       Default: per deployment.
                     minimum: 1
               oci:
                 type: object
                 description: |-
-                  Settings for OCI only (rule 2).
+                  Settings for OCI only (principle 2).
                 properties:
                   id:
                     type: string
                     description: |-
-                      The OCI ID of an existing Kafka cluster to observe (rule 9). Only with observe.
+                      The OCI ID of an existing Kafka cluster to observe (principle 9). Only with
+                      observe.
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable

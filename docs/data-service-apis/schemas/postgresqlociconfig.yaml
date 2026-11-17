@@ -20,13 +20,13 @@ spec:
           spec:
             type: object
             description: |-
-              Settings for OCI Database with PostgreSQL (rule 2).
+              Settings for OCI Database with PostgreSQL (principle 2).
             properties:
               id:
                 type: string
                 description: |-
-                  The OCI Database with PostgreSQL ID of an existing resource to observe (rule 9).
-                  Only with observe.
+                  The OCI Database with PostgreSQL ID of an existing resource to observe
+                  (principle 9). Only with observe.
                 x-kubernetes-validations:
                 - rule: self == oldSelf
                   message: id is immutable
@@ -58,7 +58,7 @@ spec:
           status:
             type: object
             description: |-
-              The shape of status.provider for OCI Database with PostgreSQL (rule 4).
+              The shape of status.provider for OCI Database with PostgreSQL (principle 4).
             properties:
               instanceType:
                 type: string

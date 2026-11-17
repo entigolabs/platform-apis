@@ -24,7 +24,7 @@ spec:
                 type: boolean
                 description: |-
                   true observes an existing resource, named by the cloud block's id, and never
-                  changes or deletes it. Every other field is then rejected (rule 9). Set at
+                  changes or deletes it. Every other field is then rejected (principle 9). Set at
                   creation only.
               version:
                 type: string
@@ -45,7 +45,7 @@ spec:
               replicas:
                 type: integer
                 description: |-
-                  Read replicas besides the primary, within the cloud's own limit (rule 10).
+                  Read replicas besides the primary, within the cloud's own limit (principle 10).
                   Default: per deployment.
                 minimum: 0
               deletionProtection:
@@ -95,8 +95,8 @@ spec:
                   retentionDays:
                     type: integer
                     description: |-
-                      Days automated backups are kept, within the cloud's own range (rule 10). 0 turns
-                      automated backups off.
+                      Days automated backups are kept, within the cloud's own range (principle 10). 0
+                      turns automated backups off.
                       Default: per deployment.
                     minimum: 0
                   startHourUTC:
@@ -108,7 +108,7 @@ spec:
               secretName:
                 type: string
                 description: |-
-                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  The name of the connection Secret (principle 6). The platform never overwrites a
                   Secret that another object or person owns; set this to avoid one.
                   Default: fixed, <instance>-credentials.
               parameters:
@@ -120,12 +120,12 @@ spec:
               aws:
                 type: object
                 description: |-
-                  Settings for AWS only (rule 2).
+                  Settings for AWS only (principle 2).
                 properties:
                   id:
                     type: string
                     description: |-
-                      The AWS ID of an existing cache to observe (rule 9). Only with observe.
+                      The AWS ID of an existing cache to observe (principle 9). Only with observe.
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
@@ -146,12 +146,12 @@ spec:
               gcp:
                 type: object
                 description: |-
-                  Settings for GCP only (rule 2).
+                  Settings for GCP only (principle 2).
                 properties:
                   id:
                     type: string
                     description: |-
-                      The GCP ID of an existing cache to observe (rule 9). Only with observe.
+                      The GCP ID of an existing cache to observe (principle 9). Only with observe.
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
@@ -163,19 +163,19 @@ spec:
               oci:
                 type: object
                 description: |-
-                  Settings for OCI only (rule 2).
+                  Settings for OCI only (principle 2).
                 properties:
                   id:
                     type: string
                     description: |-
-                      The OCI ID of an existing cache to observe (rule 9). Only with observe.
+                      The OCI ID of an existing cache to observe (principle 9). Only with observe.
                     x-kubernetes-validations:
                     - rule: self == oldSelf
                       message: id is immutable
                   memoryGB:
                     type: integer
                     description: |-
-                      Memory per node, within OCI's own range (rule 10).
+                      Memory per node, within OCI's own range (principle 10).
                       Default: per deployment.
                     minimum: 1
             x-kubernetes-validations:
@@ -252,7 +252,7 @@ spec:
               connectionSecret:
                 type: string
                 description: |-
-                  The Secret <instance>-credentials (rule 6).
+                  The Secret <instance>-credentials (principle 6).
               aws:
                 type: object
                 properties:

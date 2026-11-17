@@ -29,7 +29,7 @@ not present the design as one family.
 **Context.** The platform generates every credential: an instance's admin password, the password of
 each database, RabbitMQ and Kafka user, and a Valkey cache's password; a `KafkaUser` on GCP has a
 service account key instead. Applications read it from one Secret with the same keys on every cloud
-(rule 6).
+(principle 6).
 
 **Problem.** Nothing in the API replaces a credential, so a leaked or aged one stays valid. Once a
 credential is replaced, an application keeps the old value until it reads the Secret again, so how

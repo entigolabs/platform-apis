@@ -20,12 +20,12 @@ spec:
           spec:
             type: object
             description: |-
-              Settings for Amazon RDS (rule 2).
+              Settings for Amazon RDS (principle 2).
             properties:
               id:
                 type: string
                 description: |-
-                  The Amazon RDS ID of an existing resource to observe (rule 9). Only with
+                  The Amazon RDS ID of an existing resource to observe (principle 9). Only with
                   observe.
                 x-kubernetes-validations:
                 - rule: self == oldSelf
@@ -80,7 +80,7 @@ spec:
           status:
             type: object
             description: |-
-              The shape of status.provider for Amazon RDS (rule 4).
+              The shape of status.provider for Amazon RDS (principle 4).
             properties:
               instanceType:
                 type: string

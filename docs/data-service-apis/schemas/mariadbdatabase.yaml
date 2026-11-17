@@ -37,8 +37,8 @@ spec:
                   namespace:
                     type: string
                     description: |-
-                      The MariaDBInstance's namespace, which must be in this object's Zone (rule 11).
-                      Unset, this object's namespace.
+                      The MariaDBInstance's namespace, which must be in this object's Zone (principle
+                      11). Unset, this object's namespace.
                 required:
                 - name
                 x-kubernetes-validations:

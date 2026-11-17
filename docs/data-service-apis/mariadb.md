@@ -7,7 +7,7 @@ Three kinds: `MariaDBInstance`, one database server; `MariaDBUser`, one applicat
 instance, with its permissions; and `MariaDBDatabase`, one database on an instance.
 
 Built on Amazon RDS (AWS), so `aws` is the only cloud block. GCP, OCI and Azure have none: their
-MySQL services are not MariaDB (rule 7), and Azure Database for MariaDB is retired.
+MySQL services are not MariaDB (principle 7), and Azure Database for MariaDB is retired.
 
 [API Changes](changes.md#mariadb) lists what changes from today's API.
 
@@ -57,8 +57,8 @@ spec:
   parameters:                          # MariaDB settings
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
-  secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
-  aws:                                 # also takes id (rule 9)
+  secretName: orders-db-admin          # unset, orders-db-dbadmin (principle 6)
+  aws:                                 # also takes id (principle 9)
     instanceType: db.t4g.small         # the RDS instance class
     # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
     # fromBackup: orders-final         # an RDS snapshot ID, instead of restore
@@ -113,18 +113,18 @@ status:
 
 *The `aws` block of a `MariaDBInstance` status.*
 
-The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
+The admin login is in the secret `<instance>-dbadmin`, with the keys of principle 6.
 
 ### MariaDBUser
 
 `MariaDBUser` acts inside MariaDB, through provider-sql. Its `name` and `instanceRef` are immutable,
-`instanceRef` may name another namespace of the same Zone (rule 11), and its defaults are written by
-the admission policy (rule 5).
+`instanceRef` may name another namespace of the same Zone (principle 11), and its defaults are
+written by the admission policy (principle 5).
 
 A user's databases and privileges are a list, `databases`, with one entry per database, so an
-application that uses two databases on one instance needs one login, as rule 12 requires. Each entry
-becomes one provider-sql `Grant`, and each `databaseRef` takes `namespace` too (rule 11).
-provider-sql writes the four secret keys rule 6 names for MariaDB users too
+application that uses two databases on one instance needs one login, as principle 12 requires. Each
+entry becomes one provider-sql `Grant`, and each `databaseRef` takes `namespace` too (principle 11).
+provider-sql writes the four secret keys principle 6 names for MariaDB users too
 ([`pkg/clients/mysql/mysql.go`](https://github.com/crossplane-contrib/provider-sql/blob/v0.16.1/pkg/clients/mysql/mysql.go),
 [provider-sql v0.16.1](https://github.com/crossplane-contrib/provider-sql/releases/tag/v0.16.1)).
 The four limits on a user (`maxQueriesPerHour`, `maxUpdatesPerHour`, `maxConnectionsPerHour`,
@@ -145,7 +145,7 @@ spec:
   name: orders_app                     # the user's name in MariaDB; unset, metadata.name
   instanceRef:
     name: orders-db
-    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+    namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   databases:                           # one entry per database
   - databaseRef:
       name: orders
@@ -162,7 +162,7 @@ spec:
   maxConnectionsPerHour: 0             # 0, the default, is no limit
   maxQueriesPerHour: 0
   maxUpdatesPerHour: 0
-  secretName: orders-app-login         # unset, orders-db-orders-app (rule 6)
+  secretName: orders-app-login         # unset, orders-db-orders-app (principle 6)
 ```
 
 *A `MariaDBUser` with privileges on two databases.*
@@ -170,8 +170,8 @@ spec:
 ### MariaDBDatabase
 
 `MariaDBDatabase` acts inside MariaDB, through provider-sql. Its `name` and `instanceRef` are
-immutable, `instanceRef` may name another namespace of the same Zone (rule 11), and its defaults are
-written by the admission policy (rule 5).
+immutable, `instanceRef` may name another namespace of the same Zone (principle 11), and its
+defaults are written by the admission policy (principle 5).
 
 An example:
 
@@ -186,7 +186,7 @@ spec:
   name: orders                         # the database's name in MariaDB; unset, metadata.name
   instanceRef:
     name: orders-db
-    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+    namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   defaultCharacterSet: utf8mb4
   defaultCollation: utf8mb4_unicode_ci
   deletionProtection: true
@@ -334,10 +334,10 @@ The platform makes these settings itself:
 
 ## Cloud Limits
 
-The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
-them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later. Each limit holds as of its source: the provider release
-named, or the cloud's documentation as read in November 2026.
+The cloud enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
 | Field                            | Cloud | Limit                     | Source                                                                     |
 | -------------------------------- | ----- | ------------------------- | -------------------------------------------------------------------------- |

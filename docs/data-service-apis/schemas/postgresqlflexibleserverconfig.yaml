@@ -20,13 +20,13 @@ spec:
           spec:
             type: object
             description: |-
-              Settings for Azure Database for PostgreSQL flexible server (rule 2).
+              Settings for Azure Database for PostgreSQL flexible server (principle 2).
             properties:
               id:
                 type: string
                 description: |-
                   The Azure Database for PostgreSQL flexible server ID of an existing resource to
-                  observe (rule 9). Only with observe.
+                  observe (principle 9). Only with observe.
                 x-kubernetes-validations:
                 - rule: self == oldSelf
                   message: id is immutable
@@ -72,7 +72,7 @@ spec:
             type: object
             description: |-
               The shape of status.provider for Azure Database for PostgreSQL flexible server
-              (rule 4).
+              (principle 4).
             properties:
               instanceType:
                 type: string

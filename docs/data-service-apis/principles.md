@@ -1,21 +1,41 @@
-# Design Rules
+# Model and Principles
 
-The rules every data service API follows.
+How every data service API is built, and the principles each follows.
 
-## Rules
+## Model
 
-These rules apply to every data service API, and each service's page shows how it applies them.
+Each data service has four parts, which the principles below rely on:
+
+| Part            | What it is                                                                                       | Owned by                  | Example                                  |
+| --------------- | ------------------------------------------------------------------------------------------------ | ------------------------- | ---------------------------------------- |
+| Core kind       | What a team asks for, the same wherever it runs                                                  | the team                  | a `PostgreSQLCluster`                    |
+| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | Entigo, or a third party  | RDS, Cloud SQL, CloudNativePG            |
+| Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the team, or the operator | a `PostgreSQLRDSConfig` with an RDS size |
+| Class           | A deployment's choice of implementation, its defaults and the values a team cannot change        | the deployment's operator | a `PostgreSQLClass` named `standard`     |
+
+*The parts of a data service.*
+
+A team writes a core kind that names a class, and may add a provider config for each implementation
+it can run on. Each deployment applies the provider config of its class's implementation, and the
+implementation turns the result into running resources.
+
+## Principles
+
+These principles apply to every data service API, and each service's page shows how it applies
+them.
 
 #### 1 The common spec states needs, not products
 
-One manifest works wherever its class exists: it says what is needed, such as a version or a disk
-size, not which product provides it.
+One manifest works wherever its kind is offered: it says what is needed, such as a version or a disk
+size, not which product provides it. What provides it is the kind's implementation: a cloud's
+managed service, such as RDS, or software in the cluster, such as CloudNativePG. Each deployment
+chooses its implementation in a class (principle 5).
 
 A need belongs in the common spec when two or more implementations can meet it, and a user can state
 it without knowing which one runs underneath, such as a version, a disk size, high availability or
-backups. What only one implementation has goes into its provider config (rule 2). This keeps the
-common spec from shrinking into a wrapper around provider configs: a manifest is only as portable as
-its common fields.
+backups. What only one implementation has goes into its provider config (principle 2). This keeps
+the common spec from shrinking into a wrapper around provider configs: a manifest is only as
+portable as its common fields.
 
 Each class reports in its status which portable features its implementation supports, such as
 `HighAvailability`, `ReadReplicas` and `DisasterRecovery`. An object that asks for a feature its
@@ -28,13 +48,14 @@ The portal reads a class's supported features and hides the fields its class can
 
 #### 2 A setting of one implementation belongs in its provider config
 
-A setting that only one implementation has, such as the size of an RDS instance, goes into a
-provider config of that implementation's kind, such as `PostgreSQLRDSConfig`, never into the common
-spec.
+Some settings exist in only one implementation, such as an RDS instance class or a Cloud SQL
+edition. They go into a provider config: a block of settings whose kind belongs to that
+implementation, such as `PostgreSQLRDSConfig` for RDS, so the core kind never lists any
+implementation's settings.
 
 Implementations differ: RDS has instance classes and parameter groups, Cloud SQL has editions, OCI
-has flexible shapes. A provider config holds such settings in a kind its implementation defines, so
-the core kind never lists them.
+has flexible shapes. If the core kind held them all, every new implementation would change it (rule
+3).
 
 An object carries its provider configs in `providerConfigs`, a list with one entry per kind. Each
 entry names its own `apiVersion` and `kind`, and holds the settings either inline, in `spec`, or in
@@ -42,9 +63,9 @@ a separate object of that kind, through `ref`. The list is keyed by `apiVersion`
 Helm, Argo CD and server-side apply merge it entry by entry, and one manifest can carry settings for
 several implementations and be applied on any of them.
 
-A deployment applies only the entry whose kind its class names (rule 5) and ignores the others; the
-status lists which entry was applied and which were ignored, so a misspelled kind shows as nothing
-applied. An object with no matching entry takes the class's provider config as it is.
+A deployment applies only the entry whose kind its class names (principle 5) and ignores the others;
+the status lists which entry was applied and which were ignored, so a misspelled kind shows as
+nothing applied. An object with no matching entry takes the class's provider config as it is.
 
 A machine size is such a setting, named as the product names it, such as `db.m7g.large` in a
 `PostgreSQLRDSConfig` and `db-custom-2-8192` in a `PostgreSQLCloudSQLConfig`. A size stated as CPU
@@ -74,8 +95,8 @@ where it has several.
 Values that only make sense in one implementation, such as its resource IDs, go into
 `status.provider`, whose shape the applied provider config kind defines. `status.providerConfig`
 names the applied entry and the ignored ones, and `status.effective` shows each effective value and
-where it came from: the class's `template`, the object, or the class's `enforced` (rule 5). If an
-implementation does not report a common field, that field stays empty there, and its mapping says
+where it came from: the class's `template`, the object, or the class's `enforced` (principle 5). If
+an implementation does not report a common field, that field stays empty there, and its mapping says
 so.
 
 #### 5 A class sets the defaults and limits of a deployment
@@ -118,9 +139,9 @@ An application reads its connection details in the same form wherever it runs, s
 clouds without changes.
 
 Each credential is one Kubernetes Secret in the object's namespace, with the same keys everywhere:
-`endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint` already lists hosts
-with their ports. A service that needs more adds its own keys, such as `readerEndpoint` for read
-replicas. No key is named after a cloud, and no key holds the others as JSON.
+`endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint` already lists
+hosts with their ports. A service that needs more adds its own keys, such as `readerEndpoint` for
+read replicas. No key is named after a cloud, and no key holds the others as JSON.
 
 The secrets are named `<instance>-dbadmin` for a database's admin, `<instance>-credentials` for
 other services, and `<instance>-<user>` for a user object. Every kind with a secret takes an

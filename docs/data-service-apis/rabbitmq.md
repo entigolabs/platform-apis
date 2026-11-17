@@ -47,8 +47,8 @@ spec:
       hourUTC: 3
   parameters:                          # rabbitmq.conf settings, within the cloud's allowlist
     consumer_timeout: "1800000"
-  secretName: orders-mq-login          # unset, orders-mq-credentials (rule 6)
-  aws:                                 # also takes id (rule 9)
+  secretName: orders-mq-login          # unset, orders-mq-credentials (principle 6)
+  aws:                                 # also takes id (principle 9)
     instanceType: mq.m7g.medium        # the Amazon MQ host instance type
     publiclyAccessible: false          # set at creation only
 ```
@@ -78,7 +78,7 @@ A user receives the secret `<broker>-<user>` with the keys of the broker's secre
 
 Permissions follow RabbitMQ's own model: per virtual host, three regular expressions over queue and
 exchange names, for `configure` (create and delete), `write` (publish) and `read` (consume).
-Permissions are held in the user (rule 12).
+Permissions are held in the user (principle 12).
 
 An example:
 
@@ -93,13 +93,13 @@ spec:
   name: orders_app                     # the user's name in RabbitMQ; unset, metadata.name
   brokerRef:
     name: orders-mq
-    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+    namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   permissions:
   - virtualHost: orders
     configure: "^orders\\."
     write: "^orders\\."
     read: "^orders\\."
-  secretName: orders-app-login         # unset, orders-mq-orders-app (rule 6)
+  secretName: orders-app-login         # unset, orders-mq-orders-app (principle 6)
 ```
 
 *A `RabbitMQUser` with permissions on one virtual host.*
@@ -124,7 +124,7 @@ spec:
   name: orders                         # the virtual host's name in RabbitMQ; unset, metadata.name
   brokerRef:
     name: orders-mq
-    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+    namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   deletionProtection: true             # deleting it deletes its queues and messages
 ```
 
@@ -239,10 +239,10 @@ The platform makes these settings itself:
 
 ## Cloud Limits
 
-The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
-them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later. Each limit holds as of its source: the provider release
-named, or the cloud's documentation as read in November 2026.
+The cloud enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
 | Field                    | Cloud | Limit                | Source                                                  |
 | ------------------------ | ----- | -------------------- | ------------------------------------------------------- |
@@ -256,4 +256,4 @@ The design relies on these facts, which need no decision.
 
 - `parameters` keys: Amazon MQ lists the `rabbitmq.conf` keys it accepts in "Configurable values"
   (five general keys, plus pages for OAuth2, LDAP, TLS and resource limits); others are left to
-  Amazon MQ to reject (rule 10).
+  Amazon MQ to reject (principle 10).

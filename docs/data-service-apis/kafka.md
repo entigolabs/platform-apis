@@ -8,8 +8,8 @@ ACLs; and `KafkaTopic`, one topic in a cluster.
 
 Built on Amazon MSK provisioned (AWS) and OCI Streaming with Apache Kafka (OCI). GCP's Managed
 Service for Apache Kafka is mapped, but the kinds exist on GCP only once its Crossplane provider
-supports the service (rule 7). Azure has none: Event Hubs speaks the Kafka protocol but has no Kafka
-ACLs, no topic creation through the Kafka admin API and no broker settings.
+supports the service (principle 7). Azure has none: Event Hubs speaks the Kafka protocol but has no
+Kafka ACLs, no topic creation through the Kafka admin API and no broker settings.
 
 [API Changes](changes.md#kafka) lists what changes from today's API.
 
@@ -48,7 +48,7 @@ spec:
   deletionProtection: true
   parameters:                          # broker settings, within each cloud's allowlist
     auto.create.topics.enable: "false"
-  # Cloud-specific; every block also takes id (rule 9)
+  # Cloud-specific; every block also takes id (principle 9)
   aws:
     instanceType: kafka.m7g.large      # the broker instance type
   gcp:
@@ -62,7 +62,7 @@ spec:
 *A `KafkaCluster` with its common fields and a block per cloud.*
 
 A cluster's size is its brokers times each broker's size. The clouds size them differently, so the
-size is in each cloud's block (rule 2). No cloud offers a maintenance window.
+size is in each cloud's block (principle 2). No cloud offers a maintenance window.
 
 The status adds `bootstrapServers`, the listener applications use.
 
@@ -100,13 +100,13 @@ metadata:
 spec:
   clusterRef:                          # required
     name: orders-kafka
-    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+    namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   consumerGroups:
   - orders
   acls:
   - topic: orders
     operation: Read
-  secretName: orders-app-login         # unset, orders-kafka-orders-app (rule 6)
+  secretName: orders-app-login         # unset, orders-kafka-orders-app (principle 6)
 ```
 
 *A `KafkaUser` with one consumer group and a read ACL.*
@@ -143,7 +143,7 @@ metadata:
 spec:
   clusterRef:                          # required
     name: orders-kafka
-    namespace: shop                    # unset, this namespace; within the Zone (rule 11)
+    namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   name: orders_v2                      # the Kafka name; unset, metadata.name
   partitions: 3
   replicationFactor: 3                 # at most the broker count
@@ -154,14 +154,14 @@ spec:
 *A `KafkaTopic` whose Kafka name differs from its object name.*
 
 `name` is the topic's Kafka name, which can hold what a Kubernetes name cannot, such as `Orders` or
-`orders_v2`. Applications use that name, so it cannot carry a hash like rule 9's cloud names, and
-two `KafkaTopic` objects on one cluster could request the same topic and both manage it. The
+`orders_v2`. Applications use that name, so it cannot carry a hash like principle 9's cloud names,
+and two `KafkaTopic` objects on one cluster could request the same topic and both manage it. The
 platform rejects the newer one instead, naming the object that holds the name.
 
 ## Mapping
 
 The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
-ignored, with the reason (rule 1), and a field of a cloud's block appears only for that cloud:
+ignored, with the reason (principle 1), and a field of a cloud's block appears only for that cloud:
 
 | Field              | AWS                                                         | GCP                                                                                                         | OCI                                                                                 |
 | ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -338,10 +338,10 @@ The platform makes these settings itself:
 
 ## Cloud Limits
 
-The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
-them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later. Each limit holds as of its source: the provider release
-named, or the cloud's documentation as read in November 2026.
+The cloud enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
 | Field            | Cloud | Limit                         | Source                                                                             |
 | ---------------- | ----- | ----------------------------- | ---------------------------------------------------------------------------------- |

@@ -24,7 +24,7 @@ spec:
                 type: string
                 description: |-
                   The PostgreSQLClass: the deployment's defaults, enforced values and
-                  implementation (rule 5). Unset, the default class. Set at creation only.
+                  implementation (principle 5). Unset, the default class. Set at creation only.
                 x-kubernetes-validations:
                 - rule: self == oldSelf
                   message: className is immutable
@@ -33,7 +33,7 @@ spec:
                 description: |-
                   true observes an existing resource, named by the id in its provider config
                   entry, and never changes or deletes it. Every other common field is then
-                  rejected (rule 9). Set at creation only.
+                  rejected (principle 9). Set at creation only.
               version:
                 type: string
                 description: |-
@@ -87,20 +87,20 @@ spec:
                 type: boolean
                 description: |-
                   A standby in another zone, with automatic failover. Refused where the class does
-                  not support HighAvailability (rule 1).
+                  not support HighAvailability (principle 1).
                   Default: the class's template.
               readReplicas:
                 type: integer
                 description: |-
                   Read-only copies identical to the primary. Refused where the class does not
-                  support ReadReplicas (rule 1).
+                  support ReadReplicas (principle 1).
                   Default: fixed, 0.
                 minimum: 0
               disasterRecovery:
                 type: object
                 description: |-
                   A copy in another workspace that can become the primary. Refused where the class
-                  does not support DisasterRecovery (rule 1).
+                  does not support DisasterRecovery (principle 1).
                 properties:
                   workspaces:
                     type: array
@@ -164,8 +164,8 @@ spec:
                   retentionDays:
                     type: integer
                     description: |-
-                      Days automated backups are kept, within the implementation's own range (rule
-                      10). 0 turns automated backups and point-in-time restore off.
+                      Days automated backups are kept, within the implementation's own range
+                      (principle 10). 0 turns automated backups and point-in-time restore off.
                       Default: the class's template.
                     minimum: 0
                   pointInTimeDays:
@@ -231,14 +231,14 @@ spec:
               secretName:
                 type: string
                 description: |-
-                  The name of the connection Secret (rule 6). The platform never overwrites a
+                  The name of the connection Secret (principle 6). The platform never overwrites a
                   Secret that another object or person owns; set this to avoid one.
                   Default: fixed, <instance>-dbadmin.
               providerConfigs:
                 type: array
                 description: |-
-                  Settings of single implementations, one entry per kind (rule 2). The deployment
-                  applies the entry whose kind its class names and ignores the others.
+                  Settings of single implementations, one entry per kind (principle 2). The
+                  deployment applies the entry whose kind its class names and ignores the others.
                 items:
                   type: object
                   properties:
@@ -255,7 +255,7 @@ spec:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                       description: |-
-                        The settings, checked by the implementation that applies them (rule 10).
+                        The settings, checked by the implementation that applies them (principle 10).
                     ref:
                       type: object
                       description: |-
@@ -353,11 +353,11 @@ spec:
                 type: string
                 description: |-
                   Where reads go: one balanced host, or the replicas' hosts where the
-                  implementation has none (rule 6).
+                  implementation has none (principle 6).
               connectionSecret:
                 type: string
                 description: |-
-                  The admin Secret, <instance>-dbadmin (rule 6).
+                  The admin Secret, <instance>-dbadmin (principle 6).
               disasterRecovery:
                 type: object
                 description: |-
@@ -371,8 +371,8 @@ spec:
               providerConfig:
                 type: object
                 description: |-
-                  The provider config entries applied and ignored, as <apiVersion>, <kind> (rule
-                  4).
+                  The provider config entries applied and ignored, as <apiVersion>, <kind>
+                  (principle 4).
                 properties:
                   applied:
                     type: string
@@ -385,12 +385,12 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
                 description: |-
                   Each effective value and its source: the class's template, the object, or the
-                  class's enforced (rule 4).
+                  class's enforced (principle 4).
               provider:
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
                 description: |-
                   Values of the applied implementation, in the shape its provider config kind's
-                  status defines (rule 4).
+                  status defines (principle 4).
         required:
         - spec

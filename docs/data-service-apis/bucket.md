@@ -58,7 +58,7 @@ spec:
     - PUT
     maxAgeSeconds: 3600
   softDeleteDays: 7                    # ignored on AWS and OCI
-  # Cloud-specific: every block takes id (rule 9)
+  # Cloud-specific: every block takes id (principle 9)
 ```
 
 *A `Bucket` with its common fields.*
@@ -95,7 +95,7 @@ status:
 ## Mapping
 
 The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
-ignored, with the reason (rule 1), and a field of a cloud's block appears only for that cloud:
+ignored, with the reason (principle 1), and a field of a cloud's block appears only for that cloud:
 
 | Field                | AWS                                                                                                                                                 | GCP                                                       | OCI                                                                                                                                                 | Azure                                                                                     |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -553,10 +553,10 @@ The platform makes these settings itself:
 
 ## Cloud Limits
 
-The cloud enforces these limits itself, and the API does not check them (rule 10); a value outside
-them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for reference,
-should validating them be decided later. Each limit holds as of its source: the provider release
-named, or the cloud's documentation as read in November 2026.
+The cloud enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
 | Field            | Cloud | Limit         | Source                                                                               |
 | ---------------- | ----- | ------------- | ------------------------------------------------------------------------------------ |
