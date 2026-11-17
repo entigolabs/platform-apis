@@ -6,8 +6,6 @@ One kind: `Bucket`, one bucket.
 
 Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (Azure).
 
-[API Changes](changes.md#bucket) lists what changes from today's API.
-
 ## Contents
 
 - [Kinds](#kinds)
@@ -68,8 +66,7 @@ cloud has.
 
 A `Bucket` creates no identity: no IAM role, service account or access key. Those belong to the
 applications that use the bucket; an application's own identity is granted access to the buckets it
-names ([Cloud identity for applications](follow-up-work.md#3-cloud-identity-for-applications), in
-Follow-Up Work).
+names.
 
 A `Bucket` has no secret: it holds no credentials. The status adds `url`, `bucketName` and `region`,
 which an application needs to find the bucket.

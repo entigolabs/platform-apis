@@ -10,8 +10,6 @@ isolated set of queues and exchanges in a broker.
 Built on Amazon MQ (AWS), the only managed RabbitMQ among the four clouds, so the API follows
 RabbitMQ's own concepts. GCP, OCI and Azure have none.
 
-[API Changes](changes.md#rabbitmq) lists what changes from today's API.
-
 ## Contents
 
 - [Kinds](#kinds)

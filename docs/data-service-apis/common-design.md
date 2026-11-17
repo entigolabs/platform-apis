@@ -1,8 +1,7 @@
 # Common Design
 
 Every data service API uses the mechanisms on this page, each of which applies a principle from
-[Model and Principles](principles.md). Each service's page describes only what is particular to that
-service.
+[Model and Principles](principles.md).
 
 ## Naming
 
@@ -93,8 +92,7 @@ Values that only make sense in one implementation, such as its resource IDs, go 
 `status.provider`, whose shape the applied provider config kind defines. `status.providerConfig`
 names the applied entry and the ignored ones, and `status.effective` shows each effective value and
 where it came from: the class's `template`, the object, or the class's `enforced`. If an
-implementation does not report a common field, that field stays empty there, and its mapping says
-so.
+implementation does not report a common field, that field stays empty there.
 
 ## Connection Secrets
 
@@ -129,8 +127,7 @@ spec:
 
 *An observed resource on AWS.*
 
-The ID is one value the user copies from the cloud's console, and each service's page says which
-one. The platform turns it into whatever the provider needs. An observed resource takes no other
+The ID is one value the user copies from the cloud's console. The platform turns it into whatever the provider needs. An observed resource takes no other
 spec fields.
 
 A resource can be observed only when its workspace tag (a label on GCP) names this cluster's

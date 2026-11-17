@@ -50,7 +50,9 @@ The differences are listed in [API Changes](changes.md). Known so far for the mi
 Each application gets a cloud identity of its own, through which it reaches buckets, artifact
 repositories and other cloud services.
 
-The identity belongs to the application, not to the resource it uses. Known so far:
+The identity belongs to the application, not to the resource it uses: a [Bucket](bucket.md) creates
+no identity, and [API Changes](changes.md#bucket) keeps `S3Bucket` served until applications have
+one. Known so far:
 
 - Portal applications currently reach buckets only through the keys of `S3Bucket`, because `WebApp`
   sets no service account

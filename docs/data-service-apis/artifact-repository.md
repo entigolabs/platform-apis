@@ -9,8 +9,6 @@ tags.
 Built on ECR (AWS), Artifact Registry (GCP), OCIR (OCI) and Azure Container Registry (Azure), which
 store every OCI artifact alike.
 
-[API Changes](changes.md#artifactrepository) lists what changes from today's API.
-
 ## Contents
 
 - [Kinds](#kinds)

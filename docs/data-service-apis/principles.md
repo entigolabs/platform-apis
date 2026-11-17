@@ -1,7 +1,6 @@
 # Model and Principles
 
 Every data service API is built from the parts in Model and follows the principles after them.
-[Common Design](common-design.md) describes the mechanisms that apply the principles.
 
 ## Model
 
@@ -39,8 +38,8 @@ as portable as its common fields.
 
 A portable feature that an implementation cannot provide, such as a standby or a read replica, is
 refused, never dropped silently: it is capacity a user counted on. A minor field that an
-implementation cannot honour is ignored there, and that implementation's mapping says so. An
-operation an implementation cannot perform fails, with the reason shown on the object.
+implementation cannot honour is ignored there. An operation an implementation cannot perform fails,
+with the reason shown on the object.
 
 #### 2 A setting of one implementation belongs in its provider config
 
@@ -128,7 +127,7 @@ The core schema checks only what the API itself knows: field types, fields that 
 fields that cannot be combined, and the API's own minimums, such as a disk that cannot shrink. It
 does not copy the limits each cloud has for values, such as how many days of backups it keeps. Those
 limits change, and a Kubernetes schema rule can never be loosened once released. The cloud rejects
-such values itself, and each service's page lists the known limits under Cloud Limits.
+such values itself.
 
 #### 11 A reference crosses namespaces only within one Zone
 

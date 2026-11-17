@@ -9,8 +9,6 @@ Built on ElastiCache (AWS) and OCI Cache (OCI). GCP's Memorystore for Valkey is 
 exists on GCP only once its Crossplane provider supports password login, which the connection secret
 needs (principle 6). Azure has none: Azure Managed Redis runs Redis, not Valkey.
 
-[API Changes](changes.md#valkey) lists what changes from today's API.
-
 ## Contents
 
 - [Kinds](#kinds)

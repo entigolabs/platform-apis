@@ -11,8 +11,6 @@ Service for Apache Kafka is mapped, but the kinds exist on GCP only once its Cro
 supports the service (principle 7). Azure has none: Event Hubs speaks the Kafka protocol but has no
 Kafka ACLs, no topic creation through the Kafka admin API and no broker settings.
 
-[API Changes](changes.md#kafka) lists what changes from today's API.
-
 ## Contents
 
 - [Kinds](#kinds)

@@ -13,8 +13,6 @@ for PostgreSQL flexible server (Azure), each with a provider config kind of its 
 `PostgreSQLRDSConfig`, `PostgreSQLCloudSQLConfig`, `PostgreSQLOCIConfig` and
 `PostgreSQLFlexibleServerConfig`.
 
-[API Changes](changes.md#postgresql) lists what changes from today's API.
-
 ## Contents
 
 - [Kinds](#kinds)
