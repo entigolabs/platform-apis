@@ -50,7 +50,24 @@ spec:
                 description: |-
                   Consumer groups the user may join.
                 items:
-                  type: string
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: |-
+                        The group's name, or with patternType Prefixed, the start of every name it
+                        covers.
+                    patternType: &id001
+                      type: string
+                      description: |-
+                        Kafka's ACL pattern type: Literal matches the name exactly, Prefixed every name
+                        that starts with it.
+                        Default: fixed, Literal.
+                      enum:
+                      - Literal
+                      - Prefixed
+                  required:
+                  - name
               acls:
                 type: array
                 description: |-
@@ -60,6 +77,10 @@ spec:
                   properties:
                     topic:
                       type: string
+                      description: |-
+                        The topic's name, or with patternType Prefixed, the start of every name it
+                        covers.
+                    patternType: *id001
                     operation:
                       type: string
                       enum:

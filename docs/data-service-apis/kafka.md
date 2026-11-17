@@ -100,14 +100,22 @@ spec:
     name: orders-kafka
     namespace: shop                    # unset, this namespace; within the Zone (principle 11)
   consumerGroups:
-  - orders
+  - name: orders
   acls:
   - topic: orders
+    operation: Read
+  - topic: orders-                     # every topic whose name starts with orders-
+    patternType: Prefixed
     operation: Read
   secretName: orders-app-login         # unset, orders-kafka-orders-app (principle 6)
 ```
 
-*A `KafkaUser` with one consumer group and a read ACL.*
+*A `KafkaUser` with one consumer group, a read ACL and a prefixed read ACL.*
+
+A topic or consumer group is named exactly, or, with `patternType: Prefixed`, by the start of every
+name it covers. An application that adds topics at runtime, such as one per customer
+(`orders-acme`, `orders-globex`), then needs one entry for `orders-` instead of a new entry before it
+can use each topic. `Literal` and `Prefixed` are Kafka's own ACL pattern types.
 
 | Cloud | Identity                                           | Login                                   |
 | ----- | -------------------------------------------------- | --------------------------------------- |
@@ -119,7 +127,12 @@ spec:
 
 ACLs are Kafka ACLs on every cloud: provider-kafka on AWS and OCI,
 [`google_managed_kafka_acl`](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/managed_kafka_acl)
-or the Kafka admin API on GCP.
+or the Kafka admin API on GCP. On AWS and OCI, `patternType` maps to provider-kafka's
+`resourcePatternTypeFilter`, which takes `Literal` and `Prefixed`, and a consumer group to
+`resourceType: Group`
+([`acl.kafka.crossplane.io_accesscontrollists.yaml`](https://github.com/crossplane-contrib/provider-kafka/blob/main/package/crds/acl.kafka.crossplane.io_accesscontrollists.yaml),
+provider-kafka `main` as read in November 2026). The form a prefixed ACL takes in
+`google_managed_kafka_acl` is unverified.
 
 Secret `<cluster>-<user>`: `endpoint` (the bootstrap servers, as `host:port` pairs, so no `port`),
 `username`, `password` and `saslMechanism` (`SCRAM-SHA-512` or `PLAIN`), since the mechanism

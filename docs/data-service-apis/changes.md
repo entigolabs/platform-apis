@@ -444,10 +444,12 @@ spec:
 
 `KafkaUser` changes as follows:
 
-| Today                                         | Design                                                                         | Reason                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
-| `clusterName`                                 | `clusterRef`                                                                   | A reference with a namespace (principle 11) |
-| secret `<cluster>-<user>-k8s`, one JSON value | secret `<cluster>-<user>`: `endpoint`, `username`, `password`, `saslMechanism` | The keys of principle 6                     |
+| Today                                         | Design                                                                         | Reason                                                                             |
+| --------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `clusterName`                                 | `clusterRef`                                                                   | A reference with a namespace (principle 11)                                        |
+| secret `<cluster>-<user>-k8s`, one JSON value | secret `<cluster>-<user>`: `endpoint`, `username`, `password`, `saslMechanism` | The keys of principle 6                                                            |
+| `consumerGroups`, a list of names             | `consumerGroups` entries with `name` and `patternType`                         | A group can be matched by its prefix                                               |
+| (none)                                        | `patternType` on each ACL                                                      | A topic can be matched by its prefix, so topics added at runtime need no new entry |
 
 *Changes to `KafkaUser`.*
 

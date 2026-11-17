@@ -318,6 +318,14 @@ update("changing clusterRef rejected", "KafkaUser", KU, w(KU, clusterRef={"name"
        "clusterRef is immutable")
 update("changing clusterRef namespace rejected", "KafkaUser", KU,
        w(KU, clusterRef={"name": "c1", "namespace": "platform"}), False, "clusterRef is immutable")
+create("a prefixed ACL and consumer group accepted", "KafkaUser",
+       w(KU, acls=[{"topic": "orders-", "patternType": "Prefixed", "operation": "Read"}],
+         consumerGroups=[{"name": "orders-", "patternType": "Prefixed"}]))
+create("an unknown patternType rejected", "KafkaUser",
+       w(KU, acls=[{"topic": "orders", "patternType": "Match", "operation": "Read"}]), False,
+       "Unsupported value")
+create("a consumer group as a plain name, today's form, rejected", "KafkaUser",
+       w(KU, consumerGroups=["orders"]), False, "must be of type object")
 
 print("\n# RabbitMQUser and RabbitMQVirtualHost")
 RU = {"brokerRef": {"name": "b1"},

@@ -343,15 +343,24 @@ write("kafkacluster", xrd(
     })))
 
 CLUSTER_REF = parent_ref("KafkaCluster", "clusterRef")
+PATTERN_TYPE = field("string", "Kafka's ACL pattern type: Literal matches the name exactly, "
+                     "Prefixed every name that starts with it.", default="fixed, Literal",
+                     enum=["Literal", "Prefixed"])
 
 write("kafkauser", xrd(
     "KafkaUser", "kafkausers", "queue.entigo.com",
     obj({
         "clusterRef": CLUSTER_REF,
         "secretName": secret_name("<cluster>-<user>"),
-        "consumerGroups": array(field("string"), "Consumer groups the user may join."),
+        "consumerGroups": array(obj({
+            "name": field("string", "The group's name, or with patternType Prefixed, the start of "
+                          "every name it covers."),
+            "patternType": PATTERN_TYPE,
+        }, required=["name"]), "Consumer groups the user may join."),
         "acls": array(obj({
-            "topic": field("string"),
+            "topic": field("string", "The topic's name, or with patternType Prefixed, the start of "
+                           "every name it covers."),
+            "patternType": PATTERN_TYPE,
             "operation": field("string", enum=["Read", "Write", "Create", "Delete", "Alter",
                                                "Describe", "DescribeConfigs", "AlterConfigs",
                                                "All"]),
