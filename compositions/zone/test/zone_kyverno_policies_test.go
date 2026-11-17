@@ -22,6 +22,15 @@ func TestKyvernoPolicies(t *testing.T) {
 	t.Run("ZoneNamespaceIstioInjection", testZoneNamespaceIstioInjection)
 }
 
+const noZoneNamespace = `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: no-zone-ns
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted`
+
 // testNamespacePodSecurity covers platform-apis-zone-namespace-pod-security (ValidatingPolicy)
 // and platform-apis-namespace-add-missing-zone-label (MutatingPolicy).
 func testNamespacePodSecurity(t *testing.T) {
@@ -63,17 +72,34 @@ func testNamespacePodSecurity(t *testing.T) {
 			},
 		},
 		{
-			name: "pass: namespace without zone label gets auto-assigned",
+			name: "fail: namespace without zone label is denied with several zones and no default zone",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "fail",
+				ResourceYAML:   noZoneNamespace,
+			},
+		},
+		{
+			name: "pass: namespace without zone label gets the default zone",
 			scenario: kyverno.TestScenario{
 				ExpectedAction: "pass",
-				ResourceYAML: `
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: no-zone-ns
-  labels:
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/warn: restricted`,
+				ResourceYAML:   noZoneNamespace,
+				ZonesMock:      `{"items": [{"metadata": {"name": dyn("my-zone")}}, {"metadata": {"name": dyn("default-zone-name"), "labels": dyn({"tenancy.entigo.com/default-zone": "true"})}}, {"metadata": {"name": dyn("infralib")}}]}`,
+			},
+		},
+		{
+			name: "pass: namespace without zone label gets the only zone besides infralib",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "pass",
+				ResourceYAML:   noZoneNamespace,
+				ZonesMock:      `{"items": [{"metadata": {"name": "my-zone"}}, {"metadata": {"name": "infralib"}}]}`,
+			},
+		},
+		{
+			name: "fail: namespace without zone label is denied when only the infralib zone exists",
+			scenario: kyverno.TestScenario{
+				ExpectedAction: "fail",
+				ResourceYAML:   noZoneNamespace,
+				ZonesMock:      `{"items": [{"metadata": {"name": "infralib"}}]}`,
 			},
 		},
 		{

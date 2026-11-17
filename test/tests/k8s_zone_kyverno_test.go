@@ -120,14 +120,11 @@ func testKyvernoNamespacePodSecurity(t *testing.T, cluster *terrak8s.KubectlOpti
 		_, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: name, Zone: ZoneAName, Enforce: "baseline", Warn: "baseline"}))
 		assertKyvernoAllowed(t, err)
 	})
-	t.Run("pass: namespace without zone label gets auto-assigned", func(t *testing.T) {
+	// The test cluster has several zones and none is labelled tenancy.entigo.com/default-zone.
+	t.Run("fail: namespace without zone label is denied with several zones and no default zone", func(t *testing.T) {
 		t.Parallel()
-		const name = "kyverno-no-zone-test"
-		t.Cleanup(func() {
-			_, _ = terrak8s.RunKubectlAndGetOutputE(t, cluster, "delete", "namespace", name, "--ignore-not-found", "--wait=false")
-		})
-		_, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: name, Enforce: "restricted", Warn: "restricted"}))
-		assertKyvernoAllowed(t, err)
+		out, err := kyvernoApply(t, cluster, nsYAML(t, kyvernoNsData{Name: "kyverno-no-zone-test", Enforce: "restricted", Warn: "restricted"}))
+		assertKyvernoDenied(t, out, err)
 	})
 	t.Run("fail: zone label referencing non-existent zone is denied", func(t *testing.T) {
 		t.Parallel()

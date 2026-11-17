@@ -39,6 +39,8 @@ type TestScenario struct {
 	UserInfoYAML              string
 	ExpectedAction            string
 	ExpectedInOutput          string
+	// ZonesMock overrides the CEL literal that stands in for the Zone list. Empty uses defaultZonesMock.
+	ZonesMock string
 }
 
 // K8sResource holds the fields parsed from a resource YAML needed for policy routing.
@@ -131,7 +133,7 @@ func preparePolicies(t *testing.T, chartDir, tmpDir string, s TestScenario) stri
 	isBuiltin := isBuiltinResource(res.APIVersion)
 
 	helmOutput := renderHelm(t, chartDir, s.HelmValues)
-	rendered := injectOfflineMocks(helmOutput, isBuiltin)
+	rendered := injectOfflineMocks(helmOutput, isBuiltin, s.ZonesMock)
 	policies := extractKyvernoPolicies(rendered, res.Kind)
 
 	if policies == "" {
@@ -188,11 +190,17 @@ func extractKyvernoPolicies(fullYAML, kind string) string {
 	return strings.Join(policies, "\n---\n")
 }
 
+// defaultZonesMock is the Zone list the policies see offline: two tenant zones, none marked default.
+const defaultZonesMock = `{"items": [{"metadata": {"name": "my-zone"}}, {"metadata": {"name": "default-zone-name"}}, {"metadata": {"name": "infralib"}}]}`
+
 // injectOfflineMocks replaces resource.List() CEL calls with static data so tests run without cluster access.
-func injectOfflineMocks(policies string, includeNamespaceMock bool) string {
+func injectOfflineMocks(policies string, includeNamespaceMock bool, zonesMock string) string {
+	if zonesMock == "" {
+		zonesMock = defaultZonesMock
+	}
 	policies = strings.ReplaceAll(policies,
 		`resource.List("tenancy.entigo.com/v1alpha1", "zones", "")`,
-		`{"items": [{"metadata": {"name": "my-zone"}}, {"metadata": {"name": "default-zone-name"}}, {"metadata": {"name": "infralib"}}]}`)
+		zonesMock)
 
 	policies = strings.ReplaceAll(policies,
 		"  - name: exclude-infralib\n    expression: \"!((has(object.metadata) && object.metadata.name == 'infralib') || (has(oldObject.metadata) && oldObject.metadata.name == 'infralib'))\"\n",
