@@ -321,15 +321,13 @@ spec:
 
 ## Platform Decisions
 
-The platform makes these settings itself:
+Besides the settings it makes for every service
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
+for a `RabbitMQBroker` itself:
 
-| Setting           | Platform's Choice                            |
-| ----------------- | -------------------------------------------- |
-| Network placement | The deployment's private network             |
-| Public access     | None, unless `publiclyAccessible` is set     |
-| Encryption        | The platform's data key                      |
-| Admin login       | An admin user and a generated password       |
-| Broker name       | Set by the platform                          |
+| Setting     | Platform's Choice                      |
+| ----------- | -------------------------------------- |
+| Admin login | An admin user and a generated password |
 
 *Settings the platform makes for a `RabbitMQBroker`.*
 

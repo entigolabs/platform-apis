@@ -335,14 +335,14 @@ spec:
 
 ## Platform Decisions
 
-The platform makes these settings itself:
+Besides the settings it makes for every service
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
+for an `ArtifactRepository` itself:
 
-| Setting                | Platform's Choice                                  |
-| ---------------------- | -------------------------------------------------- |
-| Visibility             | Private                                            |
-| Encryption             | The platform's data key, where the cloud takes one |
-| Vulnerability scanning | The cloud's own scanner                            |
-| Image pulls            | Keyless pulls by the cluster's nodes               |
+| Setting                | Platform's Choice                    |
+| ---------------------- | ------------------------------------ |
+| Vulnerability scanning | The cloud's own scanner              |
+| Image pulls            | Keyless pulls by the cluster's nodes |
 
 *Settings the platform makes for an `ArtifactRepository`.*
 

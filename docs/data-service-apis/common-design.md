@@ -153,6 +153,20 @@ ID. As a result, two objects with the same name in different namespaces never sh
 resource. A name that applications use, such as a Kafka topic or an image path, keeps the user's
 name instead, and the platform rejects a second object that requests a name already held.
 
+## Platform Decisions
+
+The platform makes the settings below itself, for every service that has them, so no field sets them
+(principle 2):
+
+| Setting            | Platform's Choice                                                 |
+| ------------------ | ----------------------------------------------------------------- |
+| Network placement  | The deployment's private network                                  |
+| Public access      | None, unless an implementation's provider configuration allows it |
+| Encryption at rest | The platform's data key, where the implementation takes one       |
+| Tags               | Workspace and Zone tags, on every resource the platform creates   |
+
+*Settings the platform makes for every service.*
+
 ## References
 
 A kind that exists inside another, such as a database user or a Kafka topic, names its parent in a

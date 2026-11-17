@@ -34,7 +34,9 @@ the last is agreed.
 - Bucket: `Bucket` gains `BucketClass` and a provider configuration kind per implementation, which
   holds the `id` of a bucket to observe.
 - ArtifactRepository: `ArtifactRepository` gains `ArtifactRepositoryClass` and a provider
-  configuration kind per implementation; `immutableTags` and `lifecycleRules` default from the class.
+  configuration kind per implementation; `immutableTags` and `lifecycleRules` default from the
+  class.
+- Every resource the platform creates carries workspace and Zone tags, on every service.
 - PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
   (`disasterRecovery`).
 

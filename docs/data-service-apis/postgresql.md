@@ -888,17 +888,15 @@ spec:
 
 ## Platform Decisions
 
-The platform makes these settings itself:
+Besides the settings it makes for every service
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
+for a `PostgreSQLCluster` itself:
 
-| Setting           | Platform's Choice                                                                        |
-| ----------------- | ---------------------------------------------------------------------------------------- |
-| Network placement | The deployment's private network                                                         |
-| Public access     | None                                                                                     |
-| Encryption        | The platform's data key, where the cloud takes one                                       |
-| Admin login       | An admin username and a generated password                                               |
-| Port              | 5432                                                                                     |
-| Tags              | Workspace and Zone tags                                                                  |
-| Final backup      | Taken when a cluster is deleted, switched on per deployment, where the cloud takes one   |
+| Setting      | Platform's Choice                                                                      |
+| ------------ | -------------------------------------------------------------------------------------- |
+| Admin login  | An admin username and a generated password                                             |
+| Port         | 5432                                                                                   |
+| Final backup | Taken when a cluster is deleted, switched on per deployment, where the cloud takes one |
 
 *Settings the platform makes for a `PostgreSQLCluster`.*
 

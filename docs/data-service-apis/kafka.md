@@ -446,15 +446,16 @@ spec:
 
 ## Platform Decisions
 
-The platform makes these settings itself:
+Besides the settings it makes for every service
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
+for a `KafkaCluster` itself:
 
-| Setting           | Platform's Choice                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------------- |
-| Network placement | The deployment's private network                                                                  |
-| Encryption        | TLS in transit; at rest, the platform's data key where the cloud takes one                        |
-| Login mechanism   | Chosen by the platform per cloud, and named in each user's secret                                 |
-| Admin login       | The one provider-kafka uses                                                                       |
-| Access            | Denied by default: a topic or group is reachable only by users with an ACL on it and by the admin |
+| Setting               | Platform's Choice                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| Encryption in transit | TLS                                                                                               |
+| Login mechanism       | Chosen by the platform per cloud, and named in each user's secret                                 |
+| Admin login           | The one provider-kafka uses                                                                       |
+| Access                | Denied by default: a topic or group is reachable only by users with an ACL on it and by the admin |
 
 *Settings the platform makes for a `KafkaCluster`.*
 

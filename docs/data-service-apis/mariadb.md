@@ -486,17 +486,15 @@ spec:
 
 ## Platform Decisions
 
-The platform makes these settings itself:
+Besides the settings it makes for every service
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
+for a `MariaDBServer` itself:
 
-| Setting           | Platform's Choice                                                     |
-| ----------------- | --------------------------------------------------------------------- |
-| Network placement | The deployment's private network                                      |
-| Public access     | None                                                                  |
-| Encryption        | The platform's data key                                               |
-| Admin login       | An admin username and a generated password                            |
-| Port              | 3306                                                                  |
-| Tags              | Workspace and Zone tags                                               |
-| Final backup      | A snapshot taken when a server is deleted, switched on per deployment |
+| Setting      | Platform's Choice                                                     |
+| ------------ | --------------------------------------------------------------------- |
+| Admin login  | An admin username and a generated password                            |
+| Port         | 3306                                                                  |
+| Final backup | A snapshot taken when a server is deleted, switched on per deployment |
 
 *Settings the platform makes for a `MariaDBServer`.*
 

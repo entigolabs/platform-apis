@@ -575,14 +575,13 @@ spec:
 
 ## Platform Decisions
 
-The platform makes these settings itself:
+Besides the settings it makes for every service
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
+for a `Bucket` itself:
 
-| Setting        | Platform's Choice                                       |
-| -------------- | ------------------------------------------------------- |
-| Cloud name     | Set by the platform, unique where the cloud requires it |
-| Public access  | Blocked                                                 |
-| Encryption     | The platform's data key                                 |
-| Access control | Cloud IAM only                                          |
+| Setting        | Platform's Choice |
+| -------------- | ----------------- |
+| Access control | Cloud IAM only    |
 
 *Settings the platform makes for a `Bucket`.*
 
