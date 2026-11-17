@@ -16,8 +16,10 @@ their names from it:
 
 *Names of the kinds around a user-facing kind.*
 
-The engine comes first, so the kinds sort together. An on-premises implementation is grouped by the
-platform it runs on, `kubernetes`, with the product in the kind, as `PostgreSQLCNPGConfig` for
+The engine comes first, so the kinds sort together. The product is the implementation's own short
+name, such as RDS, Cloud SQL or MSK; where it has none, the platform's name stands in for it, as in
+`PostgreSQLOCIConfig` for OCI Database with PostgreSQL. An on-premises implementation is grouped by
+the platform it runs on, `kubernetes`, with the product in the kind, as `PostgreSQLCNPGConfig` for
 CloudNativePG. An implementation built outside Entigo uses its own domain, so names never collide.
 Each provider config kind versions on its own.
 

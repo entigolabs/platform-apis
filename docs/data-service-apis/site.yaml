@@ -73,8 +73,13 @@ nav:
     - <<: *schemas
       files:
       - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
+      - {file: schemas/kafkaclass.yaml, label: KafkaClass}
+      - {file: schemas/kafkaparameters.yaml, label: KafkaParameters}
       - {file: schemas/kafkauser.yaml, label: KafkaUser}
       - {file: schemas/kafkatopic.yaml, label: KafkaTopic}
+      - {file: schemas/kafkamskconfig.yaml, label: KafkaMSKConfig}
+      - {file: schemas/kafkagcpconfig.yaml, label: KafkaGCPConfig}
+      - {file: schemas/kafkaociconfig.yaml, label: KafkaOCIConfig}
   - label: RabbitMQ
     tabs:
     - {file: rabbitmq.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}

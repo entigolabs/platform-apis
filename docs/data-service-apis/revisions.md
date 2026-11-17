@@ -25,7 +25,8 @@ the last is agreed.
   `serverRef`.
 - Valkey: `ValkeyInstance` becomes `ValkeyServer`, with `ValkeyClass`, `ValkeyParameters` and a
   provider config kind per implementation; `replicas` becomes `readReplicas`.
-- Kafka: a `KafkaUser`'s ACLs and consumer groups match a name exactly or by its prefix
+- Kafka: `KafkaCluster` gains `KafkaClass`, `KafkaParameters` and a provider config kind per
+  implementation, and a `KafkaUser`'s ACLs and consumer groups match a name exactly or by its prefix
   (`patternType`).
 - PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
   (`disasterRecovery`).

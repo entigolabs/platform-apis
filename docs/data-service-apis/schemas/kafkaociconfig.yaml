@@ -1,0 +1,58 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kafkaociconfigs.oci.queue.entigo.com
+spec:
+  group: oci.queue.entigo.com
+  scope: Namespaced
+  names:
+    kind: KafkaOCIConfig
+    plural: kafkaociconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for OCI Streaming with Apache Kafka (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The OCI Streaming with Apache Kafka ID of an existing resource to observe
+                  (principle 9). Only with observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+              instanceType:
+                type: string
+                description: |-
+                  The broker shape. A .Flex shape needs ocpus.
+                  Default: the class's template.
+              ocpus:
+                type: number
+                description: |-
+                  OCPUs per broker. Required with a .Flex shape.
+                  Default: the class's template.
+                minimum: 1
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for OCI Streaming with Apache Kafka (principle 4).
+            properties:
+              instanceType:
+                type: string
+              ocpus:
+                type: number
+              state:
+                type: string
+        required:
+        - spec
+    subresources:
+      status: {}

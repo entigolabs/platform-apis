@@ -354,15 +354,17 @@ spec:
 Today's cluster-scoped `MSK` only observes an existing cluster; the namespaced `KafkaCluster`
 creates one or observes one:
 
-| Today                                    | Design                                                                                                      | Reason                                                            |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| kind `MSK`, cluster-scoped               | kind `KafkaCluster`, namespaced                                                                             | Named after the engine (principle 8), shared within its Zone (principle 11) |
-| `clusterARN`                             | `observe: true` and `aws.id`                                                                                | Observing is one form for every kind (principle 9)                     |
-| (none)                                   | `version`, `brokers`, `storage.sizeGB`, `highAvailability`, `deletionProtection`, `parameters`, cloud sizes | Creating a cluster                                                |
-| `status.brokers`, `status.brokersscram`  | `status.bootstrapServers`                                                                                   | One listener field for every cloud                                |
-| `status.arn`                             | `status.aws.arn`                                                                                            | A cloud ID (principle 4)                                               |
-| `status.providerConfig`, `status.region` | removed                                                                                                     | Internal to the platform                                          |
-| topics without an ACL open to every user | topics without an ACL closed                                                                                | Access is granted per user (principle 12)                              |
+| Today                                    | Design                                                                                                          | Reason                                                                                                            |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| kind `MSK`, cluster-scoped               | kind `KafkaCluster`, namespaced                                                                                 | Named after the engine (principle 8), shared within its Zone (principle 11)                                       |
+| `clusterARN`                             | `observe: true` and `id` in the `KafkaMSKConfig` entry                                                          | Observing is one form for every kind (principle 9)                                                                |
+| (none)                                   | `version`, `brokers`, `storage.sizeGB`, `highAvailability`, `deletionProtection`, `parameters`, `parametersRef` | Creating a cluster                                                                                                |
+| (none)                                   | `className`, and a broker size in each `providerConfigs` entry                                                  | The deployment's defaults come from a class (principle 5), and a size belongs to one implementation (principle 2) |
+| `status.brokers`, `status.brokersscram`  | `status.bootstrapServers`                                                                                       | One listener field everywhere                                                                                     |
+| `status.arn`                             | `status.provider.arn`                                                                                           | A value of one implementation (principle 4)                                                                       |
+| `status.providerConfig`, `status.region` | removed                                                                                                         | Internal to the platform                                                                                          |
+| (none)                                   | `status.providerConfig`, `status.effective`                                                                     | The applied entry and each value's source (principle 4)                                                           |
+| topics without an ACL open to every user | topics without an ACL closed                                                                                    | Access is granted per user (principle 12)                                                                         |
 
 *Changes from `MSK` to `KafkaCluster`.*
 
@@ -387,8 +389,11 @@ metadata:
   namespace: platform                  # new: namespaced
 spec:
   observe: true                        # new
-  aws:
-    id: arn:aws:kafka:...              # was clusterARN
+  providerConfigs:                     # new
+  - apiVersion: aws.queue.entigo.com/v1alpha1
+    kind: KafkaMSKConfig
+    spec:
+      id: arn:aws:kafka:...            # was clusterARN
 ```
 
 *`MSK` today, `KafkaCluster` in the design.*

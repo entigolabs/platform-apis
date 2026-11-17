@@ -300,8 +300,34 @@ update("ValkeyElastiCacheConfig changing fromBackup rejected", "ValkeyElastiCach
        {"fromBackup": "a"}, {"fromBackup": "b"}, False, "set at creation only")
 
 print("\n# KafkaCluster")
-create("gcp 30 GB for 3 vCPUs accepted, left to the cloud", "KafkaCluster",
-       {"gcp": {"vcpus": 3, "memoryGB": 30}})
+MSK = {"apiVersion": "aws.queue.entigo.com/v1alpha1", "kind": "KafkaMSKConfig",
+       "spec": {"instanceType": "kafka.m7g.large"}}
+KGCP = {"apiVersion": "gcp.queue.entigo.com/v1alpha1", "kind": "KafkaGCPConfig",
+        "spec": {"vcpus": 3, "memoryGB": 12}}
+KC = {"version": "4.0", "brokers": 3, "storage": {"sizeGB": 100}, "highAvailability": True,
+      "providerConfigs": [MSK, KGCP]}
+create("KafkaCluster valid spec", "KafkaCluster", KC)
+create("KafkaCluster instanceType at the top level rejected", "KafkaCluster",
+       w(KC, instanceType="kafka.m7g.large"), False, "unknown field")
+create("KafkaCluster an aws block, the former form, rejected", "KafkaCluster",
+       w(KC, aws={"instanceType": "kafka.m7g.large"}), False, "unknown field")
+create("KafkaCluster 0 brokers rejected", "KafkaCluster", w(KC, brokers=0), False,
+       "should be greater than or equal to 1")
+create("KafkaCluster observe with an entry accepted", "KafkaCluster",
+       {"observe": True, "providerConfigs": [{**MSK, "spec": {"id": "arn:aws:kafka:x"}}]})
+create("KafkaCluster observe with a common field rejected", "KafkaCluster",
+       {"observe": True, "brokers": 3, "providerConfigs": [{**MSK, "spec": {"id": "x"}}]}, False,
+       "takes no other common field")
+create("KafkaClass valid class", "KafkaClass",
+       {"template": {"brokers": 3, "providerConfig": MSK}, "enforced": {"deletionProtection": True}})
+create("KafkaParameters accepted", "KafkaParameters",
+       {"parameters": {"auto.create.topics.enable": "false"}})
+for kind, spec in {"KafkaMSKConfig": {"instanceType": "kafka.m7g.large"},
+                   "KafkaGCPConfig": {"vcpus": 3, "memoryGB": 30},
+                   "KafkaOCIConfig": {"instanceType": "VM.Standard.E5.Flex", "ocpus": 2}}.items():
+    create(f"{kind} valid spec", kind, spec)
+    create(f"{kind} unknown field rejected", kind, {**spec, "unknownSetting": 1}, False,
+           "unknown field")
 
 print("\n# KafkaUser")
 KU = {"clusterRef": {"name": "c1"}, "acls": [{"topic": "orders", "operation": "Read"}]}
@@ -410,18 +436,14 @@ update("removing name rejected", "ArtifactRepository", CR, w(CR, name=None), Fal
 
 
 print("\n# Portability: one object applies on every cloud")
-SIZES = {"KafkaCluster": {"aws": {"instanceType": "kafka.m7g.large"},
-                          "gcp": {"vcpus": 3, "memoryGB": 12},
-                          "oci": {"instanceType": "VM.Standard.E5.Flex", "ocpus": 2}},
-         "RabbitMQBroker": {"aws": {"instanceType": "mq.m7g.medium"}}}
+SIZES = {"RabbitMQBroker": {"aws": {"instanceType": "mq.m7g.medium"}}}
 for kind, spec in SIZES.items():
     create(f"{kind}: a size for every cloud in one object accepted", kind, spec)
     create(f"{kind}: instanceType outside the cloud blocks rejected", kind,
            {"instanceType": "db.t4g.small"}, False, "unknown field")
 
 print("\n# Shared rules on every resource kind")
-BLOCKS = {"KafkaCluster": ["aws", "gcp", "oci"],
-          "RabbitMQBroker": ["aws"], "Bucket": ["aws", "gcp", "oci", "azure"],
+BLOCKS = {"RabbitMQBroker": ["aws"], "Bucket": ["aws", "gcp", "oci", "azure"],
           "ArtifactRepository": ["aws", "gcp", "oci", "azure"]}
 for kind, blocks in BLOCKS.items():
     if len(blocks) > 1:

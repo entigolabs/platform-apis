@@ -1,0 +1,58 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kafkagcpconfigs.gcp.queue.entigo.com
+spec:
+  group: gcp.queue.entigo.com
+  scope: Namespaced
+  names:
+    kind: KafkaGCPConfig
+    plural: kafkagcpconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for Google Cloud Managed Service for Apache Kafka (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The Google Cloud Managed Service for Apache Kafka ID of an existing resource to
+                  observe (principle 9). Only with observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+              vcpus:
+                type: integer
+                description: |-
+                  The whole cluster's vCPUs.
+                  Default: the class's template.
+                minimum: 1
+              memoryGB:
+                type: integer
+                description: |-
+                  The whole cluster's memory, within GCP's range per vCPU (principle 10).
+                  Default: the class's template.
+                minimum: 1
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for Google Cloud Managed Service for Apache Kafka
+              (principle 4).
+            properties:
+              vcpus:
+                type: integer
+              memoryGB:
+                type: integer
+        required:
+        - spec
+    subresources:
+      status: {}

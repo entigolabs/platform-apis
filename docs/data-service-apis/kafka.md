@@ -3,13 +3,16 @@
 Apache Kafka is a distributed event log that applications publish streams of records to and consume
 them from.
 
-Three kinds: `KafkaCluster`, the cluster itself; `KafkaUser`, one application's login, with its
-ACLs; and `KafkaTopic`, one topic in a cluster.
+Three kinds for users: `KafkaCluster`, the cluster itself; `KafkaUser`, one application's login,
+with its ACLs; and `KafkaTopic`, one topic in a cluster. Two kinds shape them: `KafkaClass`, a
+deployment's defaults and limits, written by Entigo, and `KafkaParameters`, reusable broker
+settings.
 
-Built on Amazon MSK provisioned (AWS) and OCI Streaming with Apache Kafka (OCI). GCP's Managed
-Service for Apache Kafka is mapped, but the kinds exist on GCP only once its Crossplane provider
-supports the service (principle 7). Azure has none: Event Hubs speaks the Kafka protocol but has no
-Kafka ACLs, no topic creation through the Kafka admin API and no broker settings.
+Built on Amazon MSK provisioned (AWS) and OCI Streaming with Apache Kafka (OCI), each with a provider
+config kind of its own: `KafkaMSKConfig` and `KafkaOCIConfig`. GCP's Managed Service for Apache
+Kafka is mapped, with `KafkaGCPConfig`, but the kinds exist on GCP only once its Crossplane provider
+supports the service (principle 7). Azure has none: Event Hubs implements the Kafka protocol but has
+no Kafka ACLs, no topic creation through the Kafka admin API and no broker settings.
 
 ## Contents
 
@@ -22,12 +25,12 @@ Kafka ACLs, no topic creation through the Kafka admin API and no broker settings
 
 ## Kinds
 
-Kafka is offered as three kinds, each with the manifest a user writes.
+Kafka is offered as five kinds, each with the manifest its owner writes.
 
 ### KafkaCluster
 
-A user sets a `KafkaCluster`'s version, brokers, storage and broker settings in a manifest like the
-one below. Its comments note value ranges and what holds on one cloud only:
+A user creates a `KafkaCluster` with a manifest like the one below. It names its class and carries
+one provider config entry per implementation it may run on (principle 2):
 
 ```yaml
 ---
@@ -37,54 +40,132 @@ metadata:
   name: orders-kafka
   namespace: shop
 spec:
-  # Common
-  version: "4.0"                       # each cloud accepts the versions it offers
+  className: standard                  # unset, the deployment's default class (principle 5)
+  version: "4.0"                       # each implementation accepts the versions it offers
   brokers: 3
   storage:
     sizeGB: 100                        # per broker
   highAvailability: true               # survive the loss of one zone
   deletionProtection: true
-  parameters:                          # broker settings, within each cloud's allowlist
+  parametersRef:
+    name: orders-brokers               # a KafkaParameters in this namespace
+  parameters:                          # this cluster's own broker settings, merged last
     auto.create.topics.enable: "false"
-  # Cloud-specific; every block also takes id (principle 9)
-  aws:
-    instanceType: kafka.m7g.large      # the broker instance type
-  gcp:
-    vcpus: 3                           # GCP sizes the whole cluster by vCPU and memory
-    memoryGB: 12                       # within GCP's range per vCPU
-  oci:
-    instanceType: VM.Standard.E5.Flex  # the broker shape
-    ocpus: 2                           # per broker, required with a .Flex shape
+  providerConfigs:                     # one entry per kind; the class's kind applies
+  - apiVersion: aws.queue.entigo.com/v1alpha1
+    kind: KafkaMSKConfig
+    spec:
+      instanceType: kafka.m7g.large    # the broker instance type
+  - apiVersion: gcp.queue.entigo.com/v1alpha1
+    kind: KafkaGCPConfig
+    spec:
+      vcpus: 3                         # GCP sizes the whole cluster by vCPU and memory
+      memoryGB: 12                     # within GCP's range per vCPU
+  - apiVersion: oci.queue.entigo.com/v1alpha1
+    kind: KafkaOCIConfig
+    spec:
+      instanceType: VM.Standard.E5.Flex  # the broker shape
+      ocpus: 2                         # per broker, required with a .Flex shape
 ```
 
-*A `KafkaCluster` with its common fields and a block per cloud.*
+*A `KafkaCluster` with its common fields and an entry per implementation.*
 
-A cluster's size is its brokers times each broker's size. The clouds size them differently, so the
-size is in each cloud's block (principle 2). No cloud offers a maintenance window.
+A cluster's size is its brokers times each broker's size. The implementations size them
+differently, so the size is in each provider config (principle 2). No implementation offers a
+maintenance window.
 
-The status adds `bootstrapServers`, the listener applications use.
+`highAvailability` is a portable feature: an object that requests it where its class does not
+support it is refused when applied (principle 1).
 
-The cloud blocks of the status:
+The status shows the common fields, `bootstrapServers`, the listener applications use, which entry
+applied, where each effective value came from, and the applied implementation's own values
+(principle 4):
 
 ```yaml
 status:
-  aws:
+  version: "4.0"
+  brokers: 3
+  bootstrapServers: b-1.orders-kafka.abc.kafka.eu-north-1.amazonaws.com:9096,...
+  providerConfig:
+    applied: aws.queue.entigo.com/v1alpha1, KafkaMSKConfig
+    ignored:
+    - gcp.queue.entigo.com/v1alpha1, KafkaGCPConfig
+    - oci.queue.entigo.com/v1alpha1, KafkaOCIConfig
+  effective:
+    brokers: { value: 3, source: object }
+    deletionProtection: { value: true, source: class/standard/enforced }
+    instanceType: { value: kafka.m7g.large, source: object/KafkaMSKConfig }
+  provider:                            # the shape KafkaMSKConfig's status defines
     arn: ...
     kafkaVersion: ...
-  gcp:
-    id: ...
-  oci:
-    id: ...
-    state: ACTIVE
 ```
 
-*The cloud blocks of a `KafkaCluster` status.*
+*A `KafkaCluster` status on AWS.*
 
 A cluster has no secret of its own: applications log in with a `KafkaUser`'s secret.
 
+### KafkaClass
+
+Entigo writes each deployment's classes, with the defaults a cluster starts with (`template`) and
+the values it cannot change (`enforced`) (principle 5):
+
+```yaml
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaClass
+metadata:
+  name: standard
+  annotations:
+    queue.entigo.com/is-default-class: "true"
+spec:
+  template:
+    version: "4.0"
+    brokers: 3
+    storage:
+      sizeGB: 100
+    providerConfig:
+      apiVersion: aws.queue.entigo.com/v1alpha1
+      kind: KafkaMSKConfig
+      spec:
+        instanceType: kafka.m7g.large
+  enforced:
+    deletionProtection: true
+```
+
+*A `KafkaClass` for MSK.*
+
+A class reports `HighAvailability` in `status.supportedFeatures` on every implementation.
+
+### KafkaParameters
+
+`KafkaParameters` holds broker settings that several clusters or a class share. A class, a cluster
+and a cluster's provider config may each reference one, and their settings merge key by key in that
+order, followed by the cluster's own `parameters`:
+
+```yaml
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaParameters
+metadata:
+  name: orders-brokers
+  namespace: shop
+spec:
+  parameters:
+    auto.create.topics.enable: "false"
+    log.retention.hours: "72"
+```
+
+*A `KafkaParameters` a user shares between their clusters.*
+
+A `KafkaParameters` names no other, so references never chain. Each implementation allows only some
+settings, and the others are rejected by the cloud and reported as `CloudAccepted: False`
+(principle 10).
+
 ### KafkaUser
 
-An identity that applications use to log in to the cluster, with the ACLs it is granted.
+A `KafkaUser` is an identity that applications use to log in to the cluster, with the ACLs it is
+granted. Its `clusterRef` is immutable, may name another namespace of the same Zone (principle 11),
+and it has no class or provider configs: it follows its cluster's implementation.
 
 An example:
 
@@ -140,7 +221,8 @@ differs by cloud.
 
 ### KafkaTopic
 
-A topic in the cluster, created through the Kafka admin API on every cloud.
+A `KafkaTopic` is a topic in the cluster, created through the Kafka admin API on every
+implementation. It has no class or provider configs: it follows its cluster's implementation.
 
 An example:
 
@@ -171,8 +253,8 @@ platform rejects the newer one instead, naming the object that holds the name.
 
 ## Mapping
 
-The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
-ignored, with the reason (principle 1), and a field of a cloud's block appears only for that cloud:
+The first table names what each common field maps to in the implementation's provider. A setting
+the implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field              | AWS                                                         | GCP                                                                                                         | OCI                                                                                 |
 | ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -182,28 +264,34 @@ ignored, with the reason (principle 1), and a field of a cloud's block appears o
 | `storage.sizeGB`   | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                                      | `brokerShape.storageSizeInGbs`                                                      |
 | `highAvailability` | always; `false` ignored                                     | always three zones; `false` ignored                                                                         | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
 | `parameters`       | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones take effect after a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
-| `aws.id`           | the cluster ARN                                             |                                                                                                             |                                                                                     |
-| `gcp.id`           |                                                             | rejected; provider-upjet-gcp v3.1.0 has no Kafka resource                                                   |                                                                                     |
-| `oci.id`           |                                                             |                                                                                                             | the cluster's OCID                                                                  |
-| `aws.instanceType` | `brokerNodeGroupInfo.instanceType`                          |                                                                                                             |                                                                                     |
-| `oci.instanceType` |                                                             |                                                                                                             | `brokerShape.nodeShape`                                                             |
-| `gcp.vcpus`        |                                                             | `capacity_config.vcpu_count`                                                                                |                                                                                     |
-| `gcp.memoryGB`     |                                                             | `capacity_config.memory_bytes`, in bytes                                                                    |                                                                                     |
-| `oci.ocpus`        |                                                             |                                                                                                             | `brokerShape.ocpuCount`                                                             |
+| `parametersRef`    | merged into `parameters`                                    | merged into `parameters`                                                                                    | merged into `parameters`                                                            |
 
-*Fields of `KafkaCluster` and their provider fields.*
+*Common fields of `KafkaCluster` and their provider fields.*
 
-**AWS:** the size is the broker type, `aws.instanceType`, times `brokers`. `bootstrapServers` is
+The second names the implementation's provider config kind and what its fields map to:
+
+| Field          | AWS                                | GCP                                                       | OCI                     |
+| -------------- | ---------------------------------- | --------------------------------------------------------- | ----------------------- |
+| kind           | `KafkaMSKConfig`                   | `KafkaGCPConfig`                                          | `KafkaOCIConfig`        |
+| `id`           | the cluster ARN                    | rejected; provider-upjet-gcp v3.1.0 has no Kafka resource | the cluster's OCID      |
+| `instanceType` | `brokerNodeGroupInfo.instanceType` |                                                           | `brokerShape.nodeShape` |
+| `vcpus`        |                                    | `capacity_config.vcpu_count`                              |                         |
+| `memoryGB`     |                                    | `capacity_config.memory_bytes`, in bytes                  |                         |
+| `ocpus`        |                                    |                                                           | `brokerShape.ocpuCount` |
+
+*Fields of each provider config kind.*
+
+**AWS:** the size is the broker type, `instanceType`, times `brokers`. `bootstrapServers` is
 `bootstrapBrokersSaslScram`. provider-kafka logs in with IAM. `allow.everyone.if.no.acl.found` is
 `false`, with the admin as a superuser.
 
 **GCP:** the mapping names fields of the Terraform resource `google_managed_kafka_cluster`, since no
-Crossplane provider has one yet. GCP takes the cluster's total vCPU and memory, `gcp.vcpus` and
-`gcp.memoryGB`, and chooses the brokers itself, so `brokers` is ignored and stays empty in the
+Crossplane provider has one yet. GCP takes the cluster's total vCPU and memory, `vcpus` and
+`memoryGB`, and chooses the brokers itself, so `brokers` is ignored and stays empty in the
 status. `bootstrapServers` is `bootstrap_address`. The admin needs explicit ALLOW ACLs on every
 resource.
 
-**OCI:** the size is the broker shape, `oci.instanceType` with `oci.ocpus`, times `brokers`.
+**OCI:** the size is the broker shape, `instanceType` with `ocpus`, times `brokers`.
 `bootstrapServers` is `kafkaBootstrapUrls`. Data at rest uses the service's own key, since OCI takes
 no customer key. provider-kafka logs in with the superuser's Vault secret.
 `allow.everyone.if.no.acl.found` is `false`, with the admin as a superuser.
@@ -213,7 +301,7 @@ no customer key. provider-kafka logs in with the superuser's Vault secret.
 **GCP:** nothing is composed, since its provider has no Managed Kafka resource.
 
 The `KafkaCluster` from [Kinds](#kinds) is composed into the resources below on the cloud it runs
-on: the platform uses that cloud's block and ignores the others. A comment names the source of each
+on: the platform applies the entry of its class's kind and ignores the others. A comment names the source of each
 value the object does not hold as written: `platform` for a value the platform sets, and
 `deployment` for one the deployment sets. The object and its resources:
 
@@ -225,6 +313,7 @@ metadata:
   name: orders-kafka
   namespace: shop
 spec:
+  className: standard
   version: "4.0"
   brokers: 3
   storage:
@@ -233,14 +322,21 @@ spec:
   deletionProtection: true
   parameters:
     auto.create.topics.enable: "false"
-  aws:
-    instanceType: kafka.m7g.large
-  gcp:
-    vcpus: 3
-    memoryGB: 12
-  oci:
-    instanceType: VM.Standard.E5.Flex
-    ocpus: 2
+  providerConfigs:
+  - apiVersion: aws.queue.entigo.com/v1alpha1
+    kind: KafkaMSKConfig
+    spec:
+      instanceType: kafka.m7g.large
+  - apiVersion: gcp.queue.entigo.com/v1alpha1
+    kind: KafkaGCPConfig
+    spec:
+      vcpus: 3
+      memoryGB: 12
+  - apiVersion: oci.queue.entigo.com/v1alpha1
+    kind: KafkaOCIConfig
+    spec:
+      instanceType: VM.Standard.E5.Flex
+      ocpus: 2
 ```
 
 ```yaml AWS resource
@@ -287,6 +383,7 @@ metadata:
   name: orders-kafka
   namespace: shop
 spec:
+  className: standard
   version: "4.0"
   brokers: 3
   storage:
@@ -295,14 +392,21 @@ spec:
   deletionProtection: true
   parameters:
     auto.create.topics.enable: "false"
-  aws:
-    instanceType: kafka.m7g.large
-  gcp:
-    vcpus: 3
-    memoryGB: 12
-  oci:
-    instanceType: VM.Standard.E5.Flex
-    ocpus: 2
+  providerConfigs:
+  - apiVersion: aws.queue.entigo.com/v1alpha1
+    kind: KafkaMSKConfig
+    spec:
+      instanceType: kafka.m7g.large
+  - apiVersion: gcp.queue.entigo.com/v1alpha1
+    kind: KafkaGCPConfig
+    spec:
+      vcpus: 3
+      memoryGB: 12
+  - apiVersion: oci.queue.entigo.com/v1alpha1
+    kind: KafkaOCIConfig
+    spec:
+      instanceType: VM.Standard.E5.Flex
+      ocpus: 2
 ```
 
 ```yaml OCI resource
@@ -361,8 +465,8 @@ release named, or the cloud's documentation as read in November 2026.
 | `brokers`        | OCI   | 1 to 30                       | `brokerShape.nodeCount`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0        |
 | `storage.sizeGB` | GCP   | at least 100                  | `disk_size_gib`, `google_managed_kafka_cluster` documentation                      |
 | `storage.sizeGB` | OCI   | at least 50                   | `brokerShape.storageSizeInGbs`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0 |
-| `gcp.vcpus`      | GCP   | at least 3                    | `vcpu_count`, `google_managed_kafka_cluster` documentation                         |
-| `gcp.memoryGB`   | GCP   | 1 to 8 per vCPU               | `memory_bytes`, `google_managed_kafka_cluster` documentation                       |
+| `vcpus`          | GCP   | at least 3                    | `vcpu_count`, `google_managed_kafka_cluster` documentation                         |
+| `memoryGB`       | GCP   | 1 to 8 per vCPU               | `memory_bytes`, `google_managed_kafka_cluster` documentation                       |
 
 *Limits the cloud enforces on Kafka.*
 

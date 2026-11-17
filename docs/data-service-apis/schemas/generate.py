@@ -302,46 +302,6 @@ write("mariadbdatabase", xrd(
 
 # --- Kafka --------------------------------------------------------------------------------
 
-write("kafkacluster", xrd(
-    "KafkaCluster", "kafkaclusters", "queue.entigo.com",
-    resource_spec({
-        "version": field("string", "The Kafka version, such as \"4.0\". Each cloud accepts "
-                         "the versions it offers.", default=DEPLOY),
-        "brokers": field("integer", "The number of brokers.",
-                         "Ignored on GCP, which chooses its own.", DEPLOY, minimum=1),
-        "storage": obj({"sizeGB": field("integer", "Disk per broker, in GB.", default=DEPLOY,
-                                        minimum=1)}),
-        "highAvailability": field("boolean", "Survive the loss of one zone.",
-                                  "Ignored for false on AWS and GCP, "
-                                  "which always run highly available.", DEPLOY),
-        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
-                                    default="fixed, true"),
-        "parameters": string_map("Broker settings, by name. Keys outside the cloud's "
-                                 "allowlist are rejected."),
-    }, {
-        "aws": {"instanceType": field("string", "The MSK broker instance type, such as "
-                                      "kafka.m7g.large.", default=DEPLOY)},
-        "gcp": {
-            "vcpus": field("integer", "The whole cluster's vCPUs.", default=DEPLOY, minimum=1),
-            "memoryGB": field("integer", "The whole cluster's memory, within GCP's range per vCPU (principle 10).",
-                              default=DEPLOY, minimum=1),
-        },
-        "oci": {"instanceType": field("string", "The broker shape. A .Flex shape needs "
-                                      "oci.ocpus.", default=DEPLOY),
-                "ocpus": field("number", "OCPUs per broker. Required with a .Flex shape.",
-                               default=DEPLOY, minimum=1)},
-    }, "Kafka cluster"),
-    obj({
-        "version": field("string"),
-        "brokers": field("integer"),
-        "storage": obj({"sizeGB": field("integer")}),
-        "highAvailability": field("boolean"),
-        "bootstrapServers": field("string", "The listener applications connect to, as host:port pairs."),
-        "aws": obj({"instanceType": S(), "arn": S(), "kafkaVersion": S()}),
-        "gcp": obj({"vcpus": field("integer"), "memoryGB": field("integer"), "id": S()}),
-        "oci": obj({"instanceType": S(), "id": S(), "state": S()}),
-    })))
-
 CLUSTER_REF = parent_ref("KafkaCluster", "clusterRef")
 PATTERN_TYPE = field("string", "Kafka's ACL pattern type: Literal matches the name exactly, "
                      "Prefixed every name that starts with it.", default="fixed, Literal",
@@ -1055,3 +1015,76 @@ write("valkeyocicacheconfig", provider_config_crd(
         "memoryGB": field("integer", "Memory per node, within OCI's own range (principle 10).",
                           default=DEFAULT, minimum=1),
     }, {"memoryGB": field("integer"), "state": S(), "softwareVersion": S()}))
+
+# --- Kafka -----------------------------------------------------------------------------------
+
+
+def kafka_common():
+    """KafkaCluster's common fields (principle 1)."""
+    return {
+        "version": field("string", "The Kafka version, such as \"4.0\". Each implementation "
+                         "accepts the versions it offers (principle 10).", default=DEFAULT),
+        "brokers": field("integer", "The number of brokers.", default=DEFAULT, minimum=1),
+        "storage": obj({"sizeGB": field("integer", "Disk per broker, in GB.", default=DEFAULT,
+                                        minimum=1)}),
+        "highAvailability": field("boolean", "Survive the loss of one zone. Refused where the "
+                                  "class does not support HighAvailability (principle 1).",
+                                  default=DEFAULT),
+        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
+                                    default="fixed, true"),
+        "parametersRef": obj({"name": field("string", "A KafkaParameters in this namespace.")},
+                             "Reusable broker settings, merged after the class's.",
+                             required=["name"]),
+        "parameters": string_map("Broker settings for this object only, merged after "
+                                 "parametersRef."),
+    }
+
+
+write("kafkacluster", xrd("KafkaCluster", "kafkaclusters", "queue.entigo.com",
+                          class_spec("KafkaClass", kafka_common(), {}, [], []),
+                          obj({
+                              "version": S(),
+                              "brokers": field("integer"),
+                              "storage": obj({"sizeGB": field("integer")}),
+                              "highAvailability": field("boolean"),
+                              "bootstrapServers": field("string", "The listener applications "
+                                                        "connect to, as host:port pairs."),
+                              "providerConfig": obj({"applied": S(), "ignored": array(S())},
+                                                    "The provider config entries applied and "
+                                                    "ignored, as <apiVersion>, <kind> (principle 4)."),
+                              "effective": {"type": "object",
+                                            "x-kubernetes-preserve-unknown-fields": True,
+                                            "description": desc("Each effective value and its "
+                                                                "source: the class's template, the "
+                                                                "object, or the class's enforced "
+                                                                "(principle 4).")},
+                              "provider": {"type": "object",
+                                           "x-kubernetes-preserve-unknown-fields": True,
+                                           "description": desc("Values of the applied "
+                                                               "implementation, in the shape its "
+                                                               "provider config kind's status "
+                                                               "defines (principle 4).")},
+                          })))
+write("kafkaclass", class_crd("KafkaClass", "kafkaclasses", "queue.entigo.com", kafka_common()))
+write("kafkaparameters", parameters_crd("KafkaParameters", "kafkaparameters", "queue.entigo.com",
+                                        "Broker"))
+write("kafkamskconfig", provider_config_crd(
+    "KafkaMSKConfig", "kafkamskconfigs", "aws.queue.entigo.com", "Amazon MSK", {
+        "instanceType": field("string", "The MSK broker instance type, such as kafka.m7g.large.",
+                              default=DEFAULT),
+    }, {"instanceType": S(), "arn": S(), "kafkaVersion": S()}))
+write("kafkagcpconfig", provider_config_crd(
+    "KafkaGCPConfig", "kafkagcpconfigs", "gcp.queue.entigo.com",
+    "Google Cloud Managed Service for Apache Kafka", {
+        "vcpus": field("integer", "The whole cluster's vCPUs.", default=DEFAULT, minimum=1),
+        "memoryGB": field("integer", "The whole cluster's memory, within GCP's range per vCPU "
+                          "(principle 10).", default=DEFAULT, minimum=1),
+    }, {"vcpus": field("integer"), "memoryGB": field("integer")}))
+write("kafkaociconfig", provider_config_crd(
+    "KafkaOCIConfig", "kafkaociconfigs", "oci.queue.entigo.com",
+    "OCI Streaming with Apache Kafka", {
+        "instanceType": field("string", "The broker shape. A .Flex shape needs ocpus.",
+                              default=DEFAULT),
+        "ocpus": field("number", "OCPUs per broker. Required with a .Flex shape.",
+                       default=DEFAULT, minimum=1),
+    }, {"instanceType": S(), "ocpus": field("number"), "state": S()}))
