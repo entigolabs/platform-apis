@@ -1,0 +1,103 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: postgresqlcloudsqlconfigs.gcp.database.entigo.com
+spec:
+  group: gcp.database.entigo.com
+  scope: Namespaced
+  names:
+    kind: PostgreSQLCloudSQLConfig
+    plural: postgresqlcloudsqlconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for Cloud SQL (rule 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The Cloud SQL ID of an existing resource to observe (rule 9). Only with observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+              instanceType:
+                type: string
+                description: |-
+                  The Cloud SQL machine tier, such as db-custom-2-7680, which belongs to edition.
+                  Default: the class's template.
+              edition:
+                type: string
+                description: |-
+                  The Cloud SQL edition, such as ENTERPRISE.
+                  Default: the class's template.
+              diskType:
+                type: string
+                description: |-
+                  The Cloud SQL disk type, such as PD_SSD.
+                  Default: the class's template.
+              fromBackup:
+                type: string
+                description: |-
+                  A Cloud SQL backup to create the cluster from, as <instance>/<backup run ID>.
+                  Set at creation only; not with restore.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: fromBackup is set at creation only
+              readReplicas:
+                type: array
+                description: |-
+                  Read replicas of their own sizes, instead of the readReplicas count; not with
+                  it.
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: |-
+                        The replica's name, which its cloud name ends with.
+                    instanceType:
+                      type: string
+                      description: |-
+                        The Cloud SQL machine tier of this replica.
+                    parametersRef:
+                      type: object
+                      description: |-
+                        Engine settings for this replica only.
+                      properties:
+                        name:
+                          type: string
+                      required:
+                      - name
+                  required:
+                  - name
+                  - instanceType
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for Cloud SQL (rule 4).
+            properties:
+              instanceType:
+                type: string
+              finalBackup:
+                type: string
+                description: |-
+                  The ID the final backup receives when the cluster is deleted, for fromBackup.
+              state:
+                type: string
+              connectionName:
+                type: string
+              maintenanceVersion:
+                type: string
+        required:
+        - spec
+    subresources:
+      status: {}

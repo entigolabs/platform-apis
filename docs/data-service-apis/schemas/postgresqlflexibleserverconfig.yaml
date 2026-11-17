@@ -1,0 +1,84 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: postgresqlflexibleserverconfigs.azure.database.entigo.com
+spec:
+  group: azure.database.entigo.com
+  scope: Namespaced
+  names:
+    kind: PostgreSQLFlexibleServerConfig
+    plural: postgresqlflexibleserverconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for Azure Database for PostgreSQL flexible server (rule 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The Azure Database for PostgreSQL flexible server ID of an existing resource to
+                  observe (rule 9). Only with observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+              instanceType:
+                type: string
+                description: |-
+                  The flexible server SKU, such as GP_Standard_D2ds_v5.
+                  Default: the class's template.
+              storageTier:
+                type: string
+                description: |-
+                  The disk tier, such as P10, which sets its IOPS.
+                  Default: the class's template.
+              readReplicas:
+                type: array
+                description: |-
+                  Read replicas of their own sizes, instead of the readReplicas count; not with
+                  it.
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: |-
+                        The replica's name, which its cloud name ends with.
+                    instanceType:
+                      type: string
+                      description: |-
+                        The flexible server SKU of this replica.
+                    parametersRef:
+                      type: object
+                      description: |-
+                        Engine settings for this replica only.
+                      properties:
+                        name:
+                          type: string
+                      required:
+                      - name
+                  required:
+                  - name
+                  - instanceType
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for Azure Database for PostgreSQL flexible server
+              (rule 4).
+            properties:
+              instanceType:
+                type: string
+              state:
+                type: string
+        required:
+        - spec
+    subresources:
+      status: {}

@@ -1,0 +1,78 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: postgresqlociconfigs.oci.database.entigo.com
+spec:
+  group: oci.database.entigo.com
+  scope: Namespaced
+  names:
+    kind: PostgreSQLOCIConfig
+    plural: postgresqlociconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for OCI Database with PostgreSQL (rule 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The OCI Database with PostgreSQL ID of an existing resource to observe (rule 9).
+                  Only with observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+              instanceType:
+                type: string
+                description: |-
+                  The DB system shape. A .Flex shape needs ocpus and memoryGB.
+                  Default: the class's template.
+              ocpus:
+                type: number
+                description: |-
+                  Required with a .Flex shape.
+                  Default: the class's template.
+                minimum: 1
+              memoryGB:
+                type: integer
+                description: |-
+                  Required with a .Flex shape.
+                  Default: the class's template.
+                minimum: 1
+              fromBackup:
+                type: string
+                description: |-
+                  A DB system backup OCID to create the cluster from. Set at creation only; not
+                  with restore.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: fromBackup is set at creation only
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for OCI Database with PostgreSQL (rule 4).
+            properties:
+              instanceType:
+                type: string
+              finalBackup:
+                type: string
+                description: |-
+                  The ID the final backup receives when the cluster is deleted, for fromBackup.
+              state:
+                type: string
+              instanceOcpuCount:
+                type: number
+              instanceMemorySizeInGbs:
+                type: integer
+        required:
+        - spec
+    subresources:
+      status: {}

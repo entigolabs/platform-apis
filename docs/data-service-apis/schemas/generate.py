@@ -357,62 +357,7 @@ STATUS_BLOCKS = {
     },
 }
 
-write("postgresqlinstance", db_instance(
-    "PostgreSQLInstance", "pginstances", "PostgreSQL",
-    "The major version, such as \"17\". With maintenance.autoMinorVersionUpgrade false, the "
-    "full version, such as \"17.7\".", "^[0-9]+(\\.[0-9]+)?$",
-    {
-        "aws": {
-            "instanceType": field("string", "The RDS instance class, such as db.t4g.small.",
-                                  default=DEPLOY),
-            "parameterGroupName": field("string", "An existing RDS parameter group to use, in "
-                                        "place of parameters."),
-            "fromBackup": from_backup_field("An RDS snapshot ID to create the instance from."),
-        },
-        "gcp": {
-            "instanceType": field("string", "The Cloud SQL machine tier, such as "
-                                  "db-custom-2-7680, which belongs to gcp.edition.",
-                                  default=DEPLOY),
-            "edition": field("string", "Cloud SQL edition, such as ENTERPRISE.",
-                             default=DEPLOY),
-            "diskType": field("string", "Cloud SQL disk type, such as PD_SSD.",
-                              default=DEPLOY),
-            "fromBackup": from_backup_field("A Cloud SQL backup to create the instance from, as "
-                                            "<instance>/<backup run ID>."),
-        },
-        "oci": {
-            "instanceType": field("string", "The DB system shape. A .Flex shape needs "
-                                  "oci.ocpus and oci.memoryGB.", default=DEPLOY),
-            "ocpus": field("number", "Required with a .Flex shape.", default=DEPLOY,
-                           minimum=1),
-            "memoryGB": field("integer", "Required with a .Flex shape.", default=DEPLOY,
-                              minimum=1),
-            "fromBackup": from_backup_field("A DB system backup OCID to create the instance "
-                                            "from."),
-        },
-        "azure": {
-            "instanceType": field("string", "The flexible server SKU, such as "
-                                  "GP_Standard_D2ds_v5.", default=DEPLOY),
-            "storageTier": field("string", "The disk tier, such as P10, which sets its IOPS.",
-                                 default=DEPLOY),
-        },
-    }, sc=False, extra_rules=from_backup_rules(["aws", "gcp", "oci"]) + [
-        ("!has(self.aws) || !has(self.aws.parameterGroupName) || !has(self.parameters)",
-         "aws.parameterGroupName and parameters cannot be used together"),
-        ("!has(oldSelf.aws) || !has(oldSelf.aws.parameterGroupName) || !has(self.version) || "
-         "!has(oldSelf.version) || "
-         "self.version.split('.')[0] == oldSelf.version.split('.')[0] || !has(self.aws) || "
-         "!has(self.aws.parameterGroupName) || "
-         "self.aws.parameterGroupName != oldSelf.aws.parameterGroupName",
-         "a major version change needs a new aws.parameterGroupName, since a parameter group "
-         "fits one major version"),
-        ("!has(self.version) || self.version.contains('.') == (has(self.maintenance) && "
-         "has(self.maintenance.autoMinorVersionUpgrade) && "
-         "!self.maintenance.autoMinorVersionUpgrade)",
-         "version takes a minor exactly when maintenance.autoMinorVersionUpgrade is false"),
-    ], from_backup=True, major=lambda v: f"{v}.split('.')[0]",
-    minor_ext="Ignored for a full version on GCP, OCI and Azure, which keep the minor current.",
-    size_ext="Ignored on OCI, whose storage grows automatically."))
+# PostgreSQL's kinds are written below, under Provider configs and classes.
 
 MARIADB_MAJOR = lambda v: f"({v}.split('.')[0] + '.' + {v}.split('.')[1])"
 
@@ -457,7 +402,7 @@ write("postgresqluser", xrd(
     "PostgreSQLUser", "postgresqlusers", "database.entigo.com",
     obj({
         "name": engine_name("role"),
-        "instanceRef": parent_ref("PostgreSQLInstance", "instanceRef"),
+        "clusterRef": parent_ref("PostgreSQLCluster", "clusterRef"),
         "secretName": secret_name("<instance>-<user>"),
         "login": field("boolean", "The role can log in.", default="fixed, true"),
         "createDb": field("boolean", "The role can create databases.", default="fixed, false"),
@@ -467,13 +412,13 @@ write("postgresqluser", xrd(
         "grant": obj({"roles": array(field("string"), "Roles granted to this role.")}),
     }, rules=[NAME_RULE]),
     obj({"connectionSecret": field("string", "The Secret with this user's login (rule 6).")}),
-    required_spec=["instanceRef"]))
+    required_spec=["clusterRef"]))
 
 write("postgresqldatabase", xrd(
     "PostgreSQLDatabase", "postgresqldatabases", "database.entigo.com",
     obj({
         "name": engine_name("database"),
-        "instanceRef": parent_ref("PostgreSQLInstance", "instanceRef"),
+        "clusterRef": parent_ref("PostgreSQLCluster", "clusterRef"),
         "owner": field("string", "The owning role's name in PostgreSQL."),
         "encoding": field("string", "The character set encoding, such as UTF8."),
         "lcCType": field("string", "The character classification (LC_CTYPE)."),
@@ -491,7 +436,7 @@ write("postgresqldatabase", xrd(
                                     default="fixed, true"),
     }, rules=[NAME_RULE]),
     obj({}),
-    required_spec=["instanceRef", "owner"]))
+    required_spec=["clusterRef", "owner"]))
 
 write("mariadbuser", xrd(
     "MariaDBUser", "mariadbusers", "database.entigo.com",
@@ -885,3 +830,316 @@ write("artifactrepository", xrd(
         "oci": obj({"id": S()}),
         "azure": obj({"registryId": S()}),
     })))
+
+# --- Provider configs and classes (rules 2, 5 and 8) ----------------------------------------
+
+FEATURES = ["HighAvailability", "ReadReplicas", "DisasterRecovery"]
+
+
+def crd(kind, plural, group, scope, spec, status=None, required_spec=None):
+    """A plain CRD, for kinds that are not composed: classes, parameters and provider configs."""
+    props = {"spec": spec}
+    if status:
+        props["status"] = status
+    if required_spec:
+        spec["required"] = required_spec
+    return {
+        "apiVersion": "apiextensions.k8s.io/v1",
+        "kind": "CustomResourceDefinition",
+        "metadata": {"name": f"{plural}.{group}"},
+        "spec": {
+            "group": group,
+            "scope": scope,
+            "names": {"kind": kind, "plural": plural},
+            "versions": [{"name": "v1alpha1" if "." in group.split(".entigo")[0] else "v1alpha2",
+                          "served": True, "storage": True,
+                          "schema": {"openAPIV3Schema": {"type": "object", "properties": props,
+                                                         "required": ["spec"]}},
+                          **({"subresources": {"status": {}}} if status else {})}],
+        },
+    }
+
+
+def entry_fields(text):
+    return {
+        "apiVersion": field("string", "The provider config kind's group and version, such as "
+                            "aws.database.entigo.com/v1alpha1."),
+        "kind": field("string", "The provider config kind, such as PostgreSQLRDSConfig."),
+        "spec": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
+                 "description": desc(text)},
+        "ref": obj({"name": field("string", "An object of this kind in the same namespace.")},
+                   "The settings in a separate object of this kind, instead of spec.",
+                   required=["name"]),
+    }
+
+
+def provider_configs():
+    """The open list of provider configs (rule 2): one entry per kind, inline or by reference."""
+    return array(
+        obj(entry_fields("The settings, checked by the implementation that applies them "
+                         "(rule 10)."), required=["apiVersion", "kind"],
+            rules=[("has(self.spec) != has(self.ref)", "an entry holds either spec or ref")]),
+        "Settings of single implementations, one entry per kind (rule 2). The deployment applies "
+        "the entry whose kind its class names and ignores the others.",
+        **{"x-kubernetes-list-type": "map", "x-kubernetes-list-map-keys": ["apiVersion", "kind"]})
+
+
+def provider_config(text):
+    """One provider config, as a class holds it: the kind names the implementation."""
+    props = entry_fields("The settings.")
+    del props["ref"]
+    return obj(props, text, required=["apiVersion", "kind"])
+
+
+def class_crd(kind, plural, group, common, extra_rules=()):
+    """A cluster-scoped class (rule 5): template defaults, enforced values, a DR standby."""
+    part = lambda text: obj({**common, "providerConfig": provider_config(
+        "The provider config: its kind names the implementation this class uses."),
+        "parametersRef": obj({"name": field("string"), "namespace": field("string")},
+                             "Engine settings for every object of this class.",
+                             required=["name", "namespace"])}, text)
+    same = ("!has(self.template) || !has(self.enforced) || !has(self.template.providerConfig) || "
+            "!has(self.enforced.providerConfig) || "
+            "(self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion "
+            "&& self.template.providerConfig.kind == self.enforced.providerConfig.kind)",
+            "template and enforced name the same provider config kind")
+    spec = obj({
+        "template": part("Defaults, written into an object when it is created; the object may "
+                         "change them."),
+        "enforced": part("Always applied; an object that sets a different value is refused."),
+        "standby": obj({"providerConfig": provider_config(
+            "Applied only while this workspace is not the primary of disasterRecovery, such as "
+            "a smaller size for a pilot-light replica.")},
+            "Settings for a disaster recovery replica in this workspace."),
+    }, rules=[same, *extra_rules])
+    status = obj({"supportedFeatures": array(field("string", enum=FEATURES),
+                                             "The portable features the implementation supports, "
+                                             "written by the implementation (rule 1).")})
+    return crd(kind, plural, group, "Cluster", spec, status)
+
+
+def parameters_crd(kind, plural, group, engine):
+    return crd(kind, plural, group, "Namespaced", obj({
+        "parameters": string_map(f"{engine} settings, by name. Keys outside the implementation's "
+                                 "allowlist are rejected by the cloud (rule 10).")},
+        rules=[]), required_spec=["parameters"])
+
+
+def provider_config_crd(kind, plural, group, product, settings, status, rules=()):
+    """A provider config kind: one implementation's settings, and its status.provider shape."""
+    return crd(kind, plural, group, "Namespaced", obj({
+        "id": field("string", f"The {product} ID of an existing resource to observe (rule 9). "
+                    "Only with observe.", **{"x-kubernetes-validations": [
+                        {"rule": "self == oldSelf", "message": "id is immutable"}]}),
+        **settings}, f"Settings for {product} (rule 2).", rules=list(rules)),
+        obj(status, f"The shape of status.provider for {product} (rule 4)."))
+
+
+def from_backup(text):
+    return field("string", text + " Set at creation only; not with restore.", **{
+        "x-kubernetes-validations": [{"rule": "self == oldSelf",
+                                      "message": "fromBackup is set at creation only"}]})
+
+
+def replica_layout(size_text):
+    return array(obj({
+        "name": field("string", "The replica's name, which its cloud name ends with."),
+        "instanceType": field("string", size_text),
+        "parametersRef": obj({"name": field("string")}, "Engine settings for this replica only.",
+                             required=["name"]),
+    }, required=["name", "instanceType"]),
+        "Read replicas of their own sizes, instead of the readReplicas count; not with it.")
+
+
+# --- PostgreSQL ------------------------------------------------------------------------------
+
+DEFAULT = "the class's template"
+
+
+def pg_common(observe=True):
+    """PostgreSQLCluster's common fields (rule 1), grouped as rule 13 says."""
+    return {
+        "version": field("string", "The major version, such as \"17\". With "
+                         "autoMinorVersionUpgrade false, the full version, such as \"17.7\".",
+                         default=DEFAULT, pattern="^[0-9]+(\\.[0-9]+)?$"),
+        "storage": obj({
+            "sizeGB": field("integer", "Disk size in GB at creation, and its floor after: raising "
+                            "it grows the disk, lowering it is rejected. The disk can be larger: "
+                            "it is rounded up to a size the implementation accepts, and autoGrow "
+                            "can take it further. The status shows the real size.",
+                            default=DEFAULT, minimum=1, **{"x-kubernetes-validations": [
+                                {"rule": "self >= oldSelf",
+                                 "message": "storage.sizeGB cannot decrease"}]}),
+            "autoGrow": field("boolean", "Grow the disk as it fills.", default="fixed, true"),
+            "maxSizeGB": field("integer", "The size autoGrow stops at.", default=DEFAULT,
+                               minimum=1),
+            "iops": field("integer", "Provisioned IOPS.", minimum=1),
+            "throughputMBps": field("integer", "Provisioned throughput in MB/s.", minimum=1),
+        }, rules=[("!has(self.maxSizeGB) || !has(self.sizeGB) || self.maxSizeGB >= self.sizeGB",
+                   "maxSizeGB must be at least sizeGB")]),
+        "highAvailability": field("boolean", "A standby in another zone, with automatic "
+                                  "failover. Refused where the class does not support "
+                                  "HighAvailability (rule 1).", default=DEFAULT),
+        "readReplicas": field("integer", "Read-only copies identical to the primary. Refused "
+                              "where the class does not support ReadReplicas (rule 1).",
+                              default="fixed, 0", minimum=0),
+        "disasterRecovery": obj({
+            "workspaces": array(field("string"), "The Entigo workspaces that hold this database: "
+                                "the primary, and those holding a replica that can take over.",
+                                minItems=2),
+            "primary": field("string", "The workspace that accepts writes. Changing it in every "
+                             "workspace fails over."),
+        }, "A copy in another workspace that can become the primary. Refused where the class does "
+           "not support DisasterRecovery (rule 1).", required=["workspaces", "primary"],
+            rules=[("self.primary in self.workspaces", "primary must be one of workspaces")]),
+        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
+                                    default="fixed, true"),
+        "maintenanceWindow": window(),
+        "autoMinorVersionUpgrade": field("boolean", "Apply new minor versions in the "
+                                         "maintenance window. false keeps the minor written in "
+                                         "version.", default=DEFAULT),
+        "allowMajorVersionUpgrade": field("boolean", "Allow version to change to a later major.",
+                                          default="fixed, false"),
+        "backup": obj({
+            "retentionDays": field("integer", "Days automated backups are kept, within the "
+                                   "implementation's own range (rule 10). 0 turns automated "
+                                   "backups and point-in-time restore off.", default=DEFAULT,
+                                   minimum=0),
+            "pointInTimeDays": field("integer", "Days back restore.pointInTime can reach.",
+                                     default="fixed, the lower of retentionDays and the "
+                                     "implementation's maximum; none with retentionDays 0",
+                                     minimum=1),
+            "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
+                                  minimum=0, maximum=23),
+        }, rules=[("!has(self.pointInTimeDays) || !has(self.retentionDays) || "
+                   "self.retentionDays > 0",
+                   "pointInTimeDays needs backups, which retentionDays 0 disables")]),
+        "parametersRef": obj({"name": field("string", "A PostgreSQLParameters in this "
+                                            "namespace.")},
+                             "Reusable PostgreSQL settings, merged after the class's.",
+                             required=["name"]),
+        "parameters": string_map("PostgreSQL settings for this object only, merged after "
+                                 "parametersRef."),
+        "parameterApplyMethod": field("string", "When changed parameters take effect. Immediate "
+                                      "restarts the instance where a setting needs it.",
+                                      default="fixed, Immediate",
+                                      enum=["Immediate", "NextRestart"]),
+    }
+
+
+pg_spec_common = pg_common()
+pg_spec = obj({
+    "className": field("string", "The PostgreSQLClass: the deployment's defaults, enforced "
+                       "values and implementation (rule 5). Unset, the default class. Set at "
+                       "creation only.", **{"x-kubernetes-validations": [
+                           {"rule": "self == oldSelf", "message": "className is immutable"}]}),
+    "observe": field("boolean", "true observes an existing resource, named by the id in its "
+                     "provider config entry, and never changes or deletes it. Every other common "
+                     "field is then rejected (rule 9). Set at creation only."),
+    **pg_spec_common,
+    "restore": obj({
+        "fromInstance": field("string", "A PostgreSQLCluster in this namespace."),
+        "pointInTime": field("string", "The time to restore fromInstance to. Unset, the latest "
+                             "restorable time.", format="date-time"),
+    }, "Create the cluster from another cluster's backups. Set at creation only.",
+        required=["fromInstance"]),
+    "secretName": secret_name("<instance>-dbadmin"),
+    "providerConfigs": provider_configs(),
+}, rules=[
+    ("(has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)",
+     "observe is immutable"),
+    ("!(has(self.observe) && self.observe) || (" + " && ".join(
+        f"!has(self.{k})" for k in [*pg_spec_common, "restore"]) + ")",
+     "an observed resource takes no other common field"),
+    ("has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || "
+     "self.restore == oldSelf.restore)", "restore is set at creation only"),
+    ("!has(self.version) || !has(oldSelf.version) || "
+     "self.version.split('.')[0] == oldSelf.version.split('.')[0] || "
+     "(has(self.allowMajorVersionUpgrade) && self.allowMajorVersionUpgrade)",
+     "a major version change needs allowMajorVersionUpgrade"),
+    ("!has(self.version) || self.version.contains('.') == "
+     "(has(self.autoMinorVersionUpgrade) && !self.autoMinorVersionUpgrade)",
+     "version takes a minor exactly when autoMinorVersionUpgrade is false"),
+])
+S = lambda: field("string")
+pg_status = obj({
+    "version": S(),
+    "storage": obj({"sizeGB": field("integer", "The actual disk size."),
+                    "autoGrow": field("boolean"), "maxSizeGB": field("integer"),
+                    "iops": field("integer"), "throughputMBps": field("integer")}),
+    "highAvailability": field("boolean"),
+    "readReplicas": field("integer"),
+    "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
+    "autoMinorVersionUpgrade": field("boolean"),
+    "backup": obj({"retentionDays": field("integer"), "pointInTimeDays": field("integer"),
+                   "startHourUTC": field("integer")}),
+    "endpoint": endpoint(),
+    "readerEndpoint": field("string", "Where reads go: one balanced host, or the replicas' "
+                            "hosts where the implementation has none (rule 6)."),
+    "connectionSecret": field("string", "The admin Secret, <instance>-dbadmin (rule 6)."),
+    "disasterRecovery": obj({"role": field("string", enum=["Primary", "Replica"])},
+                            "This workspace's role."),
+    "providerConfig": obj({"applied": S(), "ignored": array(S())},
+                          "The provider config entries applied and ignored, as <apiVersion>, "
+                          "<kind> (rule 4)."),
+    "effective": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
+                  "description": desc("Each effective value and its source: the class's "
+                                      "template, the object, or the class's enforced (rule 4).")},
+    "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
+                 "description": desc("Values of the applied implementation, in the shape its "
+                                     "provider config kind's status defines (rule 4).")},
+})
+write("postgresqlcluster", xrd("PostgreSQLCluster", "postgresqlclusters", "database.entigo.com",
+                               pg_spec, pg_status))
+
+pg_class_common = {k: v for k, v in pg_common().items() if k != "disasterRecovery"}
+write("postgresqlclass", class_crd("PostgreSQLClass", "postgresqlclasses", "database.entigo.com",
+                                   pg_class_common))
+write("postgresqlparameters", parameters_crd("PostgreSQLParameters", "postgresqlparameters",
+                                             "database.entigo.com", "PostgreSQL"))
+
+PG_STATUS = {"instanceType": S(), "finalBackup": field(
+    "string", "The ID the final backup receives when the cluster is deleted, for fromBackup."),
+    "state": S()}
+write("postgresqlrdsconfig", provider_config_crd(
+    "PostgreSQLRDSConfig", "postgresqlrdsconfigs", "aws.database.entigo.com", "Amazon RDS", {
+        "instanceType": field("string", "The RDS instance class, such as db.m7g.large.",
+                              default=DEFAULT),
+        "parameterGroupName": field("string", "An existing RDS parameter group to use, in place "
+                                    "of the object's parameters. A major version change needs a "
+                                    "new one, since a group fits one major version."),
+        "fromBackup": from_backup("An RDS snapshot ID to create the cluster from, such as "
+                                  "status.provider.finalBackup of a deleted cluster."),
+        "readReplicas": replica_layout("The RDS instance class of this replica."),
+    }, {**PG_STATUS, "identifier": S(), "resourceId": S(),
+        "latestRestorableTime": field("string", format="date-time")}))
+write("postgresqlcloudsqlconfig", provider_config_crd(
+    "PostgreSQLCloudSQLConfig", "postgresqlcloudsqlconfigs", "gcp.database.entigo.com",
+    "Cloud SQL", {
+        "instanceType": field("string", "The Cloud SQL machine tier, such as db-custom-2-7680, "
+                              "which belongs to edition.", default=DEFAULT),
+        "edition": field("string", "The Cloud SQL edition, such as ENTERPRISE.", default=DEFAULT),
+        "diskType": field("string", "The Cloud SQL disk type, such as PD_SSD.", default=DEFAULT),
+        "fromBackup": from_backup("A Cloud SQL backup to create the cluster from, as "
+                                  "<instance>/<backup run ID>."),
+        "readReplicas": replica_layout("The Cloud SQL machine tier of this replica."),
+    }, {**PG_STATUS, "connectionName": S(), "maintenanceVersion": S()}))
+write("postgresqlociconfig", provider_config_crd(
+    "PostgreSQLOCIConfig", "postgresqlociconfigs", "oci.database.entigo.com",
+    "OCI Database with PostgreSQL", {
+        "instanceType": field("string", "The DB system shape. A .Flex shape needs ocpus and "
+                              "memoryGB.", default=DEFAULT),
+        "ocpus": field("number", "Required with a .Flex shape.", default=DEFAULT, minimum=1),
+        "memoryGB": field("integer", "Required with a .Flex shape.", default=DEFAULT, minimum=1),
+        "fromBackup": from_backup("A DB system backup OCID to create the cluster from."),
+    }, {**PG_STATUS, "instanceOcpuCount": field("number"),
+        "instanceMemorySizeInGbs": field("integer")}))
+write("postgresqlflexibleserverconfig", provider_config_crd(
+    "PostgreSQLFlexibleServerConfig", "postgresqlflexibleserverconfigs",
+    "azure.database.entigo.com", "Azure Database for PostgreSQL flexible server", {
+        "instanceType": field("string", "The flexible server SKU, such as GP_Standard_D2ds_v5.",
+                              default=DEFAULT),
+        "storageTier": field("string", "The disk tier, such as P10, which sets its IOPS.",
+                             default=DEFAULT),
+        "readReplicas": replica_layout("The flexible server SKU of this replica."),
+    }, {"instanceType": S(), "state": S()}))

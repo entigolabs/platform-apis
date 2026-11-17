@@ -18,6 +18,11 @@ the last is agreed.
   implementation's published schema (rule 10).
 - Field groups exist only as units or subsystems (rule 13).
 - Writing an Implementation describes how anyone adds one.
+- PostgreSQL: `PostgreSQLInstance` becomes `PostgreSQLCluster`, with `PostgreSQLClass`,
+  `PostgreSQLParameters` and a provider config kind per implementation; users and databases name it
+  in `clusterRef`.
+- PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
+  (`disasterRecovery`).
 
 #### 1 2026-11-16
 

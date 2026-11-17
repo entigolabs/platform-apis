@@ -33,35 +33,39 @@ Changes shared by all kinds, stated once here:
 
 ## PostgreSQL
 
-### PostgreSQLInstance
+### PostgreSQLCluster
 
-`PostgreSQLInstance` changes as follows:
+`PostgreSQLInstance` becomes `PostgreSQLCluster`:
 
-| Today                                                                                                                   | Design                                                                        | Reason                                                         |
-| ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `engineVersion`                                                                                                         | `version`                                                                     | The major version; a full version only with minor upgrades off |
-| `instanceType`                                                                                                          | `aws.instanceType`                                                            | A cloud's own size name belongs in its block (rule 2)          |
-| `allocatedStorage`                                                                                                      | `storage.sizeGB`                                                              | The size at creation and a floor afterwards                    |
-| `iops`                                                                                                                  | `storage.iops`                                                                | Grouped with the other storage settings                        |
-| (none)                                                                                                                  | `storage.autoGrow`, `storage.maxSizeGB`, `storage.throughputMBps`             | New common settings                                            |
-| `multiAZ`                                                                                                               | `highAvailability`                                                            | Named after the need, not the AWS feature                      |
-| `maintenanceWindow` (RDS string)                                                                                        | `maintenance.window` (`day`, `hourUTC`)                                       | One form for every cloud                                       |
-| `autoMinorVersionUpgrade`, `allowMajorVersionUpgrade`                                                                   | `maintenance.autoMinorVersionUpgrade`, `maintenance.allowMajorVersionUpgrade` | Grouped under maintenance                                      |
-| `backupRetentionPeriod`                                                                                                 | `backup.retentionDays`                                                        | Grouped under backup                                           |
-| `backupWindow` (RDS string)                                                                                             | `backup.startHourUTC`                                                         | One form for every cloud                                       |
-| (none)                                                                                                                  | `backup.pointInTimeDays`                                                      | New common setting                                             |
-| `parameterGroupName`                                                                                                    | `aws.parameterGroupName`                                                      | An RDS concept (rule 2)                                        |
-| `parameterGroupParameters` (a map with a reserved `applyMethod` key)                                                    | `parameters` and `parameterApplyMethod`                                       | The apply method becomes its own field                         |
-| `snapshotIdentifier`                                                                                                    | `aws.fromBackup`                                                              | A backup ID is a cloud value (rule 2)                          |
-| (none)                                                                                                                  | `restore.fromInstance`, `restore.pointInTime`                                 | Restore from another instance                                  |
-| (none)                                                                                                                  | `gcp`, `oci` and `azure` settings                                             | Sizes and settings of those clouds                             |
-| `status.endpoint.address`                                                                                               | `status.endpoint.host`                                                        | The same word on every cloud                                   |
-| `status.dbInstanceIdentifier`, `status.resourceId`, `status.status`, `status.latestRestorableTime`                      | `status.aws`                                                                  | AWS values (rule 4)                                            |
-| `status.finalSnapshotIdentifier`                                                                                        | `status.aws.finalBackup`                                                      | An AWS value (rule 4)                                          |
-| `status.hostedZoneId`, `status.vpcSecurityGroupIds`, `status.kmsKeyId`, `status.storageEncrypted`, `status.storageType` | removed                                                                       | Settings the platform makes (rule 4)                           |
-| `status.parameterGroupName`, `status.snapshotIdentifier`                                                                | removed                                                                       | Echoes of the spec                                             |
+| Today                                                                                                                   | Design                                                               | Reason                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| kind `PostgreSQLInstance`                                                                                               | kind `PostgreSQLCluster`                                             | PostgreSQL's own term; a new kind, served beside today's, so objects move one at a time (rule 8) |
+| `engineVersion`                                                                                                         | `version`                                                            | The major version; a full version only with minor upgrades off                                   |
+| `instanceType`                                                                                                          | `instanceType` in the `PostgreSQLRDSConfig` entry                    | A size named by its product is a setting of one implementation (rule 2)                          |
+| `allocatedStorage`                                                                                                      | `storage.sizeGB`                                                     | The size at creation and a floor afterwards                                                      |
+| `iops`                                                                                                                  | `storage.iops`                                                       | Grouped with the other storage settings (rule 13)                                                |
+| (none)                                                                                                                  | `storage.autoGrow`, `storage.maxSizeGB`, `storage.throughputMBps`    | New common settings                                                                              |
+| `multiAZ`                                                                                                               | `highAvailability`                                                   | Named after the need, not the AWS feature                                                        |
+| `maintenanceWindow` (RDS string)                                                                                        | `maintenanceWindow` (`day`, `hourUTC`)                               | One form everywhere                                                                              |
+| `backupRetentionPeriod`                                                                                                 | `backup.retentionDays`                                               | Grouped under backup (rule 13)                                                                   |
+| `backupWindow` (RDS string)                                                                                             | `backup.startHourUTC`                                                | One form everywhere                                                                              |
+| (none)                                                                                                                  | `backup.pointInTimeDays`                                             | New common setting                                                                               |
+| `parameterGroupName`                                                                                                    | `parameterGroupName` in the `PostgreSQLRDSConfig` entry              | An RDS concept (rule 2)                                                                          |
+| `parameterGroupParameters` (a map with a reserved `applyMethod` key)                                                    | `parameters` and `parameterApplyMethod`                              | The apply method becomes its own field                                                           |
+| (none)                                                                                                                  | `parametersRef`                                                      | Settings shared through a `PostgreSQLParameters`                                                 |
+| `snapshotIdentifier`                                                                                                    | `fromBackup` in the `PostgreSQLRDSConfig` entry                      | A backup ID belongs to one implementation (rule 2)                                               |
+| (none)                                                                                                                  | `restore.fromInstance`, `restore.pointInTime`                        | Restore from another cluster                                                                     |
+| (none)                                                                                                                  | `className`                                                          | The deployment's defaults and limits come from a class (rule 5)                                  |
+| (none)                                                                                                                  | `providerConfigs` entries of other kinds                             | Sizes and settings of other implementations (rule 2)                                             |
+| (none)                                                                                                                  | `readReplicas`, `disasterRecovery`                                   | New portable features (rule 1)                                                                   |
+| `status.endpoint.address`                                                                                               | `status.endpoint.host`                                               | The same word everywhere                                                                         |
+| `status.dbInstanceIdentifier`, `status.resourceId`, `status.status`, `status.latestRestorableTime`                      | `status.provider`                                                    | Values of one implementation (rule 4)                                                            |
+| `status.finalSnapshotIdentifier`                                                                                        | `status.provider.finalBackup`                                        | A value of one implementation (rule 4)                                                           |
+| (none)                                                                                                                  | `status.providerConfig`, `status.effective`, `status.readerEndpoint` | The applied entry, each value's source, and where reads go (rules 4 and 6)                       |
+| `status.hostedZoneId`, `status.vpcSecurityGroupIds`, `status.kmsKeyId`, `status.storageEncrypted`, `status.storageType` | removed                                                              | Settings the platform makes (rule 4)                                                             |
+| `status.parameterGroupName`, `status.snapshotIdentifier`                                                                | removed                                                              | Echoes of the spec                                                                               |
 
-*Changes to `PostgreSQLInstance`.*
+*Changes from `PostgreSQLInstance` to `PostgreSQLCluster`.*
 
 An example, today and in the design:
 
@@ -88,7 +92,7 @@ spec:
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLInstance
+kind: PostgreSQLCluster                # was PostgreSQLInstance
 metadata:
   name: orders-db
 spec:
@@ -97,35 +101,39 @@ spec:
     sizeGB: 20                         # was allocatedStorage
   highAvailability: false              # was multiAZ
   deletionProtection: true
-  maintenance:
-    window:                            # was maintenanceWindow
-      day: Sun
-      hourUTC: 3
+  maintenanceWindow:                   # now day and hourUTC
+    day: Sun
+    hourUTC: 3
   backup:
     retentionDays: 7                   # was backupRetentionPeriod
     startHourUTC: 2                    # was backupWindow
   parameters:                          # was parameterGroupParameters
     max_connections: "200"
   parameterApplyMethod: NextRestart    # was applyMethod: pending-reboot
-  aws:
-    instanceType: db.t4g.small         # was instanceType
+  providerConfigs:                     # new
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.t4g.small       # was instanceType
 ```
 
-*A `PostgreSQLInstance`, today and in the design.*
+*`PostgreSQLInstance` today, `PostgreSQLCluster` in the design.*
 
 ### PostgreSQLUser
 
-`PostgreSQLUser` keeps its fields; `name` and `instanceRef` become immutable.
+`PostgreSQLUser` keeps its fields; `instanceRef` becomes `clusterRef`, naming a `PostgreSQLCluster`,
+and `name` and `clusterRef` become immutable.
 
 ### PostgreSQLDatabase
 
-`PostgreSQLDatabase` keeps its fields; `name` and `instanceRef` become immutable.
+`PostgreSQLDatabase` keeps its fields; `instanceRef` becomes `clusterRef`, naming a
+`PostgreSQLCluster`, and `name` and `clusterRef` become immutable.
 
 ## MariaDB
 
 ### MariaDBInstance
 
-`MariaDBInstance` changes as [`PostgreSQLInstance`](#postgresqlinstance) does, on AWS only, without
+`MariaDBInstance` changes as [`PostgreSQLInstance`](#postgresqlcluster) does, on AWS only, without
 `backup.pointInTimeDays`.
 
 ### MariaDBUser

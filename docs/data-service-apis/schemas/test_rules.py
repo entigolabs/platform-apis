@@ -30,6 +30,11 @@ def install():
         x = yaml.safe_load(f.read_text())
         s = x["spec"]
         v = s["versions"][0]
+        if x["kind"] == "CustomResourceDefinition":
+            code, out = kubectl("apply", "-f", "-", stdin=json.dumps(x))
+            print(("INSTALLED " if code == 0 else "INSTALL FAILED ") + f.name + ("" if code == 0 else "\n" + out))
+            groups[s["names"]["kind"]] = (s["group"] + "/" + v["name"], s["scope"])
+            continue
         crd = {"apiVersion": "apiextensions.k8s.io/v1", "kind": "CustomResourceDefinition",
                "metadata": {"name": x["metadata"]["name"]},
                "spec": {"group": s["group"], "scope": s["scope"],
@@ -38,7 +43,7 @@ def install():
                                       "schema": v["schema"]}]}}
         code, out = kubectl("apply", "-f", "-", stdin=json.dumps(crd))
         print(("INSTALLED " if code == 0 else "INSTALL FAILED ") + f.name + ("" if code == 0 else "\n" + out))
-        groups[s["names"]["kind"]] = s["group"] + "/" + v["name"]
+        groups[s["names"]["kind"]] = (s["group"] + "/" + v["name"], s["scope"])
     kubectl("wait", "--for=condition=Established", "crd", "--all", "--timeout=60s")
     return groups
 
@@ -51,8 +56,9 @@ n = 0
 def obj(kind, spec):
     global n
     n += 1
-    return {"apiVersion": GV[kind], "kind": kind,
-            "metadata": {"name": f"t{n}", "namespace": NS}, "spec": spec}
+    gv, scope = GV[kind]
+    meta = {"name": f"t{n}"} | ({"namespace": NS} if scope == "Namespaced" else {})
+    return {"apiVersion": gv, "kind": kind, "metadata": meta, "spec": spec}
 
 
 def check(label, code, out, expect_ok, expect_msg=None):
@@ -81,14 +87,15 @@ def update(label, kind, spec, new_spec, expect_ok=True, msg=None):
     check(label, code, out, expect_ok, msg)
 
 
-PG = {"version": "17", "aws": {"instanceType": "db.t4g.small"},
-      "storage": {"sizeGB": 20, "autoGrow": True, "maxSizeGB": 100},
+RDS = {"apiVersion": "aws.database.entigo.com/v1alpha1", "kind": "PostgreSQLRDSConfig",
+       "spec": {"instanceType": "db.t4g.small"}}
+SQL = {"apiVersion": "gcp.database.entigo.com/v1alpha1", "kind": "PostgreSQLCloudSQLConfig",
+       "spec": {"instanceType": "db-custom-2-7680", "edition": "ENTERPRISE"}}
+PG = {"version": "17", "storage": {"sizeGB": 20, "autoGrow": True, "maxSizeGB": 100},
       "highAvailability": False, "deletionProtection": True,
-      "maintenance": {"window": {"day": "Sun", "hourUTC": 3}, "autoMinorVersionUpgrade": True,
-                      "allowMajorVersionUpgrade": False},
-      "backup": {"retentionDays": 7, "startHourUTC": 2},
-      "parameters": {"max_connections": "200"}, "gcp": {"edition": "ENTERPRISE"}}
-
+      "maintenanceWindow": {"day": "Sun", "hourUTC": 3}, "autoMinorVersionUpgrade": True,
+      "allowMajorVersionUpgrade": False, "backup": {"retentionDays": 7, "startHourUTC": 2},
+      "parameters": {"max_connections": "200"}, "providerConfigs": [RDS, SQL]}
 
 def w(base, **kw):
     s = copy.deepcopy(base)
@@ -100,126 +107,108 @@ def w(base, **kw):
     return s
 
 
-print("\n# PostgreSQLInstance")
-create("valid spec", "PostgreSQLInstance", PG)
-create("two cloud blocks accepted, each applies on its own cloud", "PostgreSQLInstance",
-       w(PG, oci={"ocpus": 2}))
-create("ids in two cloud blocks rejected", "PostgreSQLInstance",
-       {"observe": True, "aws": {"id": "a"}, "gcp": {"id": "b"}}, False, "at most one cloud block")
-create("observe without id rejected", "PostgreSQLInstance", {"observe": True, "aws": {}}, False,
-       "go together")
-create("observe with aws.id accepted", "PostgreSQLInstance",
-       {"observe": True, "aws": {"id": "arn:aws:rds:x"}})
-create("observe with a common field rejected", "PostgreSQLInstance",
-       {"observe": True, "version": "17", "aws": {"id": "arn:aws:rds:x"}}, False, "takes no other field")
-create("observe with a cloud setting rejected", "PostgreSQLInstance",
-       {"observe": True, "aws": {"id": "arn:aws:rds:x", "instanceType": "db.t4g.small"}}, False, "takes no other field")
-create("maxSizeGB below sizeGB rejected", "PostgreSQLInstance",
-       w(PG, storage={"sizeGB": 200, "maxSizeGB": 100}), False, "maxSizeGB must be")
-create("retentionDays 3 with pointInTimeDays accepted", "PostgreSQLInstance",
-       w(PG, backup={"retentionDays": 3, "pointInTimeDays": 3}))
-create("retentionDays above every cloud's range accepted, left to the cloud",
-       "PostgreSQLInstance", w(PG, backup={"retentionDays": 400, "pointInTimeDays": 40}))
-create("retentionDays 0 accepted, backups off", "PostgreSQLInstance",
-       w(PG, backup={"retentionDays": 0}))
-create("retentionDays -1 rejected", "PostgreSQLInstance", w(PG, backup={"retentionDays": -1}),
-       False, "greater than or equal to 0")
-create("pointInTimeDays with retentionDays 0 rejected", "PostgreSQLInstance",
+print("\n# PostgreSQLCluster")
+create("valid spec", "PostgreSQLCluster", PG)
+create("className accepted", "PostgreSQLCluster", w(PG, className="standard"))
+update("changing className rejected", "PostgreSQLCluster", w(PG, className="standard"),
+       w(PG, className="in-cluster"), False, "className is immutable")
+create("two entries of one kind rejected", "PostgreSQLCluster", w(PG, providerConfigs=[RDS, RDS]),
+       False, "Duplicate value")
+create("an entry with ref accepted", "PostgreSQLCluster",
+       w(PG, providerConfigs=[{**{k: RDS[k] for k in ("apiVersion", "kind")}, "ref": {"name": "rds"}}]))
+create("an entry with both spec and ref rejected", "PostgreSQLCluster",
+       w(PG, providerConfigs=[{**RDS, "ref": {"name": "rds"}}]), False, "either spec or ref")
+create("an entry with neither spec nor ref rejected", "PostgreSQLCluster",
+       w(PG, providerConfigs=[{k: RDS[k] for k in ("apiVersion", "kind")}]), False, "either spec or ref")
+create("an entry of an unknown kind accepted, opaque to the core (rule 10)", "PostgreSQLCluster",
+       w(PG, providerConfigs=[{"apiVersion": "lab.example.com/v1", "kind": "PostgreSQLLabConfig",
+                               "spec": {"anything": 1}}]))
+create("instanceType at the top level rejected", "PostgreSQLCluster",
+       w(PG, instanceType="db.t4g.small"), False, "unknown field")
+create("readReplicas accepted", "PostgreSQLCluster", w(PG, readReplicas=2))
+create("negative readReplicas rejected", "PostgreSQLCluster", w(PG, readReplicas=-1), False,
+       "greater than or equal to 0")
+create("disasterRecovery accepted", "PostgreSQLCluster",
+       w(PG, disasterRecovery={"workspaces": ["prod", "prod-dr"], "primary": "prod"}))
+create("disasterRecovery primary outside workspaces rejected", "PostgreSQLCluster",
+       w(PG, disasterRecovery={"workspaces": ["prod", "prod-dr"], "primary": "dev"}), False,
+       "primary must be one of workspaces")
+create("disasterRecovery with one workspace rejected", "PostgreSQLCluster",
+       w(PG, disasterRecovery={"workspaces": ["prod"], "primary": "prod"}), False,
+       "should have at least 2 items")
+create("observe with an entry accepted", "PostgreSQLCluster",
+       {"observe": True, "providerConfigs": [{**RDS, "spec": {"id": "db-ABC"}}]})
+create("observe with a common field rejected", "PostgreSQLCluster",
+       {"observe": True, "version": "17", "providerConfigs": [RDS]}, False, "no other common field")
+ob = {"observe": True, "providerConfigs": [{**RDS, "spec": {"id": "db-ABC"}}]}
+update("removing observe rejected", "PostgreSQLCluster", ob, {"providerConfigs": ob["providerConfigs"]},
+       False, "observe is immutable")
+create("maxSizeGB below sizeGB rejected", "PostgreSQLCluster",
+       w(PG, storage={"sizeGB": 100, "maxSizeGB": 50}), False, "maxSizeGB must be at least sizeGB")
+create("pointInTimeDays with retentionDays 0 rejected", "PostgreSQLCluster",
        w(PG, backup={"retentionDays": 0, "pointInTimeDays": 3}), False, "needs backups")
-create("MariaDB retentionDays 0 accepted, backups off", "MariaDBInstance",
-       {"backup": {"retentionDays": 0}})
-create("minor version rejected", "PostgreSQLInstance", w(PG, version="17.2"), False, "takes a minor exactly")
-create("unknown storageTier accepted, left to the cloud", "PostgreSQLInstance",
-       w(PG, gcp=None, azure={"storageTier": "P5"}))
-create("MariaDB retentionDays 3 accepted", "MariaDBInstance",
-       {"backup": {"retentionDays": 3}})
-create("restore without fromInstance rejected", "PostgreSQLInstance",
+create("retentionDays -1 rejected", "PostgreSQLCluster", w(PG, backup={"retentionDays": -1}), False,
+       "greater than or equal to 0")
+create("minor version with minor upgrades on rejected", "PostgreSQLCluster", w(PG, version="17.2"),
+       False, "takes a minor exactly")
+pin = w(PG, version="17.7", autoMinorVersionUpgrade=False)
+create("full version with minor upgrades off accepted", "PostgreSQLCluster", pin)
+update("minor change of a pinned version accepted", "PostgreSQLCluster", pin, w(pin, version="17.8"))
+update("major version change rejected", "PostgreSQLCluster", PG, w(PG, version="18"), False,
+       "needs allowMajorVersionUpgrade")
+update("major version change with allowMajorVersionUpgrade accepted", "PostgreSQLCluster",
+       w(PG, allowMajorVersionUpgrade=True), w(PG, version="18", allowMajorVersionUpgrade=True))
+update("raising storage.sizeGB accepted", "PostgreSQLCluster", PG,
+       w(PG, storage={"sizeGB": 40, "autoGrow": True, "maxSizeGB": 100}))
+update("lowering storage.sizeGB rejected", "PostgreSQLCluster", PG,
+       w(PG, storage={"sizeGB": 10, "autoGrow": True, "maxSizeGB": 100}), False, "cannot decrease")
+create("restore without fromInstance rejected", "PostgreSQLCluster",
        w(PG, restore={"pointInTime": "2026-11-01T10:00:00Z"}), False, "Required value")
-update("major version change rejected", "PostgreSQLInstance", PG, w(PG, version="18"), False,
-       "a major version change needs")
-up = w(PG, maintenance={"allowMajorVersionUpgrade": True})
-update("major version change with allowMajorVersionUpgrade accepted", "PostgreSQLInstance", up,
-       w(up, version="18"))
-update("other field change accepted", "PostgreSQLInstance", PG, w(PG, aws={"instanceType": "db.m7g.large"}))
-rs = w(PG, restore={"fromInstance": "old-db"})
-update("adding restore rejected", "PostgreSQLInstance", PG, rs, False, "restore is set")
-update("removing restore rejected", "PostgreSQLInstance", rs, PG, False, "restore is set")
-update("changing restore rejected", "PostgreSQLInstance", rs,
-       w(rs, restore={"fromInstance": "other"}), False, "restore is set")
-update("unchanged restore accepted", "PostgreSQLInstance", rs, w(rs, aws={"instanceType": "db.m7g.large"}))
-ob = {"observe": True, "aws": {"id": "arn:aws:rds:x"}}
-update("changing observe rejected", "PostgreSQLInstance", ob, w(ob, observe=False), False,
-       "observe is immutable")
-update("changing aws.id rejected", "PostgreSQLInstance", ob, w(ob, aws={"id": "arn:aws:rds:y"}),
-       False, "id is immutable")
-create("id without observe rejected", "PostgreSQLInstance", w(PG, gcp=None, aws={"id": "a"}),
-       False, "go together")
-update("adding observe later rejected", "PostgreSQLInstance", w(PG, gcp=None),
-       {"observe": True, "aws": {"id": "a"}}, False, "observe is immutable")
-update("removing aws.id from an observed object rejected", "PostgreSQLInstance", ob,
-       w(ob, aws={}), False, "go together")
-update("removing observe rejected", "PostgreSQLInstance", ob, w(ob, observe=None), False,
-       "observe is immutable")
-
-create("aws.parameterGroupName accepted", "PostgreSQLInstance",
-       w(PG, gcp=None, parameters=None, aws={"parameterGroupName": "pg17"}))
-create("aws.parameterGroupName with parameters rejected", "PostgreSQLInstance",
-       w(PG, gcp=None, aws={"parameterGroupName": "pg17"}), False, "cannot be used together")
-update("changing aws.parameterGroupName accepted", "PostgreSQLInstance",
-       w(PG, gcp=None, parameters=None, aws={"parameterGroupName": "a"}),
-       w(PG, gcp=None, parameters=None, aws={"parameterGroupName": "b"}))
-create("aws.fromBackup accepted", "PostgreSQLInstance", w(PG, aws={"fromBackup": "rds:x"}))
-create("fromBackup in two cloud blocks accepted", "PostgreSQLInstance",
-       w(PG, aws={"fromBackup": "rds:x"}, oci={"fromBackup": "ocid1.x"}))
-create("aws.fromBackup with restore rejected", "PostgreSQLInstance",
-       w(PG, aws={"fromBackup": "b"}, restore={"fromInstance": "a"}), False,
-       "aws.fromBackup cannot be combined with restore")
-create("restore.fromBackup rejected", "PostgreSQLInstance",
-       w(PG, restore={"fromInstance": "a", "fromBackup": "b"}), False, "unknown field")
-fb = w(PG, aws={"fromBackup": "rds:x"})
-update("changing aws.fromBackup rejected", "PostgreSQLInstance", fb,
-       w(fb, aws={"fromBackup": "rds:y"}), False, "aws.fromBackup is set at creation only")
-update("adding gcp.fromBackup later rejected", "PostgreSQLInstance", PG,
-       w(PG, gcp={"edition": "ENTERPRISE", "fromBackup": "i/1"}), False,
-       "gcp.fromBackup is set at creation only")
-create("aws.snapshotIdentifier rejected", "PostgreSQLInstance",
-       w(PG, gcp=None, aws={"snapshotIdentifier": "s1"}), False, "unknown field")
-create("MariaDB aws.fromBackup with restore rejected", "MariaDBInstance",
-       {"restore": {"fromInstance": "a"}, "aws": {"fromBackup": "b"}}, False,
-       "aws.fromBackup cannot be combined with restore")
-
-update("raising storage.sizeGB accepted", "PostgreSQLInstance", PG,
-       w(PG, storage={"sizeGB": 50, "maxSizeGB": 100}))
-update("lowering storage.sizeGB rejected", "PostgreSQLInstance", PG,
-       w(PG, storage={"sizeGB": 10, "maxSizeGB": 100}), False, "cannot decrease")
-
-create("parameterApplyMethod NextRestart accepted", "PostgreSQLInstance",
-       w(PG, parameterApplyMethod="NextRestart"))
-create("unknown parameterApplyMethod rejected", "PostgreSQLInstance",
+rs = w(PG, restore={"fromInstance": "orders-db-old"})
+update("adding restore rejected", "PostgreSQLCluster", PG, rs, False, "restore is set")
+update("changing restore rejected", "PostgreSQLCluster", rs, w(rs, restore={"fromInstance": "x"}),
+       False, "restore is set")
+create("parametersRef accepted", "PostgreSQLCluster", w(PG, parametersRef={"name": "orders-tuning"}))
+create("unknown parameterApplyMethod rejected", "PostgreSQLCluster",
        w(PG, parameterApplyMethod="Later"), False, "Unsupported value")
+create("secretName accepted", "PostgreSQLCluster", w(PG, secretName="orders-db-admin"))
 
-pg = w(PG, gcp=None, parameters=None, aws={"parameterGroupName": "pg17"},
-       maintenance={"allowMajorVersionUpgrade": True})
-update("version change keeping aws.parameterGroupName rejected", "PostgreSQLInstance", pg,
-       w(pg, version="18"), False, "needs a new aws.parameterGroupName")
-update("version change with a new aws.parameterGroupName accepted", "PostgreSQLInstance", pg,
-       w(pg, version="18", aws={"parameterGroupName": "pg18"}))
-update("version change removing aws.parameterGroupName accepted", "PostgreSQLInstance", pg,
-       w(pg, version="18", aws=None))
+print("\n# PostgreSQLClass")
+CLS = {"template": {"version": "17", "storage": {"sizeGB": 50}, "backup": {"retentionDays": 14},
+                    "providerConfig": RDS,
+                    "parametersRef": {"name": "pg-baseline", "namespace": "platform-apis"}},
+       "enforced": {"deletionProtection": True,
+                    "providerConfig": {**RDS, "spec": {"instanceType": "db.t4g.medium"}}}}
+create("valid class", "PostgreSQLClass", CLS)
+create("template and enforced naming different kinds rejected", "PostgreSQLClass",
+       w(CLS, enforced={"providerConfig": SQL}), False, "the same provider config kind")
+create("a class with only common fields accepted", "PostgreSQLClass",
+       {"template": {"version": "17"}, "enforced": {"deletionProtection": True}})
+create("a standby accepted", "PostgreSQLClass", w(CLS, standby={"providerConfig": RDS}))
+create("a class without parametersRef namespace rejected", "PostgreSQLClass",
+       {"template": {"parametersRef": {"name": "x"}}}, False, "Required value")
+create("disasterRecovery in a class rejected", "PostgreSQLClass",
+       {"template": {"disasterRecovery": {"workspaces": ["a", "b"], "primary": "a"}}}, False,
+       "unknown field")
 
-pin = w(PG, version="17.7", maintenance={"autoMinorVersionUpgrade": False})
-create("full version with minor upgrades off accepted", "PostgreSQLInstance", pin)
-create("major-only version with minor upgrades off rejected", "PostgreSQLInstance",
-       w(pin, version="17"), False, "takes a minor exactly when")
-create("full version with minor upgrades on rejected", "PostgreSQLInstance",
-       w(PG, version="17.7"), False, "takes a minor exactly when")
-update("minor change without allowMajorVersionUpgrade accepted", "PostgreSQLInstance", pin,
-       w(pin, version="17.8"))
-update("major change of a pinned version rejected", "PostgreSQLInstance", pin,
-       w(pin, version="18.1"), False, "a major version change needs")
-pgm = w(pin, gcp=None, parameters=None, aws={"parameterGroupName": "pg17"})
-update("minor change keeping aws.parameterGroupName accepted", "PostgreSQLInstance", pgm,
-       w(pgm, version="17.8"))
+print("\n# PostgreSQLParameters and provider configs")
+create("parameters accepted", "PostgreSQLParameters", {"parameters": {"work_mem": "64MB"}})
+create("parameters without the map rejected", "PostgreSQLParameters", {}, False, "Required value")
+for kind, spec in {"PostgreSQLRDSConfig": {"instanceType": "db.m7g.large",
+                                           "readReplicas": [{"name": "reporting",
+                                                             "instanceType": "db.r7g.2xlarge"}]},
+                   "PostgreSQLCloudSQLConfig": {"instanceType": "db-custom-2-7680",
+                                                "edition": "ENTERPRISE", "diskType": "PD_SSD"},
+                   "PostgreSQLOCIConfig": {"instanceType": "PostgreSQL.VM.Standard.E5.Flex",
+                                           "ocpus": 2, "memoryGB": 32},
+                   "PostgreSQLFlexibleServerConfig": {"instanceType": "GP_Standard_D2ds_v5",
+                                                      "storageTier": "P10"}}.items():
+    create(f"{kind} valid spec", kind, spec)
+    create(f"{kind} unknown field rejected", kind, {**spec, "unknownSetting": 1}, False, "unknown field")
+    update(f"{kind} changing id rejected", kind, {**spec, "id": "a"}, {**spec, "id": "b"}, False,
+           "id is immutable")
+update("PostgreSQLRDSConfig changing fromBackup rejected", "PostgreSQLRDSConfig",
+       {"fromBackup": "rds:a"}, {"fromBackup": "rds:b"}, False, "set at creation only")
 
 print("\n# MariaDBInstance")
 create("two-number version accepted", "MariaDBInstance", {"version": "11.4", "aws": {}})
@@ -377,12 +366,7 @@ update("removing name rejected", "ArtifactRepository", CR, w(CR, name=None), Fal
 
 
 print("\n# Portability: one object applies on every cloud")
-SIZES = {"PostgreSQLInstance": {"aws": {"instanceType": "db.t4g.small"},
-                                "gcp": {"instanceType": "db-custom-2-7680"},
-                                "oci": {"instanceType": "PostgreSQL.VM.Standard.E5.Flex",
-                                        "ocpus": 2, "memoryGB": 32},
-                                "azure": {"instanceType": "GP_Standard_D2ds_v5"}},
-         "MariaDBInstance": {"aws": {"instanceType": "db.t4g.small"}},
+SIZES = {"MariaDBInstance": {"aws": {"instanceType": "db.t4g.small"}},
          "ValkeyInstance": {"aws": {"instanceType": "cache.t4g.small"},
                             "gcp": {"instanceType": "SHARED_CORE_NANO"}, "oci": {"memoryGB": 16}},
          "KafkaCluster": {"aws": {"instanceType": "kafka.m7g.large"},
@@ -395,7 +379,7 @@ for kind, spec in SIZES.items():
            {"instanceType": "db.t4g.small"}, False, "unknown field")
 
 print("\n# Shared rules on every resource kind")
-BLOCKS = {"PostgreSQLInstance": ["aws", "gcp", "oci", "azure"], "MariaDBInstance": ["aws"],
+BLOCKS = {"MariaDBInstance": ["aws"],
           "ValkeyInstance": ["aws", "gcp", "oci"], "KafkaCluster": ["aws", "gcp", "oci"],
           "RabbitMQBroker": ["aws"], "Bucket": ["aws", "gcp", "oci", "azure"],
           "ArtifactRepository": ["aws", "gcp", "oci", "azure"]}
@@ -429,19 +413,19 @@ update("KafkaTopic changing clusterRef rejected", "KafkaTopic", {"clusterRef": {
 
 
 print("\n# Users and databases inside an instance")
-PU = {"instanceRef": {"name": "orders-db"}}
+PU = {"clusterRef": {"name": "orders-db"}}
 create("PostgreSQLUser valid spec", "PostgreSQLUser", w(PU, name="orders_app", login=True))
-create("PostgreSQLUser without instanceRef rejected", "PostgreSQLUser", {"login": True}, False,
+create("PostgreSQLUser without clusterRef rejected", "PostgreSQLUser", {"login": True}, False,
        "Required value")
-update("PostgreSQLUser changing instanceRef rejected", "PostgreSQLUser", PU,
-       {"instanceRef": {"name": "other-db"}}, False, "instanceRef is immutable")
+update("PostgreSQLUser changing clusterRef rejected", "PostgreSQLUser", PU,
+       {"clusterRef": {"name": "other-db"}}, False, "clusterRef is immutable")
 update("PostgreSQLUser changing name rejected", "PostgreSQLUser", w(PU, name="a"), w(PU, name="b"),
        False, "name is immutable")
-PD = {"instanceRef": {"name": "orders-db"}, "owner": "orders_app"}
+PD = {"clusterRef": {"name": "orders-db"}, "owner": "orders_app"}
 create("PostgreSQLDatabase valid spec", "PostgreSQLDatabase",
        w(PD, extensions=["postgis"], extensionConfig={"postgis": {"schema": "gis"}}))
 create("PostgreSQLDatabase without owner rejected", "PostgreSQLDatabase",
-       {"instanceRef": {"name": "orders-db"}}, False, "Required value")
+       {"clusterRef": {"name": "orders-db"}}, False, "Required value")
 create("PostgreSQLDatabase unknown extension rejected", "PostgreSQLDatabase",
        w(PD, extensions=["pg_cron"]), False, "Unsupported value")
 update("PostgreSQLDatabase adding name later rejected", "PostgreSQLDatabase", PD,
@@ -476,10 +460,8 @@ update("MariaDBDatabase changing instanceRef rejected", "MariaDBDatabase", MD,
 
 print("\n# Connection secret names")
 create("PostgreSQLUser with secretName accepted", "PostgreSQLUser",
-       {"instanceRef": {"name": "orders-db"}, "secretName": "orders-app-db"})
+       {"clusterRef": {"name": "orders-db"}, "secretName": "orders-app-db"})
 create("KafkaUser with secretName accepted", "KafkaUser",
        {"clusterRef": {"name": "c1"}, "secretName": "orders-kafka-login"})
-create("PostgreSQLInstance with secretName accepted", "PostgreSQLInstance",
-       {"secretName": "orders-db-admin", "aws": {}})
 
 print(f"\n{sum(results)} of {len(results)} passed")

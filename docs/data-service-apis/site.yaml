@@ -7,8 +7,8 @@ itemLinks:                                # "rule N" in the text links to rule N
 - {word: rule, file: rules.md}
 schemaTab: &schemas                       # shared by every service's Schemas tab
   label: Schemas
-  intro: "Each kind is defined by a Crossplane composite resource definition (XRD): its fields, their descriptions and the rules the API checks."
-  partIntro: "The XRD of `{label}`:"
+  intro: "Each kind is defined by its schema: a Crossplane composite resource definition (XRD) for a kind the platform composes, and a CustomResourceDefinition for a class, parameters or a provider config. A schema holds the kind's fields, their descriptions and the rules the API checks."
+  partIntro: "The schema of `{label}`:"
   partCaption: "The draft schema of `{label}`, from `{file}`."
 nav:
 - file: README.md
@@ -27,9 +27,15 @@ nav:
     - {file: postgresql.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
     - <<: *schemas
       files:
-      - {file: schemas/postgresqlinstance.yaml, label: PostgreSQLInstance}
+      - {file: schemas/postgresqlcluster.yaml, label: PostgreSQLCluster}
+      - {file: schemas/postgresqlclass.yaml, label: PostgreSQLClass}
+      - {file: schemas/postgresqlparameters.yaml, label: PostgreSQLParameters}
       - {file: schemas/postgresqluser.yaml, label: PostgreSQLUser}
       - {file: schemas/postgresqldatabase.yaml, label: PostgreSQLDatabase}
+      - {file: schemas/postgresqlrdsconfig.yaml, label: PostgreSQLRDSConfig}
+      - {file: schemas/postgresqlcloudsqlconfig.yaml, label: PostgreSQLCloudSQLConfig}
+      - {file: schemas/postgresqlociconfig.yaml, label: PostgreSQLOCIConfig}
+      - {file: schemas/postgresqlflexibleserverconfig.yaml, label: PostgreSQLFlexibleServerConfig}
   - label: MariaDB
     tabs:
     - {file: mariadb.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}

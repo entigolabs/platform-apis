@@ -2,17 +2,24 @@
 
 PostgreSQL is an open-source relational database, used by applications for their transactional data.
 
-Three kinds: `PostgreSQLInstance`, one database server; `PostgreSQLUser`, one application's login on
-an instance, with its permissions; and `PostgreSQLDatabase`, one database on an instance.
+Three kinds for teams: `PostgreSQLCluster`, one database cluster with its standby and read
+replicas; `PostgreSQLUser`, one application's login on a cluster, with its permissions; and
+`PostgreSQLDatabase`, one database on a cluster. Two kinds shape them: `PostgreSQLClass`, a
+deployment's defaults and limits, written by its operator, and `PostgreSQLParameters`, reusable
+PostgreSQL settings.
 
 Built on Amazon RDS (AWS), Cloud SQL (GCP), OCI Database with PostgreSQL (OCI) and Azure Database
-for PostgreSQL flexible server (Azure).
+for PostgreSQL flexible server (Azure), each with a provider config kind of its own:
+`PostgreSQLRDSConfig`, `PostgreSQLCloudSQLConfig`, `PostgreSQLOCIConfig` and
+`PostgreSQLFlexibleServerConfig`.
 
 [API Changes](changes.md#postgresql) lists what changes from today's API.
 
 ## Contents
 
 - [Kinds](#kinds)
+- [Read Replicas](#read-replicas)
+- [Disaster Recovery](#disaster-recovery)
 - [Mapping](#mapping)
 - [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
@@ -20,22 +27,23 @@ for PostgreSQL flexible server (Azure).
 
 ## Kinds
 
-PostgreSQL is offered as three kinds, each with the manifest a user writes.
+PostgreSQL is offered as five kinds, each with the manifest its owner writes.
 
-### PostgreSQLInstance
+### PostgreSQLCluster
 
-A user creates a `PostgreSQLInstance` with a manifest like the one below. Its comments note value
-ranges and what holds on one cloud only:
+A team creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
+carries one provider config entry per implementation it may run on (rule 2); each deployment applies
+the entry of its own class's kind and ignores the others:
 
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLInstance
+kind: PostgreSQLCluster
 metadata:
   name: orders-db
   namespace: shop
 spec:
-  # Common
+  className: standard                  # unset, the deployment's default class (rule 5)
   version: "17"                        # the full "17.7" with minor upgrades off
   storage:
     sizeGB: 20
@@ -44,109 +52,237 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false              # a standby in another zone
+  readReplicas: 0                      # read-only copies identical to the primary
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  autoMinorVersionUpgrade: true
+  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7                   # backups kept; 0 disables them
     pointInTimeDays: 7                 # how far back restore.pointInTime reaches
     startHourUTC: 2
-  parameters:                          # PostgreSQL settings
+  parametersRef:
+    name: orders-tuning                # a PostgreSQLParameters in this namespace
+  parameters:                          # this cluster's own settings, merged last
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
   secretName: orders-db-admin          # unset, orders-db-dbadmin (rule 6)
-  # Cloud-specific; every block also takes id (rule 9)
-  aws:
-    instanceType: db.t4g.small         # the RDS instance class
-    # parameterGroupName: orders-pg17  # an existing group, instead of parameters
-    # fromBackup: orders-final         # an RDS snapshot ID, instead of restore
-  gcp:
-    instanceType: db-custom-2-7680     # the Cloud SQL tier
-    edition: ENTERPRISE                # or ENTERPRISE_PLUS
-    diskType: PD_SSD                   # PD_HDD, HYPERDISK_BALANCED
-    # fromBackup: orders-db/1234       # instance and backup run, instead of restore
-  oci:
-    instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
-    ocpus: 2                           # required with a .Flex shape
-    memoryGB: 32                       # required with a .Flex shape
-    # fromBackup: ocid1...             # a backup OCID, instead of restore
-  azure:
-    instanceType: GP_Standard_D2ds_v5  # the flexible server SKU
-    storageTier: P10                   # P4 to P80; sets the disk's IOPS
+  providerConfigs:                     # one entry per kind; the class's kind applies
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.t4g.small       # the RDS instance class
+      # parameterGroupName: orders-pg17  # an existing group, instead of parameters
+      # fromBackup: orders-final       # an RDS snapshot ID, instead of restore
+  - apiVersion: gcp.database.entigo.com/v1alpha1
+    kind: PostgreSQLCloudSQLConfig
+    spec:
+      instanceType: db-custom-2-7680   # the Cloud SQL tier
+      edition: ENTERPRISE              # or ENTERPRISE_PLUS
+      diskType: PD_SSD                 # PD_HDD, HYPERDISK_BALANCED
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: PostgreSQLOCIConfig
+    spec:
+      instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
+      ocpus: 2                         # required with a .Flex shape
+      memoryGB: 32                     # required with a .Flex shape
+  - apiVersion: azure.database.entigo.com/v1alpha1
+    kind: PostgreSQLFlexibleServerConfig
+    ref:
+      name: orders-azure               # a PostgreSQLFlexibleServerConfig in this namespace
 ```
 
-*A `PostgreSQLInstance` with its common fields and a block per cloud.*
+*A `PostgreSQLCluster` with its common fields and an entry per implementation.*
 
-`restore` creates an instance from another instance's backups, at a point in time. A deleted
-instance is restored instead with its cloud block's `fromBackup`, such as `aws.fromBackup` with an
-RDS snapshot ID. Both are set at creation only and cannot be combined:
+An entry holds its settings inline, in `spec`, or names a separate object of its kind, through
+`ref`, as the Azure entry does:
+
+```yaml
+---
+apiVersion: azure.database.entigo.com/v1alpha1
+kind: PostgreSQLFlexibleServerConfig
+metadata:
+  name: orders-azure
+  namespace: shop
+spec:
+  instanceType: GP_Standard_D2ds_v5    # the flexible server SKU
+  storageTier: P10                     # P4 to P80; sets the disk's IOPS
+```
+
+*A `PostgreSQLFlexibleServerConfig` that a cluster's entry references.*
+
+Most clusters name nothing implementation-specific and take the class's provider config as it is:
 
 ```yaml
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLInstance
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  version: "17"
+  storage:
+    sizeGB: 100
+```
+
+*A `PostgreSQLCluster` that takes its class's defaults.*
+
+`restore` creates a cluster from another cluster's backups, at a point in time. A deleted cluster is
+restored instead with its provider config's `fromBackup`, such as an RDS snapshot ID. Both are set
+at creation only and cannot be combined:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
 metadata:
   name: orders-db-restored
   namespace: shop
 spec:
   version: "17"
   restore:
-    fromInstance: orders-db            # a PostgreSQLInstance in this namespace
+    fromInstance: orders-db            # a PostgreSQLCluster in this namespace
     pointInTime: "2026-11-01T10:00:00Z"
-  aws:
-    instanceType: db.t4g.small
 ```
 
-*A `PostgreSQLInstance` created from another instance's backups.*
+*A `PostgreSQLCluster` created from another cluster's backups.*
 
-`version` is the major version, such as `"17"`, and the cloud applies minor versions in the
+`version` is the major version, such as `"17"`, and the implementation applies minor versions in the
 maintenance window.
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and
-lowering it is rejected. The cloud may round it up and `autoGrow` can take the disk further, so the
-status reports the actual size, and the platform never shrinks the disk back to `sizeGB`.
+lowering it is rejected. The implementation may round it up and `autoGrow` can take the disk
+further, so the status reports the actual size, and the platform never shrinks the disk back to
+`sizeGB`.
 
-The kind is one database server. Read replicas belong to a cluster-shaped kind, if one is added.
+`highAvailability`, `readReplicas` and `disasterRecovery` are portable features: an object that asks
+for one its class does not support is refused when applied (rule 1). Read Replicas and Disaster
+Recovery, below, describe the last two.
 
-The final backup's ID, which `fromBackup` needs, is lost with the instance's status, so it is taken
-from the cloud console. The running minor version, the latest restorable time and the instance state
-are reported by only some providers, so they go in the cloud blocks:
+The final backup's ID, which `fromBackup` needs, is lost with the cluster's status, so it is taken
+from the cloud console. Besides the common fields, the status shows which entry applied, where each
+effective value came from, and the applied implementation's own values (rule 4):
 
 ```yaml
 status:
-  aws:
+  version: "17"
+  endpoint:
+    host: orders-db-7f3a2c.abc.eu-north-1.rds.amazonaws.com
+    port: 5432
+  connectionSecret: orders-db-admin
+  providerConfig:
+    applied: aws.database.entigo.com/v1alpha1, PostgreSQLRDSConfig
+    ignored:
+    - gcp.database.entigo.com/v1alpha1, PostgreSQLCloudSQLConfig
+    - oci.database.entigo.com/v1alpha1, PostgreSQLOCIConfig
+    - azure.database.entigo.com/v1alpha1, PostgreSQLFlexibleServerConfig
+  effective:
+    backup.retentionDays: { value: 7, source: object }
+    deletionProtection: { value: true, source: class/standard/enforced }
+    instanceType: { value: db.t4g.small, source: object/PostgreSQLRDSConfig }
+  provider:                            # the shape PostgreSQLRDSConfig's status defines
     finalBackup: ...
     identifier: ...
     resourceId: ...
-    engineVersionActual: "17.7"
     latestRestorableTime: ...
-    status: available
-  gcp:
-    id: ...
-    connectionName: ...
-    maintenanceVersion: ...
-  oci:
-    id: ...
-    instanceOcpuCount: 2
-    instanceMemorySizeInGbs: 32
-    state: ACTIVE
-  azure:
-    id: ...
+    state: available
 ```
 
-*The cloud blocks of a `PostgreSQLInstance` status.*
+*A `PostgreSQLCluster` status on AWS.*
 
 The admin login is in the secret `<instance>-dbadmin`, with the keys of rule 6.
 
+### PostgreSQLClass
+
+A deployment's operator writes its classes: cluster-scoped objects that hold the defaults an object
+starts with (`template`) and the values it cannot change (`enforced`), each with common fields and
+one provider config, whose kind selects the implementation (rule 5):
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLClass
+metadata:
+  name: standard
+  annotations:
+    database.entigo.com/is-default-class: "true"
+spec:
+  template:
+    version: "17"
+    storage:
+      sizeGB: 50
+      maxSizeGB: 500
+    backup:
+      retentionDays: 14
+    parametersRef:                     # a cluster-scoped class names the namespace
+      name: pg-baseline
+      namespace: platform-apis
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: PostgreSQLRDSConfig
+      spec:
+        instanceType: db.t4g.medium
+  enforced:
+    deletionProtection: true
+  standby:                             # only in a disaster recovery workspace
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: PostgreSQLRDSConfig
+      spec:
+        instanceType: db.t4g.small
+```
+
+*A `PostgreSQLClass` for RDS.*
+
+A class's status lists the portable features its implementation supports, written by the
+implementation (rule 1):
+
+```yaml
+status:
+  supportedFeatures:
+  - HighAvailability
+  - ReadReplicas
+  - DisasterRecovery
+```
+
+*The supported features of a `PostgreSQLClass`.*
+
+A class with no provider config uses the one implementation its deployment installs, so it holds
+only common fields and can be copied to every deployment unchanged.
+
+### PostgreSQLParameters
+
+`PostgreSQLParameters` holds PostgreSQL settings that several clusters or a class share. A class,
+a cluster and a cluster's provider config may each reference one, and their settings merge key by
+key in that order, followed by the cluster's own `parameters`:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLParameters
+metadata:
+  name: orders-tuning
+  namespace: shop
+spec:
+  parameters:
+    work_mem: 64MB
+    random_page_cost: "1.1"
+```
+
+*A `PostgreSQLParameters` a team shares between its clusters.*
+
+A `PostgreSQLParameters` names no other: settings layer only through where it is referenced, so
+references never chain. Settings the implementation does not allow are rejected by the cloud and
+reported as `CloudAccepted: False` (rule 10).
+
 ### PostgreSQLUser
 
-`PostgreSQLUser` acts inside PostgreSQL, through provider-sql, so it is the same on every cloud. Its
-`name` and `instanceRef` are immutable, `instanceRef` may name another namespace of the same Zone
-(rule 11), and its defaults are written by the admission policy (rule 5).
+`PostgreSQLUser` acts inside PostgreSQL, through provider-sql, so it is the same in every
+implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
+of the same Zone (rule 11), and it has no class or provider configs.
 
 A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
 which other users receive through `grant.roles`.
@@ -162,7 +298,7 @@ metadata:
   namespace: shop
 spec:
   name: orders_app                     # the role's name in PostgreSQL; unset, metadata.name
-  instanceRef:
+  clusterRef:
     name: orders-db
     namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   login: true
@@ -179,15 +315,13 @@ spec:
 
 ### PostgreSQLDatabase
 
-`PostgreSQLDatabase` acts inside PostgreSQL, through provider-sql, so it is the same on every cloud.
-Its `name` and `instanceRef` are immutable, `instanceRef` may name another namespace of the same
-Zone (rule 11), and its defaults are written by the admission policy (rule 5).
+`PostgreSQLDatabase` acts inside PostgreSQL, through provider-sql, so it is the same in every
+implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
+of the same Zone (rule 11), and it has no class or provider configs.
 
-`extensions` creates an extension in that database; on Azure a server must also allow it in
-`azure.extensions` ([Allow
-extensions](https://learn.microsoft.com/en-us/azure/postgresql/extensions/how-to-allow-extensions)),
-so every Azure instance allows the whole allowlist, and any database can create any of them, as on
-the other clouds.
+`extensions` creates an extension in that database. Azure also needs the server to allow it, so
+every Azure cluster allows the whole allowlist, and any database can create any of them, as
+elsewhere.
 
 An example:
 
@@ -200,7 +334,7 @@ metadata:
   namespace: shop
 spec:
   name: orders                         # the database's name in PostgreSQL; unset, metadata.name
-  instanceRef:
+  clusterRef:
     name: orders-db
     namespace: shop                    # unset, this namespace; within the Zone (rule 11)
   owner: orders_app                    # a role name in PostgreSQL
@@ -218,69 +352,184 @@ spec:
 
 *A `PostgreSQLDatabase` with the PostGIS extension in its own schema.*
 
+## Read Replicas
+
+`readReplicas: N` asks for N read-only copies of the cluster, identical to the primary: the same
+size, the same engine parameters and the same class layers. Applications send reads to them through
+the secret's `readerEndpoint` key (rule 6):
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  version: "17"
+  highAvailability: true               # a standby, not a read replica
+  readReplicas: 2
+```
+
+*A `PostgreSQLCluster` with two read replicas.*
+
+Replicas of another size, such as one large replica for reporting, exist only in some
+implementations, so they are written in the provider config instead of the count, each with its own
+size and, where the implementation allows it, its own engine parameters:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  version: "17"
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.m7g.xlarge
+      readReplicas:                    # replicas of their own sizes, instead of the count
+      - name: reporting
+        instanceType: db.r7g.2xlarge
+        parametersRef:
+          name: reporting-replica
+```
+
+*A `PostgreSQLCluster` with a reporting replica of its own size on RDS.*
+
+The rules for replicas:
+
+- **The count or the layout, not both.** An object that sets `readReplicas` and a replica layout in
+  its applied provider config is refused, so the number of replicas is never ambiguous.
+- **Scaling down is predictable.** Replicas are named `<instance>-ro-<index>`, and scaling down
+  removes the highest index first.
+- **The reader endpoint follows the implementation.** Where it has a balanced read endpoint,
+  `readerEndpoint` holds it; elsewhere it lists the replicas' hosts.
+- **A replica runs the primary's major version.** Read replicas use physical replication, which needs
+  the same major version; a copy on a newer version belongs to upgrades and migration.
+
+## Disaster Recovery
+
+`disasterRecovery` keeps a copy of the cluster in another Entigo workspace, usually in another
+region, that can become the primary when the primary's region is lost. The same manifest is applied
+in both workspaces, and each takes its role from `primary`:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  className: standard
+  version: "17"
+  disasterRecovery:
+    workspaces:                        # the Entigo workspaces that hold this database
+    - prod
+    - prod-dr
+    primary: prod                      # the one that accepts writes
+```
+
+*A `PostgreSQLCluster` with a disaster recovery copy in another workspace.*
+
+1. In `prod`, the platform creates the primary as usual.
+2. In `prod-dr`, that workspace's own platform creates a replica of it in its own region. The DR
+   workspace owns the replica, so losing the primary's region does not also take down the platform
+   that must promote it.
+3. To fail over, the team changes `primary` to `prod-dr` in Git, and `prod-dr`'s platform promotes
+   its replica.
+
+The manifest names no region: each workspace's class decides where its copy runs. A replica that
+only waits should be small, so a class in the DR workspace can hold a `standby` provider config,
+applied only while that workspace is not primary; on promotion, the platform resizes the replica to
+the cluster's own size, which adds that time to the recovery. An operator who values recovery time
+over cost leaves `standby` empty.
+
+The rules for disaster recovery:
+
+- **The source is found by tags.** The DR platform cannot see the primary's cluster, and cloud names
+  differ between clusters, so the primary platform tags the resource with the workspace, the Zone
+  and a DR group (`<namespace>/<name>`), and the DR platform finds it with rule 9's tag check.
+- **Credentials survive the outage.** The primary platform keeps the generated passwords in a store
+  that replicates across regions, such as AWS Secrets Manager replica secrets, which the DR side
+  reads through External Secrets. An encrypted replica also needs a key in the DR region.
+- **The old primary is fenced.** When the old primary's workspace returns, its platform sees in Git
+  that it is no longer primary, stops writes, and rebuilds the database as a replica, before
+  anything else.
+- **Each workspace's secret holds its local endpoint,** so applications in the DR region connect
+  locally.
+- **The feature gate applies.** A class that cannot replicate across regions does not report
+  `DisasterRecovery`, so a manifest that uses it fails when applied, not during an outage.
+
 ## Mapping
 
-The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
-ignored, with the reason (rule 1), and a field of a cloud's block appears only for that cloud:
+The first table names what each common field maps to in the implementation's provider. A setting the
+implementation lacks shows as ignored, with the reason (rule 1):
 
-| Field                                  | AWS                                                                         | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                |
-| -------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `observe`                              | `managementPolicies: [Observe]`                                             | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                                      | `managementPolicies: [Observe]`                                                      |
-| `version`                              | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`; a full version ignored                                                                                   | `dbVersion: "17"`; a full version ignored                                            | `version: "17"`; a full version ignored                                              |
-| `storage.sizeGB`                       | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                                 | `storageMb`, rounded up to the next of its 12 sizes                                  |
-| `storage.autoGrow`                     | on with `maxAllocatedStorage`                                               | `settings.diskAutoresize`                                                                                                                | always on; `false` ignored                                                           | `autoGrowEnabled`                                                                    |
-| `storage.maxSizeGB`                    | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      | `settings.diskAutoresizeLimit`                                                                                                           | ignored; storage grows without a ceiling                                             | ignored; growth has no ceiling                                                       |
-| `storage.iops`                         | `iops`                                                                      | `settings.dataDiskProvisionedIops`; ignored without Hyperdisk                                                                            | `storageDetails.iops`                                                                | ignored; `azure.storageTier` sets IOPS                                               |
-| `storage.throughputMBps`               | `storageThroughput`                                                         | `settings.dataDiskProvisionedThroughput`; ignored without Hyperdisk                                                                      | ignored; the disk keeps its default throughput                                       | ignored; the disk keeps its default throughput                                       |
-| `highAvailability`                     | `multiAz`                                                                   | `settings.availabilityType: REGIONAL`; with `backup.retentionDays: 0` rejected, as a regional instance needs backups                     | `instanceCount: 2`, regional storage                                                 | `highAvailability.mode: ZoneRedundant`                                               |
-| `deletionProtection`                   | `deletionProtection`                                                        | `settings.deletionProtectionEnabled`                                                                                                     | platform blocks deletion                                                             | platform blocks deletion                                                             |
-| `maintenance.window`                   | `maintenanceWindow: sun:03:00-sun:03:30`                                    | `settings.maintenanceWindow` (`day: 7`, `hour: 3`)                                                                                       | `managementPolicy.maintenanceWindowStart: "SUN 03:00"`                               | `maintenanceWindow` (`dayOfWeek: 0`, `startHour: 3`)                                 |
-| `maintenance.autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                   | always on; `false` ignored, and minor versions are applied in the maintenance window                                                     | always on; `false` ignored, and minor versions are applied in the maintenance window | always on; `false` ignored, and minor versions are applied in the maintenance window |
-| `maintenance.allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                  | `databaseVersion` change allowed                                                                                                         | a major upgrade fails until the provider supports it                                 | `version` change allowed                                                             |
-| `backup.retentionDays`                 | `backupRetentionPeriod`                                                     | `settings.backupConfiguration.backupRetentionSettings.retainedBackups`, with `pointInTimeRecoveryEnabled: true`; 0 sets `enabled: false` | `managementPolicy.backupPolicy.retentionDays`, DAILY; 0 sets `kind: NONE`            | `backupRetentionDays`; 0 ignored, backups are always on                              |
-| `backup.pointInTimeDays`               | the same setting; above `retentionDays` rejected                            | `settings.backupConfiguration.transactionLogRetentionDays`                                                                               | `managementPolicy.pitrPolicy.restoreDays`, STANDARD                                  | the same setting; above `retentionDays` rejected                                     |
-| `backup.startHourUTC`                  | `backupWindow`, 30 minutes                                                  | `settings.backupConfiguration.startTime`                                                                                                 | `managementPolicy.backupPolicy.backupStart`                                          | ignored; Azure picks the hour                                                        |
-| `parameters`                           | a `ParameterGroup`                                                          | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                                 | one `FlexibleServerConfiguration` each                                               |
-| `parameterApplyMethod`                 | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` | restarts when a flag needs it; `NextRestart` ignored                                                                                     | `NextRestart` ignored; a change that needs a restart restarts at once                | restarts when a setting needs it; `NextRestart` ignored                              |
-| `restore.fromInstance`                 | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`                    | `createMode: PointInTimeRestore`, `sourceServerId`                                   |
-| `restore.pointInTime`                  | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                               | `pointInTimeRestoreTimeInUtc`                                                        |
-| `aws.id`                               | the console's Resource ID (`db-...`)                                        |                                                                                                                                          |                                                                                      |                                                                                      |
-| `gcp.id`                               |                                                                             | the instance name                                                                                                                        |                                                                                      |                                                                                      |
-| `oci.id`                               |                                                                             |                                                                                                                                          | the DB system's OCID                                                                 |                                                                                      |
-| `azure.id`                             |                                                                             |                                                                                                                                          |                                                                                      | the server's resource ID; the function takes the name and resource group             |
-| `aws.instanceType`                     | `instanceClass`                                                             |                                                                                                                                          |                                                                                      |                                                                                      |
-| `gcp.instanceType`                     |                                                                             | `settings.tier`                                                                                                                          |                                                                                      |                                                                                      |
-| `oci.instanceType`                     |                                                                             |                                                                                                                                          | `shape`; a `.Flex` shape without `oci.ocpus` and `oci.memoryGB` rejected             |                                                                                      |
-| `azure.instanceType`                   |                                                                             |                                                                                                                                          |                                                                                      | `skuName`                                                                            |
-| `aws.fromBackup`                       | `snapshotIdentifier`                                                        |                                                                                                                                          |                                                                                      |                                                                                      |
-| `gcp.fromBackup`                       |                                                                             | `restoreBackupContext` (`instanceId`, `backupRunId`)                                                                                     |                                                                                      |                                                                                      |
-| `oci.fromBackup`                       |                                                                             |                                                                                                                                          | `source.sourceType: BACKUP`, `source.backupId`                                       |                                                                                      |
-| `aws.parameterGroupName`               | `parameterGroupName`                                                        |                                                                                                                                          |                                                                                      |                                                                                      |
-| `gcp.edition`                          |                                                                             | `settings.edition`                                                                                                                       |                                                                                      |                                                                                      |
-| `gcp.diskType`                         |                                                                             | `settings.diskType`                                                                                                                      |                                                                                      |                                                                                      |
-| `oci.ocpus`                            |                                                                             |                                                                                                                                          | `instanceOcpuCount`                                                                  |                                                                                      |
-| `oci.memoryGB`                         |                                                                             |                                                                                                                                          | `instanceMemorySizeInGbs`                                                            |                                                                                      |
-| `azure.storageTier`                    |                                                                             |                                                                                                                                          |                                                                                      | `storageTier`                                                                        |
+| Field                      | AWS                                                                              | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `observe`                  | `managementPolicies: [Observe]`                                                  | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                                      | `managementPolicies: [Observe]`                                                      |
+| `version`                  | `engineVersion`; the full version with minor upgrades off                        | `databaseVersion: POSTGRES_17`; a full version ignored                                                                                   | `dbVersion: "17"`; a full version ignored                                            | `version: "17"`; a full version ignored                                              |
+| `storage.sizeGB`           | `allocatedStorage`; below 20 rounded up to 20                                    | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                                 | `storageMb`, rounded up to the next of its 12 sizes                                  |
+| `storage.autoGrow`         | on with `maxAllocatedStorage`                                                    | `settings.diskAutoresize`                                                                                                                | always on; `false` ignored                                                           | `autoGrowEnabled`                                                                    |
+| `storage.maxSizeGB`        | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling           | `settings.diskAutoresizeLimit`                                                                                                           | ignored; storage grows without a ceiling                                             | ignored; growth has no ceiling                                                       |
+| `storage.iops`             | `iops`                                                                           | `settings.dataDiskProvisionedIops`; ignored without Hyperdisk                                                                            | `storageDetails.iops`                                                                | ignored; `storageTier` sets IOPS                                                     |
+| `storage.throughputMBps`   | `storageThroughput`                                                              | `settings.dataDiskProvisionedThroughput`; ignored without Hyperdisk                                                                      | ignored; the disk keeps its default throughput                                       | ignored; the disk keeps its default throughput                                       |
+| `highAvailability`         | `multiAz`                                                                        | `settings.availabilityType: REGIONAL`; with `backup.retentionDays: 0` rejected, as a regional instance needs backups                     | `instanceCount: 2`, regional storage                                                 | `highAvailability.mode: ZoneRedundant`                                               |
+| `readReplicas`             | one RDS read replica `Instance` each, with `replicateSourceDb`                   | one Cloud SQL read replica `DatabaseInstance` each, with `masterInstanceName`                                                            | more nodes of the DB system, on shared storage: `instanceCount`                      | one replica `FlexibleServer` each, with `createMode: Replica`                        |
+| `disasterRecovery`         | a cross-region read replica `Instance` in the DR workspace; promoted on failover | a cross-region read replica in the DR workspace; promoted on failover                                                                    | a standby DB system in the DR workspace; switched over on failover                   | a geo read replica in the DR workspace; promoted on failover                         |
+| `deletionProtection`       | `deletionProtection`                                                             | `settings.deletionProtectionEnabled`                                                                                                     | platform blocks deletion                                                             | platform blocks deletion                                                             |
+| `maintenanceWindow`        | `maintenanceWindow: sun:03:00-sun:03:30`                                         | `settings.maintenanceWindow` (`day: 7`, `hour: 3`)                                                                                       | `managementPolicy.maintenanceWindowStart: "SUN 03:00"`                               | `maintenanceWindow` (`dayOfWeek: 0`, `startHour: 3`)                                 |
+| `autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                        | always on; `false` ignored, and minor versions are applied in the maintenance window                                                     | always on; `false` ignored, and minor versions are applied in the maintenance window | always on; `false` ignored, and minor versions are applied in the maintenance window |
+| `allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                       | `databaseVersion` change allowed                                                                                                         | a major upgrade fails until the provider supports it                                 | `version` change allowed                                                             |
+| `backup.retentionDays`     | `backupRetentionPeriod`                                                          | `settings.backupConfiguration.backupRetentionSettings.retainedBackups`, with `pointInTimeRecoveryEnabled: true`; 0 sets `enabled: false` | `managementPolicy.backupPolicy.retentionDays`, DAILY; 0 sets `kind: NONE`            | `backupRetentionDays`; 0 ignored, backups are always on                              |
+| `backup.pointInTimeDays`   | the same setting; above `retentionDays` rejected                                 | `settings.backupConfiguration.transactionLogRetentionDays`                                                                               | `managementPolicy.pitrPolicy.restoreDays`, STANDARD                                  | the same setting; above `retentionDays` rejected                                     |
+| `backup.startHourUTC`      | `backupWindow`, 30 minutes                                                       | `settings.backupConfiguration.startTime`                                                                                                 | `managementPolicy.backupPolicy.backupStart`                                          | ignored; Azure picks the hour                                                        |
+| `parameters`               | a `ParameterGroup`                                                               | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                                 | one `FlexibleServerConfiguration` each                                               |
+| `parametersRef`            | merged into `parameters`                                                         | merged into `parameters`                                                                                                                 | merged into `parameters`                                                             | merged into `parameters`                                                             |
+| `parameterApplyMethod`     | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot`      | restarts when a flag needs it; `NextRestart` ignored                                                                                     | `NextRestart` ignored; a change that needs a restart restarts at once                | restarts when a setting needs it; `NextRestart` ignored                              |
+| `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                                | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`                    | `createMode: PointInTimeRestore`, `sourceServerId`                                   |
+| `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`             | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                               | `pointInTimeRestoreTimeInUtc`                                                        |
 
-*Fields of `PostgreSQLInstance` and their provider fields.*
+*Common fields of `PostgreSQLCluster` and their provider fields.*
+
+The second names the implementation's provider config kind and what its fields map to:
+
+| Field                | AWS                                                                     | GCP                                                       | OCI                                                              | Azure                                                                    |
+| -------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| kind                 | `PostgreSQLRDSConfig`                                                   | `PostgreSQLCloudSQLConfig`                                | `PostgreSQLOCIConfig`                                            | `PostgreSQLFlexibleServerConfig`                                         |
+| `id`                 | the console's Resource ID (`db-...`)                                    | the instance name                                         | the DB system's OCID                                             | the server's resource ID; the function takes the name and resource group |
+| `instanceType`       | `instanceClass`                                                         | `settings.tier`                                           | `shape`; a `.Flex` shape without `ocpus` and `memoryGB` rejected | `skuName`                                                                |
+| `fromBackup`         | `snapshotIdentifier`                                                    | `restoreBackupContext` (`instanceId`, `backupRunId`)      | `source.sourceType: BACKUP`, `source.backupId`                   |                                                                          |
+| `parameterGroupName` | `parameterGroupName`                                                    |                                                           |                                                                  |                                                                          |
+| `edition`            |                                                                         | `settings.edition`                                        |                                                                  |                                                                          |
+| `diskType`           |                                                                         | `settings.diskType`                                       |                                                                  |                                                                          |
+| `ocpus`              |                                                                         |                                                           | `instanceOcpuCount`                                              |                                                                          |
+| `memoryGB`           |                                                                         |                                                           | `instanceMemorySizeInGbs`                                        |                                                                          |
+| `storageTier`        |                                                                         |                                                           |                                                                  | `storageTier`                                                            |
+| `readReplicas`       | one RDS read replica `Instance` per entry, with its own `instanceClass` | one Cloud SQL read replica per entry, with its own `tier` |                                                                  | one replica `FlexibleServer` per entry, with its own `skuName`           |
+
+*Fields of each provider config kind.*
 
 **AWS:** provider keys are from the CRDs of [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). Only RDS can
 turn minor upgrades off, and it then needs a full version (`engineVersion` in
-`rds.aws.m.upbound.io_instances`), so a user who sets `maintenance.autoMinorVersionUpgrade: false`
-writes the full version, such as `"17.7"`, and changes it to upgrade. A parameter group applies to
-one major version, so a major change is rejected unless `aws.parameterGroupName` changes or is
-removed in the same edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an
-increase under 10% up to 10%. `status.aws.finalBackup` is the ID the final snapshot will receive.
-Storage is gp3.
+`rds.aws.m.upbound.io_instances`), so a user who sets `autoMinorVersionUpgrade: false` writes the
+full version, such as `"17.7"`, and changes it to upgrade. A parameter group applies to one major
+version, so a major change is rejected unless `parameterGroupName` changes or is removed in the same
+edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an increase under 10% up to
+10%. `status.provider.finalBackup` is the ID the final snapshot will receive. Storage is gp3.
 
 **GCP:** provider keys are from the CRDs of [provider-upjet-gcp
 v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0). `updateTrack`
 only delays minor upgrades. The size belongs to an edition: `db-custom-*` to `ENTERPRISE`,
 `db-perf-optimized-*` to `ENTERPRISE_PLUS`, which Cloud SQL selects by default from PostgreSQL 16.
-The platform therefore always sets `gcp.edition`, and a deployment's defaults for `gcp.edition` and
-`gcp.instanceType` must belong together. The provider reports only `finalBackupDescription`, and
-`endpoint.host` is an IP address.
+The platform therefore always sets `edition`, and a class's `edition` and `instanceType` must belong
+together. The provider reports only `finalBackupDescription`, and `endpoint.host` is an IP address.
 
 **OCI:** provider keys are from the CRDs of [crossplane-provider-oci
 v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0). `storage.sizeGB`
@@ -296,19 +545,20 @@ final backup is taken. The platform also creates a private DNS zone for the serv
 
 ## Composed Resources
 
-The `PostgreSQLInstance` from [Kinds](#kinds) is composed into the resources below on the cloud it
-runs on: the platform uses that cloud's block and ignores the others. A comment names the source of
-each value the object does not hold as written: `platform` for a value the platform sets, and
-`deployment` for one the deployment sets. The object and its resources:
+The `PostgreSQLCluster` from [Kinds](#kinds) is composed into the resources below on the cloud it
+runs on: the platform applies the entry of its class's kind and ignores the others. A comment names
+the source of each value the object does not hold as written: `platform` for a value the platform
+sets, and `deployment` for one the deployment sets. The object and its resources:
 
 ```yaml Object
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLInstance
+kind: PostgreSQLCluster
 metadata:
   name: orders-db
   namespace: shop
 spec:
+  className: standard
   version: "17"
   storage:
     sizeGB: 20
@@ -317,34 +567,44 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
+  readReplicas: 0
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  autoMinorVersionUpgrade: true
+  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
     pointInTimeDays: 7
     startHourUTC: 2
+  parametersRef:
+    name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
   secretName: orders-db-admin
-  aws:
-    instanceType: db.t4g.small
-  gcp:
-    instanceType: db-custom-2-7680
-    edition: ENTERPRISE
-    diskType: PD_SSD
-  oci:
-    instanceType: PostgreSQL.VM.Standard.E5.Flex
-    ocpus: 2
-    memoryGB: 32
-  azure:
-    instanceType: GP_Standard_D2ds_v5
-    storageTier: P10
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.t4g.small
+  - apiVersion: gcp.database.entigo.com/v1alpha1
+    kind: PostgreSQLCloudSQLConfig
+    spec:
+      instanceType: db-custom-2-7680
+      edition: ENTERPRISE
+      diskType: PD_SSD
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: PostgreSQLOCIConfig
+    spec:
+      instanceType: PostgreSQL.VM.Standard.E5.Flex
+      ocpus: 2
+      memoryGB: 32
+  - apiVersion: azure.database.entigo.com/v1alpha1
+    kind: PostgreSQLFlexibleServerConfig
+    ref:
+      name: orders-azure
 ```
 
 ```yaml AWS resource
@@ -386,16 +646,17 @@ spec:
     kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
-*A `PostgreSQLInstance` on AWS and its composed resource.*
+*A `PostgreSQLCluster` on AWS and its composed resource.*
 
 ```yaml Object
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLInstance
+kind: PostgreSQLCluster
 metadata:
   name: orders-db
   namespace: shop
 spec:
+  className: standard
   version: "17"
   storage:
     sizeGB: 20
@@ -404,34 +665,44 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
+  readReplicas: 0
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  autoMinorVersionUpgrade: true
+  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
     pointInTimeDays: 7
     startHourUTC: 2
+  parametersRef:
+    name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
   secretName: orders-db-admin
-  aws:
-    instanceType: db.t4g.small
-  gcp:
-    instanceType: db-custom-2-7680
-    edition: ENTERPRISE
-    diskType: PD_SSD
-  oci:
-    instanceType: PostgreSQL.VM.Standard.E5.Flex
-    ocpus: 2
-    memoryGB: 32
-  azure:
-    instanceType: GP_Standard_D2ds_v5
-    storageTier: P10
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.t4g.small
+  - apiVersion: gcp.database.entigo.com/v1alpha1
+    kind: PostgreSQLCloudSQLConfig
+    spec:
+      instanceType: db-custom-2-7680
+      edition: ENTERPRISE
+      diskType: PD_SSD
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: PostgreSQLOCIConfig
+    spec:
+      instanceType: PostgreSQL.VM.Standard.E5.Flex
+      ocpus: 2
+      memoryGB: 32
+  - apiVersion: azure.database.entigo.com/v1alpha1
+    kind: PostgreSQLFlexibleServerConfig
+    ref:
+      name: orders-azure
 ```
 
 ```yaml GCP resource
@@ -473,16 +744,17 @@ spec:
         privateNetwork: projects/p/global/networks/deployment
 ```
 
-*A `PostgreSQLInstance` on GCP and its composed resource.*
+*A `PostgreSQLCluster` on GCP and its composed resource.*
 
 ```yaml Object
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLInstance
+kind: PostgreSQLCluster
 metadata:
   name: orders-db
   namespace: shop
 spec:
+  className: standard
   version: "17"
   storage:
     sizeGB: 20
@@ -491,34 +763,44 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
+  readReplicas: 0
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  autoMinorVersionUpgrade: true
+  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
     pointInTimeDays: 7
     startHourUTC: 2
+  parametersRef:
+    name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
   secretName: orders-db-admin
-  aws:
-    instanceType: db.t4g.small
-  gcp:
-    instanceType: db-custom-2-7680
-    edition: ENTERPRISE
-    diskType: PD_SSD
-  oci:
-    instanceType: PostgreSQL.VM.Standard.E5.Flex
-    ocpus: 2
-    memoryGB: 32
-  azure:
-    instanceType: GP_Standard_D2ds_v5
-    storageTier: P10
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.t4g.small
+  - apiVersion: gcp.database.entigo.com/v1alpha1
+    kind: PostgreSQLCloudSQLConfig
+    spec:
+      instanceType: db-custom-2-7680
+      edition: ENTERPRISE
+      diskType: PD_SSD
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: PostgreSQLOCIConfig
+    spec:
+      instanceType: PostgreSQL.VM.Standard.E5.Flex
+      ocpus: 2
+      memoryGB: 32
+  - apiVersion: azure.database.entigo.com/v1alpha1
+    kind: PostgreSQLFlexibleServerConfig
+    ref:
+      name: orders-azure
 ```
 
 ```yaml OCI resource
@@ -559,16 +841,17 @@ spec:
     - username: dbadmin
 ```
 
-*A `PostgreSQLInstance` on OCI and its composed resource.*
+*A `PostgreSQLCluster` on OCI and its composed resource.*
 
 ```yaml Object
 ---
 apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLInstance
+kind: PostgreSQLCluster
 metadata:
   name: orders-db
   namespace: shop
 spec:
+  className: standard
   version: "17"
   storage:
     sizeGB: 20
@@ -577,34 +860,44 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
+  readReplicas: 0
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  autoMinorVersionUpgrade: true
+  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
     pointInTimeDays: 7
     startHourUTC: 2
+  parametersRef:
+    name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
   secretName: orders-db-admin
-  aws:
-    instanceType: db.t4g.small
-  gcp:
-    instanceType: db-custom-2-7680
-    edition: ENTERPRISE
-    diskType: PD_SSD
-  oci:
-    instanceType: PostgreSQL.VM.Standard.E5.Flex
-    ocpus: 2
-    memoryGB: 32
-  azure:
-    instanceType: GP_Standard_D2ds_v5
-    storageTier: P10
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.t4g.small
+  - apiVersion: gcp.database.entigo.com/v1alpha1
+    kind: PostgreSQLCloudSQLConfig
+    spec:
+      instanceType: db-custom-2-7680
+      edition: ENTERPRISE
+      diskType: PD_SSD
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: PostgreSQLOCIConfig
+    spec:
+      instanceType: PostgreSQL.VM.Standard.E5.Flex
+      ocpus: 2
+      memoryGB: 32
+  - apiVersion: azure.database.entigo.com/v1alpha1
+    kind: PostgreSQLFlexibleServerConfig
+    ref:
+      name: orders-azure
 ```
 
 ```yaml Azure resource
@@ -636,7 +929,7 @@ spec:
       key: password
 ```
 
-*A `PostgreSQLInstance` on Azure and its composed resource.*
+*A `PostgreSQLCluster` on Azure and its composed resource.*
 
 ## Platform Decisions
 
@@ -652,7 +945,7 @@ The platform makes these settings itself:
 | Tags              | Workspace and Zone tags                                                                  |
 | Final backup      | Taken when an instance is deleted, switched on per deployment, where the cloud takes one |
 
-*Settings the platform makes for a `PostgreSQLInstance`.*
+*Settings the platform makes for a `PostgreSQLCluster`.*
 
 ## Cloud Limits
 
@@ -670,8 +963,8 @@ named, or the cloud's documentation as read in November 2026.
 | `storage.sizeGB`                          | GCP   | at least 10; 20 on `HYPERDISK_BALANCED`  | `settings.diskSize`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
 | `storage.iops`, `throughputMBps`          | AWS   | only from 400 GiB of disk                | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0       |
 | `storage.iops`                            | OCI   | steps of 75,000                          | `storageDetails.iops`, `PsqlDbSystem` CRD, crossplane-provider-oci v2.0.0        |
-| `gcp.edition`                             | GCP   | `ENTERPRISE`, `ENTERPRISE_PLUS`          | `settings.edition`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0            |
-| `gcp.diskType`                            | GCP   | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED` | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
-| `azure.storageTier`                       | Azure | `P4` to `P80`                            | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                 |
+| `edition`                                 | GCP   | `ENTERPRISE`, `ENTERPRISE_PLUS`          | `settings.edition`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0            |
+| `diskType`                                | GCP   | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED` | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
+| `storageTier`                             | Azure | `P4` to `P80`                            | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                 |
 
 *Limits the cloud enforces on PostgreSQL.*

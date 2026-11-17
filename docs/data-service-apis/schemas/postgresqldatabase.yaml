@@ -25,25 +25,25 @@ spec:
                 description: |-
                   The database's name in the engine, which may hold what a Kubernetes name cannot.
                   Unset, metadata.name. Set at creation only.
-              instanceRef:
+              clusterRef:
                 type: object
                 description: |-
-                  The PostgreSQLInstance this object lives in.
+                  The PostgreSQLCluster this object lives in.
                 properties:
                   name:
                     type: string
                     description: |-
-                      The PostgreSQLInstance.
+                      The PostgreSQLCluster.
                   namespace:
                     type: string
                     description: |-
-                      The PostgreSQLInstance's namespace, which must be in this object's Zone (rule
+                      The PostgreSQLCluster's namespace, which must be in this object's Zone (rule
                       11). Unset, this object's namespace.
                 required:
                 - name
                 x-kubernetes-validations:
                 - rule: self == oldSelf
-                  message: instanceRef is immutable
+                  message: clusterRef is immutable
               owner:
                 type: string
                 description: |-
@@ -98,7 +98,7 @@ spec:
                 (has(self.name) ? self.name : '') == (has(oldSelf.name) ? oldSelf.name : '')
               message: name is immutable
             required:
-            - instanceRef
+            - clusterRef
             - owner
           status:
             type: object
