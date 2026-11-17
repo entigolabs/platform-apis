@@ -2,6 +2,23 @@
 
 The rules every data service API follows.
 
+## The Model
+
+Each data service has four parts, which the rules below rely on:
+
+| Part            | What it is                                                                                       | Owned by                  | Example                                  |
+| --------------- | ------------------------------------------------------------------------------------------------ | ------------------------- | ---------------------------------------- |
+| Core kind       | What a team asks for, the same wherever it runs                                                  | the team                  | a `PostgreSQLCluster`                    |
+| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | Entigo, or a third party  | RDS, Cloud SQL, CloudNativePG            |
+| Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the team, or the operator | a `PostgreSQLRDSConfig` with an RDS size |
+| Class           | A deployment's choice of implementation, its defaults and the values a team cannot change        | the deployment's operator | a `PostgreSQLClass` named `standard`     |
+
+*The parts of a data service.*
+
+A team writes a core kind that names a class, and may add a provider config for each implementation
+it can run on. Each deployment applies the provider config of its class's implementation, and the
+implementation turns the result into running resources.
+
 ## Rules
 
 These rules apply to every data service API, and each service's page shows how it applies them.
@@ -28,13 +45,18 @@ The portal reads a class's supported features and hides the fields its class can
 
 #### 2 A setting of one implementation belongs in its provider config
 
-Anything that exists in only one implementation goes into a provider config of that implementation's
-kind, such as `PostgreSQLRDSConfig`.
+A setting that only one implementation has, such as the size of an RDS instance, goes into a
+provider config of that implementation's kind, such as `PostgreSQLRDSConfig`, never into the common
+spec.
+
+Implementations differ: RDS has instance classes and parameter groups, Cloud SQL has editions, OCI
+has flexible shapes. A provider config holds such settings in a kind its implementation defines, so
+the core kind never lists them.
 
 An object carries its provider configs in `providerConfigs`, a list with one entry per kind. Each
 entry names its own `apiVersion` and `kind`, and holds the settings either inline, in `spec`, or in
-a separate object of that kind, through `ref`. The list is keyed by `apiVersion` and `kind`, so Helm,
-Argo CD and server-side apply merge it entry by entry, and one manifest can carry settings for
+a separate object of that kind, through `ref`. The list is keyed by `apiVersion` and `kind`, so
+Helm, Argo CD and server-side apply merge it entry by entry, and one manifest can carry settings for
 several implementations and be applied on any of them.
 
 A deployment applies only the entry whose kind its class names (rule 5) and ignores the others; the
