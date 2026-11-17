@@ -1,0 +1,61 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: rabbitmqamazonmqconfigs.aws.mq.entigo.com
+spec:
+  group: aws.mq.entigo.com
+  scope: Namespaced
+  names:
+    kind: RabbitMQAmazonMQConfig
+    plural: rabbitmqamazonmqconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for Amazon MQ (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The Amazon MQ ID of an existing resource to observe (principle 9). Only with
+                  observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+              instanceType:
+                type: string
+                description: |-
+                  The Amazon MQ host instance type, such as mq.m7g.medium.
+                  Default: the class's template.
+              publiclyAccessible:
+                type: boolean
+                description: |-
+                  Reachable from the internet, without the platform's security group. Amazon MQ
+                  replaces the broker to change it, so it is set at creation only.
+                  Default: fixed, false.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: publiclyAccessible is immutable
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for Amazon MQ (principle 4).
+            properties:
+              instanceType:
+                type: string
+              id:
+                type: string
+              engineVersion:
+                type: string
+        required:
+        - spec
+    subresources:
+      status: {}

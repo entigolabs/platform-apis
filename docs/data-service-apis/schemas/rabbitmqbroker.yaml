@@ -20,103 +20,133 @@ spec:
           spec:
             type: object
             properties:
+              className:
+                type: string
+                description: |-
+                  The RabbitMQClass: the deployment's defaults, enforced values and implementation
+                  (principle 5). Unset, the default class. Set at creation only.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: className is immutable
               observe:
                 type: boolean
                 description: |-
-                  true observes an existing resource, named by the cloud block's id, and never
-                  changes or deletes it. Every other field is then rejected (principle 9). Set at
-                  creation only.
+                  true observes an existing resource, named by the id in its provider
+                  configuration entry, and never changes or deletes it. Every other common field
+                  is then rejected (principle 9). Set at creation only.
               version:
                 type: string
                 description: |-
-                  RabbitMQ's release line, such as "4.2". The cloud manages the patch.
-                  Default: per deployment.
+                  RabbitMQ's release line, such as "4.2". The implementation manages the patch.
+                  Default: the class's template.
                 pattern: ^[0-9]+\.[0-9]+$
               highAvailability:
                 type: boolean
                 description: |-
-                  A three-node cluster across zones.
-                  Default: per deployment.
+                  A three-node cluster across zones. Refused where the class does not support
+                  HighAvailability (principle 1).
+                  Default: the class's template.
               deletionProtection:
                 type: boolean
                 description: |-
                   Deleting the object is denied while true.
                   Default: fixed, true.
-              maintenance:
+              maintenanceWindow:
                 type: object
+                description: |-
+                  The weekly hour, in UTC, in which the cloud applies updates.
                 properties:
-                  window:
-                    type: object
+                  day:
+                    type: string
+                    enum:
+                    - Mon
+                    - Tue
+                    - Wed
+                    - Thu
+                    - Fri
+                    - Sat
+                    - Sun
+                  hourUTC:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                required:
+                - day
+                - hourUTC
+              parametersRef:
+                type: object
+                description: |-
+                  Reusable rabbitmq.conf settings, merged after the class's.
+                properties:
+                  name:
+                    type: string
                     description: |-
-                      The weekly hour, in UTC, in which the cloud applies updates.
-                    properties:
-                      day:
-                        type: string
-                        enum:
-                        - Mon
-                        - Tue
-                        - Wed
-                        - Thu
-                        - Fri
-                        - Sat
-                        - Sun
-                      hourUTC:
-                        type: integer
-                        minimum: 0
-                        maximum: 23
-                    required:
-                    - day
-                    - hourUTC
+                      A RabbitMQParameters in this namespace.
+                required:
+                - name
+              parameters:
+                type: object
+                description: |-
+                  rabbitmq.conf settings for this object only, merged after parametersRef.
+                additionalProperties:
+                  type: string
               secretName:
                 type: string
                 description: |-
                   The name of the connection Secret (principle 6). The platform never overwrites a
                   Secret that another object or person owns; set this to avoid one.
                   Default: fixed, <broker>-credentials.
-              parameters:
-                type: object
+              providerConfigs:
+                type: array
                 description: |-
-                  rabbitmq.conf settings, by name. Keys outside the cloud's allowlist are
-                  rejected.
-                additionalProperties:
-                  type: string
-              aws:
-                type: object
-                description: |-
-                  Settings for AWS only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The AWS ID of an existing broker to observe (principle 9). Only with observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
-                  instanceType:
-                    type: string
-                    description: |-
-                      The Amazon MQ host instance type, such as mq.m7g.medium.
-                      Default: per deployment.
-                  publiclyAccessible:
-                    type: boolean
-                    description: |-
-                      Reachable from the internet, without the platform's security group. Amazon MQ
-                      replaces the broker to change it, so it is set at creation only.
-                      Default: fixed, false.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: aws.publiclyAccessible is immutable
+                  Settings of single implementations, one entry per kind (principle 2). The
+                  deployment applies the entry whose kind its class names and ignores the others.
+                items:
+                  type: object
+                  properties:
+                    apiVersion:
+                      type: string
+                      description: |-
+                        The provider configuration kind's group and version, such as
+                        aws.database.entigo.com/v1alpha1.
+                    kind:
+                      type: string
+                      description: |-
+                        The provider configuration kind, such as PostgreSQLRDSConfig.
+                    spec:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      description: |-
+                        The settings, checked by the implementation that applies them (principle 10).
+                    ref:
+                      type: object
+                      description: |-
+                        The settings in a separate object of this kind, instead of spec.
+                      properties:
+                        name:
+                          type: string
+                          description: |-
+                            An object of this kind in the same namespace.
+                      required:
+                      - name
+                  required:
+                  - apiVersion
+                  - kind
+                  x-kubernetes-validations:
+                  - rule: has(self.spec) != has(self.ref)
+                    message: an entry holds either spec or ref
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - apiVersion
+                - kind
             x-kubernetes-validations:
-            - rule: |-
-                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)))
-              message: observe and the cloud block's id go together
             - rule: |-
                 (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
               message: observe is immutable
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.version) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.maintenance) && !has(self.secretName) && !has(self.parameters) && (!has(self.aws) || !has(self.aws.instanceType)) && (!has(self.aws) || !has(self.aws.publiclyAccessible)))
-              message: an observed resource takes no other field than its cloud block's id
+                || (!has(self.version) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.parametersRef) && !has(self.parameters))
+              message: an observed resource takes no other common field
           status:
             type: object
             properties:
@@ -124,6 +154,13 @@ spec:
                 type: string
               highAvailability:
                 type: boolean
+              maintenanceWindow:
+                type: object
+                properties:
+                  day:
+                    type: string
+                  hourUTC:
+                    type: integer
               endpoint:
                 type: object
                 description: |-
@@ -141,14 +178,29 @@ spec:
                 type: string
                 description: |-
                   The Secret <broker>-credentials (principle 6).
-              aws:
+              providerConfig:
                 type: object
+                description: |-
+                  The provider configuration entries applied and ignored, as <apiVersion>, <kind>
+                  (principle 4).
                 properties:
-                  instanceType:
+                  applied:
                     type: string
-                  id:
-                    type: string
-                  engineVersion:
-                    type: string
+                  ignored:
+                    type: array
+                    items:
+                      type: string
+              effective:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Each effective value and its source: the class's template, the object, or the
+                  class's enforced (principle 4).
+              provider:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Values of the applied implementation, in the shape its provider configuration
+                  kind's status defines (principle 4).
         required:
         - spec

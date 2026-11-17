@@ -394,15 +394,27 @@ update("fewer partitions rejected", "KafkaTopic", KT, w(KT, partitions=2), False
        "partitions cannot decrease")
 
 print("\n# RabbitMQBroker")
-create("valid spec", "RabbitMQBroker", {"version": "4.2", "maintenance": {"window": {
-    "day": "Sun", "hourUTC": 3}}})
-create("window without hourUTC rejected", "RabbitMQBroker",
-       {"maintenance": {"window": {"day": "Sun"}}}, False, "Required value")
-create("observe without id rejected", "RabbitMQBroker", {"observe": True}, False, "go together")
-create("RabbitMQ public broker accepted", "RabbitMQBroker", {"aws": {"publiclyAccessible": True}})
-update("RabbitMQ changing publiclyAccessible rejected", "RabbitMQBroker",
-       {"aws": {"publiclyAccessible": True}}, {"aws": {"publiclyAccessible": False}}, False,
-       "aws.publiclyAccessible is immutable")
+AMQ = {"apiVersion": "aws.mq.entigo.com/v1alpha1", "kind": "RabbitMQAmazonMQConfig",
+       "spec": {"instanceType": "mq.m7g.medium"}}
+RB = {"version": "4.2", "maintenanceWindow": {"day": "Sun", "hourUTC": 3}, "providerConfigs": [AMQ]}
+create("RabbitMQ valid spec", "RabbitMQBroker", RB)
+create("RabbitMQ window without hourUTC rejected", "RabbitMQBroker",
+       w(RB, maintenanceWindow={"day": "Sun"}), False, "Required value")
+create("RabbitMQ maintenance.window, the former form, rejected", "RabbitMQBroker",
+       w(RB, maintenance={"window": {"day": "Sun", "hourUTC": 3}}), False, "unknown field")
+create("RabbitMQ a full version rejected", "RabbitMQBroker", w(RB, version="4.2.1"), False,
+       "should match")
+create("RabbitMQ observe with an entry accepted", "RabbitMQBroker",
+       {"observe": True, "providerConfigs": [{**AMQ, "spec": {"id": "b-123"}}]})
+create("RabbitMQClass valid class", "RabbitMQClass",
+       {"template": {"version": "4.2", "providerConfig": AMQ}, "enforced": {"deletionProtection": True}})
+create("RabbitMQParameters accepted", "RabbitMQParameters",
+       {"parameters": {"consumer_timeout": "1800000"}})
+create("RabbitMQAmazonMQConfig public broker accepted", "RabbitMQAmazonMQConfig",
+       {"instanceType": "mq.m7g.medium", "publiclyAccessible": True})
+update("RabbitMQAmazonMQConfig changing publiclyAccessible rejected", "RabbitMQAmazonMQConfig",
+       {"publiclyAccessible": True}, {"publiclyAccessible": False}, False,
+       "publiclyAccessible is immutable")
 
 print("\n# Bucket")
 B = {"versioning": True, "retention": {"days": 30, "locked": False},
@@ -435,15 +447,9 @@ update("adding path later rejected", "ArtifactRepository", w(CR, path=None), CR,
 update("removing name rejected", "ArtifactRepository", CR, w(CR, name=None), False, "name is immutable")
 
 
-print("\n# Portability: one object applies on every cloud")
-SIZES = {"RabbitMQBroker": {"aws": {"instanceType": "mq.m7g.medium"}}}
-for kind, spec in SIZES.items():
-    create(f"{kind}: a size for every cloud in one object accepted", kind, spec)
-    create(f"{kind}: instanceType outside the cloud blocks rejected", kind,
-           {"instanceType": "db.t4g.small"}, False, "unknown field")
 
 print("\n# Shared rules on every resource kind")
-BLOCKS = {"RabbitMQBroker": ["aws"], "Bucket": ["aws", "gcp", "oci", "azure"],
+BLOCKS = {"Bucket": ["aws", "gcp", "oci", "azure"],
           "ArtifactRepository": ["aws", "gcp", "oci", "azure"]}
 for kind, blocks in BLOCKS.items():
     if len(blocks) > 1:

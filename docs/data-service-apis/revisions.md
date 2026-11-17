@@ -28,6 +28,8 @@ the last is agreed.
 - Kafka: `KafkaCluster` gains `KafkaClass`, `KafkaParameters` and a provider configuration kind per
   implementation, and a `KafkaUser`'s ACLs and consumer groups match a name exactly or by its prefix
   (`patternType`).
+- RabbitMQ: `RabbitMQBroker` gains `RabbitMQClass`, `RabbitMQParameters` and
+  `RabbitMQAmazonMQConfig`; `maintenance.window` becomes `maintenanceWindow`.
 - PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
   (`disasterRecovery`).
 

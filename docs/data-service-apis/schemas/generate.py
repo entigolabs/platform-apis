@@ -354,37 +354,6 @@ write("kafkatopic", xrd(
 
 # --- RabbitMQ -----------------------------------------------------------------------------
 
-write("rabbitmqbroker", xrd(
-    "RabbitMQBroker", "rabbitmqbrokers", "mq.entigo.com",
-    resource_spec({
-        "version": field("string", "RabbitMQ's release line, such as \"4.2\". The cloud "
-                         "manages the patch.", default=DEPLOY, pattern="^[0-9]+\\.[0-9]+$"),
-        "highAvailability": field("boolean", "A three-node cluster across zones.",
-                                  default=DEPLOY),
-        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
-                                    default="fixed, true"),
-        "maintenance": obj({
-            "window": window(),
-        }),
-        "secretName": secret_name("<broker>-credentials"),
-        "parameters": string_map("rabbitmq.conf settings, by name. Keys outside the cloud's "
-                                 "allowlist are rejected."),
-    }, {"aws": {"instanceType": field("string", "The Amazon MQ host instance type, such as "
-                                      "mq.m7g.medium.", default=DEPLOY),
-                "publiclyAccessible": field(
-        "boolean", "Reachable from the internet, without the platform's security group. Amazon "
-        "MQ replaces the broker to change it, so it is set at creation only.",
-        default="fixed, false",
-        **{"x-kubernetes-validations": IMMUTABLE_MSG("aws.publiclyAccessible")})}}, "broker"),
-    obj({
-        "version": field("string"),
-        "highAvailability": field("boolean"),
-        "endpoint": endpoint("The AMQPS address."),
-        "managementEndpoint": field("string", "The management console URL."),
-        "connectionSecret": field("string", "The Secret <broker>-credentials (principle 6)."),
-        "aws": obj({"instanceType": S(), "id": S(), "engineVersion": S()}),
-    })))
-
 BROKER_REF = parent_ref("RabbitMQBroker", "brokerRef")
 
 write("rabbitmqvirtualhost", xrd(
@@ -1088,3 +1057,69 @@ write("kafkaociconfig", provider_config_crd(
         "ocpus": field("number", "OCPUs per broker. Required with a .Flex shape.",
                        default=DEFAULT, minimum=1),
     }, {"instanceType": S(), "ocpus": field("number"), "state": S()}))
+
+# --- RabbitMQ --------------------------------------------------------------------------------
+
+
+def rabbitmq_common():
+    """RabbitMQBroker's common fields (principle 1)."""
+    return {
+        "version": field("string", "RabbitMQ's release line, such as \"4.2\". The implementation "
+                         "manages the patch.", default=DEFAULT, pattern="^[0-9]+\\.[0-9]+$"),
+        "highAvailability": field("boolean", "A three-node cluster across zones. Refused where the "
+                                  "class does not support HighAvailability (principle 1).",
+                                  default=DEFAULT),
+        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
+                                    default="fixed, true"),
+        "maintenanceWindow": window(),
+        "parametersRef": obj({"name": field("string", "A RabbitMQParameters in this namespace.")},
+                             "Reusable rabbitmq.conf settings, merged after the class's.",
+                             required=["name"]),
+        "parameters": string_map("rabbitmq.conf settings for this object only, merged after "
+                                 "parametersRef."),
+    }
+
+
+write("rabbitmqbroker", xrd("RabbitMQBroker", "rabbitmqbrokers", "mq.entigo.com",
+                            class_spec("RabbitMQClass", rabbitmq_common(), {
+                                "secretName": secret_name("<broker>-credentials")}, [], []),
+                            obj({
+                                "version": S(),
+                                "highAvailability": field("boolean"),
+                                "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
+                                "endpoint": endpoint("The AMQPS address."),
+                                "managementEndpoint": field("string", "The management console URL."),
+                                "connectionSecret": field("string", "The Secret "
+                                                          "<broker>-credentials (principle 6)."),
+                                "providerConfig": obj({"applied": S(), "ignored": array(S())},
+                                                      "The provider configuration entries applied "
+                                                      "and ignored, as <apiVersion>, <kind> "
+                                                      "(principle 4)."),
+                                "effective": {"type": "object",
+                                              "x-kubernetes-preserve-unknown-fields": True,
+                                              "description": desc("Each effective value and its "
+                                                                  "source: the class's template, "
+                                                                  "the object, or the class's "
+                                                                  "enforced (principle 4).")},
+                                "provider": {"type": "object",
+                                             "x-kubernetes-preserve-unknown-fields": True,
+                                             "description": desc("Values of the applied "
+                                                                 "implementation, in the shape its "
+                                                                 "provider configuration kind's "
+                                                                 "status defines (principle 4).")},
+                            })))
+write("rabbitmqclass", class_crd("RabbitMQClass", "rabbitmqclasses", "mq.entigo.com",
+                                 rabbitmq_common()))
+write("rabbitmqparameters", parameters_crd("RabbitMQParameters", "rabbitmqparameters",
+                                           "mq.entigo.com", "rabbitmq.conf"))
+write("rabbitmqamazonmqconfig", provider_config_crd(
+    "RabbitMQAmazonMQConfig", "rabbitmqamazonmqconfigs", "aws.mq.entigo.com", "Amazon MQ", {
+        "instanceType": field("string", "The Amazon MQ host instance type, such as "
+                              "mq.m7g.medium.", default=DEFAULT),
+        "publiclyAccessible": field("boolean", "Reachable from the internet, without the "
+                                    "platform's security group. Amazon MQ replaces the broker to "
+                                    "change it, so it is set at creation only.",
+                                    default="fixed, false",
+                                    **{"x-kubernetes-validations":
+                                       IMMUTABLE_MSG("publiclyAccessible")}),
+    }, {"instanceType": S(), "id": S(), "engineVersion": S()}))

@@ -87,8 +87,11 @@ nav:
     - <<: *schemas
       files:
       - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
+      - {file: schemas/rabbitmqclass.yaml, label: RabbitMQClass}
+      - {file: schemas/rabbitmqparameters.yaml, label: RabbitMQParameters}
       - {file: schemas/rabbitmquser.yaml, label: RabbitMQUser}
       - {file: schemas/rabbitmqvirtualhost.yaml, label: RabbitMQVirtualHost}
+      - {file: schemas/rabbitmqamazonmqconfig.yaml, label: RabbitMQAmazonMQConfig}
   - label: Bucket
     tabs:
     - {file: bucket.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}

@@ -3,12 +3,15 @@
 RabbitMQ is an open-source message broker that routes messages between applications through
 exchanges and queues.
 
-Three kinds: `RabbitMQBroker`, one broker, a single node or a three-node cluster across zones;
-`RabbitMQUser`, one application's login, with its permissions; and `RabbitMQVirtualHost`, an
-isolated set of queues and exchanges in a broker.
+Three kinds for users: `RabbitMQBroker`, one broker, a single node or a three-node cluster across
+zones; `RabbitMQUser`, one application's login, with its permissions; and `RabbitMQVirtualHost`, an
+isolated set of queues and exchanges in a broker. Two kinds shape them: `RabbitMQClass`, a
+deployment's defaults and limits, written by Entigo, and `RabbitMQParameters`, reusable
+`rabbitmq.conf` settings.
 
-Built on Amazon MQ (AWS), the only managed RabbitMQ among the four clouds, so the API follows
-RabbitMQ's own concepts. GCP, OCI and Azure have none.
+Built on Amazon MQ (AWS), the only managed RabbitMQ among the four clouds, with the provider
+configuration kind `RabbitMQAmazonMQConfig`; the API follows RabbitMQ's own concepts. GCP, OCI and
+Azure have none.
 
 ## Contents
 
@@ -21,12 +24,12 @@ RabbitMQ's own concepts. GCP, OCI and Azure have none.
 
 ## Kinds
 
-RabbitMQ is offered as three kinds, each with the manifest a user writes.
+RabbitMQ is offered as five kinds, each with the manifest its owner writes.
 
 ### RabbitMQBroker
 
-A user creates a `RabbitMQBroker` with a manifest like the one below. Its comments note value ranges
-and what holds on one cloud only:
+A user creates a `RabbitMQBroker` with a manifest like the one below. It names its class and
+carries a provider configuration entry for Amazon MQ (principle 2):
 
 ```yaml
 ---
@@ -36,35 +39,117 @@ metadata:
   name: orders-mq
   namespace: shop
 spec:
-  version: "4.2"                       # RabbitMQ's release line; the cloud manages the patch
+  className: standard                  # unset, the deployment's default class (principle 5)
+  version: "4.2"                       # the release line; the implementation manages the patch
   highAvailability: false              # true: a three-node cluster across zones
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
-  parameters:                          # rabbitmq.conf settings, within the cloud's allowlist
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  parametersRef:
+    name: orders-mq-tuning             # a RabbitMQParameters in this namespace
+  parameters:                          # this broker's own rabbitmq.conf settings, merged last
     consumer_timeout: "1800000"
   secretName: orders-mq-login          # unset, orders-mq-credentials (principle 6)
-  aws:                                 # also takes id (principle 9)
-    instanceType: mq.m7g.medium        # the Amazon MQ host instance type
-    publiclyAccessible: false          # set at creation only
+  providerConfigs:
+  - apiVersion: aws.mq.entigo.com/v1alpha1
+    kind: RabbitMQAmazonMQConfig
+    spec:
+      instanceType: mq.m7g.medium      # the Amazon MQ host instance type
+      publiclyAccessible: false        # set at creation only
 ```
 
-*A `RabbitMQBroker` with its common fields and its `aws` block.*
+*A `RabbitMQBroker` with its common fields and an entry for Amazon MQ.*
 
 The platform names the broker, the engine is always RabbitMQ, and Amazon MQ requires minor version
 upgrades, so none of these is a field. `highAvailability` chooses the deployment mode, and
-`parameters`, a map, is rendered into `rabbitmq.conf`.
+`parameters`, a map, is rendered into `rabbitmq.conf`. `highAvailability` is a portable feature: an
+object that requests it where its class does not support it is refused when applied (principle 1).
 
-The status adds `managementEndpoint` (the management console URL), and `status.aws` holds `id` and
-`engineVersion`. The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host),
-`port` (5671), `username`, `password` and `managementEndpoint`.
+The status shows the common fields, `managementEndpoint`, the management console URL, which entry
+applied, where each effective value came from, and Amazon MQ's own values (principle 4):
+
+```yaml
+status:
+  version: "4.2"
+  highAvailability: false
+  endpoint:
+    host: b-0123.mq.eu-north-1.amazonaws.com
+    port: 5671
+  managementEndpoint: https://b-0123.mq.eu-north-1.amazonaws.com
+  connectionSecret: orders-mq-login
+  providerConfig:
+    applied: aws.mq.entigo.com/v1alpha1, RabbitMQAmazonMQConfig
+  effective:
+    deletionProtection: { value: true, source: class/standard/enforced }
+    instanceType: { value: mq.m7g.medium, source: object/RabbitMQAmazonMQConfig }
+  provider:                            # the shape RabbitMQAmazonMQConfig's status defines
+    id: b-0123
+    engineVersion: 4.2.1
+```
+
+*A `RabbitMQBroker` status on AWS.*
+
+The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host), `port` (5671),
+`username`, `password` and `managementEndpoint`.
+
+### RabbitMQClass
+
+Entigo writes each deployment's classes, with the defaults a broker starts with (`template`) and the
+values it cannot change (`enforced`) (principle 5):
+
+```yaml
+---
+apiVersion: mq.entigo.com/v1alpha2
+kind: RabbitMQClass
+metadata:
+  name: standard
+  annotations:
+    mq.entigo.com/is-default-class: "true"
+spec:
+  template:
+    version: "4.2"
+    providerConfig:
+      apiVersion: aws.mq.entigo.com/v1alpha1
+      kind: RabbitMQAmazonMQConfig
+      spec:
+        instanceType: mq.m7g.medium
+  enforced:
+    deletionProtection: true
+```
+
+*A `RabbitMQClass` for Amazon MQ.*
+
+On Amazon MQ, a class reports `HighAvailability` in `status.supportedFeatures`.
+
+### RabbitMQParameters
+
+`RabbitMQParameters` holds `rabbitmq.conf` settings that several brokers or a class share. A class,
+a broker and a broker's provider configuration may each reference one, and their settings merge key
+by key in that order, followed by the broker's own `parameters`:
+
+```yaml
+---
+apiVersion: mq.entigo.com/v1alpha2
+kind: RabbitMQParameters
+metadata:
+  name: orders-mq-tuning
+  namespace: shop
+spec:
+  parameters:
+    consumer_timeout: "1800000"
+```
+
+*A `RabbitMQParameters` a user shares between their brokers.*
+
+A `RabbitMQParameters` names no other, so references never chain. Settings Amazon MQ does not
+accept are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### RabbitMQUser
 
 `RabbitMQUser` acts inside RabbitMQ, so that each application has its own login instead of the
-broker's admin login.
+broker's admin login. It has no class or provider configurations: it follows its broker's
+implementation.
 
 Amazon MQ does not manage RabbitMQ users through its own API; users, virtual hosts and permissions
 are created through RabbitMQ's management API, with the broker's admin login ([Amazon MQ for
@@ -104,7 +189,8 @@ spec:
 
 ### RabbitMQVirtualHost
 
-`RabbitMQVirtualHost` acts inside RabbitMQ, through its management API. A virtual host is an
+`RabbitMQVirtualHost` acts inside RabbitMQ, through its management API, and has no class or
+provider configurations. A virtual host is an
 isolated set of queues and exchanges inside the broker; deleting one deletes its queues and
 messages, so it has `deletionProtection`. A new virtual host grants nothing until a user is given
 permissions on it.
@@ -130,23 +216,32 @@ spec:
 
 ## Mapping
 
-The table names what each field maps to in the cloud's provider:
+The first table names what each common field maps to in Amazon MQ:
 
-| Field                    | Maps To                                                                  |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `observe`                | `managementPolicies: [Observe]` on every managed resource                |
-| `version`                | `engineVersion`                                                          |
-| `aws.instanceType`       | `hostInstanceType`                                                       |
-| `highAvailability`       | `deploymentMode`: `CLUSTER_MULTI_AZ` or `SINGLE_INSTANCE`                |
-| `deletionProtection`     | platform blocks deletion                                                 |
-| `maintenance.window`     | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |
-| `parameters`             | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
-| `aws.publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
-| `aws.id`                 | the broker ID                                                            |
+| Field                | AWS                                                                      |
+| -------------------- | ------------------------------------------------------------------------ |
+| `observe`            | `managementPolicies: [Observe]` on every managed resource                |
+| `version`            | `engineVersion`                                                          |
+| `highAvailability`   | `deploymentMode`: `CLUSTER_MULTI_AZ` or `SINGLE_INSTANCE`                |
+| `deletionProtection` | platform blocks deletion                                                 |
+| `maintenanceWindow`  | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |
+| `parameters`         | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
+| `parametersRef`      | merged into `parameters`                                                 |
 
-*Fields of `RabbitMQBroker` and their provider fields.*
+*Common fields of `RabbitMQBroker` and their provider fields.*
 
-**AWS:** `aws.publiclyAccessible` is set at creation only: Amazon MQ replaces a broker to change it
+The second names the provider configuration kind and what its fields map to:
+
+| Field                | AWS                                                   |
+| -------------------- | ----------------------------------------------------- |
+| kind                 | `RabbitMQAmazonMQConfig`                              |
+| `id`                 | the broker ID                                         |
+| `instanceType`       | `hostInstanceType`                                    |
+| `publiclyAccessible` | `publiclyAccessible`; `true` omits the security group |
+
+*Fields of `RabbitMQAmazonMQConfig`.*
+
+**AWS:** `publiclyAccessible` is set at creation only: Amazon MQ replaces a broker to change it
 (`ForceNew` in [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)). The
 platform sets `autoMinorVersionUpgrade: true`, which Amazon MQ requires from RabbitMQ 3.13, its
 oldest version. Amazon MQ then applies patch versions in the maintenance window, so `version` holds
@@ -166,19 +261,22 @@ metadata:
   name: orders-mq
   namespace: shop
 spec:
+  className: standard
   version: "4.2"
   highAvailability: false
   deletionProtection: true
-  maintenance:
-    window:
-      day: Sun
-      hourUTC: 3
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
   parameters:
     consumer_timeout: "1800000"
   secretName: orders-mq-login
-  aws:
-    instanceType: mq.m7g.medium
-    publiclyAccessible: false
+  providerConfigs:
+  - apiVersion: aws.mq.entigo.com/v1alpha1
+    kind: RabbitMQAmazonMQConfig
+    spec:
+      instanceType: mq.m7g.medium
+      publiclyAccessible: false
 ```
 
 ```yaml AWS resource
@@ -228,7 +326,7 @@ The platform makes these settings itself:
 | Setting           | Platform's Choice                            |
 | ----------------- | -------------------------------------------- |
 | Network placement | The deployment's private network             |
-| Public access     | None, unless `aws.publiclyAccessible` is set |
+| Public access     | None, unless `publiclyAccessible` is set     |
 | Encryption        | The platform's data key                      |
 | Admin login       | An admin user and a generated password       |
 | Broker name       | Set by the platform                          |

@@ -464,19 +464,22 @@ spec:
 
 `RabbitMQBroker` changes as follows:
 
-| Today                                                                             | Design                                                                                                                                   | Reason                                                                                       |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `engineVersion`                                                                   | `version`                                                                                                                                | The release line; Amazon MQ manages the patch                                                |
-| `instanceType`                                                                    | `aws.instanceType`                                                                                                                       | A cloud's own size name (principle 2)                                                             |
-| `deploymentMode`                                                                  | `highAvailability`                                                                                                                       | Named after the need                                                                         |
-| `maintenanceWindowStartTime`                                                      | `maintenance.window`                                                                                                                     | One form for every cloud                                                                     |
-| `configuration.data`                                                              | `parameters`                                                                                                                             | A map the platform renders into `rabbitmq.conf`                                              |
-| `configuration.description`                                                       | removed                                                                                                                                  | Internal to the platform                                                                     |
-| `publiclyAccessible`                                                              | `aws.publiclyAccessible`                                                                                                                 | An Amazon MQ setting (principle 2)                                                                |
-| `brokerName`, `engineType`, `autoMinorVersionUpgrade`                             | removed                                                                                                                                  | The platform names the broker, the engine is RabbitMQ, and Amazon MQ requires minor upgrades |
-| (none)                                                                            | `deletionProtection`                                                                                                                     | The same guard as on every other kind                                                        |
-| today's Amazon MQ status fields                                                   | `status.endpoint`, `status.managementEndpoint`, `status.highAvailability`, `status.version`; `status.aws.id`, `status.aws.engineVersion` | One form for every cloud (principle 4)                                                            |
-| secrets `<broker>-credentials` (`username`, `password`) and `<broker>-connection` | one secret `<broker>-credentials`: `endpoint`, `port`, `username`, `password`, `managementEndpoint`                                      | The keys of principle 6                                                                           |
+| Today                                                                             | Design                                                                                                                                             | Reason                                                                                       |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `engineVersion`                                                                   | `version`                                                                                                                                          | The release line; Amazon MQ manages the patch                                                |
+| `instanceType`                                                                    | `instanceType` in the `RabbitMQAmazonMQConfig` entry                                                                                               | A size named by its product is a setting of one implementation (principle 2)                 |
+| `deploymentMode`                                                                  | `highAvailability`                                                                                                                                 | Named after the need                                                                         |
+| `maintenanceWindowStartTime`                                                      | `maintenanceWindow` (`day`, `hourUTC`)                                                                                                             | One form everywhere                                                                          |
+| `configuration.data`                                                              | `parameters`                                                                                                                                       | A map the platform renders into `rabbitmq.conf`                                              |
+| (none)                                                                            | `parametersRef`                                                                                                                                    | Settings shared through a `RabbitMQParameters`                                               |
+| `configuration.description`                                                       | removed                                                                                                                                            | Internal to the platform                                                                     |
+| `publiclyAccessible`                                                              | `publiclyAccessible` in the `RabbitMQAmazonMQConfig` entry                                                                                         | An Amazon MQ setting (principle 2)                                                           |
+| `brokerName`, `engineType`, `autoMinorVersionUpgrade`                             | removed                                                                                                                                            | The platform names the broker, the engine is RabbitMQ, and Amazon MQ requires minor upgrades |
+| (none)                                                                            | `deletionProtection`                                                                                                                               | The same guard as on every other kind                                                        |
+| (none)                                                                            | `className`                                                                                                                                        | The deployment's defaults and limits come from a class (principle 5)                         |
+| today's Amazon MQ status fields                                                   | `status.endpoint`, `status.managementEndpoint`, `status.highAvailability`, `status.version`; `status.provider.id`, `status.provider.engineVersion` | One form everywhere (principle 4)                                                            |
+| (none)                                                                            | `status.providerConfig`, `status.effective`                                                                                                        | The applied entry and each value's source (principle 4)                                      |
+| secrets `<broker>-credentials` (`username`, `password`) and `<broker>-connection` | one secret `<broker>-credentials`: `endpoint`, `port`, `username`, `password`, `managementEndpoint`                                                | The keys of principle 6                                                                      |
 
 *Changes to `RabbitMQBroker`.*
 
@@ -513,15 +516,17 @@ metadata:
 spec:
   version: "4.2"                       # was engineVersion
   highAvailability: false              # was deploymentMode
-  maintenance:
-    window:                            # was maintenanceWindowStartTime
-      day: Sun
-      hourUTC: 3
+  maintenanceWindow:                   # was maintenanceWindowStartTime
+    day: Sun
+    hourUTC: 3
   parameters:                          # was configuration.data
     consumer_timeout: "1800000"
-  aws:
-    instanceType: mq.m7g.medium        # was instanceType
-    publiclyAccessible: false          # was publiclyAccessible
+  providerConfigs:                     # new
+  - apiVersion: aws.mq.entigo.com/v1alpha1
+    kind: RabbitMQAmazonMQConfig
+    spec:
+      instanceType: mq.m7g.medium      # was instanceType
+      publiclyAccessible: false        # was publiclyAccessible
 # removed: brokerName, engineType, autoMinorVersionUpgrade
 ```
 
