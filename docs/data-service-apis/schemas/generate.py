@@ -148,7 +148,6 @@ def write(name, doc):
 
 DAY = field("string", enum=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
 HOUR = field("integer", minimum=0, maximum=23)
-DEPLOY = "per deployment"
 
 
 def window(ext=None, sc=False):
@@ -290,6 +289,8 @@ write("kafkauser", xrd(
     obj({"connectionSecret": field("string", "The Secret <cluster>-<user> (principle 6).")}),
     required_spec=["clusterRef"]))
 
+TOPIC_DEFAULT = "the topicTemplate of the cluster's KafkaClass"
+
 write("kafkatopic", xrd(
     "KafkaTopic", "kafkatopics", "queue.entigo.com",
     obj({
@@ -300,12 +301,12 @@ write("kafkatopic", xrd(
                       minLength=1, maxLength=249, pattern="^[a-zA-Z0-9._-]+$",
                       **{"x-kubernetes-validations": IMMUTABLE_MSG("name")}),
         "partitions": field("integer", "Kafka cannot remove partitions, so this only grows.",
-                            default=DEPLOY, minimum=1,
+                            default=TOPIC_DEFAULT, minimum=1,
                             **{"x-kubernetes-validations": [{"rule": "self >= oldSelf",
                                                              "message": "partitions cannot "
                                                              "decrease"}]}),
         "replicationFactor": field("integer", "Copies of each partition, at most the broker "
-                                   "count.", default=DEPLOY, minimum=1),
+                                   "count.", default=TOPIC_DEFAULT, minimum=1),
         "parameters": string_map("Topic settings, by name, such as retention.ms."),
     }),
     obj({"name": field("string", "The Kafka topic's name."), "partitions": field("integer"),
@@ -413,8 +414,9 @@ def provider_config(text):
     return obj(props, text, required=["apiVersion", "kind"])
 
 
-def class_crd(kind, plural, group, common, extra_rules=()):
-    """A cluster-scoped class (principle 5): template defaults, enforced values, a DR standby."""
+def class_crd(kind, plural, group, common, extra_rules=(), extra=None):
+    """A cluster-scoped class (principle 5): template defaults, enforced values, a DR standby, and in
+    extra, defaults for the kinds inside an object of the class."""
     part = lambda text: obj({**common, "providerConfig": provider_config(
         "The provider configuration: its kind names the implementation this class uses."),
         "parametersRef": obj({"name": field("string"), "namespace": field("string")},
@@ -433,6 +435,7 @@ def class_crd(kind, plural, group, common, extra_rules=()):
             "Applied only while this workspace is not the primary of disasterRecovery, such as "
             "a smaller size for a pilot-light replica.")},
             "Settings for a disaster recovery replica in this workspace."),
+        **(extra or {}),
     }, rules=[same, *extra_rules])
     status = obj({"supportedFeatures": array(field("string", enum=FEATURES),
                                              "The portable features the implementation supports, "
@@ -890,7 +893,12 @@ write("kafkacluster", xrd("KafkaCluster", "kafkaclusters", "queue.entigo.com",
                                                                "provider configuration kind's status "
                                                                "defines (principle 4).")},
                           })))
-write("kafkaclass", class_crd("KafkaClass", "kafkaclasses", "queue.entigo.com", kafka_common()))
+write("kafkaclass", class_crd("KafkaClass", "kafkaclasses", "queue.entigo.com", kafka_common(),
+                              extra={"topicTemplate": obj({
+                                  "partitions": field("integer", minimum=1),
+                                  "replicationFactor": field("integer", minimum=1),
+                              }, "Defaults written into a KafkaTopic on a cluster of this class "
+                                 "when the topic is created; the topic may change them.")}))
 write("kafkaparameters", parameters_crd("KafkaParameters", "kafkaparameters", "queue.entigo.com",
                                         "Broker"))
 write("kafkamskconfig", provider_config_crd(

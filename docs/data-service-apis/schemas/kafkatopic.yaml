@@ -55,7 +55,7 @@ spec:
                 type: integer
                 description: |-
                   Kafka cannot remove partitions, so this only grows.
-                  Default: per deployment.
+                  Default: the topicTemplate of the cluster's KafkaClass.
                 minimum: 1
                 x-kubernetes-validations:
                 - rule: self >= oldSelf
@@ -64,7 +64,7 @@ spec:
                 type: integer
                 description: |-
                   Copies of each partition, at most the broker count.
-                  Default: per deployment.
+                  Default: the topicTemplate of the cluster's KafkaClass.
                 minimum: 1
               parameters:
                 type: object

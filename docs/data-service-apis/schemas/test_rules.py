@@ -320,6 +320,10 @@ create("KafkaCluster observe with a common field rejected", "KafkaCluster",
        "takes no other common field")
 create("KafkaClass valid class", "KafkaClass",
        {"template": {"brokers": 3, "providerConfig": MSK}, "enforced": {"deletionProtection": True}})
+create("KafkaClass with topic defaults accepted", "KafkaClass",
+       {"template": {"providerConfig": MSK}, "topicTemplate": {"partitions": 3, "replicationFactor": 3}})
+create("KafkaClass topic defaults of 0 partitions rejected", "KafkaClass",
+       {"topicTemplate": {"partitions": 0}}, False, "should be greater than or equal to 1")
 create("KafkaParameters accepted", "KafkaParameters",
        {"parameters": {"auto.create.topics.enable": "false"}})
 for kind, spec in {"KafkaMSKConfig": {"instanceType": "kafka.m7g.large"},

@@ -405,12 +405,13 @@ spec:
 
 `Topic` becomes `KafkaTopic`:
 
-| Today         | Design            | Reason                                          |
-| ------------- | ----------------- | ----------------------------------------------- |
-| kind `Topic`  | kind `KafkaTopic` | Named after the engine (principle 8)                 |
-| `clusterName` | `clusterRef`      | A reference with a namespace (principle 11)          |
-| `config`      | `parameters`      | The same word as on every other kind            |
-| (none)        | `name`            | A Kafka name that a Kubernetes name cannot hold |
+| Today                                                           | Design                                                          | Reason                                                  |
+| --------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------- |
+| kind `Topic`                                                    | kind `KafkaTopic`                                               | Named after the engine (principle 8)                    |
+| `clusterName`                                                   | `clusterRef`                                                    | A reference with a namespace (principle 11)             |
+| `config`                                                        | `parameters`                                                    | The same word as on every other kind                    |
+| (none)                                                          | `name`                                                          | A Kafka name that a Kubernetes name cannot hold         |
+| `partitions` and `replicationFactor` default to 3 in the schema | defaults from the `topicTemplate` of the cluster's `KafkaClass` | A deployment's defaults come from a class (principle 5) |
 
 *Changes from `Topic` to `KafkaTopic`.*
 

@@ -158,7 +158,9 @@ A kind that exists inside another, such as a database user or a Kafka topic, nam
 reference, such as `clusterRef`, `serverRef` or `brokerRef`, as `{ name, namespace }`. Without
 `namespace`, the parent is in the same namespace. Such a kind has no class and no provider
 configurations: it acts inside the engine, which is the same everywhere, and follows its parent's
-implementation.
+implementation. Its defaults come from its parent's class, where that class defines them, such as
+a `KafkaClass`'s `topicTemplate`, and are written into it at creation like a class's `template`
+(principle 5).
 
 A reference to another namespace is accepted only when both namespaces carry the same
 `tenancy.entigo.com/zone` label (principle 11).

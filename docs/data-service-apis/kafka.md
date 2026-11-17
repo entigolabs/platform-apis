@@ -107,8 +107,9 @@ A cluster has no secret of its own: applications log in with a `KafkaUser`'s sec
 
 ### KafkaClass
 
-Entigo writes each deployment's classes, with the defaults a cluster starts with (`template`) and
-the values it cannot change (`enforced`) (principle 5):
+Entigo writes each deployment's classes, with the defaults a cluster starts with (`template`), the
+values it cannot change (`enforced`) and the defaults of the topics on it (`topicTemplate`)
+(principle 5):
 
 ```yaml
 ---
@@ -131,6 +132,9 @@ spec:
         instanceType: kafka.m7g.large
   enforced:
     deletionProtection: true
+  topicTemplate:                       # defaults for the topics on clusters of this class
+    partitions: 3
+    replicationFactor: 3
 ```
 
 *A `KafkaClass` for MSK.*
@@ -223,7 +227,9 @@ differs by cloud.
 ### KafkaTopic
 
 A `KafkaTopic` is a topic in the cluster, created through the Kafka admin API on every
-implementation. It has no class or provider configurations: it follows its cluster's implementation.
+implementation. It has no class or provider configurations: it follows its cluster's
+implementation, and `partitions` and `replicationFactor` default to the `topicTemplate` of its
+cluster's `KafkaClass`.
 
 An example:
 

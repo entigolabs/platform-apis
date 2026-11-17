@@ -26,7 +26,8 @@ the last is agreed.
 - Valkey: `ValkeyInstance` becomes `ValkeyServer`, with `ValkeyClass`, `ValkeyParameters` and a
   provider configuration kind per implementation; `replicas` becomes `readReplicas`.
 - Kafka: `KafkaCluster` gains `KafkaClass`, `KafkaParameters` and a provider configuration kind per
-  implementation, and a `KafkaUser`'s ACLs and consumer groups match a name exactly or by its prefix
+  implementation; a `KafkaTopic`'s defaults come from its cluster's `KafkaClass` (`topicTemplate`);
+  and a `KafkaUser`'s ACLs and consumer groups match a name exactly or by its prefix
   (`patternType`).
 - RabbitMQ: `RabbitMQBroker` gains `RabbitMQClass`, `RabbitMQParameters` and
   `RabbitMQAmazonMQConfig`; `maintenance.window` becomes `maintenanceWindow`.

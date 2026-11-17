@@ -170,6 +170,18 @@ spec:
                     required:
                     - apiVersion
                     - kind
+              topicTemplate:
+                type: object
+                description: |-
+                  Defaults written into a KafkaTopic on a cluster of this class when the topic is
+                  created; the topic may change them.
+                properties:
+                  partitions:
+                    type: integer
+                    minimum: 1
+                  replicationFactor:
+                    type: integer
+                    minimum: 1
             x-kubernetes-validations:
             - rule: |-
                 !has(self.template)
