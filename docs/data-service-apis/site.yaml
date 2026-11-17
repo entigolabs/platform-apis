@@ -17,10 +17,11 @@ nav:
   label: Overview
   id: overview
   home: true
+- {file: model.md, label: Model}
 - file: principles.md
-  label: Model and Principles
+  label: Principles
   aliases: {rules: ""}               # links to the former Design Rules page
-  foldItems: [Principles]                      # each rule shows its opening sentence; the rest folds
+  foldItems: true                              # each principle shows its opening sentence; the rest folds
 - {file: common-design.md, label: Common Design, divider: true}
 - label: Service Designs
   aliases: {services: "", schemas: "*/schemas"}

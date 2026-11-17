@@ -1,7 +1,7 @@
 # Common Design
 
 Every data service API uses the mechanisms on this page, each of which applies a principle from
-[Model and Principles](principles.md).
+[Principles](principles.md).
 
 ## Naming
 

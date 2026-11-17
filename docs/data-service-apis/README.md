@@ -27,9 +27,9 @@ class, its status reports AWS identifiers, and the developer portal hard-codes A
 forms. infralib also deploys to GCP, OCI and Azure, and OCI is the next cloud to run the data
 services. Implementing the design on a cloud and moving today's objects to it are follow-up work.
 
-The parts the design is built from and the principles it follows are in [Model and
-Principles](principles.md), the mechanisms that apply them in [Common Design](common-design.md), and
-what changes for today's users is in [API Changes](changes.md).
+The parts the design is built from are defined in [Model](model.md), the rules it follows in
+[Principles](principles.md), the mechanisms that apply them in [Common Design](common-design.md),
+and what changes for today's users is in [API Changes](changes.md).
 
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
@@ -38,8 +38,8 @@ Status: a draft awaiting the agreement of the `platform-apis` maintainers, track
 
 Each page of the design holds the following, in the order of the menu:
 
-- [Model and Principles](principles.md): the parts every data service API is built from, and the
-  principles each follows.
+- [Model](model.md): the parts every data service API is built from.
+- [Principles](principles.md): the rules every data service API follows, and the reason for each.
 - [Common Design](common-design.md): the mechanisms that apply the principles to every service.
 - [Service Designs](postgresql.md): one page per service, holding what is particular to it:
   [PostgreSQL](postgresql.md), [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md),
