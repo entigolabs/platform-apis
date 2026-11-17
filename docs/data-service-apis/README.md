@@ -34,24 +34,14 @@ and the changes for today's users in [API Changes](changes.md).
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
 
-## Goals
+## In Scope
 
-The design meets these goals:
+The design covers seven data services: PostgreSQL, MariaDB, Valkey, Kafka, RabbitMQ, buckets and
+artifact repositories. For each, it defines the kinds a user writes, the classes and provider
+configurations that shape them, the status and connection secret every implementation reports, the
+managed service each cloud implements it with, and the changes from today's API.
 
-- One manifest of a kind applies on every deployment that offers the kind, on any cloud or
-  on-premises.
-- A new implementation never changes the schema of a user-facing kind.
-- One manifest can carry the settings of several implementations at once.
-- Machine sizes use each product's own names, and the platform keeps no mapping between clouds.
-- Entigo sets each deployment's defaults, and the values a user may not change, as data rather than
-  code.
-- A capability an implementation cannot provide is refused when requested, never dropped silently.
-- Read replicas and disaster recovery across regions are portable wherever an implementation
-  supports them.
-- Each service has few kinds: its user-facing kinds, a class, engine parameters where the engine
-  has its own settings, and one provider configuration kind per implementation.
-
-## Non-goals
+## Out of Scope
 
 The design leaves these out:
 
