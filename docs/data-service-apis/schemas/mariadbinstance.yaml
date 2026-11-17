@@ -145,8 +145,8 @@ spec:
               parameterApplyMethod:
                 type: string
                 description: |-
-                  When changed parameters take effect. Immediate restarts the instance where a
-                  setting needs it; RDS rejects such settings with Immediate.
+                  The moment changed parameters take effect. Immediate restarts the instance where
+                  a setting needs it; RDS rejects such settings with Immediate.
                   Default: fixed, Immediate.
                 enum:
                 - Immediate

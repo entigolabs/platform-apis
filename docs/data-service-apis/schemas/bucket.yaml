@@ -222,7 +222,7 @@ spec:
                   retentionLockedFrom:
                     type: string
                     description: |-
-                      When a locked retention takes effect.
+                      The time a locked retention takes effect.
                     format: date-time
               azure:
                 type: object

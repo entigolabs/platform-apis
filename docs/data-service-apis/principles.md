@@ -7,10 +7,10 @@ Every data service API is built from the parts in Model and follows the principl
 
 Each data service has four parts, which the principles below rely on:
 
-| Part            | What it is                                                                                       | Owned by       | Example                                  |
+| Part            | Definition                                                                                       | Owned by       | Example                                  |
 | --------------- | ------------------------------------------------------------------------------------------------ | -------------- | ---------------------------------------- |
-| Core kind       | What a user asks for, the same wherever it runs                                                  | the user       | a `PostgreSQLCluster`                    |
-| Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | Entigo         | RDS, Cloud SQL, CloudNativePG            |
+| Core kind       | The resource a user requests, the same wherever it runs                                          | the user       | a `PostgreSQLCluster`                    |
+| Implementation  | The provider of a core kind on one platform: a cloud's managed service, or software in a cluster | Entigo         | RDS, Cloud SQL, CloudNativePG            |
 | Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the user       | a `PostgreSQLRDSConfig` with an RDS size |
 | Class           | A deployment's choice of implementation, its defaults and the values a user cannot change        | Entigo         | a `PostgreSQLClass` named `standard`     |
 

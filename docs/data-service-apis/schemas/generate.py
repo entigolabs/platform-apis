@@ -293,7 +293,7 @@ def db_instance(kind, plural, engine, version_text, version_pattern, blocks, sc,
         "parameters": string_map(f"{engine} settings, by name. Keys outside the cloud's "
                                  "allowlist are rejected."),
         **({"parameterApplyMethod": field(
-            "string", "When changed parameters take effect. Immediate restarts the instance "
+            "string", "The moment changed parameters take effect. Immediate restarts the instance "
             "where a setting needs it; RDS rejects such settings with Immediate.",
             "Ignored for NextRestart on GCP, OCI and Azure, where a change "
             "that needs a restart restarts the instance at once.", "fixed, Immediate", sc,
@@ -776,7 +776,7 @@ write("bucket", xrd(
         "aws": obj({"arn": S()}),
         "gcp": obj({"selfLink": S()}),
         "oci": obj({"namespace": S(), "retentionLockedFrom": field(
-            "string", "When a locked retention takes effect.", format="date-time")}),
+            "string", "The time a locked retention takes effect.", format="date-time")}),
         "azure": obj({"accountId": S(), "containerId": S()}),
     })))
 
@@ -1020,7 +1020,7 @@ def pg_common(observe=True):
                              required=["name"]),
         "parameters": string_map("PostgreSQL settings for this object only, merged after "
                                  "parametersRef."),
-        "parameterApplyMethod": field("string", "When changed parameters take effect. Immediate "
+        "parameterApplyMethod": field("string", "The moment changed parameters take effect. Immediate "
                                       "restarts the instance where a setting needs it.",
                                       default="fixed, Immediate",
                                       enum=["Immediate", "NextRestart"]),
@@ -1074,7 +1074,7 @@ pg_status = obj({
     "backup": obj({"retentionDays": field("integer"), "pointInTimeDays": field("integer"),
                    "startHourUTC": field("integer")}),
     "endpoint": endpoint(),
-    "readerEndpoint": field("string", "Where reads go: one balanced host, or the replicas' "
+    "readerEndpoint": field("string", "The read address: one balanced host, or the replicas' "
                             "hosts where the implementation has none (principle 6)."),
     "connectionSecret": field("string", "The admin Secret, <instance>-dbadmin (principle 6)."),
     "disasterRecovery": obj({"role": field("string", enum=["Primary", "Replica"])},

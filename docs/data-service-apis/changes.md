@@ -211,7 +211,7 @@ spec:
 | (none)                                                          | `aws.fromBackup`                                             | Create a cache from a snapshot, such as the final one |
 | `status.endpoint.address`                                       | `status.endpoint.host`                                       | The same word on every cloud                          |
 | `status.multiAZenabled`                                         | `status.highAvailability`                                    | Named after the need                                  |
-| (none)                                                          | `status.readerEndpoint`, `status.replicas`                   | Where reads go, and how many replicas run             |
+| (none)                                                          | `status.readerEndpoint`, `status.replicas`                   | The read address, and the number of replicas          |
 | `status.kmsKeyAlias`, `status.kmsKeyId`, `status.securityGroup` | removed                                                      | Settings the platform makes (principle 4)                  |
 | `status.parameterGroupName`                                     | removed                                                      | An echo of the spec                                   |
 | secret keys `AUTH_TOKEN`, `PORT`, `credentials.json`            | `endpoint`, `port`, `username`, `password`, `readerEndpoint` | The keys of principle 6                                    |
