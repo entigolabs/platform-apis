@@ -123,7 +123,7 @@ nav:
   - {file: related-work.md, label: Related Work}
 - {file: open-points.md, label: Open Points, divider: true, checklist: true, foldItems: true}
 - {file: follow-up-work.md, label: Follow-Up Work, foldItems: true}
-- {file: deferred-capabilities.md, label: Deferred Capabilities}
+- {file: deferred-capabilities.md, label: Deferred Capabilities, foldItems: true}
 - {file: revisions.md, label: Revisions, gap: true, muted: true}
 - label: Feedback
   muted: true
