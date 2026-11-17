@@ -5,6 +5,20 @@ default, a rule, a mapping, a platform decision or a cloud limit. Changes to wor
 not revisions. A change to the design adds its line to the open revision, or opens the next one once
 the last is agreed.
 
+#### 2 in progress
+
+- Settings of one implementation move from the fixed cloud blocks into an open list of provider
+  configs, one kind per implementation, so a new cloud or an on-premises implementation never
+  changes the core kinds (rules 2, 3 and 8). From Rein Remmel's proposal.
+- Operator-owned classes hold a deployment's defaults (`template`) and the values a team cannot
+  change (`enforced`), replacing defaults passed through infralib (rule 5).
+- An object that asks for a portable feature its class does not support is refused instead of
+  ignored (rule 1).
+- Provider config entries are checked by their implementation, and by CI against every
+  implementation's published schema (rule 10).
+- Field groups exist only as units or subsystems (rule 13).
+- Writing an Implementation describes how anyone adds one.
+
 #### 1 2026-11-16
 
 - Initial release.
