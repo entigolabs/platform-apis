@@ -33,7 +33,7 @@ in [API Changes](changes.md).
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
 
-## The Model
+## Model
 
 Each data service has four parts, which the rules rely on:
 
