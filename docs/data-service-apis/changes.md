@@ -27,7 +27,7 @@ Changes shared by all kinds, stated once here:
 | (none)                                                                             | `secretName`                                             | Overrides the secret's name (principle 6)                                                       |
 | a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | References cross namespaces within the Zone (principle 11)                                      |
 | a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The user sees why the cloud refused (principle 10)                                              |
-| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.<cloud>`                    | The status reports what the cloud runs (principle 4)                                            |
+| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.<cloud>`                    | The status reports the resource's actual values (principle 4)                                   |
 
 *Changes shared by all kinds.*
 

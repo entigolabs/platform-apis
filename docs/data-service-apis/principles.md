@@ -64,14 +64,15 @@ schemas, so manifests written before keep working.
 The core schemas name no cloud and no vendor. A new implementation brings its own provider config
 kind, what turns the core kind into its resources, and the classes that select it.
 
-#### 4 The status reports what actually runs
+#### 4 The status reports the resource's actual values
 
-The status shows what is running, not what the manifest requested.
+The status reports the values the resource actually has, such as its version, disk size and address,
+not the values the manifest requested.
 
-A class's defaults and enforced values, and the implementation itself, can make what runs differ
-from the manifest, so only the running values tell a user what they have. Values that exist in only
-one implementation, such as its resource IDs, are kept apart from the common fields, as its settings
-are (principle 2).
+The two can differ: a class adds its defaults and enforced values, an implementation applies minor
+versions in its maintenance window, and a disk grows with `autoGrow`. Only the actual values tell a
+user what they have. Values that exist in only one implementation, such as its resource IDs, are kept
+apart from the common fields, as its settings are (principle 2).
 
 #### 5 A class sets the defaults and limits of a deployment
 
