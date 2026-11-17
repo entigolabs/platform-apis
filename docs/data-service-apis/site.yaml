@@ -2,6 +2,7 @@
 title: Portable Data Service APIs
 checklistCollection: openpoints
 revisions: revisions.md                       # the newest revision's number and date show under the title
+foldGroups: false                             # group headers are titles; every group stays open
 revisionTags:                                 # each agreed revision, frozen at its git tag; the page opens on the newest
   1: data-service-apis-rev-1
 selectorChoices: [AWS, GCP, OCI, Azure]       # every cloud; one a service lacks is shown disabled
@@ -17,111 +18,113 @@ nav:
   label: Overview
   id: overview
   home: true
-- {file: model.md, label: Model, divider: true}
-- file: principles.md
-  label: Principles
-  aliases: {rules: ""}               # links to the former Design Rules page
-  foldItems: true                              # each principle shows its opening sentence; the rest folds
-- {file: common-design.md, label: Common Design, divider: true}
-- label: Service Designs
-  aliases: {services: "", schemas: "*/schemas"}
-  intro: "Each data service has a design of its own, built on the mechanisms of [Common Design](common-design.md) and limited to the service's own kinds and rules. A service is shown in three tabs: Design holds its kinds and their behaviour, Cloud Mapping their mapping to each cloud's managed service, and Schemas the draft schema of each kind."
-  tabs:
-  - label: PostgreSQL
+- group: Design
+  pages:
+  - file: principles.md
+    label: Model & Principles
+    aliases: {rules: "", model: ""}    # the former Design Rules and Model pages
+    foldItems: [Principles]            # each principle shows its opening sentence; the rest folds
+  - {file: common-design.md, label: Common Design, gap: true}
+  - label: Service Designs
+    aliases: {services: "", schemas: "*/schemas"}
+    intro: "Each data service has a design of its own, built on the mechanisms of [Common Design](common-design.md) and limited to the service's own kinds and rules. A service is shown in three tabs: Design holds its kinds and their behaviour, Cloud Mapping their mapping to each cloud's managed service, and Schemas the draft schema of each kind."
     tabs:
-    - {file: postgresql.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-    - {file: postgresql.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
-    - <<: *schemas
-      files:
-      - {file: schemas/postgresqlcluster.yaml, label: PostgreSQLCluster}
-      - {file: schemas/postgresqlclass.yaml, label: PostgreSQLClass}
-      - {file: schemas/postgresqlparameters.yaml, label: PostgreSQLParameters}
-      - {file: schemas/postgresqluser.yaml, label: PostgreSQLUser}
-      - {file: schemas/postgresqldatabase.yaml, label: PostgreSQLDatabase}
-      - {file: schemas/postgresqlrdsconfig.yaml, label: PostgreSQLRDSConfig}
-      - {file: schemas/postgresqlcloudsqlconfig.yaml, label: PostgreSQLCloudSQLConfig}
-      - {file: schemas/postgresqlociconfig.yaml, label: PostgreSQLOCIConfig}
-      - {file: schemas/postgresqlflexibleserverconfig.yaml, label: PostgreSQLFlexibleServerConfig}
-  - label: MariaDB
-    tabs:
-    - {file: mariadb.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-    - {file: mariadb.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
-    - <<: *schemas
-      files:
-      - {file: schemas/mariadbserver.yaml, label: MariaDBServer}
-      - {file: schemas/mariadbclass.yaml, label: MariaDBClass}
-      - {file: schemas/mariadbparameters.yaml, label: MariaDBParameters}
-      - {file: schemas/mariadbuser.yaml, label: MariaDBUser}
-      - {file: schemas/mariadbdatabase.yaml, label: MariaDBDatabase}
-      - {file: schemas/mariadbrdsconfig.yaml, label: MariaDBRDSConfig}
-  - label: Valkey
-    tabs:
-    - {file: valkey.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-    - {file: valkey.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
-    - <<: *schemas
-      files:
-      - {file: schemas/valkeyserver.yaml, label: ValkeyServer}
-      - {file: schemas/valkeyclass.yaml, label: ValkeyClass}
-      - {file: schemas/valkeyparameters.yaml, label: ValkeyParameters}
-      - {file: schemas/valkeyelasticacheconfig.yaml, label: ValkeyElastiCacheConfig}
-      - {file: schemas/valkeymemorystoreconfig.yaml, label: ValkeyMemorystoreConfig}
-      - {file: schemas/valkeyocicacheconfig.yaml, label: ValkeyOCICacheConfig}
-  - label: Kafka
-    tabs:
-    - {file: kafka.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-    - {file: kafka.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
-    - <<: *schemas
-      files:
-      - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
-      - {file: schemas/kafkaclass.yaml, label: KafkaClass}
-      - {file: schemas/kafkaparameters.yaml, label: KafkaParameters}
-      - {file: schemas/kafkauser.yaml, label: KafkaUser}
-      - {file: schemas/kafkatopic.yaml, label: KafkaTopic}
-      - {file: schemas/kafkamskconfig.yaml, label: KafkaMSKConfig}
-      - {file: schemas/kafkagcpconfig.yaml, label: KafkaGCPConfig}
-      - {file: schemas/kafkaociconfig.yaml, label: KafkaOCIConfig}
-  - label: RabbitMQ
-    tabs:
-    - {file: rabbitmq.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-    - {file: rabbitmq.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
-    - <<: *schemas
-      files:
-      - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
-      - {file: schemas/rabbitmqclass.yaml, label: RabbitMQClass}
-      - {file: schemas/rabbitmqparameters.yaml, label: RabbitMQParameters}
-      - {file: schemas/rabbitmquser.yaml, label: RabbitMQUser}
-      - {file: schemas/rabbitmqvirtualhost.yaml, label: RabbitMQVirtualHost}
-      - {file: schemas/rabbitmqamazonmqconfig.yaml, label: RabbitMQAmazonMQConfig}
-  - label: Bucket
-    tabs:
-    - {file: bucket.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-    - {file: bucket.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
-    - <<: *schemas
-      files:
-      - {file: schemas/bucket.yaml, label: Bucket}
-      - {file: schemas/bucketclass.yaml, label: BucketClass}
-      - {file: schemas/buckets3config.yaml, label: BucketS3Config}
-      - {file: schemas/bucketcloudstorageconfig.yaml, label: BucketCloudStorageConfig}
-      - {file: schemas/bucketobjectstorageconfig.yaml, label: BucketObjectStorageConfig}
-      - {file: schemas/bucketblobstorageconfig.yaml, label: BucketBlobStorageConfig}
-  - label: ArtifactRepository
-    tabs:
-    - {file: artifact-repository.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-    - {file: artifact-repository.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
-    - <<: *schemas
-      files:
-      - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
-      - {file: schemas/artifactrepositoryclass.yaml, label: ArtifactRepositoryClass}
-      - {file: schemas/artifactrepositoryecrconfig.yaml, label: ArtifactRepositoryECRConfig}
-      - {file: schemas/artifactrepositoryartifactregistryconfig.yaml, label: ArtifactRepositoryArtifactRegistryConfig}
-      - {file: schemas/artifactrepositoryocirconfig.yaml, label: ArtifactRepositoryOCIRConfig}
-      - {file: schemas/artifactrepositoryacrconfig.yaml, label: ArtifactRepositoryACRConfig}
-- {file: changes.md, label: API Changes, compare: true, tabs: sections, subsectionTabs: true}
-- {file: related-work.md, label: Related Work}
+    - label: PostgreSQL
+      tabs:
+      - {file: postgresql.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: postgresql.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
+      - <<: *schemas
+        files:
+        - {file: schemas/postgresqlcluster.yaml, label: PostgreSQLCluster}
+        - {file: schemas/postgresqlclass.yaml, label: PostgreSQLClass}
+        - {file: schemas/postgresqlparameters.yaml, label: PostgreSQLParameters}
+        - {file: schemas/postgresqluser.yaml, label: PostgreSQLUser}
+        - {file: schemas/postgresqldatabase.yaml, label: PostgreSQLDatabase}
+        - {file: schemas/postgresqlrdsconfig.yaml, label: PostgreSQLRDSConfig}
+        - {file: schemas/postgresqlcloudsqlconfig.yaml, label: PostgreSQLCloudSQLConfig}
+        - {file: schemas/postgresqlociconfig.yaml, label: PostgreSQLOCIConfig}
+        - {file: schemas/postgresqlflexibleserverconfig.yaml, label: PostgreSQLFlexibleServerConfig}
+    - label: MariaDB
+      tabs:
+      - {file: mariadb.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: mariadb.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
+      - <<: *schemas
+        files:
+        - {file: schemas/mariadbserver.yaml, label: MariaDBServer}
+        - {file: schemas/mariadbclass.yaml, label: MariaDBClass}
+        - {file: schemas/mariadbparameters.yaml, label: MariaDBParameters}
+        - {file: schemas/mariadbuser.yaml, label: MariaDBUser}
+        - {file: schemas/mariadbdatabase.yaml, label: MariaDBDatabase}
+        - {file: schemas/mariadbrdsconfig.yaml, label: MariaDBRDSConfig}
+    - label: Valkey
+      tabs:
+      - {file: valkey.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: valkey.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
+      - <<: *schemas
+        files:
+        - {file: schemas/valkeyserver.yaml, label: ValkeyServer}
+        - {file: schemas/valkeyclass.yaml, label: ValkeyClass}
+        - {file: schemas/valkeyparameters.yaml, label: ValkeyParameters}
+        - {file: schemas/valkeyelasticacheconfig.yaml, label: ValkeyElastiCacheConfig}
+        - {file: schemas/valkeymemorystoreconfig.yaml, label: ValkeyMemorystoreConfig}
+        - {file: schemas/valkeyocicacheconfig.yaml, label: ValkeyOCICacheConfig}
+    - label: Kafka
+      tabs:
+      - {file: kafka.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: kafka.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
+      - <<: *schemas
+        files:
+        - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
+        - {file: schemas/kafkaclass.yaml, label: KafkaClass}
+        - {file: schemas/kafkaparameters.yaml, label: KafkaParameters}
+        - {file: schemas/kafkauser.yaml, label: KafkaUser}
+        - {file: schemas/kafkatopic.yaml, label: KafkaTopic}
+        - {file: schemas/kafkamskconfig.yaml, label: KafkaMSKConfig}
+        - {file: schemas/kafkagcpconfig.yaml, label: KafkaGCPConfig}
+        - {file: schemas/kafkaociconfig.yaml, label: KafkaOCIConfig}
+    - label: RabbitMQ
+      tabs:
+      - {file: rabbitmq.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: rabbitmq.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
+      - <<: *schemas
+        files:
+        - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
+        - {file: schemas/rabbitmqclass.yaml, label: RabbitMQClass}
+        - {file: schemas/rabbitmqparameters.yaml, label: RabbitMQParameters}
+        - {file: schemas/rabbitmquser.yaml, label: RabbitMQUser}
+        - {file: schemas/rabbitmqvirtualhost.yaml, label: RabbitMQVirtualHost}
+        - {file: schemas/rabbitmqamazonmqconfig.yaml, label: RabbitMQAmazonMQConfig}
+    - label: Bucket
+      tabs:
+      - {file: bucket.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: bucket.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
+      - <<: *schemas
+        files:
+        - {file: schemas/bucket.yaml, label: Bucket}
+        - {file: schemas/bucketclass.yaml, label: BucketClass}
+        - {file: schemas/buckets3config.yaml, label: BucketS3Config}
+        - {file: schemas/bucketcloudstorageconfig.yaml, label: BucketCloudStorageConfig}
+        - {file: schemas/bucketobjectstorageconfig.yaml, label: BucketObjectStorageConfig}
+        - {file: schemas/bucketblobstorageconfig.yaml, label: BucketBlobStorageConfig}
+    - label: ArtifactRepository
+      tabs:
+      - {file: artifact-repository.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: artifact-repository.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
+      - <<: *schemas
+        files:
+        - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
+        - {file: schemas/artifactrepositoryclass.yaml, label: ArtifactRepositoryClass}
+        - {file: schemas/artifactrepositoryecrconfig.yaml, label: ArtifactRepositoryECRConfig}
+        - {file: schemas/artifactrepositoryartifactregistryconfig.yaml, label: ArtifactRepositoryArtifactRegistryConfig}
+        - {file: schemas/artifactrepositoryocirconfig.yaml, label: ArtifactRepositoryOCIRConfig}
+        - {file: schemas/artifactrepositoryacrconfig.yaml, label: ArtifactRepositoryACRConfig}
+  - {file: changes.md, label: API Changes, gap: true, compare: true, tabs: sections, subsectionTabs: true}
+  - {file: related-work.md, label: Related Work}
 - {file: open-points.md, label: Open Points, divider: true, checklist: true, foldItems: true}
 - {file: follow-up-work.md, label: Follow-Up Work, foldItems: true}
 - {file: deferred-capabilities.md, label: Deferred Capabilities}
-- {file: revisions.md, label: Revisions, divider: true}
+- {file: revisions.md, label: Revisions, gap: true, muted: true}
 - label: Feedback
+  muted: true
   feedback: true
   intro: "Comments, questions and objections to the design are collected here, and everyone with access to this page reads them. Each person can delete their own entries."

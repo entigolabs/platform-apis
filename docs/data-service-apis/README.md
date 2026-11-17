@@ -27,10 +27,6 @@ class, its status reports AWS identifiers, and the developer portal hard-codes A
 forms. infralib also deploys to GCP, OCI and Azure, and OCI is the next cloud to run the data
 services.
 
-The parts the design is built from are defined in [Model](model.md), the rules it follows in
-[Principles](principles.md), the mechanisms that apply them in [Common Design](common-design.md),
-and the changes for today's users in [API Changes](changes.md).
-
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
 
@@ -56,19 +52,15 @@ The design leaves these out:
 
 ## Pages
 
-Each page of the design holds the following, in the order of the menu:
+The menu groups the pages of the design:
 
-- [Model](model.md): the parts every data service API is built from.
-- [Principles](principles.md): the rules every data service API follows, and the reason for each.
-- [Common Design](common-design.md): the mechanisms that apply the principles to every service.
-- [Service Designs](postgresql.md): the design of each service, its mapping to each cloud and the
-  draft schemas of its kinds.
-- [API Changes](changes.md): every change from today's APIs to the design, per kind.
-- [Related Work](related-work.md): the projects the design draws on, and the alternatives it was
-  chosen over.
-- [Open Points](open-points.md): questions to decide before implementation.
-- [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
-- [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
-- [Revisions](revisions.md): the design's revisions, newest first.
-- [Feedback](#feedback), on the published page only: comments from reviewers, readable by
-  everyone with access to the page.
+- **Design:** [Model & Principles](principles.md), the parts every data service API is built from
+  and the rules each follows; [Common Design](common-design.md), the mechanisms every service
+  shares, and [Service Designs](postgresql.md), a tab per service; [API Changes](changes.md), every
+  change from today's APIs per kind, and [Related Work](related-work.md).
+- **Open items:** [Open Points](open-points.md), [Follow-Up Work](follow-up-work.md) and
+  [Deferred Capabilities](deferred-capabilities.md).
+
+[Revisions](revisions.md) lists the design's revisions, newest first, and [Feedback](#feedback), on
+the published page only, holds comments from reviewers, readable by everyone with access to the
+page.
