@@ -32,7 +32,7 @@ Changes shared by all kinds, stated once here:
 | AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.provider`                   | The status reports the resource's actual values (principle 4)                     |
 | (none)                                                                             | `status.providerConfig`, `status.effective`              | The applied entry and each value's source (principle 4)                           |
 
-*Changes shared by all kinds.*
+*Changes common to all kinds, with reasons.*
 
 ## PostgreSQL
 
@@ -67,7 +67,7 @@ Changes shared by all kinds, stated once here:
 | `status.hostedZoneId`, `status.vpcSecurityGroupIds`, `status.kmsKeyId`, `status.storageEncrypted`, `status.storageType` | removed                                                           | Settings the platform makes (principle 4)                                                             |
 | `status.parameterGroupName`, `status.snapshotIdentifier`                                                                | removed                                                           | Echoes of the spec                                                                                    |
 
-*Changes from `PostgreSQLInstance` to `PostgreSQLCluster`.*
+*`PostgreSQLCluster` changes from `PostgreSQLInstance`, with reasons.*
 
 An example, today and in the design:
 
@@ -119,7 +119,7 @@ spec:
       instanceType: db.t4g.small       # was instanceType
 ```
 
-*`PostgreSQLInstance` today, `PostgreSQLCluster` in the design.*
+*`PostgreSQLCluster` compared with today's `PostgreSQLInstance`.*
 
 ### PostgreSQLUser
 
@@ -163,7 +163,7 @@ and `name` and `clusterRef` become immutable.
 | `status.endpoint.hostedZoneId`, `status.vpcSecurityGroupIds`, `status.kmsKeyId`, `status.storageEncrypted`, `status.storageType` | removed                                                           | Settings the platform makes (principle 4)                                                                         |
 | `status.parameterGroupName`, `status.snapshotIdentifier`                                                                         | removed                                                           | Echoes of the spec                                                                                                |
 
-*Changes from `MariaDBInstance` to `MariaDBServer`.*
+*`MariaDBServer` changes from `MariaDBInstance`, with reasons.*
 
 An example, today and in the design:
 
@@ -215,7 +215,7 @@ spec:
       instanceType: db.t4g.small       # was instanceType
 ```
 
-*`MariaDBInstance` today, `MariaDBServer` in the design.*
+*`MariaDBServer` compared with today's `MariaDBInstance`.*
 
 ### MariaDBUser
 
@@ -230,7 +230,7 @@ spec:
 | user limits default to 20 queries and 10 updates an hour, 5 connections an hour and 2 at once | all default to 0, no limit            | Today's defaults are too low for a production application                                                                                 |
 | `grant.users`                                                                                 | removed                               | The names never reached MariaDB: each one only created another copy of the user's own grant, and privileges applied only when one was set |
 
-*Changes to `MariaDBUser`.*
+*`MariaDBUser` changes, with reasons.*
 
 An example, today and in the design:
 
@@ -267,7 +267,7 @@ spec:
     - INSERT
 ```
 
-*A `MariaDBUser`, today and in the design.*
+*`MariaDBUser` today and in the design.*
 
 ### MariaDBDatabase
 
@@ -304,7 +304,7 @@ and `name` and `serverRef` become immutable.
 | `status.parameterGroupName`                                     | removed                                                        | An echo of the spec                                                                                                                     |
 | secret keys `AUTH_TOKEN`, `PORT`, `credentials.json`            | `endpoint`, `port`, `username`, `password`, `readerEndpoint`   | The keys of principle 6                                                                                                                 |
 
-*Changes from `ValkeyInstance` to `ValkeyServer`.*
+*`ValkeyServer` changes from `ValkeyInstance`, with reasons.*
 
 An example, today and in the design:
 
@@ -346,7 +346,7 @@ spec:
       instanceType: cache.t4g.small    # was instanceType
 ```
 
-*`ValkeyInstance` today, `ValkeyServer` in the design.*
+*`ValkeyServer` compared with today's `ValkeyInstance`.*
 
 ## Kafka
 
@@ -367,7 +367,7 @@ creates one or observes one:
 | (none)                                   | `status.providerConfig`, `status.effective`                                                                     | The applied entry and each value's source (principle 4)                                                           |
 | topics without an ACL open to every user | topics without an ACL closed                                                                                    | Access is granted per user (principle 12)                                                                         |
 
-*Changes from `MSK` to `KafkaCluster`.*
+*`KafkaCluster` changes from `MSK`, with reasons.*
 
 An example, today and in the design:
 
@@ -397,7 +397,7 @@ spec:
       id: arn:aws:kafka:...            # was clusterARN
 ```
 
-*`MSK` today, `KafkaCluster` in the design.*
+*`KafkaCluster` compared with today's `MSK`.*
 
 ### KafkaTopic
 
@@ -411,7 +411,7 @@ spec:
 | (none)                                                          | `name`                                                          | A Kafka name that a Kubernetes name cannot hold         |
 | `partitions` and `replicationFactor` default to 3 in the schema | defaults from the `topicTemplate` of the cluster's `KafkaClass` | A deployment's defaults come from a class (principle 5) |
 
-*Changes from `Topic` to `KafkaTopic`.*
+*`KafkaTopic` changes from `Topic`, with reasons.*
 
 An example, today and in the design:
 
@@ -445,7 +445,7 @@ spec:
     retention.ms: "604800000"
 ```
 
-*`Topic` today, `KafkaTopic` in the design.*
+*`KafkaTopic` compared with today's `Topic`.*
 
 ### KafkaUser
 
@@ -458,7 +458,7 @@ spec:
 | `consumerGroups`, a list of names             | `consumerGroups` entries with `name` and `patternType`                         | A group can be matched by its prefix                                               |
 | (none)                                        | `patternType` on each ACL                                                      | A topic can be matched by its prefix, so topics added at runtime need no new entry |
 
-*Changes to `KafkaUser`.*
+*`KafkaUser` changes, with reasons.*
 
 ## RabbitMQ
 
@@ -483,7 +483,7 @@ spec:
 | (none)                                                                            | `status.providerConfig`, `status.effective`                                                                                                        | The applied entry and each value's source (principle 4)                                      |
 | secrets `<broker>-credentials` (`username`, `password`) and `<broker>-connection` | one secret `<broker>-credentials`: `endpoint`, `port`, `username`, `password`, `managementEndpoint`                                                | The keys of principle 6                                                                      |
 
-*Changes to `RabbitMQBroker`.*
+*`RabbitMQBroker` changes, with reasons.*
 
 An example, today and in the design:
 
@@ -532,7 +532,7 @@ spec:
 # removed: brokerName, engineType, autoMinorVersionUpgrade
 ```
 
-*A `RabbitMQBroker`, today and in the design.*
+*`RabbitMQBroker` today and in the design.*
 
 ### RabbitMQUser
 
@@ -560,7 +560,7 @@ spec:
 | encryption, public access and ACL status fields              | removed                                                                       | Settings the platform makes (principle 4)                                      |
 | (none)                                                       | `className`, and `id` in a provider configuration entry to observe            | The kind's class (principle 5), and observing an existing bucket (principle 9) |
 
-*Changes from `S3Bucket` to `Bucket`.*
+*`Bucket` changes from `S3Bucket`, with reasons.*
 
 Until applications have a cloud identity of their own, applications that read the secret keep
 `S3Bucket`, which stays served next to `Bucket`.
@@ -591,7 +591,7 @@ spec:
 # removed: createServiceAccount, serviceAccountName
 ```
 
-*`S3Bucket` today, `Bucket` in the design.*
+*`Bucket` compared with today's `S3Bucket`.*
 
 ## ArtifactRepository
 
@@ -609,7 +609,7 @@ spec:
 | (none)                          | `className`, and `id` in a provider configuration entry to observe | The kind's class (principle 5), and observing an existing repository (principle 9)          |
 | (none)                          | `status.providerConfig`, `status.effective`, `status.provider`     | The applied entry, each value's source, and the implementation's own values (principle 4)   |
 
-*Changes from `Repository` to `ArtifactRepository`.*
+*`ArtifactRepository` changes from `Repository`, with reasons.*
 
 An example, today and in the design:
 
@@ -636,4 +636,4 @@ spec:
   immutableTags: true                  # new
 ```
 
-*`Repository` today, `ArtifactRepository` in the design.*
+*`ArtifactRepository` compared with today's `Repository`.*

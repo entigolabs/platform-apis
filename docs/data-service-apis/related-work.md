@@ -21,7 +21,7 @@ Each project below solved part of the same problem, and the design takes one ide
 | [CloudNativePG](https://cloudnative-pg.io/documentation/current/postgresql_conf/)                                                                                 | Engine parameters as a map the user sets, while the operator keeps a fixed set to itself                                                                      |
 | [KubeVirt instancetypes](https://kubevirt.io/user-guide/user_workloads/instancetypes/) and [Karpenter NodePools](https://karpenter.sh/docs/concepts/nodepools/)   | Portable size names and sizing by CPU and memory, both examined and not adopted (Machine Sizes, below)                                                        |
 
-*Projects the design draws on.*
+*Prior projects and ideas taken.*
 
 ## Alternatives
 
@@ -41,7 +41,7 @@ The design holds them in provider configurations (principle 2). The options it w
 | Entries keyed by `kind` alone                                                               | (none)                                                                                                     | Two owners can choose one kind name; the API group carries the owner's domain.                                                       |
 | A region in the object's spec                                                               | (none)                                                                                                     | Region names differ per cloud, and placement is the platform's decision (principle 2).                                               |
 
-*Alternatives for the settings of one implementation.*
+*Implementation-specific setting alternatives and reasons for rejection.*
 
 ### Machine Sizes
 
@@ -55,7 +55,7 @@ over:
 | CPU and memory, resolved to the nearest size                | Karpenter `NodePool` requirements                      | Needs each cloud's size catalogue per region; natural only where the implementation sizes this way, as CloudNativePG does. |
 | `instanceType` as a common field                            | Today's `PostgreSQLInstance`                           | No value is valid in two implementations, so a manifest for several deployments cannot hold one.                           |
 
-*Alternatives for machine sizes.*
+*Machine size alternatives and reasons for rejection.*
 
 ### Classes
 
@@ -73,4 +73,4 @@ chosen over:
 | `defaultProviderConfigs` and `overrideProviderConfigs` fields                              | Gateway API `defaults` and `overrides`                    | `template` already holds the defaults, and "override" leaves open which level wins.                      |
 | Support listed in field descriptions, such as "Ignored on AWS, OCI"                        | Revision 1 of this design                                 | It lists clouds in the core schema again; classes report their supported features instead (principle 1). |
 
-*Alternatives for classes.*
+*Class alternatives and reasons for rejection.*

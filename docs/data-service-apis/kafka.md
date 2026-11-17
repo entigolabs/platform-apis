@@ -69,7 +69,7 @@ spec:
       ocpus: 2                         # per broker, required with a .Flex shape
 ```
 
-*A `KafkaCluster` with its common fields and an entry per implementation.*
+*`KafkaCluster` with common fields and one entry per implementation.*
 
 A cluster's size is its brokers times each broker's size. The implementations size them
 differently, so the size is in each provider configuration (principle 2). No implementation offers a
@@ -101,7 +101,7 @@ status:
     kafkaVersion: ...
 ```
 
-*A `KafkaCluster` status on AWS.*
+*`KafkaCluster` status on AWS.*
 
 A cluster has no secret of its own: applications log in with a `KafkaUser`'s secret.
 
@@ -137,7 +137,7 @@ spec:
     replicationFactor: 3
 ```
 
-*A `KafkaClass` for MSK.*
+*`KafkaClass` for MSK.*
 
 A class reports `HighAvailability` in `status.supportedFeatures` on every implementation.
 
@@ -160,7 +160,7 @@ spec:
     log.retention.hours: "72"
 ```
 
-*A `KafkaParameters` a user shares between their clusters.*
+*`KafkaParameters` shared between a user's clusters.*
 
 A `KafkaParameters` names no other, so references never chain. Each implementation allows only some
 settings, and the others are rejected by the cloud and reported as `CloudAccepted: False`
@@ -196,7 +196,7 @@ spec:
   secretName: orders-app-login         # unset, orders-kafka-orders-app (principle 6)
 ```
 
-*A `KafkaUser` with one consumer group, a read ACL and a prefixed read ACL.*
+*`KafkaUser` with one consumer group, a read ACL and a prefixed read ACL.*
 
 A topic or consumer group is named exactly, or, with `patternType: Prefixed`, by the start of every
 name it covers. An application that adds topics at runtime, such as one per customer (`orders-acme`,
@@ -209,7 +209,7 @@ topic. `Literal` and `Prefixed` are Kafka's own ACL pattern types.
 | GCP   | a service account with a key                       | SASL PLAIN: the account's email and key |
 | OCI   | provider-kafka `User`, through the Kafka admin API | SASL SCRAM-SHA-512                      |
 
-*A `KafkaUser`'s identity and login on each cloud.*
+*`KafkaUser` identity and login per cloud.*
 
 ACLs are Kafka ACLs on every cloud: provider-kafka on AWS and OCI,
 [`google_managed_kafka_acl`](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/managed_kafka_acl)
@@ -251,7 +251,7 @@ spec:
     retention.ms: "604800000"
 ```
 
-*A `KafkaTopic` whose Kafka name differs from its object name.*
+*`KafkaTopic` with a Kafka name different from its object name.*
 
 `name` is the topic's Kafka name, which can hold what a Kubernetes name cannot, such as `Orders` or
 `orders_v2`. Applications use that name, so it cannot carry a hash like principle 9's cloud names,
@@ -273,7 +273,7 @@ the implementation lacks shows as ignored, with the reason (principle 1):
 | `parameters`       | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones take effect after a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
 | `parametersRef`    | merged into `parameters`                                    | merged into `parameters`                                                                                    | merged into `parameters`                                                            |
 
-*Common fields of `KafkaCluster` and their provider fields.*
+*`KafkaCluster` common fields and their provider fields.*
 
 The second names the implementation's provider configuration kind and what its fields map to:
 
@@ -286,7 +286,7 @@ The second names the implementation's provider configuration kind and what its f
 | `memoryGB`     |                                    | `capacity_config.memory_bytes`, in bytes                  |                         |
 | `ocpus`        |                                    |                                                           | `brokerShape.ocpuCount` |
 
-*Fields of each provider configuration kind.*
+*Kafka provider configuration fields.*
 
 **AWS:** the size is the broker type, `instanceType`, times `brokers`. `bootstrapServers` is
 `bootstrapBrokersSaslScram`. provider-kafka logs in with IAM. `allow.everyone.if.no.acl.found` is
@@ -380,7 +380,7 @@ spec:
       encryptionAtRestKmsKeyArn: arn:aws:kms:eu-north-1:111122223333:key/data
 ```
 
-*A `KafkaCluster` on AWS and its composed resource.*
+*`KafkaCluster` and its composed resource.*
 
 ```yaml Object
 ---
@@ -442,7 +442,7 @@ spec:
       - ocid1.subnet.oc1..deployment
 ```
 
-*A `KafkaCluster` on OCI and its composed resource.*
+*`KafkaCluster` and its composed resource.*
 
 ## Platform Decisions
 
@@ -457,7 +457,7 @@ for a `KafkaCluster` itself:
 | Admin login           | The one provider-kafka uses                                                                       |
 | Access                | Denied by default: a topic or group is reachable only by users with an ACL on it and by the admin |
 
-*Settings the platform makes for a `KafkaCluster`.*
+*`KafkaCluster` settings chosen by the platform.*
 
 ## Cloud Limits
 
@@ -476,7 +476,7 @@ release named, or the cloud's documentation as read in November 2026.
 | `vcpus`          | GCP   | at least 3                    | `vcpu_count`, `google_managed_kafka_cluster` documentation                         |
 | `memoryGB`       | GCP   | 1 to 8 per vCPU               | `memory_bytes`, `google_managed_kafka_cluster` documentation                       |
 
-*Limits the cloud enforces on Kafka.*
+*Kafka field limits and their sources.*
 
 ## Notes
 

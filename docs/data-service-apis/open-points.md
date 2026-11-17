@@ -24,7 +24,7 @@ also do not present the design as one family.
 | One new group, `data.entigo.com`                               | Every object moves at its user's pace, the six kinds included                                                                                                                             | Today's kinds stay served, and their functions run, until the last object has moved                                 |
 | A new group per category, `database.data.entigo.com` and so on | As with one new group                                                                                                                                                                     | As with one new group, with longer names                                                                            |
 
-*Ways to move today's objects to the design.*
+*Migration options for today's objects.*
 
 #### 2 How are credentials rotated?
 
@@ -45,7 +45,7 @@ the switch happens decides whether applications lose their connection.
 | On request, at once     | A field such as `spec.rotation`: changing it writes a new credential into the same Secret, and the old one stops working  | Applications fail until they read the Secret again                                          |
 | On request, overlapping | The platform keeps two logins per user and moves the Secret to the other one; the old login works until the next rotation | No downtime, but twice the logins, and only for users inside an engine, not its admin login |
 
-*Ways to rotate a credential.*
+*Credential rotation options.*
 
 #### 3 How do users see a resource's health?
 
@@ -65,7 +65,7 @@ exhausted connections or a failed backup show only when the application breaks.
 | Console link in the status | `status.provider.consoleURL` opens the resource in its cloud's console                                                              | Little to build; useful only to users with access to the cloud                                                                        |
 | Metrics in the cluster     | The platform exports each resource's cloud metrics into Prometheus, labelled by object and namespace, with standard alerts per kind | An exporter per cloud (CloudWatch, Cloud Monitoring, OCI Monitoring, Azure Monitor); users see health in the Grafana they already use |
 
-*Ways users see a resource's health.*
+*Resource health reporting options.*
 
 #### 4 Can a class require a provider configuration entry?
 
@@ -84,7 +84,7 @@ way to require the entry.
 | Always fall back             | An object without an entry runs with the class's provider configuration                                                   | Nothing to build; a forgotten entry goes unnoticed                                            |
 | A class can require an entry | A class marks its provider configuration as required, and an object without an entry of that kind is refused when applied | A manifest for several deployments carries an entry for each implementation that requires one |
 
-*Ways to treat an object without an entry.*
+*Options for objects without a provider configuration entry.*
 
 #### 5 Can a Zone restrict the classes its namespaces use?
 
@@ -102,7 +102,7 @@ limits the classes per Zone.
 | A Zone lists its classes | The Zone names the classes its namespaces may use, and an admission policy refuses others, as Gateway API's `allowedRoutes` restricts attachment | A list per Zone to keep current as classes are added |
 | A class lists its Zones  | The class names the Zones that may use it                                                                                                        | Entigo's classes change whenever a Zone is added     |
 
-*Ways to restrict the classes per Zone.*
+*Per-Zone class restriction options.*
 
 #### 6 Which further needs become portable features?
 
@@ -120,4 +120,4 @@ state them portably.
 | The two features only                      | Every other need is a setting of one implementation                                                                    | No portable form for needs such as autoscaling          |
 | A feature once two implementations meet it | A need becomes a portable feature when two or more implementations support it, as principle 1 states for common fields | A design change, and a revision, for each feature added |
 
-*Ways to add portable features.*
+*Options for new portable features.*

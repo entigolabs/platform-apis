@@ -76,7 +76,7 @@ spec:
       memoryGB: 16                     # per node
 ```
 
-*A `ValkeyServer` with its common fields and an entry per implementation.*
+*`ValkeyServer` with common fields and one entry per implementation.*
 
 `version` is Valkey's major and minor, such as `"8.1"`, the only form all three implementations
 take. With `autoMinorVersionUpgrade` on, the implementation can move the server to a newer minor, so
@@ -116,7 +116,7 @@ status:
     engineVersionActual: ...           # ElastiCache reports no state
 ```
 
-*A `ValkeyServer` status on AWS.*
+*`ValkeyServer` status on AWS.*
 
 The connection secret is `<instance>-credentials`, with `endpoint`, `port` (6379),
 `username: default`, `password` and `readerEndpoint`. `default` is the user a password-only client
@@ -149,7 +149,7 @@ spec:
     deletionProtection: true
 ```
 
-*A `ValkeyClass` for ElastiCache.*
+*`ValkeyClass` for ElastiCache.*
 
 A class reports `HighAvailability` and `ReadReplicas` in `status.supportedFeatures` on ElastiCache
 and Memorystore, and `ReadReplicas` only on OCI Cache, whose failover is unverified.
@@ -173,7 +173,7 @@ spec:
     timeout: "300"
 ```
 
-*A `ValkeyParameters` a user shares between their servers.*
+*`ValkeyParameters` shared between a user's servers.*
 
 A `ValkeyParameters` names no other, so references never chain. Each implementation allows only some
 settings, and the others are rejected by the cloud and reported as `CloudAccepted: False`
@@ -200,7 +200,7 @@ spec:
   readReplicas: 2
 ```
 
-*A `ValkeyServer` with two read replicas, one of them in another zone.*
+*`ValkeyServer` with two read replicas, one in another zone.*
 
 ## Mapping
 
@@ -221,7 +221,7 @@ the implementation lacks shows as ignored, with the reason (principle 1):
 | `parameters`              | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | a configuration set, allowlist of about 15 keys                 |
 | `parametersRef`           | merged into `parameters`                     | merged into `parameters`                                                                                          | merged into `parameters`                                        |
 
-*Common fields of `ValkeyServer` and their provider fields.*
+*`ValkeyServer` common fields and their provider fields.*
 
 The second names the implementation's provider configuration kind and what its fields map to:
 
@@ -234,7 +234,7 @@ The second names the implementation's provider configuration kind and what its f
 | `parameterGroupName` | `parameterGroupName`             |                           |                        |
 | `fromBackup`         | `snapshotName`, at creation only |                           |                        |
 
-*Fields of each provider configuration kind.*
+*Valkey provider configuration fields.*
 
 **AWS:** ElastiCache rejects a version without its minor, such as `8` or `8.x`. A parameter group
 applies to one major version (family `valkey<major>`), so a change of the major is rejected unless
@@ -328,7 +328,7 @@ spec:
       key: password
 ```
 
-*A `ValkeyServer` on AWS and its composed resource.*
+*`ValkeyServer` and its composed resource.*
 
 ```yaml Object
 ---
@@ -406,7 +406,7 @@ spec:
       projectId: shop-project
 ```
 
-*A `ValkeyServer` on GCP and its composed resource.*
+*`ValkeyServer` and its composed resource.*
 
 ```yaml Object
 ---
@@ -466,7 +466,7 @@ spec:
     - ocid1.networksecuritygroup.oc1..deployment
 ```
 
-*A `ValkeyServer` on OCI, without `highAvailability`, and its composed resource.*
+*`ValkeyServer` without `highAvailability` and its composed resource.*
 
 ## Platform Decisions
 
@@ -480,7 +480,7 @@ for a `ValkeyServer` itself:
 | Login                 | A generated password                                                                             |
 | Final backup          | A snapshot taken when a server is deleted, switched on per deployment, where the cloud takes one |
 
-*Settings the platform makes for a `ValkeyServer`.*
+*`ValkeyServer` settings chosen by the platform.*
 
 ## Cloud Limits
 
@@ -498,7 +498,7 @@ release named, or the cloud's documentation as read in November 2026.
 | `backup.retentionDays` | AWS   | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0  |
 | `backup.retentionDays` | GCP   | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0 |
 
-*Limits the cloud enforces on Valkey.*
+*Valkey field limits and their sources.*
 
 ## Notes
 

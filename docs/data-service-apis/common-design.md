@@ -14,7 +14,7 @@ their names from it:
 | Parameters             | `<Engine>Parameters`      | the core group            | `PostgreSQLParameters` in `database.entigo.com`    |
 | Provider configuration | `<Engine><Product>Config` | `<platform>.<core group>` | `PostgreSQLRDSConfig` in `aws.database.entigo.com` |
 
-*Names of the kinds around a user-facing kind.*
+*Related kind names, groups and examples.*
 
 The engine comes first, so the kinds sort together. The product is the implementation's own short
 name, such as RDS, Cloud SQL or MSK; where it has none, the platform's name stands in for it, as in
@@ -42,7 +42,7 @@ configuration:
 | `template` | Defaults: written into the object when it is created, and the object may change them |
 | `enforced` | Always applied; an object that sets a different value is refused when applied        |
 
-*The two parts of a class.*
+*Class parts and their effects.*
 
 The class's provider configuration kind selects the implementation, as `StorageClass.provisioner`
 does, so a class has no separate field for it. A class whose provider configuration names a kind the
@@ -128,7 +128,7 @@ spec:
       id: ...                          # the resource's ID, copied from the cloud console
 ```
 
-*An observed resource on AWS.*
+*Observed resource on AWS.*
 
 The ID is one value the user copies from the cloud's console. The platform converts it into the form
 the provider takes. An observed resource takes no other spec fields.
@@ -162,7 +162,7 @@ The platform makes the settings below itself, for every service that has them, s
 | Encryption at rest | The platform's data key, where the implementation takes one       |
 | Tags               | Workspace and Zone tags, on every resource the platform creates   |
 
-*Settings the platform makes for every service.*
+*Service-wide settings chosen by the platform.*
 
 ## References
 

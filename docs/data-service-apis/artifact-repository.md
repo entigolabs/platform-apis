@@ -60,7 +60,7 @@ spec:
     expireAfterDays: 7
 ```
 
-*An `ArtifactRepository` with its common fields.*
+*`ArtifactRepository` with common fields.*
 
 The image path always starts with the namespace: `<namespace>/<path>/<name>`, or
 `<namespace>/<name>` without `path`. A registry holds each path once, and the provider finds a
@@ -91,7 +91,7 @@ status:
     arn: ...
 ```
 
-*An `ArtifactRepository` status on AWS.*
+*`ArtifactRepository` status on AWS.*
 
 ### ArtifactRepositoryClass
 
@@ -121,7 +121,7 @@ spec:
     deletionProtection: true
 ```
 
-*An `ArtifactRepositoryClass` for ECR.*
+*`ArtifactRepositoryClass` for ECR.*
 
 ## Mapping
 
@@ -136,7 +136,7 @@ the implementation lacks shows as ignored, with the reason (principle 1):
 | `immutableTags`      | `imageTagMutability: IMMUTABLE`     | `dockerConfig.immutableTags`                                                                                                                                                                                                                           | `isImmutable`                                                                                            | ignored, so tags can be overwritten; tag locks are set per tag through the Azure CLI only |
 | `lifecycleRules`     | `LifecyclePolicy`                   | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped, and the images it covers are kept | ignored, so old images are not cleaned up; retention is console-only and counts days since the last pull | ignored, so old images are not cleaned up; only registry-wide untagged retention exists   |
 
-*Common fields of `ArtifactRepository` and their provider fields.*
+*`ArtifactRepository` common fields and their provider fields.*
 
 The second names the implementation's provider configuration kind and what its fields map to:
 
@@ -145,7 +145,7 @@ The second names the implementation's provider configuration kind and what its f
 | kind  | `ArtifactRepositoryECRConfig`       | `ArtifactRepositoryArtifactRegistryConfig` | `ArtifactRepositoryOCIRConfig` | `ArtifactRepositoryACRConfig`                                                 |
 | `id`  | the repository name, the whole path | the repository ID                          | the repository's OCID          | accepted, but observing fails: an Azure repository has no resource of its own |
 
-*Fields of each provider configuration kind.*
+*ArtifactRepository provider configuration fields.*
 
 **AWS:** ECR's `IMMUTABLE_WITH_EXCLUSION` and `MUTABLE_WITH_EXCLUSION` modes, which only ECR has,
 are not offered. Images are scanned on push by ECR.
@@ -240,7 +240,7 @@ spec:
       ]}
 ```
 
-*An `ArtifactRepository` on AWS and its composed resources.*
+*`ArtifactRepository` and its composed resources.*
 
 ```yaml Object
 ---
@@ -290,7 +290,7 @@ spec:
         olderThan: 604800s     # 7 days
 ```
 
-*An `ArtifactRepository` on GCP and its composed resource.*
+*`ArtifactRepository` and its composed resource.*
 
 ```yaml Object
 ---
@@ -331,7 +331,7 @@ spec:
     isPublic: false            # platform
 ```
 
-*An `ArtifactRepository` on OCI and its composed resource.*
+*`ArtifactRepository` and its composed resource.*
 
 ## Platform Decisions
 
@@ -344,7 +344,7 @@ for an `ArtifactRepository` itself:
 | Vulnerability scanning | The cloud's own scanner              |
 | Image pulls            | Keyless pulls by the cluster's nodes |
 
-*Settings the platform makes for an `ArtifactRepository`.*
+*`ArtifactRepository` settings chosen by the platform.*
 
 ## Notes
 

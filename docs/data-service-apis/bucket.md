@@ -62,7 +62,7 @@ spec:
   softDeleteDays: 7                    # ignored on AWS and OCI
 ```
 
-*A `Bucket` with its common fields.*
+*`Bucket` with common fields.*
 
 `lifecycleRules`, `retention` and `cors` have no default. `tier` names the two cold tiers every
 cloud has.
@@ -89,7 +89,7 @@ status:
     arn: ...
 ```
 
-*A `Bucket` status on AWS.*
+*`Bucket` status on AWS.*
 
 ### BucketClass
 
@@ -116,7 +116,7 @@ spec:
     deletionProtection: true
 ```
 
-*A `BucketClass` for S3.*
+*`BucketClass` for S3.*
 
 ## Mapping
 
@@ -136,7 +136,7 @@ the implementation lacks shows as ignored, with the reason (principle 1):
 | `cors`               | `BucketCorsConfiguration`                                                                                                                           | `cors[]`                                                  | ignored; OCI allows every origin, though requests still need authorization                                                                          | `Account.blobProperties.corsRule[]`                                                       |
 | `softDeleteDays`     | ignored; deleted objects cannot be recovered, though versioning keeps replaced ones                                                                 | `softDeletePolicy.retentionDurationSeconds`, in seconds   | ignored; deleted objects cannot be recovered, though versioning keeps replaced ones                                                                 | `Account.blobProperties.deleteRetentionPolicy.days`                                       |
 
-*Common fields of `Bucket` and their provider fields.*
+*`Bucket` common fields and their provider fields.*
 
 The second names the implementation's provider configuration kind and what its fields map to:
 
@@ -145,7 +145,7 @@ The second names the implementation's provider configuration kind and what its f
 | kind  | `BucketS3Config` | `BucketCloudStorageConfig` | `BucketObjectStorageConfig`                           | `BucketBlobStorageConfig`                                                                 |
 | `id`  | the bucket name  | the bucket name            | the bucket name; the function adds `n/<namespace>/b/` | the container's resource ID; the function takes the account, container and resource group |
 
-*Fields of each provider configuration kind.*
+*Bucket provider configuration fields.*
 
 **AWS:** S3 enables Object Lock on an existing bucket too, but only once versioning is on, and never
 off again (`aws_s3_bucket_object_lock_configuration` in
@@ -282,7 +282,7 @@ spec:
       maxAgeSeconds: 3600
 ```
 
-*A `Bucket` on AWS and its composed resources.*
+*`Bucket` and its composed resources.*
 
 ```yaml Object
 ---
@@ -365,7 +365,7 @@ spec:
       retentionDurationSeconds: 604800  # 7 days
 ```
 
-*A `Bucket` on GCP and its composed resource.*
+*`Bucket` and its composed resource.*
 
 ```yaml Object
 ---
@@ -458,7 +458,7 @@ spec:
         - logs/
 ```
 
-*A `Bucket` on OCI and its composed resources.*
+*`Bucket` and its composed resources.*
 
 ```yaml Object
 ---
@@ -571,7 +571,7 @@ spec:
     locked: false
 ```
 
-*A `Bucket` on Azure and its composed resources.*
+*`Bucket` and its composed resources.*
 
 ## Platform Decisions
 
@@ -583,7 +583,7 @@ for a `Bucket` itself:
 | -------------- | ----------------- |
 | Access control | Cloud IAM only    |
 
-*Settings the platform makes for a `Bucket`.*
+*`Bucket` settings chosen by the platform.*
 
 ## Cloud Limits
 
@@ -597,7 +597,7 @@ release named, or the cloud's documentation as read in November 2026.
 | `softDeleteDays` | GCP   | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
 | `softDeleteDays` | Azure | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
 
-*Limits the cloud enforces on buckets.*
+*Bucket field limits and their sources.*
 
 ## Notes
 

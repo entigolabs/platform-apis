@@ -70,7 +70,7 @@ spec:
       # fromBackup: orders-final       # an RDS snapshot ID, instead of restore
 ```
 
-*A `MariaDBServer` with its common fields and an entry for RDS.*
+*`MariaDBServer` with common fields and an RDS entry.*
 
 `restore` creates a server from another server's backups, at a point in time. A deleted server is
 restored instead with its provider configuration's `fromBackup` and an RDS snapshot ID. Both are set
@@ -90,7 +90,7 @@ spec:
     pointInTime: "2026-11-01T10:00:00Z"
 ```
 
-*A `MariaDBServer` created from another server's backups.*
+*`MariaDBServer` restored from another server's backups.*
 
 `version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`, and RDS
 applies minor versions in the maintenance window. A major change is a change in the first two
@@ -128,7 +128,7 @@ status:
     state: available
 ```
 
-*A `MariaDBServer` status on AWS.*
+*`MariaDBServer` status on AWS.*
 
 The admin login is in the secret `<instance>-dbadmin`, with the keys of principle 6.
 
@@ -162,7 +162,7 @@ spec:
     deletionProtection: true
 ```
 
-*A `MariaDBClass` for RDS.*
+*`MariaDBClass` for RDS.*
 
 On RDS, a class reports `HighAvailability` in `status.supportedFeatures`.
 
@@ -185,7 +185,7 @@ spec:
     long_query_time: "2"
 ```
 
-*A `MariaDBParameters` a user shares between their servers.*
+*`MariaDBParameters` shared between a user's servers.*
 
 A `MariaDBParameters` names no other, so references never chain. Settings RDS does not allow are
 rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
@@ -240,7 +240,7 @@ spec:
   secretName: orders-app-login         # unset, orders-db-orders-app (principle 6)
 ```
 
-*A `MariaDBUser` with privileges on two databases.*
+*`MariaDBUser` with privileges on two databases.*
 
 ### MariaDBDatabase
 
@@ -267,7 +267,7 @@ spec:
   deletionProtection: true
 ```
 
-*A `MariaDBDatabase` with its default character set.*
+*`MariaDBDatabase` with its default character set.*
 
 ## Mapping
 
@@ -297,7 +297,7 @@ with the reason (principle 1):
 | `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                           |
 | `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        |
 
-*Common fields of `MariaDBServer` and their provider fields.*
+*`MariaDBServer` common fields and their provider fields.*
 
 The second names the provider configuration kind and what its fields map to:
 
@@ -309,7 +309,7 @@ The second names the provider configuration kind and what its fields map to:
 | `fromBackup`         | `snapshotIdentifier`                 |
 | `parameterGroupName` | `parameterGroupName`                 |
 
-*Fields of `MariaDBRDSConfig`.*
+*`MariaDBRDSConfig` fields.*
 
 **AWS:** provider keys are from the CRDs of [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). RDS takes a
@@ -405,7 +405,7 @@ spec:
     kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
-*A `MariaDBServer` on AWS and its composed resource.*
+*`MariaDBServer` and its composed resource.*
 
 ## Platform Decisions
 
@@ -419,7 +419,7 @@ for a `MariaDBServer` itself:
 | Port         | 3306                                                                  |
 | Final backup | A snapshot taken when a server is deleted, switched on per deployment |
 
-*Settings the platform makes for a `MariaDBServer`.*
+*`MariaDBServer` settings chosen by the platform.*
 
 ## Cloud Limits
 
@@ -433,4 +433,4 @@ release named, or the cloud's documentation as read in November 2026.
 | `backup.retentionDays`           | AWS   | 0 to 35                   | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0     |
 | `storage.iops`, `throughputMBps` | AWS   | only from 400 GiB of disk | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0 |
 
-*Limits AWS enforces on MariaDB.*
+*MariaDB field limits and their sources.*

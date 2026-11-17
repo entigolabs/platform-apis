@@ -59,7 +59,7 @@ spec:
       publiclyAccessible: false        # set at creation only
 ```
 
-*A `RabbitMQBroker` with its common fields and an entry for Amazon MQ.*
+*`RabbitMQBroker` with common fields and an Amazon MQ entry.*
 
 The platform names the broker, the engine is always RabbitMQ, and Amazon MQ requires minor version
 upgrades, so none of these is a field. `highAvailability` chooses the deployment mode, and
@@ -88,7 +88,7 @@ status:
     engineVersion: 4.2.1
 ```
 
-*A `RabbitMQBroker` status on AWS.*
+*`RabbitMQBroker` status on AWS.*
 
 The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host), `port` (5671),
 `username`, `password` and `managementEndpoint`.
@@ -118,7 +118,7 @@ spec:
     deletionProtection: true
 ```
 
-*A `RabbitMQClass` for Amazon MQ.*
+*`RabbitMQClass` for Amazon MQ.*
 
 On Amazon MQ, a class reports `HighAvailability` in `status.supportedFeatures`.
 
@@ -140,7 +140,7 @@ spec:
     consumer_timeout: "1800000"
 ```
 
-*A `RabbitMQParameters` a user shares between their brokers.*
+*`RabbitMQParameters` shared between a user's brokers.*
 
 A `RabbitMQParameters` names no other, so references never chain. Settings Amazon MQ does not
 accept are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
@@ -185,7 +185,7 @@ spec:
   secretName: orders-app-login         # unset, orders-mq-orders-app (principle 6)
 ```
 
-*A `RabbitMQUser` with permissions on one virtual host.*
+*`RabbitMQUser` with permissions on one virtual host.*
 
 ### RabbitMQVirtualHost
 
@@ -212,7 +212,7 @@ spec:
   deletionProtection: true             # deleting it deletes its queues and messages
 ```
 
-*A `RabbitMQVirtualHost` in a broker.*
+*`RabbitMQVirtualHost` in a broker.*
 
 ## Mapping
 
@@ -228,7 +228,7 @@ The first table names what each common field maps to in Amazon MQ:
 | `parameters`         | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
 | `parametersRef`      | merged into `parameters`                                                 |
 
-*Common fields of `RabbitMQBroker` and their provider fields.*
+*`RabbitMQBroker` common fields and their provider fields.*
 
 The second names the provider configuration kind and what its fields map to:
 
@@ -239,7 +239,7 @@ The second names the provider configuration kind and what its fields map to:
 | `instanceType`       | `hostInstanceType`                                    |
 | `publiclyAccessible` | `publiclyAccessible`; `true` omits the security group |
 
-*Fields of `RabbitMQAmazonMQConfig`.*
+*`RabbitMQAmazonMQConfig` fields.*
 
 **AWS:** `publiclyAccessible` is set at creation only: Amazon MQ replaces a broker to change it
 (`ForceNew` in [terraform-provider-aws](https://github.com/hashicorp/terraform-provider-aws)). The
@@ -317,7 +317,7 @@ spec:
         key: password
 ```
 
-*A `RabbitMQBroker` on AWS and its composed resource.*
+*`RabbitMQBroker` and its composed resource.*
 
 ## Platform Decisions
 
@@ -329,7 +329,7 @@ for a `RabbitMQBroker` itself:
 | ----------- | -------------------------------------- |
 | Admin login | An admin user and a generated password |
 
-*Settings the platform makes for a `RabbitMQBroker`.*
+*`RabbitMQBroker` settings chosen by the platform.*
 
 ## Cloud Limits
 
@@ -342,7 +342,7 @@ release named, or the cloud's documentation as read in November 2026.
 | ------------------------ | ----- | -------------------- | ------------------------------------------------------- |
 | `highAvailability: true` | AWS   | not on `mq.t3.micro` | Amazon MQ documentation, RabbitMQ broker instance types |
 
-*Limits AWS enforces on RabbitMQ.*
+*RabbitMQ field limits and their sources.*
 
 ## Notes
 

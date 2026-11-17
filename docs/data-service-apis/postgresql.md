@@ -89,7 +89,7 @@ spec:
       name: orders-azure               # a PostgreSQLFlexibleServerConfig in this namespace
 ```
 
-*A `PostgreSQLCluster` with its common fields and an entry per implementation.*
+*`PostgreSQLCluster` with common fields and one entry per implementation.*
 
 An entry holds its settings inline, in `spec`, or names a separate object of its kind, through
 `ref`, as the Azure entry does:
@@ -106,7 +106,7 @@ spec:
   storageTier: P10                     # P4 to P80; sets the disk's IOPS
 ```
 
-*A `PostgreSQLFlexibleServerConfig` that a cluster's entry references.*
+*`PostgreSQLFlexibleServerConfig` referenced by a cluster entry.*
 
 Most clusters name nothing implementation-specific and take the class's provider configuration as it
 is:
@@ -124,7 +124,7 @@ spec:
     sizeGB: 100
 ```
 
-*A `PostgreSQLCluster` that takes its class's defaults.*
+*`PostgreSQLCluster` using its class defaults.*
 
 `restore` creates a cluster from another cluster's backups, at a point in time. A deleted cluster is
 restored instead with its provider configuration's `fromBackup`, such as an RDS snapshot ID. Both
@@ -144,7 +144,7 @@ spec:
     pointInTime: "2026-11-01T10:00:00Z"
 ```
 
-*A `PostgreSQLCluster` created from another cluster's backups.*
+*`PostgreSQLCluster` restored from another cluster's backups.*
 
 `version` is the major version, such as `"17"`, and the implementation applies minor versions in the
 maintenance window.
@@ -186,7 +186,7 @@ status:
     state: available
 ```
 
-*A `PostgreSQLCluster` status on AWS.*
+*`PostgreSQLCluster` status on AWS.*
 
 The admin login is in the secret `<instance>-dbadmin`, with the keys of principle 6.
 
@@ -224,7 +224,7 @@ spec:
     deletionProtection: true
 ```
 
-*A `PostgreSQLClass` for RDS.*
+*`PostgreSQLClass` for RDS.*
 
 A class's status lists the portable features its implementation supports, written by the
 implementation (principle 1):
@@ -235,7 +235,7 @@ status:
   - HighAvailability
 ```
 
-*The supported features of a `PostgreSQLClass`.*
+*`PostgreSQLClass` supported features.*
 
 A class with no provider configuration uses the one implementation its deployment installs, so it
 holds only common fields and can be copied to every deployment unchanged.
@@ -259,7 +259,7 @@ spec:
     random_page_cost: "1.1"
 ```
 
-*A `PostgreSQLParameters` a user shares between their clusters.*
+*`PostgreSQLParameters` shared between a user's clusters.*
 
 A `PostgreSQLParameters` names no other: settings layer only through where it is referenced, so
 references never chain. Settings the implementation does not allow are rejected by the cloud and
@@ -298,7 +298,7 @@ spec:
   secretName: orders-app-login         # unset, orders-db-orders-app (principle 6)
 ```
 
-*A `PostgreSQLUser` that receives the `reporting` role.*
+*`PostgreSQLUser` granted the `reporting` role.*
 
 ### PostgreSQLDatabase
 
@@ -337,7 +337,7 @@ spec:
   deletionProtection: true
 ```
 
-*A `PostgreSQLDatabase` with the PostGIS extension in its own schema.*
+*`PostgreSQLDatabase` with PostGIS in its own schema.*
 
 ## Mapping
 
@@ -367,7 +367,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 | `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`                    | `createMode: PointInTimeRestore`, `sourceServerId`                                   |
 | `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                               | `pointInTimeRestoreTimeInUtc`                                                        |
 
-*Common fields of `PostgreSQLCluster` and their provider fields.*
+*`PostgreSQLCluster` common fields and their provider fields.*
 
 The second names the implementation's provider configuration kind and what its fields map to:
 
@@ -384,7 +384,7 @@ The second names the implementation's provider configuration kind and what its f
 | `memoryGB`           |                                      |                                                      | `instanceMemorySizeInGbs`                                        |                                                                          |
 | `storageTier`        |                                      |                                                      |                                                                  | `storageTier`                                                            |
 
-*Fields of each provider configuration kind.*
+*PostgreSQL provider configuration fields.*
 
 **AWS:** provider keys are from the CRDs of [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). Only RDS can
@@ -516,7 +516,7 @@ spec:
     kmsKeyId: arn:aws:kms:eu-north-1:111122223333:key/data  # platform
 ```
 
-*A `PostgreSQLCluster` on AWS and its composed resource.*
+*`PostgreSQLCluster` and its composed resource.*
 
 ```yaml Object
 ---
@@ -613,7 +613,7 @@ spec:
         privateNetwork: projects/p/global/networks/deployment
 ```
 
-*A `PostgreSQLCluster` on GCP and its composed resource.*
+*`PostgreSQLCluster` and its composed resource.*
 
 ```yaml Object
 ---
@@ -709,7 +709,7 @@ spec:
     - username: dbadmin
 ```
 
-*A `PostgreSQLCluster` on OCI and its composed resource.*
+*`PostgreSQLCluster` and its composed resource.*
 
 ```yaml Object
 ---
@@ -796,7 +796,7 @@ spec:
       key: password
 ```
 
-*A `PostgreSQLCluster` on Azure and its composed resource.*
+*`PostgreSQLCluster` and its composed resource.*
 
 ## Platform Decisions
 
@@ -810,7 +810,7 @@ for a `PostgreSQLCluster` itself:
 | Port         | 5432                                                                                   |
 | Final backup | Taken when a cluster is deleted, switched on per deployment, where the cloud takes one |
 
-*Settings the platform makes for a `PostgreSQLCluster`.*
+*`PostgreSQLCluster` settings chosen by the platform.*
 
 ## Cloud Limits
 
@@ -832,4 +832,4 @@ release named, or the cloud's documentation as read in November 2026.
 | `diskType`                                | GCP   | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED` | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
 | `storageTier`                             | Azure | `P4` to `P80`                            | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                 |
 
-*Limits the cloud enforces on PostgreSQL.*
+*PostgreSQL field limits and their sources.*

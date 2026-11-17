@@ -13,7 +13,7 @@ Each data service is built from four parts:
 | Provider configuration | The settings that exist only in one implementation, in a kind that implementation defines        | the user | a `PostgreSQLRDSConfig` with an RDS size |
 | Class                  | A deployment's choice of implementation, its defaults and the values a user cannot change        | Entigo   | a `PostgreSQLClass` named `standard`     |
 
-*The parts of a data service.*
+*Data service parts and their owners.*
 
 A user writes a core kind that names a class, and may add a provider configuration for each
 implementation it can run on. Each deployment applies the provider configuration of its class's

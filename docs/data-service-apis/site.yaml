@@ -12,7 +12,7 @@ schemaTab: &schemas                       # shared by every service's Schemas ta
   label: Schemas
   intro: "Each kind is defined by its schema: a Crossplane composite resource definition (XRD) for a kind the platform composes, and a CustomResourceDefinition for a class, parameters or a provider configuration. A schema holds the kind's fields, their descriptions and the rules the API checks."
   partIntro: "The schema of `{label}`:"
-  partCaption: "The draft schema of `{label}`, from `{file}`."
+  partCaption: "Draft `{label}` schema from `{file}`."
 nav:
 - file: README.md
   label: Overview

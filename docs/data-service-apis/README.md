@@ -20,7 +20,7 @@ flowchart LR
   class status app
 ```
 
-*The path from a data service object to its resource on the deployment's cloud.*
+*Data service reconciliation from object to cloud resource.*
 
 Today each API is built around one AWS service: its spec takes AWS values, such as an RDS instance
 class, its status reports AWS identifiers, and the developer portal hard-codes AWS values in its
