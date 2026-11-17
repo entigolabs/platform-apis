@@ -211,14 +211,15 @@ topic. `Literal` and `Prefixed` are Kafka's own ACL pattern types.
 
 *`KafkaUser` identity and login per cloud.*
 
-ACLs are Kafka ACLs on every cloud: provider-kafka on AWS and OCI,
-[`google_managed_kafka_acl`](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/managed_kafka_acl)
-or the Kafka admin API on GCP. On AWS and OCI, `patternType` maps to provider-kafka's
+ACLs are Kafka ACLs on every cloud: provider-kafka on AWS and OCI, `google_managed_kafka_acl` or
+the Kafka admin API on GCP. On AWS and OCI, `patternType` maps to provider-kafka's
 `resourcePatternTypeFilter`, which takes `Literal` and `Prefixed`, and a consumer group to
-`resourceType: Group`
-([`acl.kafka.crossplane.io_accesscontrollists.yaml`](https://github.com/crossplane-contrib/provider-kafka/blob/main/package/crds/acl.kafka.crossplane.io_accesscontrollists.yaml),
-provider-kafka `main` as read in November 2026). The form a prefixed ACL takes in
-`google_managed_kafka_acl` is unverified.
+`resourceType: Group`. The form a prefixed ACL takes in `google_managed_kafka_acl` is unverified.
+
+Sources:
+[`google_managed_kafka_acl`](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/managed_kafka_acl),
+[`acl.kafka.crossplane.io_accesscontrollists.yaml`](https://github.com/crossplane-contrib/provider-kafka/blob/main/package/crds/acl.kafka.crossplane.io_accesscontrollists.yaml)
+(provider-kafka `main`, November 2026).
 
 Secret `<cluster>-<user>`: `endpoint` (the bootstrap servers, as `host:port` pairs, so no `port`),
 `username`, `password` and `saslMechanism` (`SCRAM-SHA-512` or `PLAIN`), since the mechanism

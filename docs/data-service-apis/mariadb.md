@@ -199,13 +199,14 @@ Its `name` and `serverRef` are immutable, `serverRef` may name another namespace
 A user's databases and privileges are a list, `databases`, with one entry per database, so an
 application that uses two databases on one server needs one login, as principle 12 requires. Each
 entry becomes one provider-sql `Grant`, and each `databaseRef` takes `namespace` too (principle 11).
-provider-sql writes the four secret keys principle 6 names for MariaDB users too
-([`pkg/clients/mysql/mysql.go`](https://github.com/crossplane-contrib/provider-sql/blob/v0.16.1/pkg/clients/mysql/mysql.go),
-[provider-sql v0.16.1](https://github.com/crossplane-contrib/provider-sql/releases/tag/v0.16.1)).
-The four limits on a user (`maxQueriesPerHour`, `maxUpdatesPerHour`, `maxConnectionsPerHour`,
-`maxUserConnections`) default to 0, which MariaDB treats as no limit, as it does for any new user
-([CREATE
-USER](https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/create-user)).
+provider-sql v0.16.1 writes the four secret keys principle 6 names for MariaDB users too. The four
+limits on a user (`maxQueriesPerHour`, `maxUpdatesPerHour`, `maxConnectionsPerHour`,
+`maxUserConnections`) default to 0, which MariaDB treats as no limit, as it does for any new user.
+
+Sources:
+[`pkg/clients/mysql/mysql.go`](https://github.com/crossplane-contrib/provider-sql/blob/v0.16.1/pkg/clients/mysql/mysql.go),
+[provider-sql v0.16.1](https://github.com/crossplane-contrib/provider-sql/releases/tag/v0.16.1),
+[CREATE USER](https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/create-user).
 
 An example:
 

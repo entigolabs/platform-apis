@@ -55,16 +55,17 @@ no identity, and [API Changes](changes.md#bucket) keeps `S3Bucket` served until 
 one. Known so far:
 
 - Portal applications currently reach buckets only through the keys of `S3Bucket`, because `WebApp`
-  sets no service account
-  ([`functions/workload/service/web_app.go`](https://github.com/entigolabs/platform-apis/blob/main/functions/workload/service/web_app.go)),
-  so they keep `S3Bucket` until application identity is available.
+  sets no service account, so they keep `S3Bucket` until application identity is available.
 - For buckets, the identity is a role or managed identity per service account on AWS and Azure, the
-  service account itself on GCP and OCI, or a key pair. On OCI, [crossplane-provider-oci
-  v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0) writes a
-  `CustomerSecretKey`'s secret only to its plain status (`status.atProvider.key`).
+  service account itself on GCP and OCI, or a key pair. On OCI, crossplane-provider-oci v2.0.0
+  writes a `CustomerSecretKey`'s secret only to its plain status (`status.atProvider.key`).
 - For pushing to an artifact repository, CI currently uses credentials configured outside the API.
   OCIR accepts a user's auth token or an instance principal through Oracle's
   docker-credential-ocir.
+
+Sources:
+[`functions/workload/service/web_app.go`](https://github.com/entigolabs/platform-apis/blob/main/functions/workload/service/web_app.go),
+[crossplane-provider-oci v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0).
 
 #### 4 Limit Zone Argo CD projects to an allowlist of kinds
 
@@ -80,8 +81,10 @@ provider installed later is blocked by default. The `observe` check in
 
 Argo CD shows an object whose cloud rejected it as `Degraded`, with the cloud's message.
 
-Its health check for `*.entigo.com` kinds
-([`modules/k8s/argocd/values.yaml`](https://github.com/entigolabs/entigo-infralib/blob/main/modules/k8s/argocd/values.yaml)
-in [entigo-infralib](https://github.com/entigolabs/entigo-infralib)) marks an object `Degraded` only
-on `Synced` or `LastAsyncOperation` false. Until it also reads `CloudAccepted` (principle 10), a
-value the cloud rejects shows in Argo CD as `Progressing`, "Provisioning ...", with no message.
+Its health check for `*.entigo.com` kinds marks an object `Degraded` only on `Synced` or
+`LastAsyncOperation` false. Until it also reads `CloudAccepted` (principle 10), a value the cloud
+rejects shows in Argo CD as `Progressing`, "Provisioning ...", with no message.
+
+Sources:
+[`modules/k8s/argocd/values.yaml`](https://github.com/entigolabs/entigo-infralib/blob/main/modules/k8s/argocd/values.yaml)
+in [entigo-infralib](https://github.com/entigolabs/entigo-infralib).
