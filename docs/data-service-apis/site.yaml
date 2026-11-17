@@ -4,7 +4,7 @@ checklistCollection: openpoints
 revisions: revisions.md                       # the newest revision's number and date show under the title
 foldGroups: false                             # group headers are titles; every group stays open
 revisionTags:                                 # each agreed revision, frozen at its git tag; the page opens on the newest
-  1: data-service-apis-rev-1
+  1: {tag: data-service-apis-rev-1, site: site-rev-1.yaml}   # laid out as the current revision
 selectorChoices: [AWS, GCP, OCI, Azure]       # every cloud; one a service lacks is shown disabled
 itemLinks:                                # "principle N" in the text links to principle N
 - {word: principle, file: principles.md}
