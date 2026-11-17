@@ -2,7 +2,7 @@
 
 PostgreSQL is an open-source relational database, used by applications for their transactional data.
 
-Three kinds for teams: `PostgreSQLCluster`, one database cluster with its standby and read
+Three kinds for users: `PostgreSQLCluster`, one database cluster with its standby and read
 replicas; `PostgreSQLUser`, one application's login on a cluster, with its permissions; and
 `PostgreSQLDatabase`, one database on a cluster. Two kinds shape them: `PostgreSQLClass`, a
 deployment's defaults and limits, written by its operator, and `PostgreSQLParameters`, reusable
@@ -31,7 +31,7 @@ PostgreSQL is offered as five kinds, each with the manifest its owner writes.
 
 ### PostgreSQLCluster
 
-A team creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
+A user creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
 carries one provider config entry per implementation it may run on (principle 2); each deployment
 applies the entry of its own class's kind and ignores the others:
 
@@ -272,7 +272,7 @@ spec:
     random_page_cost: "1.1"
 ```
 
-*A `PostgreSQLParameters` a team shares between its clusters.*
+*A `PostgreSQLParameters` a user shares between their clusters.*
 
 A `PostgreSQLParameters` names no other: settings layer only through where it is referenced, so
 references never chain. Settings the implementation does not allow are rejected by the cloud and
@@ -440,7 +440,7 @@ spec:
 2. In `prod-dr`, that workspace's own platform creates a replica of it in its own region. The DR
    workspace owns the replica, so losing the primary's region does not also take down the platform
    that must promote it.
-3. To fail over, the team changes `primary` to `prod-dr` in Git, and `prod-dr`'s platform promotes
+3. To fail over, the user changes `primary` to `prod-dr` in Git, and `prod-dr`'s platform promotes
    its replica.
 
 The manifest names no region: each workspace's class decides where its copy runs. A replica that

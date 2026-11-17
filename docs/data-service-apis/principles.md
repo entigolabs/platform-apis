@@ -4,18 +4,21 @@ How every data service API is built, and the principles each follows.
 
 ## Model
 
+Two roles take part. A user is a team that runs its applications in a Zone and writes data service
+objects there. An operator runs an infralib deployment: its cluster and the cloud account behind it.
+
 Each data service has four parts, which the principles below rely on:
 
 | Part            | What it is                                                                                       | Owned by                  | Example                                  |
 | --------------- | ------------------------------------------------------------------------------------------------ | ------------------------- | ---------------------------------------- |
-| Core kind       | What a team asks for, the same wherever it runs                                                  | the team                  | a `PostgreSQLCluster`                    |
+| Core kind       | What a user asks for, the same wherever it runs                                                  | the user                  | a `PostgreSQLCluster`                    |
 | Implementation  | What provides a core kind on one platform: a cloud's managed service, or software in the cluster | Entigo, or a third party  | RDS, Cloud SQL, CloudNativePG            |
-| Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the team, or the operator | a `PostgreSQLRDSConfig` with an RDS size |
-| Class           | A deployment's choice of implementation, its defaults and the values a team cannot change        | the deployment's operator | a `PostgreSQLClass` named `standard`     |
+| Provider config | The settings that exist only in one implementation, in a kind that implementation defines        | the user, or the operator | a `PostgreSQLRDSConfig` with an RDS size |
+| Class           | A deployment's choice of implementation, its defaults and the values a user cannot change        | the operator              | a `PostgreSQLClass` named `standard`     |
 
 *The parts of a data service.*
 
-A team writes a core kind that names a class, and may add a provider config for each implementation
+A user writes a core kind that names a class, and may add a provider config for each implementation
 it can run on. Each deployment applies the provider config of its class's implementation, and the
 implementation turns the result into running resources.
 
@@ -40,7 +43,7 @@ portable as its common fields.
 Each class reports in its status which portable features its implementation supports, such as
 `HighAvailability`, `ReadReplicas` and `DisasterRecovery`. An object that asks for a feature its
 class does not report is refused when applied, with a message naming the class and the feature: a
-missing standby or replica is capacity a team counted on, so it is never dropped silently. A minor
+missing standby or replica is capacity a user counted on, so it is never dropped silently. A minor
 field that an implementation cannot honour is ignored there, and that implementation's mapping says
 so. An operation an implementation cannot perform fails, with the reason shown on the object.
 
@@ -148,7 +151,7 @@ other services, and `<instance>-<user>` for a user object. Every kind with a sec
 optional `secretName` to override that name. The platform never overwrites a Secret that another
 object or person owns: joined names can collide, as a user named `dbadmin` with the admin's secret,
 or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second object reports which
-object holds the name, and `secretName` resolves it. It also allows a team to use a name its
+object holds the name, and `secretName` resolves it. It also allows a user to use a name its
 application already expects.
 
 #### 7 A kind exists only where an implementation runs the same engine
@@ -223,9 +226,9 @@ and a resource that fails the check is refused with `CloudAccepted: False`. The 
 disaster recovery workspace find the resource it replicates, from the workspaces the object's
 `disasterRecovery` names.
 
-The check holds only because teams can create the platform's kinds and nothing else: kcp serves no
+The check holds only because users can create the platform's kinds and nothing else: kcp serves no
 provider kinds, and a Zone's Argo CD project and roles allow only the platform's and Kubernetes' own
-groups. A team that could create a provider's resource directly could observe anything without the
+groups. A user who could create a provider's resource directly could observe anything without the
 check.
 
 When the platform creates a resource, its name in the cloud includes a hash of the object's unique
@@ -265,7 +268,7 @@ it acts inside the engine, which is the same everywhere, and follows its parent'
 
 A reference may point to another namespace only within the same Zone, meaning both namespaces carry
 the same `tenancy.entigo.com/zone` label. Creating a user gives power over the parent, so it stays
-within the team's boundary, which the Zone already defines.
+within the user's boundary, which the Zone already defines.
 
 #### 12 A user object holds its own permissions
 
