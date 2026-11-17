@@ -53,34 +53,6 @@ spec:
                 x-kubernetes-validations:
                 - rule: self == oldSelf
                   message: fromBackup is set at creation only
-              readReplicas:
-                type: array
-                description: |-
-                  Read replicas of their own sizes, instead of the readReplicas count; not with
-                  it.
-                items:
-                  type: object
-                  properties:
-                    name:
-                      type: string
-                      description: |-
-                        The replica's name, which its cloud name ends with.
-                    instanceType:
-                      type: string
-                      description: |-
-                        The Cloud SQL machine tier of this replica.
-                    parametersRef:
-                      type: object
-                      description: |-
-                        Engine settings for this replica only.
-                      properties:
-                        name:
-                          type: string
-                      required:
-                      - name
-                  required:
-                  - name
-                  - instanceType
           status:
             type: object
             description: |-

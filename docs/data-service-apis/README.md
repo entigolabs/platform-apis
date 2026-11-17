@@ -46,6 +46,8 @@ managed service each cloud implements it with, and the changes from today's API.
 The design leaves these out:
 
 - Implementing the design on each cloud, and moving today's objects to it, are follow-up work.
+- Read replicas for PostgreSQL and MariaDB, and disaster recovery across workspaces, are
+  [deferred capabilities](deferred-capabilities.md).
 - A copy on a newer major version, and replication between clouds, use logical replication and
   belong to upgrades and migration.
 - Bounds on the values a user may choose, such as permitted sizes or a storage maximum, beyond the

@@ -181,10 +181,11 @@ settings, and the others are rejected by the cloud and reported as `CloudAccepte
 
 ## Read Replicas
 
-A `ValkeyServer` requests read replicas as [Common Design](common-design.md#read-replicas)
-describes, as a count only: the replicas are nodes of the server, all of its node type, so no
-implementation offers a layout. `highAvailability` places one of them in another zone, so it needs
-`readReplicas` of at least 1:
+`readReplicas: N` requests N read-only copies of the primary, nodes of the server with its node type,
+its parameters and its major version, since a replica copies the primary through Valkey's own
+replication. Applications send reads to them through the secret's `readerEndpoint` key, which holds
+the implementation's balanced read endpoint. `highAvailability` places one of them in another zone,
+so it needs `readReplicas` of at least 1:
 
 ```yaml
 ---

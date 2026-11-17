@@ -40,34 +40,6 @@ spec:
                 description: |-
                   The disk tier, such as P10, which sets its IOPS.
                   Default: the class's template.
-              readReplicas:
-                type: array
-                description: |-
-                  Read replicas of their own sizes, instead of the readReplicas count; not with
-                  it.
-                items:
-                  type: object
-                  properties:
-                    name:
-                      type: string
-                      description: |-
-                        The replica's name, which its cloud name ends with.
-                    instanceType:
-                      type: string
-                      description: |-
-                        The flexible server SKU of this replica.
-                    parametersRef:
-                      type: object
-                      description: |-
-                        Engine settings for this replica only.
-                      properties:
-                        name:
-                          type: string
-                      required:
-                      - name
-                  required:
-                  - name
-                  - instanceType
           status:
             type: object
             description: |-

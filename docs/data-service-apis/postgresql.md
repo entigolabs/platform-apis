@@ -2,7 +2,7 @@
 
 PostgreSQL is an open-source relational database, used by applications for their transactional data.
 
-Three kinds for users: `PostgreSQLCluster`, one database cluster with its standby and read replicas;
+Three kinds for users: `PostgreSQLCluster`, one database cluster with its standby;
 `PostgreSQLUser`, one application's login on a cluster, with its permissions; and
 `PostgreSQLDatabase`, one database on a cluster. Two kinds shape them: `PostgreSQLClass`, a
 deployment's defaults and limits, written by Entigo, and `PostgreSQLParameters`, reusable PostgreSQL
@@ -16,8 +16,6 @@ for PostgreSQL flexible server (Azure), each with a provider configuration kind 
 ## Contents
 
 - [Kinds](#kinds)
-- [Read Replicas](#read-replicas)
-- [Disaster Recovery](#disaster-recovery)
 - [Mapping](#mapping)
 - [Composed Resources](#composed-resources)
 - [Platform Decisions](#platform-decisions)
@@ -50,7 +48,6 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false              # a standby in another zone
-  readReplicas: 0                      # read-only copies identical to the primary
   deletionProtection: true
   maintenanceWindow:
     day: Sun
@@ -157,9 +154,8 @@ lowering it is rejected. The implementation may round it up and `autoGrow` can t
 further, so the status reports the actual size, and the platform never shrinks the disk back to
 `sizeGB`.
 
-`highAvailability`, `readReplicas` and `disasterRecovery` are portable features: an object that
-requests one its class does not support is refused when applied (principle 1). Read Replicas and
-Disaster Recovery, below, describe the last two.
+`highAvailability` is a portable feature: an object that requests it where its class does not
+support it is refused when applied (principle 1).
 
 The final backup's ID, which `fromBackup` needs, is lost with the cluster's status, so it is taken
 from the cloud console. Besides the common fields, the status shows which entry applied, where each
@@ -226,12 +222,6 @@ spec:
         instanceType: db.t4g.medium
   enforced:
     deletionProtection: true
-  standby:                             # only in a disaster recovery workspace
-    providerConfig:
-      apiVersion: aws.database.entigo.com/v1alpha1
-      kind: PostgreSQLRDSConfig
-      spec:
-        instanceType: db.t4g.small
 ```
 
 *A `PostgreSQLClass` for RDS.*
@@ -243,8 +233,6 @@ implementation (principle 1):
 status:
   supportedFeatures:
   - HighAvailability
-  - ReadReplicas
-  - DisasterRecovery
 ```
 
 *The supported features of a `PostgreSQLClass`.*
@@ -351,122 +339,50 @@ spec:
 
 *A `PostgreSQLDatabase` with the PostGIS extension in its own schema.*
 
-## Read Replicas
-
-A `PostgreSQLCluster` requests read replicas as [Common Design](common-design.md#read-replicas)
-describes. Two replicas identical to the primary:
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLCluster
-metadata:
-  name: orders-db
-  namespace: shop
-spec:
-  version: "17"
-  highAvailability: true               # a standby, not a read replica
-  readReplicas: 2
-```
-
-*A `PostgreSQLCluster` with two read replicas.*
-
-A reporting replica of its own size, on RDS:
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLCluster
-metadata:
-  name: orders-db
-  namespace: shop
-spec:
-  version: "17"
-  providerConfigs:
-  - apiVersion: aws.database.entigo.com/v1alpha1
-    kind: PostgreSQLRDSConfig
-    spec:
-      instanceType: db.m7g.xlarge
-      readReplicas:                    # replicas of their own sizes, instead of the count
-      - name: reporting
-        instanceType: db.r7g.2xlarge
-        parametersRef:
-          name: reporting-replica
-```
-
-*A `PostgreSQLCluster` with a reporting replica of its own size on RDS.*
-
-## Disaster Recovery
-
-A `PostgreSQLCluster` keeps a copy in another workspace as [Common
-Design](common-design.md#disaster-recovery) describes:
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLCluster
-metadata:
-  name: orders-db
-  namespace: shop
-spec:
-  className: standard
-  version: "17"
-  disasterRecovery:
-    workspaces:                        # the Entigo workspaces that hold this database
-    - prod
-    - prod-dr
-    primary: prod                      # the one that accepts writes
-```
-
-*A `PostgreSQLCluster` with a disaster recovery copy in another workspace.*
-
 ## Mapping
 
 The first table names what each common field maps to in the implementation's provider. A setting the
 implementation lacks shows as ignored, with the reason (principle 1):
 
-| Field                      | AWS                                                                              | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                |
-| -------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `observe`                  | `managementPolicies: [Observe]`                                                  | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                                      | `managementPolicies: [Observe]`                                                      |
-| `version`                  | `engineVersion`; the full version with minor upgrades off                        | `databaseVersion: POSTGRES_17`; a full version ignored                                                                                   | `dbVersion: "17"`; a full version ignored                                            | `version: "17"`; a full version ignored                                              |
-| `storage.sizeGB`           | `allocatedStorage`; below 20 rounded up to 20                                    | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                                 | `storageMb`, rounded up to the next of its 12 sizes                                  |
-| `storage.autoGrow`         | on with `maxAllocatedStorage`                                                    | `settings.diskAutoresize`                                                                                                                | always on; `false` ignored                                                           | `autoGrowEnabled`                                                                    |
-| `storage.maxSizeGB`        | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling           | `settings.diskAutoresizeLimit`                                                                                                           | ignored; storage grows without a ceiling                                             | ignored; growth has no ceiling                                                       |
-| `storage.iops`             | `iops`                                                                           | `settings.dataDiskProvisionedIops`; ignored without Hyperdisk                                                                            | `storageDetails.iops`                                                                | ignored; `storageTier` sets IOPS                                                     |
-| `storage.throughputMBps`   | `storageThroughput`                                                              | `settings.dataDiskProvisionedThroughput`; ignored without Hyperdisk                                                                      | ignored; the disk keeps its default throughput                                       | ignored; the disk keeps its default throughput                                       |
-| `highAvailability`         | `multiAz`                                                                        | `settings.availabilityType: REGIONAL`; with `backup.retentionDays: 0` rejected, as a regional instance needs backups                     | `instanceCount: 2`, regional storage                                                 | `highAvailability.mode: ZoneRedundant`                                               |
-| `readReplicas`             | one RDS read replica `Instance` each, with `replicateSourceDb`                   | one Cloud SQL read replica `DatabaseInstance` each, with `masterInstanceName`                                                            | more nodes of the DB system, on shared storage: `instanceCount`                      | one replica `FlexibleServer` each, with `createMode: Replica`                        |
-| `disasterRecovery`         | a cross-region read replica `Instance` in the DR workspace; promoted on failover | a cross-region read replica in the DR workspace; promoted on failover                                                                    | a standby DB system in the DR workspace; switched over on failover                   | a geo read replica in the DR workspace; promoted on failover                         |
-| `deletionProtection`       | `deletionProtection`                                                             | `settings.deletionProtectionEnabled`                                                                                                     | platform blocks deletion                                                             | platform blocks deletion                                                             |
-| `maintenanceWindow`        | `maintenanceWindow: sun:03:00-sun:03:30`                                         | `settings.maintenanceWindow` (`day: 7`, `hour: 3`)                                                                                       | `managementPolicy.maintenanceWindowStart: "SUN 03:00"`                               | `maintenanceWindow` (`dayOfWeek: 0`, `startHour: 3`)                                 |
-| `autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                        | always on; `false` ignored, and minor versions are applied in the maintenance window                                                     | always on; `false` ignored, and minor versions are applied in the maintenance window | always on; `false` ignored, and minor versions are applied in the maintenance window |
-| `allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                       | `databaseVersion` change allowed                                                                                                         | a major upgrade fails until the provider supports it                                 | `version` change allowed                                                             |
-| `backup.retentionDays`     | `backupRetentionPeriod`                                                          | `settings.backupConfiguration.backupRetentionSettings.retainedBackups`, with `pointInTimeRecoveryEnabled: true`; 0 sets `enabled: false` | `managementPolicy.backupPolicy.retentionDays`, DAILY; 0 sets `kind: NONE`            | `backupRetentionDays`; 0 ignored, backups are always on                              |
-| `backup.pointInTimeDays`   | the same setting; above `retentionDays` rejected                                 | `settings.backupConfiguration.transactionLogRetentionDays`                                                                               | `managementPolicy.pitrPolicy.restoreDays`, STANDARD                                  | the same setting; above `retentionDays` rejected                                     |
-| `backup.startHourUTC`      | `backupWindow`, 30 minutes                                                       | `settings.backupConfiguration.startTime`                                                                                                 | `managementPolicy.backupPolicy.backupStart`                                          | ignored; Azure picks the hour                                                        |
-| `parameters`               | a `ParameterGroup`                                                               | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                                 | one `FlexibleServerConfiguration` each                                               |
-| `parametersRef`            | merged into `parameters`                                                         | merged into `parameters`                                                                                                                 | merged into `parameters`                                                             | merged into `parameters`                                                             |
-| `parameterApplyMethod`     | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot`      | restarts when a flag needs it; `NextRestart` ignored                                                                                     | `NextRestart` ignored; a change that needs a restart restarts at once                | restarts when a setting needs it; `NextRestart` ignored                              |
-| `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                                | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`                    | `createMode: PointInTimeRestore`, `sourceServerId`                                   |
-| `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`             | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                               | `pointInTimeRestoreTimeInUtc`                                                        |
+| Field                      | AWS                                                                         | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                |
+| -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `observe`                  | `managementPolicies: [Observe]`                                             | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                                      | `managementPolicies: [Observe]`                                                      |
+| `version`                  | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`; a full version ignored                                                                                   | `dbVersion: "17"`; a full version ignored                                            | `version: "17"`; a full version ignored                                              |
+| `storage.sizeGB`           | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                                 | `storageMb`, rounded up to the next of its 12 sizes                                  |
+| `storage.autoGrow`         | on with `maxAllocatedStorage`                                               | `settings.diskAutoresize`                                                                                                                | always on; `false` ignored                                                           | `autoGrowEnabled`                                                                    |
+| `storage.maxSizeGB`        | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      | `settings.diskAutoresizeLimit`                                                                                                           | ignored; storage grows without a ceiling                                             | ignored; growth has no ceiling                                                       |
+| `storage.iops`             | `iops`                                                                      | `settings.dataDiskProvisionedIops`; ignored without Hyperdisk                                                                            | `storageDetails.iops`                                                                | ignored; `storageTier` sets IOPS                                                     |
+| `storage.throughputMBps`   | `storageThroughput`                                                         | `settings.dataDiskProvisionedThroughput`; ignored without Hyperdisk                                                                      | ignored; the disk keeps its default throughput                                       | ignored; the disk keeps its default throughput                                       |
+| `highAvailability`         | `multiAz`                                                                   | `settings.availabilityType: REGIONAL`; with `backup.retentionDays: 0` rejected, as a regional instance needs backups                     | `instanceCount: 2`, regional storage                                                 | `highAvailability.mode: ZoneRedundant`                                               |
+| `deletionProtection`       | `deletionProtection`                                                        | `settings.deletionProtectionEnabled`                                                                                                     | platform blocks deletion                                                             | platform blocks deletion                                                             |
+| `maintenanceWindow`        | `maintenanceWindow: sun:03:00-sun:03:30`                                    | `settings.maintenanceWindow` (`day: 7`, `hour: 3`)                                                                                       | `managementPolicy.maintenanceWindowStart: "SUN 03:00"`                               | `maintenanceWindow` (`dayOfWeek: 0`, `startHour: 3`)                                 |
+| `autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                   | always on; `false` ignored, and minor versions are applied in the maintenance window                                                     | always on; `false` ignored, and minor versions are applied in the maintenance window | always on; `false` ignored, and minor versions are applied in the maintenance window |
+| `allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                  | `databaseVersion` change allowed                                                                                                         | a major upgrade fails until the provider supports it                                 | `version` change allowed                                                             |
+| `backup.retentionDays`     | `backupRetentionPeriod`                                                     | `settings.backupConfiguration.backupRetentionSettings.retainedBackups`, with `pointInTimeRecoveryEnabled: true`; 0 sets `enabled: false` | `managementPolicy.backupPolicy.retentionDays`, DAILY; 0 sets `kind: NONE`            | `backupRetentionDays`; 0 ignored, backups are always on                              |
+| `backup.pointInTimeDays`   | the same setting; above `retentionDays` rejected                            | `settings.backupConfiguration.transactionLogRetentionDays`                                                                               | `managementPolicy.pitrPolicy.restoreDays`, STANDARD                                  | the same setting; above `retentionDays` rejected                                     |
+| `backup.startHourUTC`      | `backupWindow`, 30 minutes                                                  | `settings.backupConfiguration.startTime`                                                                                                 | `managementPolicy.backupPolicy.backupStart`                                          | ignored; Azure picks the hour                                                        |
+| `parameters`               | a `ParameterGroup`                                                          | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                                 | one `FlexibleServerConfiguration` each                                               |
+| `parametersRef`            | merged into `parameters`                                                    | merged into `parameters`                                                                                                                 | merged into `parameters`                                                             | merged into `parameters`                                                             |
+| `parameterApplyMethod`     | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` | restarts when a flag needs it; `NextRestart` ignored                                                                                     | `NextRestart` ignored; a change that needs a restart restarts at once                | restarts when a setting needs it; `NextRestart` ignored                              |
+| `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`                    | `createMode: PointInTimeRestore`, `sourceServerId`                                   |
+| `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                               | `pointInTimeRestoreTimeInUtc`                                                        |
 
 *Common fields of `PostgreSQLCluster` and their provider fields.*
 
 The second names the implementation's provider configuration kind and what its fields map to:
 
-| Field                | AWS                                                                     | GCP                                                       | OCI                                                              | Azure                                                                    |
-| -------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| kind                 | `PostgreSQLRDSConfig`                                                   | `PostgreSQLCloudSQLConfig`                                | `PostgreSQLOCIConfig`                                            | `PostgreSQLFlexibleServerConfig`                                         |
-| `id`                 | the console's Resource ID (`db-...`)                                    | the instance name                                         | the DB system's OCID                                             | the server's resource ID; the function takes the name and resource group |
-| `instanceType`       | `instanceClass`                                                         | `settings.tier`                                           | `shape`; a `.Flex` shape without `ocpus` and `memoryGB` rejected | `skuName`                                                                |
-| `fromBackup`         | `snapshotIdentifier`                                                    | `restoreBackupContext` (`instanceId`, `backupRunId`)      | `source.sourceType: BACKUP`, `source.backupId`                   |                                                                          |
-| `parameterGroupName` | `parameterGroupName`                                                    |                                                           |                                                                  |                                                                          |
-| `edition`            |                                                                         | `settings.edition`                                        |                                                                  |                                                                          |
-| `diskType`           |                                                                         | `settings.diskType`                                       |                                                                  |                                                                          |
-| `ocpus`              |                                                                         |                                                           | `instanceOcpuCount`                                              |                                                                          |
-| `memoryGB`           |                                                                         |                                                           | `instanceMemorySizeInGbs`                                        |                                                                          |
-| `storageTier`        |                                                                         |                                                           |                                                                  | `storageTier`                                                            |
-| `readReplicas`       | one RDS read replica `Instance` per entry, with its own `instanceClass` | one Cloud SQL read replica per entry, with its own `tier` |                                                                  | one replica `FlexibleServer` per entry, with its own `skuName`           |
+| Field                | AWS                                  | GCP                                                  | OCI                                                              | Azure                                                                    |
+| -------------------- | ------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| kind                 | `PostgreSQLRDSConfig`                | `PostgreSQLCloudSQLConfig`                           | `PostgreSQLOCIConfig`                                            | `PostgreSQLFlexibleServerConfig`                                         |
+| `id`                 | the console's Resource ID (`db-...`) | the instance name                                    | the DB system's OCID                                             | the server's resource ID; the function takes the name and resource group |
+| `instanceType`       | `instanceClass`                      | `settings.tier`                                      | `shape`; a `.Flex` shape without `ocpus` and `memoryGB` rejected | `skuName`                                                                |
+| `fromBackup`         | `snapshotIdentifier`                 | `restoreBackupContext` (`instanceId`, `backupRunId`) | `source.sourceType: BACKUP`, `source.backupId`                   | ------------------------------------------------------------------------ |
+| `parameterGroupName` | `parameterGroupName`                 | ---------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `edition`            | ------------------------------------ | `settings.edition`                                   | ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `diskType`           | ------------------------------------ | `settings.diskType`                                  | ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `ocpus`              | ------------------------------------ | ---------------------------------------------------- | `instanceOcpuCount`                                              | ------------------------------------------------------------------------ |
+| `memoryGB`           | ------------------------------------ | ---------------------------------------------------- | `instanceMemorySizeInGbs`                                        | ------------------------------------------------------------------------ |
+| `storageTier`        | ------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------- | `storageTier`                                                            |
 
 *Fields of each provider configuration kind.*
 
@@ -522,7 +438,6 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
-  readReplicas: 0
   deletionProtection: true
   maintenanceWindow:
     day: Sun
@@ -620,7 +535,6 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
-  readReplicas: 0
   deletionProtection: true
   maintenanceWindow:
     day: Sun
@@ -718,7 +632,6 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
-  readReplicas: 0
   deletionProtection: true
   maintenanceWindow:
     day: Sun
@@ -815,7 +728,6 @@ spec:
     iops: 12000
     throughputMBps: 500
   highAvailability: false
-  readReplicas: 0
   deletionProtection: true
   maintenanceWindow:
     day: Sun

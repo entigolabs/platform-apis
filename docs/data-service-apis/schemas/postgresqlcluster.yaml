@@ -89,37 +89,6 @@ spec:
                   A standby in another zone, with automatic failover. Refused where the class does
                   not support HighAvailability (principle 1).
                   Default: the class's template.
-              readReplicas:
-                type: integer
-                description: |-
-                  Read-only copies identical to the primary. Refused where the class does not
-                  support ReadReplicas (principle 1).
-                  Default: fixed, 0.
-                minimum: 0
-              disasterRecovery:
-                type: object
-                description: |-
-                  A copy in another workspace that can become the primary. Refused where the class
-                  does not support DisasterRecovery (principle 1).
-                properties:
-                  workspaces:
-                    type: array
-                    description: |-
-                      The Entigo workspaces that hold this database: the primary, and those holding a
-                      replica that can take over.
-                    items:
-                      type: string
-                    minItems: 2
-                  primary:
-                    type: string
-                    description: |-
-                      The workspace that accepts writes. Changing it in every workspace fails over.
-                required:
-                - workspaces
-                - primary
-                x-kubernetes-validations:
-                - rule: self.primary in self.workspaces
-                  message: primary must be one of workspaces
               deletionProtection:
                 type: boolean
                 description: |-
@@ -283,7 +252,7 @@ spec:
               message: observe is immutable
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.version) && !has(self.storage) && !has(self.highAvailability) && !has(self.readReplicas) && !has(self.disasterRecovery) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.autoMinorVersionUpgrade) && !has(self.allowMajorVersionUpgrade) && !has(self.backup) && !has(self.parametersRef) && !has(self.parameters) && !has(self.parameterApplyMethod) && !has(self.restore))
+                || (!has(self.version) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.autoMinorVersionUpgrade) && !has(self.allowMajorVersionUpgrade) && !has(self.backup) && !has(self.parametersRef) && !has(self.parameters) && !has(self.parameterApplyMethod) && !has(self.restore))
               message: an observed resource takes no other common field
             - rule: |-
                 has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || self.restore == oldSelf.restore)
@@ -320,8 +289,6 @@ spec:
                     type: integer
               highAvailability:
                 type: boolean
-              readReplicas:
-                type: integer
               maintenanceWindow:
                 type: object
                 properties:
@@ -349,25 +316,10 @@ spec:
                     type: string
                   port:
                     type: integer
-              readerEndpoint:
-                type: string
-                description: |-
-                  The read address: one balanced host, or the replicas' hosts where the
-                  implementation has none (principle 6).
               connectionSecret:
                 type: string
                 description: |-
                   The admin Secret, <instance>-dbadmin (principle 6).
-              disasterRecovery:
-                type: object
-                description: |-
-                  This workspace's role.
-                properties:
-                  role:
-                    type: string
-                    enum:
-                    - Primary
-                    - Replica
               providerConfig:
                 type: object
                 description: |-

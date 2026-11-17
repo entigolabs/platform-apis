@@ -153,34 +153,6 @@ spec:
                     required:
                     - name
                     - namespace
-              standby:
-                type: object
-                description: |-
-                  Settings for a disaster recovery replica in this workspace.
-                properties:
-                  providerConfig:
-                    type: object
-                    description: |-
-                      Applied only while this workspace is not the primary of disasterRecovery, such
-                      as a smaller size for a pilot-light replica.
-                    properties:
-                      apiVersion:
-                        type: string
-                        description: |-
-                          The provider configuration kind's group and version, such as
-                          aws.database.entigo.com/v1alpha1.
-                      kind:
-                        type: string
-                        description: |-
-                          The provider configuration kind, such as PostgreSQLRDSConfig.
-                      spec:
-                        type: object
-                        x-kubernetes-preserve-unknown-fields: true
-                        description: |-
-                          The settings.
-                    required:
-                    - apiVersion
-                    - kind
             x-kubernetes-validations:
             - rule: |-
                 !has(self.template)
@@ -202,7 +174,6 @@ spec:
                   enum:
                   - HighAvailability
                   - ReadReplicas
-                  - DisasterRecovery
         required:
         - spec
     subresources:

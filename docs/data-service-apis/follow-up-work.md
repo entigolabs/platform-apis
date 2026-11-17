@@ -84,12 +84,3 @@ Its health check for `*.entigo.com` kinds
 in [entigo-infralib](https://github.com/entigolabs/entigo-infralib)) marks an object `Degraded` only
 on `Synced` or `LastAsyncOperation` false. Until it also reads `CloudAccepted` (principle 10), a
 value the cloud rejects shows in Argo CD as `Progressing`, "Provisioning ...", with no message.
-
-#### 6 Disaster recovery for the other services
-
-Valkey, Kafka, RabbitMQ, buckets and artifact repositories keep a copy in another workspace.
-
-[Disaster recovery](common-design.md#disaster-recovery) covers [PostgreSQL](postgresql.md) and
-[MariaDB](mariadb.md) only. Each other service needs its implementations' own replication across
-regions, and its classes report no `DisasterRecovery` until then, so a manifest that requests it is
-refused (principle 1).

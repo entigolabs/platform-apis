@@ -1,6 +1,6 @@
 # Open Points
 
-Questions to decide before implementation. Points 4 to 10 come from Rein Remmel's proposal,
+Questions to decide before implementation. Points 4 to 6 come from Rein Remmel's proposal,
 [Provider Configs and Classes for Portable Data Service APIs](https://claude.ai/artifact/XEQLcGTK3Co7dwuygecC7M).
 
 #### 1 Which API group do the kinds take, and how do existing objects move to it?
@@ -105,85 +105,10 @@ limits the classes per Zone.
 
 *Ways to restrict the classes per Zone.*
 
-#### 6 Does a user's secret carry the reader endpoint?
+#### 6 Which further needs become portable features?
 
-**Context.** A cluster's admin secret holds `readerEndpoint` while the cluster has read replicas
-([Read Replicas](common-design.md#read-replicas)). A user exists on the replicas too, since users
-replicate with the data.
-
-**Problem.** An application that logs in with its own user, not the admin login, has no
-`readerEndpoint` in its secret, so it cannot send reads to the replicas without reading the admin
-secret as well.
-
-**Options:**
-
-| Option                          | Effect                                                                                     | Cost                                                                          |
-| ------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| The user's secret carries it    | Each user's secret also holds `readerEndpoint`, updated when replicas are added or removed | The platform rewrites every user's secret on each replica change              |
-| The cluster's status carries it | Applications read `status.readerEndpoint` of the cluster                                   | An application needs read access to the cluster object, and reads two sources |
-
-*Ways for an application to find the read replicas.*
-
-#### 7 Can fencing of the old primary be automated?
-
-**Context.** When an old primary's workspace returns after a failover, its platform stops writes and
-rebuilds the database as a replica ([Disaster Recovery](common-design.md#disaster-recovery)).
-
-**Problem.** Whether RDS, Cloud SQL and Azure let the platform stop writes and rebuild a database as
-a replica without manual steps is unverified. Until then, two primaries can accept writes after the
-old region returns.
-
-**Options:**
-
-| Option                                            | Effect                                                                                | Cost                                                                       |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Automated per implementation                      | Each implementation fences the old primary itself                                     | Fencing built and tested for each implementation                           |
-| A runbook step                                    | Failback stays manual until fencing is automated                                      | A window in which both primaries accept writes, closed only by an operator |
-| Disaster recovery only where fencing is automated | A class reports `DisasterRecovery` only where its implementation fences automatically | Fewer implementations offer disaster recovery                              |
-
-*Ways to fence the old primary.*
-
-#### 8 Is a disaster recovery replica small or full size by default?
-
-**Context.** A class in a disaster recovery workspace can hold a `standby` provider configuration,
-applied while that workspace is not the primary; on promotion, the platform resizes the replica to
-the object's own size ([Disaster Recovery](common-design.md#disaster-recovery)).
-
-**Problem.** A small replica costs less but adds the resize to the recovery time, and the design
-states no default between the two.
-
-**Options:**
-
-| Option               | Recovery                                       | Cost                                                                     |
-| -------------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
-| Small by default     | Slower: the replica is resized on promotion    | Lowest running cost; recovery time includes the resize                   |
-| Full size by default | Fastest: the replica runs at the object's size | About twice the running cost of the database                             |
-| No default           | Each class states its choice                   | Every class written for a disaster recovery workspace needs the decision |
-
-*Default sizes of a disaster recovery replica.*
-
-#### 9 How are the primary and disaster recovery workspaces paired?
-
-**Context.** A disaster recovery workspace reads the primary workspace's tagged resources and its
-replicated secrets ([Disaster Recovery](common-design.md#disaster-recovery)).
-
-**Problem.** Reading another workspace's resources needs permissions across cloud accounts or
-projects, and the design does not state who grants them or where.
-
-**Options:**
-
-| Option                     | Effect                                                                                              | Cost                                                                                    |
-| -------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Granted by Entigo per pair | The deployment configuration of both workspaces names the pair, and infralib grants the permissions | A step for each new pair; the pairs are visible in configuration                        |
-| Granted from the object    | The platform grants the permissions when an object names both workspaces in `disasterRecovery`      | No manual step, but any user who can create the object widens access between workspaces |
-
-*Ways to pair two workspaces.*
-
-#### 10 Which further needs become portable features?
-
-**Context.** Classes report three portable features, `HighAvailability`, `ReadReplicas` and
-`DisasterRecovery`, and an object that requests one its class does not report is refused
-(principle 1).
+**Context.** Classes report two portable features, `HighAvailability` and `ReadReplicas`, and an
+object that requests one its class does not report is refused (principle 1).
 
 **Problem.** Other needs, such as replica autoscaling, exist in some implementations only. Without a
 portable feature for them, they can only be settings of one implementation, and a manifest cannot
@@ -193,7 +118,7 @@ state them portably.
 
 | Option                                     | Effect                                                                                                                 | Cost                                                    |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| The three features only                    | Every other need is a setting of one implementation                                                                    | No portable form for needs such as autoscaling          |
+| The two features only                      | Every other need is a setting of one implementation                                                                    | No portable form for needs such as autoscaling          |
 | A feature once two implementations meet it | A need becomes a portable feature when two or more implementations support it, as principle 1 states for common fields | A design change, and a revision, for each feature added |
 
 *Ways to add portable features.*

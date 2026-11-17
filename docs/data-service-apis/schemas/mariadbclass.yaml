@@ -80,19 +80,12 @@ spec:
                       A standby in another zone, with automatic failover. Refused where the class does
                       not support HighAvailability (principle 1).
                       Default: the class's template.
-                  readReplicas: &id004
-                    type: integer
-                    description: |-
-                      Read-only copies identical to the primary. Refused where the class does not
-                      support ReadReplicas (principle 1).
-                      Default: fixed, 0.
-                    minimum: 0
-                  deletionProtection: &id005
+                  deletionProtection: &id004
                     type: boolean
                     description: |-
                       Deleting the object is denied while true.
                       Default: fixed, true.
-                  maintenanceWindow: &id006
+                  maintenanceWindow: &id005
                     type: object
                     description: |-
                       The weekly hour, in UTC, in which the cloud applies updates.
@@ -114,18 +107,18 @@ spec:
                     required:
                     - day
                     - hourUTC
-                  autoMinorVersionUpgrade: &id007
+                  autoMinorVersionUpgrade: &id006
                     type: boolean
                     description: |-
                       Apply new minor versions in the maintenance window. false keeps the minor
                       written in version.
                       Default: the class's template.
-                  allowMajorVersionUpgrade: &id008
+                  allowMajorVersionUpgrade: &id007
                     type: boolean
                     description: |-
                       Allow version to change to a later major.
                       Default: fixed, false.
-                  backup: &id009
+                  backup: &id008
                     type: object
                     properties:
                       retentionDays:
@@ -165,13 +158,13 @@ spec:
                     required:
                     - name
                     - namespace
-                  parameters: &id010
+                  parameters: &id009
                     type: object
                     description: |-
                       MariaDB settings for this object only, merged after parametersRef.
                     additionalProperties:
                       type: string
-                  parameterApplyMethod: &id011
+                  parameterApplyMethod: &id010
                     type: string
                     description: |-
                       The moment changed parameters take effect. Immediate restarts the instance where
@@ -210,12 +203,11 @@ spec:
                   version: *id001
                   storage: *id002
                   highAvailability: *id003
-                  readReplicas: *id004
-                  deletionProtection: *id005
-                  maintenanceWindow: *id006
-                  autoMinorVersionUpgrade: *id007
-                  allowMajorVersionUpgrade: *id008
-                  backup: *id009
+                  deletionProtection: *id004
+                  maintenanceWindow: *id005
+                  autoMinorVersionUpgrade: *id006
+                  allowMajorVersionUpgrade: *id007
+                  backup: *id008
                   parametersRef:
                     type: object
                     description: |-
@@ -228,40 +220,12 @@ spec:
                     required:
                     - name
                     - namespace
-                  parameters: *id010
-                  parameterApplyMethod: *id011
+                  parameters: *id009
+                  parameterApplyMethod: *id010
                   providerConfig:
                     type: object
                     description: |-
                       The provider configuration: its kind names the implementation this class uses.
-                    properties:
-                      apiVersion:
-                        type: string
-                        description: |-
-                          The provider configuration kind's group and version, such as
-                          aws.database.entigo.com/v1alpha1.
-                      kind:
-                        type: string
-                        description: |-
-                          The provider configuration kind, such as PostgreSQLRDSConfig.
-                      spec:
-                        type: object
-                        x-kubernetes-preserve-unknown-fields: true
-                        description: |-
-                          The settings.
-                    required:
-                    - apiVersion
-                    - kind
-              standby:
-                type: object
-                description: |-
-                  Settings for a disaster recovery replica in this workspace.
-                properties:
-                  providerConfig:
-                    type: object
-                    description: |-
-                      Applied only while this workspace is not the primary of disasterRecovery, such
-                      as a smaller size for a pilot-light replica.
                     properties:
                       apiVersion:
                         type: string
@@ -301,7 +265,6 @@ spec:
                   enum:
                   - HighAvailability
                   - ReadReplicas
-                  - DisasterRecovery
         required:
         - spec
     subresources:

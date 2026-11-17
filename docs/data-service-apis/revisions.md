@@ -21,8 +21,7 @@ the last is agreed.
   `PostgreSQLParameters` and a provider configuration kind per implementation; users and databases
   name it in `clusterRef`.
 - MariaDB: `MariaDBInstance` becomes `MariaDBServer`, with `MariaDBClass`, `MariaDBParameters` and
-  `MariaDBRDSConfig`, read replicas and disaster recovery; users and databases name it in
-  `serverRef`.
+  `MariaDBRDSConfig`; users and databases name it in `serverRef`.
 - Valkey: `ValkeyInstance` becomes `ValkeyServer`, with `ValkeyClass`, `ValkeyParameters` and a
   provider configuration kind per implementation; `replicas` becomes `readReplicas`.
 - Kafka: `KafkaCluster` gains `KafkaClass`, `KafkaParameters` and a provider configuration kind per
@@ -37,8 +36,6 @@ the last is agreed.
   configuration kind per implementation; `immutableTags` and `lifecycleRules` default from the
   class.
 - Every resource the platform creates carries workspace and Zone tags, on every service.
-- PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
-  (`disasterRecovery`).
 
 #### 1 2026-11-16
 

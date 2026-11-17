@@ -125,17 +125,11 @@ create("an entry of an unknown kind accepted, opaque to the core (principle 10)"
                                "spec": {"anything": 1}}]))
 create("instanceType at the top level rejected", "PostgreSQLCluster",
        w(PG, instanceType="db.t4g.small"), False, "unknown field")
-create("readReplicas accepted", "PostgreSQLCluster", w(PG, readReplicas=2))
-create("negative readReplicas rejected", "PostgreSQLCluster", w(PG, readReplicas=-1), False,
-       "greater than or equal to 0")
-create("disasterRecovery accepted", "PostgreSQLCluster",
-       w(PG, disasterRecovery={"workspaces": ["prod", "prod-dr"], "primary": "prod"}))
-create("disasterRecovery primary outside workspaces rejected", "PostgreSQLCluster",
-       w(PG, disasterRecovery={"workspaces": ["prod", "prod-dr"], "primary": "dev"}), False,
-       "primary must be one of workspaces")
-create("disasterRecovery with one workspace rejected", "PostgreSQLCluster",
-       w(PG, disasterRecovery={"workspaces": ["prod"], "primary": "prod"}), False,
-       "should have at least 2 items")
+create("readReplicas, a deferred capability, rejected", "PostgreSQLCluster",
+       w(PG, readReplicas=2), False, "unknown field")
+create("disasterRecovery, a deferred capability, rejected", "PostgreSQLCluster",
+       w(PG, disasterRecovery={"workspaces": ["prod", "prod-dr"], "primary": "prod"}), False,
+       "unknown field")
 create("observe with an entry accepted", "PostgreSQLCluster",
        {"observe": True, "providerConfigs": [{**RDS, "spec": {"id": "db-ABC"}}]})
 create("observe with a common field rejected", "PostgreSQLCluster",
@@ -184,7 +178,8 @@ create("template and enforced naming different kinds rejected", "PostgreSQLClass
        w(CLS, enforced={"providerConfig": SQL}), False, "the same provider configuration kind")
 create("a class with only common fields accepted", "PostgreSQLClass",
        {"template": {"version": "17"}, "enforced": {"deletionProtection": True}})
-create("a standby accepted", "PostgreSQLClass", w(CLS, standby={"providerConfig": RDS}))
+create("a standby, a deferred capability, rejected", "PostgreSQLClass",
+       w(CLS, standby={"providerConfig": RDS}), False, "unknown field")
 create("a class without parametersRef namespace rejected", "PostgreSQLClass",
        {"template": {"parametersRef": {"name": "x"}}}, False, "Required value")
 create("disasterRecovery in a class rejected", "PostgreSQLClass",
@@ -194,9 +189,7 @@ create("disasterRecovery in a class rejected", "PostgreSQLClass",
 print("\n# PostgreSQLParameters and provider configurations")
 create("parameters accepted", "PostgreSQLParameters", {"parameters": {"work_mem": "64MB"}})
 create("parameters without the map rejected", "PostgreSQLParameters", {}, False, "Required value")
-for kind, spec in {"PostgreSQLRDSConfig": {"instanceType": "db.m7g.large",
-                                           "readReplicas": [{"name": "reporting",
-                                                             "instanceType": "db.r7g.2xlarge"}]},
+for kind, spec in {"PostgreSQLRDSConfig": {"instanceType": "db.m7g.large"},
                    "PostgreSQLCloudSQLConfig": {"instanceType": "db-custom-2-7680",
                                                 "edition": "ENTERPRISE", "diskType": "PD_SSD"},
                    "PostgreSQLOCIConfig": {"instanceType": "PostgreSQL.VM.Standard.E5.Flex",
@@ -232,9 +225,8 @@ update("MariaDB lowering storage.sizeGB rejected", "MariaDBServer", MA,
        w(MA, storage={"sizeGB": 10}), False, "cannot decrease")
 create("MariaDB maxSizeGB below sizeGB rejected", "MariaDBServer",
        w(MA, storage={"sizeGB": 100, "maxSizeGB": 50}), False, "maxSizeGB must be at least sizeGB")
-create("MariaDB readReplicas accepted", "MariaDBServer", w(MA, readReplicas=2))
-create("MariaDB disasterRecovery accepted", "MariaDBServer",
-       w(MA, disasterRecovery={"workspaces": ["prod", "prod-dr"], "primary": "prod"}))
+create("MariaDB readReplicas, a deferred capability, rejected", "MariaDBServer",
+       w(MA, readReplicas=2), False, "unknown field")
 create("MariaDB observe with an entry accepted", "MariaDBServer",
        {"observe": True, "providerConfigs": [{**MRDS, "spec": {"id": "db-ABC"}}]})
 create("MariaDB pointInTime without fromInstance rejected", "MariaDBServer",
@@ -247,8 +239,7 @@ create("MariaDBClass disasterRecovery rejected", "MariaDBClass",
        {"template": {"disasterRecovery": {"workspaces": ["a", "b"], "primary": "a"}}}, False,
        "unknown field")
 create("MariaDBParameters accepted", "MariaDBParameters", {"parameters": {"long_query_time": "2"}})
-MRS = {"instanceType": "db.t4g.small", "parameterGroupName": "orders-mariadb114",
-       "readReplicas": [{"name": "reporting", "instanceType": "db.r7g.2xlarge"}]}
+MRS = {"instanceType": "db.t4g.small", "parameterGroupName": "orders-mariadb114"}
 create("MariaDBRDSConfig valid spec", "MariaDBRDSConfig", MRS)
 create("MariaDBRDSConfig unknown field rejected", "MariaDBRDSConfig", {**MRS, "unknownSetting": 1},
        False, "unknown field")

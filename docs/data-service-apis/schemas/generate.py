@@ -356,7 +356,7 @@ write("rabbitmquser", xrd(
 
 # --- Provider configurations and classes (principles 2, 5 and 8) ---------------------------------
 
-FEATURES = ["HighAvailability", "ReadReplicas", "DisasterRecovery"]
+FEATURES = ["HighAvailability", "ReadReplicas"]
 
 
 def crd(kind, plural, group, scope, spec, status=None, required_spec=None):
@@ -415,8 +415,8 @@ def provider_config(text):
 
 
 def class_crd(kind, plural, group, common, extra_rules=(), extra=None):
-    """A cluster-scoped class (principle 5): template defaults, enforced values, a DR standby, and in
-    extra, defaults for the kinds inside an object of the class."""
+    """A cluster-scoped class (principle 5): template defaults, enforced values, and in extra,
+    defaults for the kinds inside an object of the class."""
     part = lambda text: obj({**common, "providerConfig": provider_config(
         "The provider configuration: its kind names the implementation this class uses."),
         "parametersRef": obj({"name": field("string"), "namespace": field("string")},
@@ -431,10 +431,6 @@ def class_crd(kind, plural, group, common, extra_rules=(), extra=None):
         "template": part("Defaults, written into an object when it is created; the object may "
                          "change them."),
         "enforced": part("Always applied; an object that sets a different value is refused."),
-        "standby": obj({"providerConfig": provider_config(
-            "Applied only while this workspace is not the primary of disasterRecovery, such as "
-            "a smaller size for a pilot-light replica.")},
-            "Settings for a disaster recovery replica in this workspace."),
         **(extra or {}),
     }, rules=[same, *extra_rules])
     status = obj({"supportedFeatures": array(field("string", enum=FEATURES),
@@ -466,16 +462,6 @@ def from_backup(text):
                                       "message": "fromBackup is set at creation only"}]})
 
 
-def replica_layout(size_text):
-    return array(obj({
-        "name": field("string", "The replica's name, which its cloud name ends with."),
-        "instanceType": field("string", size_text),
-        "parametersRef": obj({"name": field("string")}, "Engine settings for this replica only.",
-                             required=["name"]),
-    }, required=["name", "instanceType"]),
-        "Read replicas of their own sizes, instead of the readReplicas count; not with it.")
-
-
 # --- PostgreSQL ------------------------------------------------------------------------------
 
 DEFAULT = "the class's template"
@@ -503,18 +489,6 @@ def db_common(engine, version_text, version_pattern):
         "highAvailability": field("boolean", "A standby in another zone, with automatic "
                                   "failover. Refused where the class does not support "
                                   "HighAvailability (principle 1).", default=DEFAULT),
-        "readReplicas": field("integer", "Read-only copies identical to the primary. Refused "
-                              "where the class does not support ReadReplicas (principle 1).",
-                              default="fixed, 0", minimum=0),
-        "disasterRecovery": obj({
-            "workspaces": array(field("string"), "The Entigo workspaces that hold this database: "
-                                "the primary, and those holding a replica that can take over.",
-                                minItems=2),
-            "primary": field("string", "The workspace that accepts writes. Changing it in every "
-                             "workspace fails over."),
-        }, "A copy in another workspace that can become the primary. Refused where the class does "
-           "not support DisasterRecovery (principle 1).", required=["workspaces", "primary"],
-            rules=[("self.primary in self.workspaces", "primary must be one of workspaces")]),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
         "maintenanceWindow": window(),
@@ -608,17 +582,12 @@ def db_status(engine):
                         "autoGrow": field("boolean"), "maxSizeGB": field("integer"),
                         "iops": field("integer"), "throughputMBps": field("integer")}),
         "highAvailability": field("boolean"),
-        "readReplicas": field("integer"),
         "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
         "autoMinorVersionUpgrade": field("boolean"),
         "backup": obj({"retentionDays": field("integer"), "pointInTimeDays": field("integer"),
                        "startHourUTC": field("integer")}),
         "endpoint": endpoint(),
-        "readerEndpoint": field("string", "The read address: one balanced host, or the replicas' "
-                                "hosts where the implementation has none (principle 6)."),
         "connectionSecret": field("string", "The admin Secret, <instance>-dbadmin (principle 6)."),
-        "disasterRecovery": obj({"role": field("string", enum=["Primary", "Replica"])},
-                                "This workspace's role."),
         "providerConfig": obj({"applied": S(), "ignored": array(S())},
                               "The provider configuration entries applied and ignored, as <apiVersion>, "
                               "<kind> (principle 4)."),
@@ -646,7 +615,7 @@ pg_status = db_status("PostgreSQL")
 write("postgresqlcluster", xrd("PostgreSQLCluster", "postgresqlclusters", "database.entigo.com",
                                pg_spec, pg_status))
 
-pg_class_common = {k: v for k, v in pg_common().items() if k != "disasterRecovery"}
+pg_class_common = pg_common()
 write("postgresqlclass", class_crd("PostgreSQLClass", "postgresqlclasses", "database.entigo.com",
                                    pg_class_common))
 write("postgresqlparameters", parameters_crd("PostgreSQLParameters", "postgresqlparameters",
@@ -664,7 +633,6 @@ write("postgresqlrdsconfig", provider_config_crd(
                                     "new one, since a group fits one major version."),
         "fromBackup": from_backup("An RDS snapshot ID to create the cluster from, such as "
                                   "status.provider.finalBackup of a deleted cluster."),
-        "readReplicas": replica_layout("The RDS instance class of this replica."),
     }, {**PG_STATUS, "identifier": S(), "resourceId": S(),
         "latestRestorableTime": field("string", format="date-time")}))
 write("postgresqlcloudsqlconfig", provider_config_crd(
@@ -676,7 +644,6 @@ write("postgresqlcloudsqlconfig", provider_config_crd(
         "diskType": field("string", "The Cloud SQL disk type, such as PD_SSD.", default=DEFAULT),
         "fromBackup": from_backup("A Cloud SQL backup to create the cluster from, as "
                                   "<instance>/<backup run ID>."),
-        "readReplicas": replica_layout("The Cloud SQL machine tier of this replica."),
     }, {**PG_STATUS, "connectionName": S(), "maintenanceVersion": S()}))
 write("postgresqlociconfig", provider_config_crd(
     "PostgreSQLOCIConfig", "postgresqlociconfigs", "oci.database.entigo.com",
@@ -695,7 +662,6 @@ write("postgresqlflexibleserverconfig", provider_config_crd(
                               default=DEFAULT),
         "storageTier": field("string", "The disk tier, such as P10, which sets its IOPS.",
                              default=DEFAULT),
-        "readReplicas": replica_layout("The flexible server SKU of this replica."),
     }, {"instanceType": S(), "state": S()}))
 
 # --- MariaDB -------------------------------------------------------------------------------
@@ -716,8 +682,7 @@ write("mariadbserver", xrd("MariaDBServer", "mariadbservers", "database.entigo.c
                                    "(self.version.split('.').size() == 3)"),
                            db_status("MariaDB")))
 write("mariadbclass", class_crd("MariaDBClass", "mariadbclasses", "database.entigo.com",
-                                {k: v for k, v in mariadb_common().items()
-                                 if k != "disasterRecovery"}))
+                                mariadb_common()))
 write("mariadbparameters", parameters_crd("MariaDBParameters", "mariadbparameters",
                                           "database.entigo.com", "MariaDB"))
 write("mariadbrdsconfig", provider_config_crd(
@@ -729,7 +694,6 @@ write("mariadbrdsconfig", provider_config_crd(
                                     "new one, since a group fits one major version."),
         "fromBackup": from_backup("An RDS snapshot ID to create the server from, such as "
                                   "status.provider.finalBackup of a deleted server."),
-        "readReplicas": replica_layout("The RDS instance class of this replica."),
     }, {"instanceType": S(), "finalBackup": field(
         "string", "The ID the final backup receives when the server is deleted, for fromBackup."),
         "state": S(), "identifier": S(), "resourceId": S(),
