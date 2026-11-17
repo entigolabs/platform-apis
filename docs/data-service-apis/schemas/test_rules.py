@@ -120,7 +120,7 @@ create("an entry with both spec and ref rejected", "PostgreSQLCluster",
        w(PG, providerConfigs=[{**RDS, "ref": {"name": "rds"}}]), False, "either spec or ref")
 create("an entry with neither spec nor ref rejected", "PostgreSQLCluster",
        w(PG, providerConfigs=[{k: RDS[k] for k in ("apiVersion", "kind")}]), False, "either spec or ref")
-create("an entry of an unknown kind accepted, opaque to the core (rule 10)", "PostgreSQLCluster",
+create("an entry of an unknown kind accepted, opaque to the core (principle 10)", "PostgreSQLCluster",
        w(PG, providerConfigs=[{"apiVersion": "lab.example.com/v1", "kind": "PostgreSQLLabConfig",
                                "spec": {"anything": 1}}]))
 create("instanceType at the top level rejected", "PostgreSQLCluster",
@@ -181,7 +181,7 @@ CLS = {"template": {"version": "17", "storage": {"sizeGB": 50}, "backup": {"rete
                     "providerConfig": {**RDS, "spec": {"instanceType": "db.t4g.medium"}}}}
 create("valid class", "PostgreSQLClass", CLS)
 create("template and enforced naming different kinds rejected", "PostgreSQLClass",
-       w(CLS, enforced={"providerConfig": SQL}), False, "the same provider config kind")
+       w(CLS, enforced={"providerConfig": SQL}), False, "the same provider configuration kind")
 create("a class with only common fields accepted", "PostgreSQLClass",
        {"template": {"version": "17"}, "enforced": {"deletionProtection": True}})
 create("a standby accepted", "PostgreSQLClass", w(CLS, standby={"providerConfig": RDS}))
@@ -191,7 +191,7 @@ create("disasterRecovery in a class rejected", "PostgreSQLClass",
        {"template": {"disasterRecovery": {"workspaces": ["a", "b"], "primary": "a"}}}, False,
        "unknown field")
 
-print("\n# PostgreSQLParameters and provider configs")
+print("\n# PostgreSQLParameters and provider configurations")
 create("parameters accepted", "PostgreSQLParameters", {"parameters": {"work_mem": "64MB"}})
 create("parameters without the map rejected", "PostgreSQLParameters", {}, False, "Required value")
 for kind, spec in {"PostgreSQLRDSConfig": {"instanceType": "db.m7g.large",

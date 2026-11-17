@@ -8,11 +8,12 @@ with its ACLs; and `KafkaTopic`, one topic in a cluster. Two kinds shape them: `
 deployment's defaults and limits, written by Entigo, and `KafkaParameters`, reusable broker
 settings.
 
-Built on Amazon MSK provisioned (AWS) and OCI Streaming with Apache Kafka (OCI), each with a provider
-config kind of its own: `KafkaMSKConfig` and `KafkaOCIConfig`. GCP's Managed Service for Apache
-Kafka is mapped, with `KafkaGCPConfig`, but the kinds exist on GCP only once its Crossplane provider
-supports the service (principle 7). Azure has none: Event Hubs implements the Kafka protocol but has
-no Kafka ACLs, no topic creation through the Kafka admin API and no broker settings.
+Built on Amazon MSK provisioned (AWS) and OCI Streaming with Apache Kafka (OCI), each with a
+provider configuration kind of its own: `KafkaMSKConfig` and `KafkaOCIConfig`. GCP's Managed Service
+for Apache Kafka is mapped, with `KafkaGCPConfig`, but the kinds exist on GCP only once its
+Crossplane provider supports the service (principle 7). Azure has none: Event Hubs implements the
+Kafka protocol but has no Kafka ACLs, no topic creation through the Kafka admin API and no broker
+settings.
 
 ## Contents
 
@@ -30,7 +31,7 @@ Kafka is offered as five kinds, each with the manifest its owner writes.
 ### KafkaCluster
 
 A user creates a `KafkaCluster` with a manifest like the one below. It names its class and carries
-one provider config entry per implementation it may run on (principle 2):
+one provider configuration entry per implementation it may run on (principle 2):
 
 ```yaml
 ---
@@ -71,7 +72,7 @@ spec:
 *A `KafkaCluster` with its common fields and an entry per implementation.*
 
 A cluster's size is its brokers times each broker's size. The implementations size them
-differently, so the size is in each provider config (principle 2). No implementation offers a
+differently, so the size is in each provider configuration (principle 2). No implementation offers a
 maintenance window.
 
 `highAvailability` is a portable feature: an object that requests it where its class does not
@@ -139,8 +140,8 @@ A class reports `HighAvailability` in `status.supportedFeatures` on every implem
 ### KafkaParameters
 
 `KafkaParameters` holds broker settings that several clusters or a class share. A class, a cluster
-and a cluster's provider config may each reference one, and their settings merge key by key in that
-order, followed by the cluster's own `parameters`:
+and a cluster's provider configuration may each reference one, and their settings merge key by key
+in that order, followed by the cluster's own `parameters`:
 
 ```yaml
 ---
@@ -165,7 +166,7 @@ settings, and the others are rejected by the cloud and reported as `CloudAccepte
 
 A `KafkaUser` is an identity that applications use to log in to the cluster, with the ACLs it is
 granted. Its `clusterRef` is immutable, may name another namespace of the same Zone (principle 11),
-and it has no class or provider configs: it follows its cluster's implementation.
+and it has no class or provider configurations: it follows its cluster's implementation.
 
 An example:
 
@@ -194,9 +195,9 @@ spec:
 *A `KafkaUser` with one consumer group, a read ACL and a prefixed read ACL.*
 
 A topic or consumer group is named exactly, or, with `patternType: Prefixed`, by the start of every
-name it covers. An application that adds topics at runtime, such as one per customer
-(`orders-acme`, `orders-globex`), then needs one entry for `orders-` instead of a new entry before it
-can use each topic. `Literal` and `Prefixed` are Kafka's own ACL pattern types.
+name it covers. An application that adds topics at runtime, such as one per customer (`orders-acme`,
+`orders-globex`), then needs one entry for `orders-` instead of a new entry before it can use each
+topic. `Literal` and `Prefixed` are Kafka's own ACL pattern types.
 
 | Cloud | Identity                                           | Login                                   |
 | ----- | -------------------------------------------------- | --------------------------------------- |
@@ -222,7 +223,7 @@ differs by cloud.
 ### KafkaTopic
 
 A `KafkaTopic` is a topic in the cluster, created through the Kafka admin API on every
-implementation. It has no class or provider configs: it follows its cluster's implementation.
+implementation. It has no class or provider configurations: it follows its cluster's implementation.
 
 An example:
 
@@ -268,7 +269,7 @@ the implementation lacks shows as ignored, with the reason (principle 1):
 
 *Common fields of `KafkaCluster` and their provider fields.*
 
-The second names the implementation's provider config kind and what its fields map to:
+The second names the implementation's provider configuration kind and what its fields map to:
 
 | Field          | AWS                                | GCP                                                       | OCI                     |
 | -------------- | ---------------------------------- | --------------------------------------------------------- | ----------------------- |
@@ -279,7 +280,7 @@ The second names the implementation's provider config kind and what its fields m
 | `memoryGB`     |                                    | `capacity_config.memory_bytes`, in bytes                  |                         |
 | `ocpus`        |                                    |                                                           | `brokerShape.ocpuCount` |
 
-*Fields of each provider config kind.*
+*Fields of each provider configuration kind.*
 
 **AWS:** the size is the broker type, `instanceType`, times `brokers`. `bootstrapServers` is
 `bootstrapBrokersSaslScram`. provider-kafka logs in with IAM. `allow.everyone.if.no.acl.found` is
@@ -301,9 +302,9 @@ no customer key. provider-kafka logs in with the superuser's Vault secret.
 **GCP:** nothing is composed, since its provider has no Managed Kafka resource.
 
 The `KafkaCluster` from [Kinds](#kinds) is composed into the resources below on the cloud it runs
-on: the platform applies the entry of its class's kind and ignores the others. A comment names the source of each
-value the object does not hold as written: `platform` for a value the platform sets, and
-`deployment` for one the deployment sets. The object and its resources:
+on: the platform applies the entry of its class's kind and ignores the others. A comment names the
+source of each value the object does not hold as written: `platform` for a value the platform sets,
+and `deployment` for one the deployment sets. The object and its resources:
 
 ```yaml Object
 ---

@@ -8,11 +8,11 @@ Every data service API uses the mechanisms on this page, each of which applies a
 A user-facing kind is named after its engine or concept (principle 8), and the kinds around it take
 their names from it:
 
-| Kind            | Name                      | Group                     | Example                                            |
-| --------------- | ------------------------- | ------------------------- | -------------------------------------------------- |
-| Class           | `<Engine>Class`           | the core group            | `PostgreSQLClass` in `database.entigo.com`         |
-| Parameters      | `<Engine>Parameters`      | the core group            | `PostgreSQLParameters` in `database.entigo.com`    |
-| Provider config | `<Engine><Product>Config` | `<platform>.<core group>` | `PostgreSQLRDSConfig` in `aws.database.entigo.com` |
+| Kind                   | Name                      | Group                     | Example                                            |
+| ---------------------- | ------------------------- | ------------------------- | -------------------------------------------------- |
+| Class                  | `<Engine>Class`           | the core group            | `PostgreSQLClass` in `database.entigo.com`         |
+| Parameters             | `<Engine>Parameters`      | the core group            | `PostgreSQLParameters` in `database.entigo.com`    |
+| Provider configuration | `<Engine><Product>Config` | `<platform>.<core group>` | `PostgreSQLRDSConfig` in `aws.database.entigo.com` |
 
 *Names of the kinds around a user-facing kind.*
 
@@ -21,21 +21,21 @@ name, such as RDS, Cloud SQL or MSK; where it has none, the platform's name stan
 `PostgreSQLOCIConfig` for OCI Database with PostgreSQL. An on-premises implementation is grouped by
 the platform it runs on, `kubernetes`, with the product in the kind, as `PostgreSQLCNPGConfig` for
 CloudNativePG. An implementation built outside Entigo uses its own domain, so names never collide.
-Each provider config kind versions on its own.
+Each provider configuration kind versions on its own.
 
 ## Installation
 
 The `platform-apis` chart determines which kinds a deployment installs (principle 7). A deployment
-passes only its cloud, and the chart installs each service's core kinds, its provider config kinds
-and its classes where the service is implemented. A per-service switch leaves a service out, never
-adds one that the deployment lacks. A manifest of a kind that is not installed is rejected by the
-Kubernetes API server when it is applied, before any function runs.
+passes only its cloud, and the chart installs each service's core kinds, its provider configuration
+kinds and its classes where the service is implemented. A per-service switch leaves a service out,
+never adds one that the deployment lacks. A manifest of a kind that is not installed is rejected by
+the Kubernetes API server when it is applied, before any function runs.
 
 ## Classes
 
 A class, such as a `PostgreSQLClass`, is cluster-scoped and written by Entigo for each deployment
 (principle 5). It holds two parts of the object's spec, each with the common fields and one provider
-config:
+configuration:
 
 | Part       | Effect                                                                               |
 | ---------- | ------------------------------------------------------------------------------------ |
@@ -44,15 +44,15 @@ config:
 
 *The two parts of a class.*
 
-The class's provider config kind selects the implementation, as `StorageClass.provisioner` does, so
-a class has no separate field for it. A class whose provider config names a kind the deployment does
-not install is refused when applied. A class name is the portable contract: every deployment defines
-its own `standard`, and a chart that sets `className: standard` works wherever a class of that name
-exists. Without `className`, the object takes the deployment's default class.
+The class's provider configuration kind selects the implementation, as `StorageClass.provisioner`
+does, so a class has no separate field for it. A class whose provider configuration names a kind the
+deployment does not install is refused when applied. A class name is the portable contract: every
+deployment defines its own `standard`, and a chart that sets `className: standard` works wherever a
+class of that name exists. Without `className`, the object takes the deployment's default class.
 
 The effective spec is built in three layers, the last winning: the class's `template`, then the
-object with its matching provider config entry, then the class's `enforced`. Engine parameters merge
-key by key in the same order.
+object with its matching provider configuration entry, then the class's `enforced`. Engine
+parameters merge key by key in the same order.
 
 The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
 version 1.36. It copies the class's `template` into the object when it is created and keeps the
@@ -66,22 +66,23 @@ class does not report is refused when applied, with a message naming the class a
 (principle 1). The portal reads a class's supported features and hides the fields its class cannot
 fulfil.
 
-## Provider Configs
+## Provider Configurations
 
-An object carries its provider configs (principle 2) in `providerConfigs`, a list with one entry per
-kind. Each entry names its own `apiVersion` and `kind`, and holds the settings either inline, in
-`spec`, or in a separate object of that kind, through `ref`. The list is keyed by `apiVersion` and
-`kind`, so Helm, Argo CD and server-side apply merge it entry by entry, and one manifest can carry
-settings for several implementations and be applied on any of them.
+An object carries its provider configurations (principle 2) in `providerConfigs`, a list with one
+entry per kind. Each entry names its own `apiVersion` and `kind`, and holds the settings either
+inline, in `spec`, or in a separate object of that kind, through `ref`. The list is keyed by
+`apiVersion` and `kind`, so Helm, Argo CD and server-side apply merge it entry by entry, and one
+manifest can carry settings for several implementations and be applied on any of them.
 
 A deployment applies only the entry whose kind its class names and ignores the others; the status
 lists which entry was applied and which were ignored, so a misspelled kind shows as nothing applied.
-An object with no matching entry takes the class's provider config as it is.
+An object with no matching entry takes the class's provider configuration as it is.
 
-A machine size is a provider config setting, named as the product names it, such as `db.m7g.large`
-in a `PostgreSQLRDSConfig` and `db-custom-2-8192` in a `PostgreSQLCloudSQLConfig`. A size stated as
-CPU and memory would need the platform to pick the nearest size across fixed and flexible sizes,
-families and availability per region. A class's default size spares users from knowing the names.
+A machine size is a provider configuration setting, named as the product names it, such as
+`db.m7g.large` in a `PostgreSQLRDSConfig` and `db-custom-2-8192` in a `PostgreSQLCloudSQLConfig`. A
+size stated as CPU and memory would need the platform to pick the nearest size across fixed and
+flexible sizes, families and availability per region. A class's default size spares users from
+knowing the names.
 
 ## Status
 
@@ -91,10 +92,10 @@ address is `endpoint: { host, port }` where the service has one host, or the ser
 where it has several.
 
 Values that only make sense in one implementation, such as its resource IDs, go into
-`status.provider`, whose shape the applied provider config kind defines. `status.providerConfig`
-names the applied entry and the ignored ones, and `status.effective` shows each effective value and
-where it came from: the class's `template`, the object, or the class's `enforced`. If an
-implementation does not report a common field, that field stays empty there.
+`status.provider`, whose shape the applied provider configuration kind defines.
+`status.providerConfig` names the applied entry and the ignored ones, and `status.effective` shows
+each effective value and where it came from: the class's `template`, the object, or the class's
+`enforced`. If an implementation does not report a common field, that field stays empty there.
 
 ## Connection Secrets
 
@@ -115,7 +116,7 @@ its application already uses.
 ## Observed Resources
 
 To observe an existing resource (principle 9), the user sets `observe: true` and gives the
-resource's ID in the provider config entry of the implementation that holds it:
+resource's ID in the provider configuration entry of the implementation that holds it:
 
 ```yaml
 spec:
@@ -155,8 +156,9 @@ name instead, and the platform rejects a second object that requests a name alre
 
 A kind that exists inside another, such as a database user or a Kafka topic, names its parent in a
 reference, such as `clusterRef`, `serverRef` or `brokerRef`, as `{ name, namespace }`. Without
-`namespace`, the parent is in the same namespace. Such a kind has no class and no provider configs:
-it acts inside the engine, which is the same everywhere, and follows its parent's implementation.
+`namespace`, the parent is in the same namespace. Such a kind has no class and no provider
+configurations: it acts inside the engine, which is the same everywhere, and follows its parent's
+implementation.
 
 A reference to another namespace is accepted only when both namespaces carry the same
 `tenancy.entigo.com/zone` label (principle 11).
@@ -166,15 +168,15 @@ A reference to another namespace is accepted only when both namespaces carry the
 `readReplicas: N` requests N read-only copies of a database, identical to the primary: the same
 size, the same engine parameters and the same class layers. Applications send reads to them through
 the secret's `readerEndpoint` key. Replicas of another size, such as one large replica for
-reporting, exist only in some implementations, so they are written in the provider config instead
-of the count, each with its own size and, where the implementation allows it, its own engine
+reporting, exist only in some implementations, so they are written in the provider configuration
+instead of the count, each with its own size and, where the implementation allows it, its own engine
 parameters.
 
 The rules for replicas:
 
 - **The count or the layout, not both.** Where an implementation offers a replica layout, an object
-  that sets `readReplicas` and a layout in its applied provider config is refused, so the number of
-  replicas is never ambiguous.
+  that sets `readReplicas` and a layout in its applied provider configuration is refused, so the
+  number of replicas is never ambiguous.
 - **Scaling down is predictable.** Where each replica is a resource of its own, replicas are named
   `<instance>-ro-<index>`, and scaling down removes the highest index first.
 - **The reader endpoint follows the implementation.** Where it has a balanced read endpoint,
@@ -198,10 +200,10 @@ in both workspaces, and each takes its role from `primary`, which names one of `
    its replica.
 
 The manifest names no region: each workspace's class determines where its copy runs. A replica that
-only waits should be small, so a class in the DR workspace can hold a `standby` provider config,
-applied only while that workspace is not primary; on promotion, the platform resizes the replica to
-the object's own size, which adds that time to the recovery. Where recovery time matters more than
-cost, the class leaves `standby` empty.
+only waits should be small, so a class in the DR workspace can hold a `standby` provider
+configuration, applied only while that workspace is not primary; on promotion, the platform resizes
+the replica to the object's own size, which adds that time to the recovery. Where recovery time
+matters more than cost, the class leaves `standby` empty.
 
 The rules for disaster recovery:
 
@@ -222,10 +224,10 @@ The rules for disaster recovery:
 
 ## Validation
 
-Provider config entries are opaque to the core schema (principle 10). Each implementation checks the
-entry that applies on its deployment with a `ValidatingAdmissionPolicy`, and publishes its kind's
-schema, so that CI checks every entry of a manifest, including those for other deployments, before
-it is applied anywhere.
+Provider configuration entries are opaque to the core schema (principle 10). Each implementation
+checks the entry that applies on its deployment with a `ValidatingAdmissionPolicy`, and publishes
+its kind's schema, so that CI checks every entry of a manifest, including those for other
+deployments, before it is applied anywhere.
 
 When the cloud rejects a value, the error appears only on the provider's own object, not on the
 user's. The platform therefore also shows it on the user's object, as the condition

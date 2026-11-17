@@ -7,7 +7,7 @@ One kind for users: `ValkeyServer`, one primary node with its read replicas. Two
 `ValkeyClass`, a deployment's defaults and limits, written by Entigo, and `ValkeyParameters`,
 reusable Valkey settings.
 
-Built on ElastiCache (AWS) and OCI Cache (OCI), each with a provider config kind of its own:
+Built on ElastiCache (AWS) and OCI Cache (OCI), each with a provider configuration kind of its own:
 `ValkeyElastiCacheConfig` and `ValkeyOCICacheConfig`. GCP's Memorystore for Valkey is mapped, with
 `ValkeyMemorystoreConfig`, but the kind exists on GCP only once its Crossplane provider supports
 password login, which the connection secret needs (principle 6). Azure has none: Azure Managed Redis
@@ -32,7 +32,7 @@ Valkey is offered as three kinds, each with the manifest its owner writes.
 A server has no sharding: its data lives on the primary and is copied to each replica.
 
 A user creates a `ValkeyServer` with a manifest like the one below. It names its class and carries
-one provider config entry per implementation it may run on (principle 2):
+one provider configuration entry per implementation it may run on (principle 2):
 
 ```yaml
 ---
@@ -86,9 +86,9 @@ running version, and the platform never moves the server back to `version`.
 `highAvailability` and `readReplicas` are portable features: an object that requests one its class
 does not support is refused when applied (principle 1).
 
-A deleted server is restored with its provider config's `fromBackup` and the final backup's ID,
-which the status loses with the server, so it is taken from the cloud console. The status shows the
-common fields, which entry applied, where each effective value came from, and the applied
+A deleted server is restored with its provider configuration's `fromBackup` and the final backup's
+ID, which the status loses with the server, so it is taken from the cloud console. The status shows
+the common fields, which entry applied, where each effective value came from, and the applied
 implementation's own values (principle 4):
 
 ```yaml
@@ -157,8 +157,8 @@ and Memorystore, and `ReadReplicas` only on OCI Cache, whose failover is unverif
 ### ValkeyParameters
 
 `ValkeyParameters` holds Valkey settings that several servers or a class share. A class, a server
-and a server's provider config may each reference one, and their settings merge key by key in that
-order, followed by the server's own `parameters`:
+and a server's provider configuration may each reference one, and their settings merge key by key in
+that order, followed by the server's own `parameters`:
 
 ```yaml
 ---
@@ -217,12 +217,12 @@ the implementation lacks shows as ignored, with the reason (principle 1):
 | `autoMinorVersionUpgrade` | `autoMinorVersionUpgrade`                    | `false` ignored; Memorystore cannot opt out of maintenance                                                        | `false` ignored; OCI applies minor versions on its own schedule |
 | `backup.retentionDays`    | `snapshotRetentionLimit`; 0 disables backups | `automatedBackupConfig.retention`, in seconds (`"604800s"` for 7 days); 0 omits the block, which disables backups | ignored; OCI Cache has manual backups only                      |
 | `backup.startHourUTC`     | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    | ignored                                                         |
-| `parameters`              | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | config set, allowlist of about 15 keys                          |
+| `parameters`              | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | a configuration set, allowlist of about 15 keys                 |
 | `parametersRef`           | merged into `parameters`                     | merged into `parameters`                                                                                          | merged into `parameters`                                        |
 
 *Common fields of `ValkeyServer` and their provider fields.*
 
-The second names the implementation's provider config kind and what its fields map to:
+The second names the implementation's provider configuration kind and what its fields map to:
 
 | Field                | AWS                              | GCP                       | OCI                    |
 | -------------------- | -------------------------------- | ------------------------- | ---------------------- |
@@ -233,7 +233,7 @@ The second names the implementation's provider config kind and what its fields m
 | `parameterGroupName` | `parameterGroupName`             |                           |                        |
 | `fromBackup`         | `snapshotName`, at creation only |                           |                        |
 
-*Fields of each provider config kind.*
+*Fields of each provider configuration kind.*
 
 **AWS:** ElastiCache rejects a version without its minor, such as `8` or `8.x`. A parameter group
 applies to one major version (family `valkey<major>`), so a change of the major is rejected unless

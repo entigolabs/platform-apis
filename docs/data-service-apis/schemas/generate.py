@@ -528,13 +528,13 @@ write("artifactrepository", xrd(
         "azure": obj({"registryId": S()}),
     })))
 
-# --- Provider configs and classes (principles 2, 5 and 8) ----------------------------------------
+# --- Provider configurations and classes (principles 2, 5 and 8) ---------------------------------
 
 FEATURES = ["HighAvailability", "ReadReplicas", "DisasterRecovery"]
 
 
 def crd(kind, plural, group, scope, spec, status=None, required_spec=None):
-    """A plain CRD, for kinds that are not composed: classes, parameters and provider configs."""
+    """A plain CRD, for kinds that are not composed: classes, parameters and provider configurations."""
     props = {"spec": spec}
     if status:
         props["status"] = status
@@ -559,9 +559,9 @@ def crd(kind, plural, group, scope, spec, status=None, required_spec=None):
 
 def entry_fields(text):
     return {
-        "apiVersion": field("string", "The provider config kind's group and version, such as "
+        "apiVersion": field("string", "The provider configuration kind's group and version, such as "
                             "aws.database.entigo.com/v1alpha1."),
-        "kind": field("string", "The provider config kind, such as PostgreSQLRDSConfig."),
+        "kind": field("string", "The provider configuration kind, such as PostgreSQLRDSConfig."),
         "spec": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
                  "description": desc(text)},
         "ref": obj({"name": field("string", "An object of this kind in the same namespace.")},
@@ -571,7 +571,7 @@ def entry_fields(text):
 
 
 def provider_configs():
-    """The open list of provider configs (principle 2): one entry per kind, inline or by reference."""
+    """The open list of provider configurations (principle 2): one entry per kind, inline or by reference."""
     return array(
         obj(entry_fields("The settings, checked by the implementation that applies them "
                          "(principle 10)."), required=["apiVersion", "kind"],
@@ -582,7 +582,7 @@ def provider_configs():
 
 
 def provider_config(text):
-    """One provider config, as a class holds it: the kind names the implementation."""
+    """One provider configuration, as a class holds it: the kind names the implementation."""
     props = entry_fields("The settings.")
     del props["ref"]
     return obj(props, text, required=["apiVersion", "kind"])
@@ -591,7 +591,7 @@ def provider_config(text):
 def class_crd(kind, plural, group, common, extra_rules=()):
     """A cluster-scoped class (principle 5): template defaults, enforced values, a DR standby."""
     part = lambda text: obj({**common, "providerConfig": provider_config(
-        "The provider config: its kind names the implementation this class uses."),
+        "The provider configuration: its kind names the implementation this class uses."),
         "parametersRef": obj({"name": field("string"), "namespace": field("string")},
                              "Engine settings for every object of this class.",
                              required=["name", "namespace"])}, text)
@@ -599,7 +599,7 @@ def class_crd(kind, plural, group, common, extra_rules=()):
             "!has(self.enforced.providerConfig) || "
             "(self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion "
             "&& self.template.providerConfig.kind == self.enforced.providerConfig.kind)",
-            "template and enforced name the same provider config kind")
+            "template and enforced name the same provider configuration kind")
     spec = obj({
         "template": part("Defaults, written into an object when it is created; the object may "
                          "change them."),
@@ -623,7 +623,7 @@ def parameters_crd(kind, plural, group, engine):
 
 
 def provider_config_crd(kind, plural, group, product, settings, status, rules=()):
-    """A provider config kind: one implementation's settings, and its status.provider shape."""
+    """A provider configuration kind: one implementation's settings, and its status.provider shape."""
     return crd(kind, plural, group, "Namespaced", obj({
         "id": field("string", f"The {product} ID of an existing resource to observe (principle 9). "
                     "Only with observe.", **{"x-kubernetes-validations": [
@@ -724,14 +724,14 @@ def db_common(engine, version_text, version_pattern):
 
 def class_spec(class_kind, common, tail, observed, rules):
     """The spec of a kind with a class (principle 5): className, observe, the common fields, the
-    kind's own fields in tail, and the provider configs (principle 2)."""
+    kind's own fields in tail, and the provider configurations (principle 2)."""
     return obj({
         "className": field("string", f"The {class_kind}: the deployment's defaults, enforced "
                            "values and implementation (principle 5). Unset, the default class. "
                            "Set at creation only.", **{"x-kubernetes-validations": [
                                {"rule": "self == oldSelf", "message": "className is immutable"}]}),
         "observe": field("boolean", "true observes an existing resource, named by the id in its "
-                         "provider config entry, and never changes or deletes it. Every other "
+                         "provider configuration entry, and never changes or deletes it. Every other "
                          "common field is then rejected (principle 9). Set at creation only."),
         **common,
         **tail,
@@ -747,7 +747,7 @@ def class_spec(class_kind, common, tail, observed, rules):
 
 
 def db_spec(kind, class_kind, common, same_major, has_minor):
-    """A database's spec: its class, observe, the common fields, restore and provider configs."""
+    """A database's spec: its class, observe, the common fields, restore and provider configurations."""
     return class_spec(class_kind, common, {
         "restore": obj({
             "fromInstance": field("string", f"A {kind} in this namespace."),
@@ -792,7 +792,7 @@ def db_status(engine):
         "disasterRecovery": obj({"role": field("string", enum=["Primary", "Replica"])},
                                 "This workspace's role."),
         "providerConfig": obj({"applied": S(), "ignored": array(S())},
-                              "The provider config entries applied and ignored, as <apiVersion>, "
+                              "The provider configuration entries applied and ignored, as <apiVersion>, "
                               "<kind> (principle 4)."),
         "effective": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
                       "description": desc("Each effective value and its source: the class's "
@@ -800,7 +800,7 @@ def db_status(engine):
                                           "(principle 4).")},
         "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
                      "description": desc("Values of the applied implementation, in the shape its "
-                                         "provider config kind's status defines (principle 4).")},
+                                         "provider configuration kind's status defines (principle 4).")},
     })
 
 
@@ -972,7 +972,7 @@ write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com"
                               "connectionSecret": field("string", "The Secret "
                                                         "<instance>-credentials (principle 6)."),
                               "providerConfig": obj({"applied": S(), "ignored": array(S())},
-                                                    "The provider config entries applied and "
+                                                    "The provider configuration entries applied and "
                                                     "ignored, as <apiVersion>, <kind> (principle 4)."),
                               "effective": {"type": "object",
                                             "x-kubernetes-preserve-unknown-fields": True,
@@ -984,7 +984,7 @@ write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com"
                                            "x-kubernetes-preserve-unknown-fields": True,
                                            "description": desc("Values of the applied "
                                                                "implementation, in the shape its "
-                                                               "provider config kind's status "
+                                                               "provider configuration kind's status "
                                                                "defines (principle 4).")},
                           })))
 write("valkeyclass", class_crd("ValkeyClass", "valkeyclasses", "database.entigo.com",
@@ -1050,7 +1050,7 @@ write("kafkacluster", xrd("KafkaCluster", "kafkaclusters", "queue.entigo.com",
                               "bootstrapServers": field("string", "The listener applications "
                                                         "connect to, as host:port pairs."),
                               "providerConfig": obj({"applied": S(), "ignored": array(S())},
-                                                    "The provider config entries applied and "
+                                                    "The provider configuration entries applied and "
                                                     "ignored, as <apiVersion>, <kind> (principle 4)."),
                               "effective": {"type": "object",
                                             "x-kubernetes-preserve-unknown-fields": True,
@@ -1062,7 +1062,7 @@ write("kafkacluster", xrd("KafkaCluster", "kafkaclusters", "queue.entigo.com",
                                            "x-kubernetes-preserve-unknown-fields": True,
                                            "description": desc("Values of the applied "
                                                                "implementation, in the shape its "
-                                                               "provider config kind's status "
+                                                               "provider configuration kind's status "
                                                                "defines (principle 4).")},
                           })))
 write("kafkaclass", class_crd("KafkaClass", "kafkaclasses", "queue.entigo.com", kafka_common()))

@@ -8,9 +8,9 @@ Three kinds for users: `MariaDBServer`, one database server with its standby and
 database on a server. Two kinds shape them: `MariaDBClass`, a deployment's defaults and limits,
 written by Entigo, and `MariaDBParameters`, reusable MariaDB settings.
 
-Built on Amazon RDS (AWS), with the provider config kind `MariaDBRDSConfig`. GCP, OCI and Azure have
-no implementation: their MySQL services are not MariaDB (principle 7), and Azure Database for
-MariaDB is retired.
+Built on Amazon RDS (AWS), with the provider configuration kind `MariaDBRDSConfig`. GCP, OCI and
+Azure have no implementation: their MySQL services are not MariaDB (principle 7), and Azure Database
+for MariaDB is retired.
 
 ## Contents
 
@@ -29,7 +29,7 @@ MariaDB is offered as five kinds, each with the manifest its owner writes.
 ### MariaDBServer
 
 A user creates a `MariaDBServer` with a manifest like the one below. It names its class and carries
-a provider config entry for RDS (principle 2):
+a provider configuration entry for RDS (principle 2):
 
 ```yaml
 ---
@@ -76,8 +76,8 @@ spec:
 *A `MariaDBServer` with its common fields and an entry for RDS.*
 
 `restore` creates a server from another server's backups, at a point in time. A deleted server is
-restored instead with its provider config's `fromBackup` and an RDS snapshot ID. Both are set at
-creation only and cannot be combined:
+restored instead with its provider configuration's `fromBackup` and an RDS snapshot ID. Both are set
+at creation only and cannot be combined:
 
 ```yaml
 ---
@@ -174,8 +174,8 @@ On RDS, a class reports `HighAvailability`, `ReadReplicas` and `DisasterRecovery
 ### MariaDBParameters
 
 `MariaDBParameters` holds MariaDB settings that several servers or a class share. A class, a server
-and a server's provider config may each reference one, and their settings merge key by key in that
-order, followed by the server's own `parameters`:
+and a server's provider configuration may each reference one, and their settings merge key by key in
+that order, followed by the server's own `parameters`:
 
 ```yaml
 ---
@@ -199,7 +199,7 @@ rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 `MariaDBUser` acts inside MariaDB, through provider-sql, so it is the same in every implementation.
 Its `name` and `serverRef` are immutable, `serverRef` may name another namespace of the same Zone
-(principle 11), and it has no class or provider configs.
+(principle 11), and it has no class or provider configurations.
 
 A user's databases and privileges are a list, `databases`, with one entry per database, so an
 application that uses two databases on one server needs one login, as principle 12 requires. Each
@@ -251,7 +251,7 @@ spec:
 
 `MariaDBDatabase` acts inside MariaDB, through provider-sql, so it is the same in every
 implementation. Its `name` and `serverRef` are immutable, `serverRef` may name another namespace of
-the same Zone (principle 11), and it has no class or provider configs.
+the same Zone (principle 11), and it has no class or provider configurations.
 
 An example:
 
@@ -374,7 +374,7 @@ with the reason (principle 1):
 
 *Common fields of `MariaDBServer` and their provider fields.*
 
-The second names the provider config kind and what its fields map to:
+The second names the provider configuration kind and what its fields map to:
 
 | Field                | AWS                                                                     |
 | -------------------- | ----------------------------------------------------------------------- |

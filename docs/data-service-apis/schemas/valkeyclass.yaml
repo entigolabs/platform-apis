@@ -120,17 +120,17 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider config: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the implementation this class uses.
                     properties:
                       apiVersion:
                         type: string
                         description: |-
-                          The provider config kind's group and version, such as
+                          The provider configuration kind's group and version, such as
                           aws.database.entigo.com/v1alpha1.
                       kind:
                         type: string
                         description: |-
-                          The provider config kind, such as PostgreSQLRDSConfig.
+                          The provider configuration kind, such as PostgreSQLRDSConfig.
                       spec:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
@@ -167,17 +167,17 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider config: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the implementation this class uses.
                     properties:
                       apiVersion:
                         type: string
                         description: |-
-                          The provider config kind's group and version, such as
+                          The provider configuration kind's group and version, such as
                           aws.database.entigo.com/v1alpha1.
                       kind:
                         type: string
                         description: |-
-                          The provider config kind, such as PostgreSQLRDSConfig.
+                          The provider configuration kind, such as PostgreSQLRDSConfig.
                       spec:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
@@ -200,12 +200,12 @@ spec:
                       apiVersion:
                         type: string
                         description: |-
-                          The provider config kind's group and version, such as
+                          The provider configuration kind's group and version, such as
                           aws.database.entigo.com/v1alpha1.
                       kind:
                         type: string
                         description: |-
-                          The provider config kind, such as PostgreSQLRDSConfig.
+                          The provider configuration kind, such as PostgreSQLRDSConfig.
                       spec:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
@@ -221,7 +221,7 @@ spec:
                 || !has(self.template.providerConfig)
                 || !has(self.enforced.providerConfig)
                 || (self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion && self.template.providerConfig.kind == self.enforced.providerConfig.kind)
-              message: template and enforced name the same provider config kind
+              message: template and enforced name the same provider configuration kind
           status:
             type: object
             properties:

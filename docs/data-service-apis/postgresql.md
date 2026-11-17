@@ -9,7 +9,7 @@ deployment's defaults and limits, written by Entigo, and `PostgreSQLParameters`,
 settings.
 
 Built on Amazon RDS (AWS), Cloud SQL (GCP), OCI Database with PostgreSQL (OCI) and Azure Database
-for PostgreSQL flexible server (Azure), each with a provider config kind of its own:
+for PostgreSQL flexible server (Azure), each with a provider configuration kind of its own:
 `PostgreSQLRDSConfig`, `PostgreSQLCloudSQLConfig`, `PostgreSQLOCIConfig` and
 `PostgreSQLFlexibleServerConfig`.
 
@@ -30,8 +30,8 @@ PostgreSQL is offered as five kinds, each with the manifest its owner writes.
 ### PostgreSQLCluster
 
 A user creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
-carries one provider config entry per implementation it may run on (principle 2); each deployment
-applies the entry of its own class's kind and ignores the others:
+carries one provider configuration entry per implementation it may run on (principle 2); each
+deployment applies the entry of its own class's kind and ignores the others:
 
 ```yaml
 ---
@@ -111,7 +111,8 @@ spec:
 
 *A `PostgreSQLFlexibleServerConfig` that a cluster's entry references.*
 
-Most clusters name nothing implementation-specific and take the class's provider config as it is:
+Most clusters name nothing implementation-specific and take the class's provider configuration as it
+is:
 
 ```yaml
 ---
@@ -129,8 +130,8 @@ spec:
 *A `PostgreSQLCluster` that takes its class's defaults.*
 
 `restore` creates a cluster from another cluster's backups, at a point in time. A deleted cluster is
-restored instead with its provider config's `fromBackup`, such as an RDS snapshot ID. Both are set
-at creation only and cannot be combined:
+restored instead with its provider configuration's `fromBackup`, such as an RDS snapshot ID. Both
+are set at creation only and cannot be combined:
 
 ```yaml
 ---
@@ -197,7 +198,7 @@ The admin login is in the secret `<instance>-dbadmin`, with the keys of principl
 
 Entigo writes each deployment's classes: cluster-scoped objects that hold the defaults an object
 starts with (`template`) and the values it cannot change (`enforced`), each with common fields and
-one provider config, whose kind selects the implementation (principle 5):
+one provider configuration, whose kind selects the implementation (principle 5):
 
 ```yaml
 ---
@@ -248,14 +249,14 @@ status:
 
 *The supported features of a `PostgreSQLClass`.*
 
-A class with no provider config uses the one implementation its deployment installs, so it holds
-only common fields and can be copied to every deployment unchanged.
+A class with no provider configuration uses the one implementation its deployment installs, so it
+holds only common fields and can be copied to every deployment unchanged.
 
 ### PostgreSQLParameters
 
-`PostgreSQLParameters` holds PostgreSQL settings that several clusters or a class share. A class,
-a cluster and a cluster's provider config may each reference one, and their settings merge key by
-key in that order, followed by the cluster's own `parameters`:
+`PostgreSQLParameters` holds PostgreSQL settings that several clusters or a class share. A class, a
+cluster and a cluster's provider configuration may each reference one, and their settings merge key
+by key in that order, followed by the cluster's own `parameters`:
 
 ```yaml
 ---
@@ -280,7 +281,7 @@ reported as `CloudAccepted: False` (principle 10).
 
 `PostgreSQLUser` acts inside PostgreSQL, through provider-sql, so it is the same in every
 implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
-of the same Zone (principle 11), and it has no class or provider configs.
+of the same Zone (principle 11), and it has no class or provider configurations.
 
 A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
 which other users receive through `grant.roles`.
@@ -315,7 +316,7 @@ spec:
 
 `PostgreSQLDatabase` acts inside PostgreSQL, through provider-sql, so it is the same in every
 implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
-of the same Zone (principle 11), and it has no class or provider configs.
+of the same Zone (principle 11), and it has no class or provider configurations.
 
 `extensions` creates an extension in that database. Azure also needs the server to allow it, so
 every Azure cluster allows the whole allowlist, and any database can create any of them, as
@@ -451,7 +452,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 
 *Common fields of `PostgreSQLCluster` and their provider fields.*
 
-The second names the implementation's provider config kind and what its fields map to:
+The second names the implementation's provider configuration kind and what its fields map to:
 
 | Field                | AWS                                                                     | GCP                                                       | OCI                                                              | Azure                                                                    |
 | -------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -467,7 +468,7 @@ The second names the implementation's provider config kind and what its fields m
 | `storageTier`        |                                                                         |                                                           |                                                                  | `storageTier`                                                            |
 | `readReplicas`       | one RDS read replica `Instance` per entry, with its own `instanceClass` | one Cloud SQL read replica per entry, with its own `tier` |                                                                  | one replica `FlexibleServer` per entry, with its own `skuName`           |
 
-*Fields of each provider config kind.*
+*Fields of each provider configuration kind.*
 
 **AWS:** provider keys are from the CRDs of [provider-upjet-aws
 v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). Only RDS can

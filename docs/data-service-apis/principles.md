@@ -14,36 +14,36 @@ implementation in a class (principle 5).
 
 A requirement belongs in the common spec when two or more implementations can meet it, and a user
 can set it without knowledge of the implementation, such as a version, a disk size, high
-availability or backups. A setting that only one implementation has belongs in its provider config
-(principle 2). This rule prevents the common spec from becoming a thin wrapper around provider
-configs: a manifest is only as portable as its common fields.
+availability or backups. A setting that only one implementation has belongs in its provider
+configuration (principle 2). This rule prevents the common spec from becoming a thin wrapper around
+provider configurations: a manifest is only as portable as its common fields.
 
 A portable feature that an implementation cannot provide, such as a standby or a read replica, is
 refused, never dropped silently, because the user's applications rely on that capacity. A minor
 field that an implementation cannot honour is ignored there. An operation an implementation cannot
 perform fails, with the reason shown on the object.
 
-#### 2 A setting of one implementation belongs in its provider config
+#### 2 A setting of one implementation belongs in its provider configuration
 
 A setting that exists in only one implementation, such as an RDS instance class, belongs in that
-implementation's provider config, never in the core kind.
+implementation's provider configuration, never in the core kind.
 
-A provider config is a block of settings whose kind belongs to one implementation, such as
+A provider configuration is a block of settings whose kind belongs to one implementation, such as
 `PostgreSQLRDSConfig` for RDS. Implementations differ: RDS has instance classes and parameter
 groups, Cloud SQL has editions, OCI has flexible shapes. If the core kind held them all, every new
 implementation would change it (principle 3).
 
-Everything that is neither a common field nor in a provider config, such as network placement and
-encryption keys, is decided by the platform.
+Everything that is neither a common field nor in a provider configuration, such as network placement
+and encryption keys, is decided by the platform.
 
 #### 3 Adding an implementation never changes the core kinds
 
 Implementing a kind on another cloud, on-premises or outside Entigo never changes the core kinds'
 schemas, so existing manifests remain valid.
 
-The core schemas name no cloud and no vendor. A new implementation brings its own provider config
-kind, the composition logic that creates the core kind's resources, and the classes that select
-it.
+The core schemas name no cloud and no vendor. A new implementation brings its own provider
+configuration kind, the composition logic that creates the core kind's resources, and the classes
+that select it.
 
 #### 4 The status reports the resource's actual values
 
@@ -81,15 +81,15 @@ A kind is installed on a deployment only if an implementation runs its engine th
 deployments the kind does not exist, and the portal does not show the service. A different engine is
 never substituted: MySQL is not MariaDB.
 
-#### 8 A kind is named after its engine, and a provider config after its product
+#### 8 A kind is named after its engine, and a provider configuration after its product
 
-A user-facing kind takes the name of its engine or concept, never of a product; a provider config
-kind takes the name of its product.
+A user-facing kind takes the name of its engine or concept, never of a product; a provider
+configuration kind takes the name of its product.
 
 A product name ties a user-facing kind to one cloud: `S3Bucket` reads as Amazon S3 even where the
 bucket is in Cloud Storage. A user-facing kind therefore takes the engine's own term, as
 `PostgreSQLCluster` and `KafkaTopic` do, or, where the engine has no term for it, the concept every
-cloud shares, as `Bucket` and `ArtifactRepository` do. A provider config is specific to one
+cloud shares, as `Bucket` and `ArtifactRepository` do. A provider configuration is specific to one
 implementation by definition, so naming the product is accurate.
 
 #### 9 A kind either creates its resource or observes an existing one
@@ -102,8 +102,8 @@ used without transferring its ownership to the platform.
 
 #### 10 The core schema checks only the API's own rules
 
-The core schema checks the API's own rules; each implementation checks its provider config, and
-each cloud enforces its own value limits.
+The core schema checks the API's own rules; each implementation checks its provider configuration,
+and each cloud enforces its own value limits.
 
 The core schema checks only the rules the API itself defines: field types, fields that cannot
 change, fields that cannot be combined, and the API's own minimums, such as a disk that cannot

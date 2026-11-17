@@ -31,9 +31,9 @@ spec:
               observe:
                 type: boolean
                 description: |-
-                  true observes an existing resource, named by the id in its provider config
-                  entry, and never changes or deletes it. Every other common field is then
-                  rejected (principle 9). Set at creation only.
+                  true observes an existing resource, named by the id in its provider
+                  configuration entry, and never changes or deletes it. Every other common field
+                  is then rejected (principle 9). Set at creation only.
               version:
                 type: string
                 description: |-
@@ -94,12 +94,12 @@ spec:
                     apiVersion:
                       type: string
                       description: |-
-                        The provider config kind's group and version, such as
+                        The provider configuration kind's group and version, such as
                         aws.database.entigo.com/v1alpha1.
                     kind:
                       type: string
                       description: |-
-                        The provider config kind, such as PostgreSQLRDSConfig.
+                        The provider configuration kind, such as PostgreSQLRDSConfig.
                     spec:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
@@ -155,7 +155,7 @@ spec:
               providerConfig:
                 type: object
                 description: |-
-                  The provider config entries applied and ignored, as <apiVersion>, <kind>
+                  The provider configuration entries applied and ignored, as <apiVersion>, <kind>
                   (principle 4).
                 properties:
                   applied:
@@ -174,7 +174,7 @@ spec:
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
                 description: |-
-                  Values of the applied implementation, in the shape its provider config kind's
-                  status defines (principle 4).
+                  Values of the applied implementation, in the shape its provider configuration
+                  kind's status defines (principle 4).
         required:
         - spec

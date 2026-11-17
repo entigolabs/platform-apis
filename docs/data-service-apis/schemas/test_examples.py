@@ -4,7 +4,7 @@ Usage: python3 test_examples.py <schemas directory> <kubeconfig>
 
 Installs the schemas as CRDs, as test_rules.py does, then sends each manifest of a served version
 found in a yaml block of the documents next to the schemas directory to the API server with a
-server-side dry run, and each inline provider config entry as an object of its own kind (rule 10).
+server-side dry run, and each inline provider configuration entry as an object of its own kind (principle 10).
 Manifests of today's APIs, in other versions, are skipped.
 """
 import json
@@ -72,7 +72,7 @@ for name, doc in examples():
     label = f"{name}: {doc['kind']} {doc.get('metadata', {}).get('name', '')}"
     results.append(code == 0)
     print(("PASS " if code == 0 else "FAIL ") + label + ("" if code == 0 else "\n     " + out[-600:]))
-    # Rule 10: each inline provider config entry is checked against its own kind's schema, as CI
+    # Principle 10: each inline provider configuration entry is checked against its own kind's schema, as CI
     # does, wherever it would be applied.
     spec = doc.get("spec") or {}
     entries = list(spec.get("providerConfigs") or [])
