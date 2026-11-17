@@ -56,7 +56,7 @@ The menu groups the pages of the design:
 
 - **Design:** [Model & Principles](principles.md), the parts every data service API is built from
   and the rules each follows; [Common Design](common-design.md), the mechanisms every service
-  shares, and [Service Designs](postgresql.md), a tab per service; [API Changes](changes.md), every
+  shares, and [Service Designs](postgresql.md), a page per service; [API Changes](changes.md), every
   change from today's APIs per kind, and [Related Work](related-work.md).
 - **Open items:** [Open Points](open-points.md), [Follow-Up Work](follow-up-work.md) and
   [Deferred Capabilities](deferred-capabilities.md).
