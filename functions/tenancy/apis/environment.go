@@ -56,9 +56,23 @@ type RoleMapping struct {
 	Groups  []string `json:"groups"`
 }
 
-func (e Environment) ValidateFor(provider CloudProvider) error {
-	// stop instead of emptying every Zone Namespace Role, e.g. when an upgrade applies the function first
-	if e.NamespaceRole.Rules == nil {
+type Authz struct {
+	Grants       bool
+	Organization string
+	Workspace    string
+}
+
+func (a Authz) Enabled() bool {
+	return a.Grants
+}
+
+func (e Environment) ValidateFor(provider CloudProvider, settings Authz) error {
+	if settings.Enabled() {
+		if settings.Organization == "" {
+			return errors.New("authz.enabled needs authz.organization")
+		}
+	} else if e.NamespaceRole.Rules == nil {
+		// stop instead of emptying every Zone Namespace Role, e.g. when an upgrade applies the function first
 		return errors.New("namespaceRole.rules is required")
 	}
 	switch provider {

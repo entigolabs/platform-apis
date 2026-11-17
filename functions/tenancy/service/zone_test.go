@@ -8,6 +8,7 @@ import (
 
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
+	"github.com/entigolabs/platform-apis/apis/argocd"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types/ref"
@@ -423,11 +424,11 @@ func chartDefaultRules(t *testing.T) []rbacv1.PolicyRule {
 
 func TestValidateNamespaceRoleRules(t *testing.T) {
 	env := apis.Environment{AWSProvider: "crossplane-aws", VPC: "vpc"}
-	if err := env.ValidateFor(apis.CloudProviderAWS); err == nil {
+	if err := env.ValidateFor(apis.CloudProviderAWS, apis.Authz{}); err == nil {
 		t.Error("missing namespaceRole.rules must be rejected")
 	}
 	env.NamespaceRole.Rules = []rbacv1.PolicyRule{}
-	if err := env.ValidateFor(apis.CloudProviderAWS); err != nil {
+	if err := env.ValidateFor(apis.CloudProviderAWS, apis.Authz{}); err != nil {
 		t.Errorf("an empty namespaceRole.rules list must be accepted: %v", err)
 	}
 }
@@ -610,5 +611,50 @@ func TestNodeSelectorPolicies(t *testing.T) {
 				t.Errorf("admitted = %v, want %v", admitted, !tc.rejected)
 			}
 		})
+	}
+}
+
+func TestValidateWithAuthzNeedsTheOrganizationNotTheNamespaceRole(t *testing.T) {
+	env := apis.Environment{AWSProvider: "crossplane-aws", VPC: "vpc"}
+	if err := env.ValidateFor(apis.CloudProviderAWS, apis.Authz{Grants: true, Organization: "jev"}); err != nil {
+		t.Errorf("with authz on namespaceRole is not read and must not be required: %v", err)
+	}
+	if err := env.ValidateFor(apis.CloudProviderAWS, apis.Authz{Grants: true}); err == nil {
+		t.Error("authz on without an organization must fail; the AppProjects would lose every role")
+	}
+}
+
+func TestZoneWithAuthzGetsNoNamespaceRBAC(t *testing.T) {
+	g := zoneGenerator{
+		zone:     v1alpha1.Zone{ObjectMeta: metav1.ObjectMeta{Name: "test-zone"}},
+		settings: apis.Authz{Grants: true, Organization: "jev", Workspace: "jev"},
+	}
+	objs := map[string]client.Object{}
+	if err := g.generateNamespace(objs, "test-app-ns", "", false); err != nil {
+		t.Fatal(err)
+	}
+	g.generateAppsNamespace(objs, "test-apps")
+	for key, obj := range objs {
+		switch obj.(type) {
+		case *rbacv1.Role, *rbacv1.RoleBinding, *rbacv1.ClusterRoleBinding:
+			t.Errorf("%s generated while authz is on", key)
+		}
+	}
+}
+
+func TestAppProjectRolesFollowTheAuthzMode(t *testing.T) {
+	zone := v1alpha1.Zone{ObjectMeta: metav1.ObjectMeta{Name: "test-zone"}}
+	off := zoneGenerator{zone: zone, roleMappings: map[string][]string{}}.appProjectRoles()
+	names := make([]string, 0, len(off))
+	for _, role := range off {
+		names = append(names, role.Name)
+	}
+	if diff := cmp.Diff([]string{RoleMaintainer, RoleObserver, RoleContributor, RoleCICD}, names); diff != "" {
+		t.Errorf("authz off keeps the four roles of main, even without roleMapping (-want +got):\n%s", diff)
+	}
+	fromGrants := []argocd.ProjectRole{{Name: "zone-readonly"}}
+	on := zoneGenerator{zone: zone, settings: apis.Authz{Grants: true, Organization: "jev"}, projectRoles: fromGrants}.appProjectRoles()
+	if diff := cmp.Diff(fromGrants, on); diff != "" {
+		t.Errorf("authz on takes the roles built from RoleGrants (-want +got):\n%s", diff)
 	}
 }

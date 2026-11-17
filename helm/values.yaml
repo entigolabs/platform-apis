@@ -18,6 +18,11 @@ global:
 
 workspace: ""
 
+authz:
+  enabled: false
+  organization: ""
+  workspace: ""
+
 database:
   function:
     image: ghcr.io/entigolabs/platform-apis-database-fn

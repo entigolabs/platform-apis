@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"strings"
 	"testing"
 
 	"github.com/crossplane/function-sdk-go/resource"
@@ -17,11 +18,31 @@ import (
 
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 
+	"github.com/crossplane/function-sdk-go/resource/composite"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/function-base/test"
+	"github.com/entigolabs/platform-apis/apis"
+	"github.com/entigolabs/platform-apis/apis/authz"
 )
 
 const (
+	authzZoneJson            = `{"apiVersion":"tenancy.entigo.com/v1alpha1","kind":"Zone","metadata":{"name":"main"},"spec":{}}`
+	authzZoneName            = "main"
+	readEverythingRuleJson   = `{"apiGroups":["*"],"resources":["*"],"verbs":["get","list","watch"]}`
+	zoneReadonlyRole         = "zone-readonly"
+	zoneReadonlyPoliciesJson = `["p, proj:main:zone-readonly, applications, get, main/*, allow","p, proj:main:zone-readonly, applicationsets, get, main/*, allow","p, proj:main:zone-readonly, exec, get, main/*, allow","p, proj:main:zone-readonly, logs, get, main/*, allow","p, proj:main:zone-readonly, repositories, get, main/*, allow"]`
+
+	contractRolesJson = `[` +
+		`{"name":"ct-n1","description":"RoleDefinition ct-n1","groups":["ct-n1@jev/jev"],"policies":["p, proj:main:ct-n1, applications, get, main/*, allow"]},` +
+		`{"name":"ct-n10","description":"RoleDefinition ct-n10","groups":["ct-n10@jev/jev"],"policies":["p, proj:main:ct-n10, applications, *, main/*, allow","p, proj:main:ct-n10, applicationsets, *, main/*, allow","p, proj:main:ct-n10, exec, *, main/*, allow","p, proj:main:ct-n10, logs, *, main/*, allow","p, proj:main:ct-n10, repositories, *, main/*, allow"]},` +
+		`{"name":"ct-n2","description":"RoleDefinition ct-n2","groups":["ct-n2@jev/jev"],"policies":["p, proj:main:ct-n2, applications, update, main/*, allow"]},` +
+		`{"name":"ct-n3","description":"RoleDefinition ct-n3","groups":["ct-n3@jev/jev"],"policies":["p, proj:main:ct-n3, applicationsets, sync, main/*, allow"]},` +
+		`{"name":"ct-n5","description":"RoleDefinition ct-n5","groups":["ct-n5@jev/jev"],"policies":["p, proj:main:ct-n5, logs, get, main/*, allow"]},` +
+		`{"name":"ct-n6","description":"RoleDefinition ct-n6","groups":["ct-n6@jev/jev"],"policies":["p, proj:main:ct-n6, exec, create, main/*, allow"]},` +
+		`{"name":"ct-n7","description":"RoleDefinition ct-n7","groups":["ct-n7@jev/jev"],"policies":["p, proj:main:ct-n7, repositories, *, main/*, allow"]},` +
+		`{"name":"ct-n9","description":"RoleDefinition ct-n9","groups":["ct-n9@jev/jev"],"policies":["p, proj:main:ct-n9, applications, action/*, main/*, allow"]}` +
+		`]`
+
 	requiredVPCjson = `{
 		"apiVersion": "ec2.aws.upbound.io/v1beta1", "kind": "VPC",
 		"metadata": {"annotations": {"crossplane.io/external-name": "vpc-01cda48a237c4850f"}, "name": "test-vpc", "namespace":"aws-provider"},
@@ -937,4 +958,247 @@ func TestZoneFunction(t *testing.T) {
 		return &GroupImpl{}
 	}
 	test.RunFunctionCases(t, newService, cases)
+}
+
+func roleDefinitionJson(name, rulesJson string) string {
+	return fmt.Sprintf(`{"apiVersion":"authz.entigo.com/v1alpha1","kind":"RoleDefinition","metadata":{"name":%q},"spec":{"rules":[%s]}}`, name, rulesJson)
+}
+
+func roleGrantJson(name, role, labelsJson, targetsJson string) string {
+	return fmt.Sprintf(`{"apiVersion":"authz.entigo.com/v1alpha1","kind":"RoleGrant","metadata":{"name":%q,"labels":{%s}},"spec":{"roleRef":%q,"subjects":[{"kind":"Group","name":"platform"}],"resources":[%s]}}`, name, labelsJson, role, targetsJson)
+}
+
+func targetJson(group, kind, name string) string {
+	return fmt.Sprintf(`{"group":%q,"kind":%q,"name":%q}`, group, kind, name)
+}
+
+func zoneReadonlyRoleJson(groups ...string) string {
+	quoted, _ := json.Marshal(groups)
+	return fmt.Sprintf(`[{"name":%q,"description":"RoleDefinition %s","groups":%s,"policies":%s}]`,
+		zoneReadonlyRole, zoneReadonlyRole, quoted, zoneReadonlyPoliciesJson)
+}
+
+func authzAppProjectJson(rolesJson string, cicdGroups []string) string {
+	var roles []any
+	if rolesJson != "" {
+		if err := json.Unmarshal([]byte(rolesJson), &roles); err != nil {
+			panic(err)
+		}
+	}
+	cicd := map[string]any{
+		"name":        "cicd",
+		"description": "Use this role for your CI/CD pipelines",
+		"policies": []string{
+			"p, proj:main:cicd, applications, sync, main/*, allow",
+			"p, proj:main:cicd, applicationsets, sync, main/*, allow",
+			"p, proj:main:cicd, applications, get, main/*, allow",
+			"p, proj:main:cicd, applicationsets, get, main/*, allow",
+		},
+	}
+	if len(cicdGroups) > 0 {
+		cicd["groups"] = cicdGroups
+	}
+	rolesBytes, err := json.Marshal(append(roles, cicd))
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf(`{"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"annotations":{"tenancy.entigo.com/zone":"main"},"labels":{"tenancy.entigo.com/zone":"main"},"name":"main","namespace":"argocd"},"spec":{"clusterResourceBlacklist":[{"group":"*","kind":"*"}],"description":"Security zone for isolated team deployment","roles":%s,"sourceRepos":["*"]},"status":{}}`, rolesBytes)
+}
+
+func authzItems(objects []string) *fnv1.Resources {
+	items := make([]*fnv1.Resource, 0, len(objects))
+	for _, object := range objects {
+		items = append(items, &fnv1.Resource{Resource: resource.MustStructJSON(object)})
+	}
+	return &fnv1.Resources{Items: items}
+}
+
+func authzCase(reason string, definitions, grants []string, rolesJson string, cicdGroups ...string) test.Case {
+	environment := map[string]interface{}{
+		"appProject":        map[string]interface{}{"sourceRepos": []interface{}{"*"}},
+		"awsProvider":       "aws-provider",
+		"argoCDNamespace":   "argocd",
+		"cluster":           "test-cluster",
+		"securityGroup":     "eks-node-sg",
+		"computeSubnetType": "compute",
+		"vpc":               "test-vpc",
+		"podSecurity":       "baseline",
+	}
+	everything := &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{}}}
+	return test.Case{
+		Reason: reason,
+		Args: test.Args{Req: &fnv1.RunFunctionRequest{
+			Observed: &fnv1.State{Composite: &fnv1.Resource{Resource: resource.MustStructJSON(authzZoneJson)}},
+			RequiredResources: map[string]*fnv1.Resources{
+				base.EnvironmentKey:                  test.EnvironmentConfigResourceWithData(environmentName, environment),
+				service.NamespaceKey:                 {},
+				service.VPCKey:                       {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredVPCjson)}}},
+				service.SecurityGroupKey:             {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredSecurityGroupJson)}}},
+				service.ClusterKey:                   {Items: []*fnv1.Resource{{Resource: resource.MustStructJSON(requiredClusterJson)}}},
+				service.SubnetsKey:                   {},
+				service.IngressClassKey:              {},
+				service.IngressClassParamsKey:        {},
+				service.GatewayKey:                   {},
+				service.LoadBalancerConfigurationKey: {},
+				service.RoleDefinitionKey:            authzItems(definitions),
+				service.RoleGrantKey:                 authzItems(grants),
+			},
+		}},
+		Want: test.Want{Rsp: &fnv1.RunFunctionResponse{
+			Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
+			Desired: &fnv1.State{Resources: map[string]*fnv1.Resource{
+				service.GetAppProjectKey(authzZoneName): {Resource: resource.MustStructJSON(authzAppProjectJson(rolesJson, cicdGroups))},
+				service.GetRoleKey(authzZoneName):       {Resource: resource.MustStructJSON(strings.ReplaceAll(roleJson, "test-zone", authzZoneName))},
+			}},
+			Requirements: &fnv1.Requirements{Resources: map[string]*fnv1.ResourceSelector{
+				base.EnvironmentKey:                  base.RequiredEnvironmentConfig(environmentName),
+				service.NamespaceKey:                 {Kind: "Namespace", ApiVersion: "v1", Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{base.TenancyZoneLabel: authzZoneName}}}},
+				service.VPCKey:                       {Kind: "VPC", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-vpc"}},
+				service.SecurityGroupKey:             {Kind: "SecurityGroup", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: &fnv1.ResourceSelector_MatchName{MatchName: "eks-node-sg"}},
+				service.ClusterKey:                   {Kind: "Cluster", ApiVersion: "eks.aws.upbound.io/v1beta2", Match: &fnv1.ResourceSelector_MatchName{MatchName: "test-cluster"}},
+				service.SubnetsKey:                   {Kind: "Subnet", ApiVersion: "ec2.aws.upbound.io/v1beta1", Match: everything},
+				service.IngressClassKey:              {Kind: "IngressClass", ApiVersion: "networking.k8s.io/v1", Match: everything},
+				service.IngressClassParamsKey:        {Kind: "IngressClassParams", ApiVersion: "elbv2.k8s.aws/v1beta1", Match: everything},
+				service.GatewayKey:                   {Kind: "Gateway", ApiVersion: "gateway.networking.k8s.io/v1", Match: everything},
+				service.LoadBalancerConfigurationKey: {Kind: "LoadBalancerConfiguration", ApiVersion: "gateway.k8s.aws/v1beta1", Match: everything},
+				service.RoleDefinitionKey:            {Kind: "RoleDefinition", ApiVersion: authz.APIVersion, Match: everything},
+				service.RoleGrantKey:                 {Kind: "RoleGrant", ApiVersion: authz.APIVersion, Match: everything},
+			}},
+		}},
+	}
+}
+
+func contractDefinitions() []string {
+	rules := []string{
+		`{"apiGroups":["argoproj.io"],"resources":["applications"],"verbs":["get","list","watch"]}`,
+		`{"apiGroups":["argoproj.io"],"resources":["applications"],"verbs":["patch","update"]}`,
+		`{"apiGroups":["argoproj.io"],"resources":["applicationsets"],"verbs":["sync"]}`,
+		`{"apiGroups":["argoproj.io"],"resources":["appprojects"],"verbs":["get"]}`,
+		`{"apiGroups":["argocd.meta.entigo.com"],"resources":["logs"],"verbs":["get"]}`,
+		`{"apiGroups":["argocd.meta.entigo.com"],"resources":["exec"],"verbs":["create"]}`,
+		`{"apiGroups":["argocd.meta.entigo.com"],"resources":["repositories"],"verbs":["*"]}`,
+		`{"apiGroups":["argocd.meta.entigo.com"],"resources":["certificates"],"verbs":["get"]}`,
+		`{"apiGroups":["argoproj.io"],"resources":["applications"],"verbs":["action"]}`,
+		`{"apiGroups":["*"],"resources":["*"],"verbs":["*"]}`,
+		`{"apiGroups":["apps"],"resources":["deployments"],"verbs":["*"]}`,
+		`{"apiGroups":["argoproj.io"],"resources":["applications"],"verbs":["deletecollection"]}`,
+		`{"apiGroups":["argocd.meta.entigo.com"],"resources":["repositories"],"verbs":["get"],"scope":"Cluster"}`,
+	}
+	definitions := make([]string, 0, len(rules))
+	for i, rule := range rules {
+		definitions = append(definitions, roleDefinitionJson(fmt.Sprintf("ct-n%d", i+1), rule))
+	}
+	return definitions
+}
+
+func contractGrants() []string {
+	grants := make([]string, 0, 13)
+	for i := 1; i <= 13; i++ {
+		role := fmt.Sprintf("ct-n%d", i)
+		grants = append(grants, roleGrantJson(role, role, "", ""))
+	}
+	return grants
+}
+
+func TestZoneAppProjectRoles(t *testing.T) {
+	zone := targetJson(authz.ZoneGroup, authz.ZoneKind, authzZoneName)
+	readonly := []string{roleDefinitionJson(zoneReadonlyRole, readEverythingRuleJson)}
+	replicated := fmt.Sprintf(`%q:"jev"`, authz.ReplicatedFromLabel)
+
+	cases := map[string]test.Case{
+		"AppProject/Contract: every CT-N rule as its own role": authzCase(
+			"Each contract rule renders the Casbin lines of the contract table, rules without lines give no role",
+			contractDefinitions(), contractGrants(), contractRolesJson, "ct-n10@jev/jev"),
+		"AppProject/A grant narrowed to this zone names the zone": authzCase(
+			"The zone entry is <role>@<org>/<ws>/<zone>, lower case",
+			readonly, []string{roleGrantJson("readers", zoneReadonlyRole, "", zone)}, zoneReadonlyRoleJson("zone-readonly@jev/jev/main")),
+		"AppProject/A grant narrowed to another zone does not reach this zone": authzCase(
+			"A grant narrowed to not-yet gives main no role",
+			readonly, []string{roleGrantJson("readers", zoneReadonlyRole, "", targetJson(authz.ZoneGroup, authz.ZoneKind, "not-yet"))}, ""),
+		"AppProject/An organization replica uses the organization entry": authzCase(
+			"A replica without workspace targets reaches every workspace of the organization",
+			readonly, []string{roleGrantJson("org-readers", zoneReadonlyRole, replicated, "")}, zoneReadonlyRoleJson("zone-readonly@jev")),
+		"AppProject/A replica narrowed to this workspace uses the workspace entry": authzCase(
+			"A replica naming the workspace is granted in that workspace only",
+			readonly, []string{roleGrantJson("org-readers", zoneReadonlyRole, replicated, targetJson(authz.WorkspaceGroup, authz.WorkspaceKind, "jev"))},
+			zoneReadonlyRoleJson("zone-readonly@jev/jev")),
+		"AppProject/Grants of one role share one role": authzCase(
+			"Groups of one role are sorted and unique",
+			readonly, []string{roleGrantJson("b", zoneReadonlyRole, "", ""), roleGrantJson("a", zoneReadonlyRole, "", zone),
+				roleGrantJson("c", zoneReadonlyRole, "", "")},
+			zoneReadonlyRoleJson("zone-readonly@jev/jev", "zone-readonly@jev/jev/main")),
+		"AppProject/A grant of a missing definition gives no role": authzCase(
+			"Without its RoleDefinition a grant grants nothing",
+			nil, []string{roleGrantJson("readers", zoneReadonlyRole, "", "")}, ""),
+		"AppProject/A role with only cluster rules gives no project role": authzCase(
+			"scope: Cluster rules belong to the global argocd-rbac-cm keys, not to the AppProject",
+			[]string{roleDefinitionJson("repo-admin", `{"apiGroups":["argocd.meta.entigo.com"],"resources":["repositories","certificates"],"verbs":["*"],"scope":"Cluster"}`)},
+			[]string{roleGrantJson("repos", "repo-admin", "", "")}, ""),
+		"AppProject/An invalid role is skipped and the others stay": authzCase(
+			"A role whose name breaks the Casbin line is left out, the rest of the project still renders",
+			append([]string{roleDefinitionJson("a b", readEverythingRuleJson)}, readonly...),
+			[]string{roleGrantJson("broken", "a b", "", ""), roleGrantJson("readers", zoneReadonlyRole, "", "")},
+			zoneReadonlyRoleJson("zone-readonly@jev/jev")),
+		"AppProject/cicd is granted to the roles that write applications": authzCase(
+			"Like roleMapping maintainer in main, holders of applications * may mint cicd tokens, readers may not",
+			append([]string{roleDefinitionJson("zone-maintainer", `{"apiGroups":["*"],"resources":["*"],"verbs":["*"]}`)}, readonly...),
+			[]string{roleGrantJson("martin", "zone-maintainer", "", zone), roleGrantJson("readers", zoneReadonlyRole, "", "")},
+			`[{"name":"zone-maintainer","description":"RoleDefinition zone-maintainer","groups":["zone-maintainer@jev/jev/main"],"policies":["p, proj:main:zone-maintainer, applications, *, main/*, allow","p, proj:main:zone-maintainer, applicationsets, *, main/*, allow","p, proj:main:zone-maintainer, exec, *, main/*, allow","p, proj:main:zone-maintainer, logs, *, main/*, allow","p, proj:main:zone-maintainer, repositories, *, main/*, allow"]},`+
+				`{"name":"zone-readonly","description":"RoleDefinition zone-readonly","groups":["zone-readonly@jev/jev"],"policies":`+zoneReadonlyPoliciesJson+`}]`,
+			"zone-maintainer@jev/jev/main"),
+		"AppProject/clusters comes only from a rule naming it": authzCase(
+			"A * resource leaves project-scoped clusters out like the roles of main, a rule naming clusters still grants it",
+			[]string{roleDefinitionJson("cluster-registrar", `{"apiGroups":["argocd.meta.entigo.com"],"resources":["clusters"],"verbs":["get"]}`)},
+			[]string{roleGrantJson("registrars", "cluster-registrar", "", "")},
+			`[{"name":"cluster-registrar","description":"RoleDefinition cluster-registrar","groups":["cluster-registrar@jev/jev"],"policies":["p, proj:main:cluster-registrar, clusters, get, main/*, allow"]}]`),
+		"AppProject/A RoleDefinition named cicd does not replace the CI/CD role": authzCase(
+			"The cicd name belongs to the fixed CI/CD role of main",
+			[]string{roleDefinitionJson("cicd", readEverythingRuleJson)}, []string{roleGrantJson("pipelines", "cicd", "", "")}, ""),
+	}
+
+	newService := func() base.GroupService {
+		return &GroupImpl{cloudProvider: apis.CloudProviderAWS, authz: apis.Authz{Grants: true, Organization: "Jev", Workspace: "Jev"}}
+	}
+	test.RunFunctionCases(t, newService, cases)
+}
+
+func TestOCIZoneRequiresRoleGrantsOnlyWhenAuthzIsOn(t *testing.T) {
+	xr := composite.New()
+	if err := json.Unmarshal([]byte(authzZoneJson), &xr.Object); err != nil {
+		t.Fatal(err)
+	}
+	required := map[string][]resource.Required{
+		base.EnvironmentKey: {{Resource: &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apiextensions.crossplane.io/v1beta1",
+			"kind":       "EnvironmentConfig",
+			"metadata":   map[string]any{"name": environmentName},
+			"data": map[string]any{
+				"oracleProvider":    "crossplane-oracle",
+				"argoCDNamespace":   "argocd",
+				"cluster":           "oke",
+				"securityGroup":     "node",
+				"computeSubnetType": "private",
+				"podSecurity":       "baseline",
+				"namespaceRole":     map[string]any{"rules": []any{}},
+			},
+		}}}},
+	}
+	for name, settings := range map[string]apis.Authz{
+		"on":                    {Grants: true, Organization: "Jev", Workspace: "Jev"},
+		"off":                   {},
+		"off with organization": {Organization: "Jev", Workspace: "Jev"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			g := &GroupImpl{cloudProvider: apis.CloudProviderOCI, authz: settings}
+			selectors, err := g.GetRequiredResources(xr, required)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, definitions := selectors[service.RoleDefinitionKey]
+			_, grants := selectors[service.RoleGrantKey]
+			if definitions != settings.Enabled() || grants != settings.Enabled() {
+				t.Errorf("authz %v: RoleDefinitions requested %v, RoleGrants requested %v", settings.Enabled(), definitions, grants)
+			}
+		})
+	}
 }

@@ -87,6 +87,8 @@ type zoneGenerator struct {
 	egressExclude   base.Set[string]
 	uqNamespaces    []string
 	roleMappings    map[string][]string
+	projectRoles    []argocd.ProjectRole
+	settings        apis.Authz
 }
 
 func GenerateZoneObjects(
@@ -95,12 +97,13 @@ func GenerateZoneObjects(
 	observed map[resource.Name]resource.ObservedComposed,
 	log logging.Logger,
 	cloudProvider apis.CloudProvider,
+	settings apis.Authz,
 ) (map[string]client.Object, error) {
 	env, err := GetEnvironment(required)
 	if err != nil {
 		return nil, err
 	}
-	if err := env.ValidateFor(cloudProvider); err != nil {
+	if err := env.ValidateFor(cloudProvider, settings); err != nil {
 		return nil, err
 	}
 	namespaces, err := base.ExtractResources[*corev1.Namespace](required, NamespaceKey)
@@ -114,6 +117,16 @@ func GenerateZoneObjects(
 	tags := make(map[string]*string)
 	maps.Copy(tags, env.Tags)
 	tags[base.TenancyZoneLabel] = &zone.Name
+
+	projectRoles, err := projectRolesFrom(zone.Name, settings, required, log)
+	if err != nil {
+		return nil, err
+	}
+	roleMappings := map[string][]string{}
+	if !settings.Enabled() {
+		roleMappings = mergeRoleMappings(zone, env)
+	}
+
 	generator := zoneGenerator{
 		log:            log,
 		zone:           zone,
@@ -128,7 +141,9 @@ func GenerateZoneObjects(
 		zoneTags:      tags,
 		egressExclude: base.NewSet(env.GranularEgressExclude...),
 		uqNamespaces:  GetUniqueNamespaces(zone, namespaces),
-		roleMappings:  mergeRoleMappings(zone, env),
+		roleMappings:  roleMappings,
+		projectRoles:  projectRoles,
+		settings:      settings,
 	}
 	if cloudProvider == apis.CloudProviderOCI {
 		oci, err := newOCIZoneGenerator(generator)
@@ -319,29 +334,31 @@ func (g zoneGenerator) generateNamespace(objs map[string]client.Object, name, po
 		objs[GetSidecarKey(g.zone.Name, name)] = sidecar
 	}
 	objs[GetNetworkPolicyKey(g.zone.Name, name)] = g.getNetworkPolicy(name, granularNetwork)
-	allRole := g.getAllRole(name)
-	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
-	readRole := g.getReadRole(name)
-	objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
-	for role, groups := range g.roleMappings {
-		roleName := allRole.Name
-		if role == RoleObserver {
-			roleName = readRole.Name
+	if !g.settings.Enabled() {
+		allRole := g.getAllRole(name)
+		objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
+		readRole := g.getReadRole(name)
+		objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
+		for role, groups := range g.roleMappings {
+			roleName := allRole.Name
+			if role == RoleObserver {
+				roleName = readRole.Name
+			}
+			objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
 		}
-		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
-	}
-	if groups, ok := g.roleMappings[RoleMaintainer]; ok {
-		nsRole := g.getNamespaceRole(name)
-		objs[GetRBACRoleNamespaceKey(g.zone.Name, name)] = nsRole
-		objs[GetRBKey(g.zone.Name, name, RoleMaintainer+"-namespace")] =
-			g.getRoleBinding(name, name+"-"+RoleMaintainer+"-namespace", nsRole.Name, groups)
-	}
-	for role, groups := range g.roleMappings {
-		if role == RoleObserver {
-			continue // the read Role already covers every kind in the Namespace
+		if groups, ok := g.roleMappings[RoleMaintainer]; ok {
+			nsRole := g.getNamespaceRole(name)
+			objs[GetRBACRoleNamespaceKey(g.zone.Name, name)] = nsRole
+			objs[GetRBKey(g.zone.Name, name, RoleMaintainer+"-namespace")] =
+				g.getRoleBinding(name, name+"-"+RoleMaintainer+"-namespace", nsRole.Name, groups)
 		}
-		objs[GetRBKey(g.zone.Name, name, role+"-"+crossplaneViewClusterRole)] =
-			g.getClusterRoleRoleBinding(name, name+"-"+role+"-"+crossplaneViewClusterRole, crossplaneViewClusterRole, groups)
+		for role, groups := range g.roleMappings {
+			if role == RoleObserver {
+				continue // the read Role already covers every kind in the Namespace
+			}
+			objs[GetRBKey(g.zone.Name, name, role+"-"+crossplaneViewClusterRole)] =
+				g.getClusterRoleRoleBinding(name, name+"-"+role+"-"+crossplaneViewClusterRole, crossplaneViewClusterRole, groups)
+		}
 	}
 	mutatingPolicy, err := withoutPodControllerAutogen(g.getMutatingPolicy(name, pool))
 	if err != nil {
@@ -382,24 +399,26 @@ func (g zoneGenerator) generateAppsNamespace(objs map[string]client.Object, name
 	obj.SetLabels(labels)
 	objs[GetNamespaceKey(name)] = obj
 
-	allRole := g.getRole(name, name+"-all", []rbacv1.PolicyRule{{
-		APIGroups: []string{"argoproj.io"},
-		Resources: []string{"applications", "applicationsets"},
-		Verbs:     []string{"*"},
-	}})
-	objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
-	readRole := g.getRole(name, name+"-read", []rbacv1.PolicyRule{{
-		APIGroups: []string{"argoproj.io"},
-		Resources: []string{"applications", "applicationsets"},
-		Verbs:     []string{"get", "watch", "list"},
-	}})
-	objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
-	for role, groups := range g.roleMappings {
-		roleName := allRole.Name
-		if role == RoleObserver {
-			roleName = readRole.Name
+	if !g.settings.Enabled() {
+		allRole := g.getRole(name, name+"-all", []rbacv1.PolicyRule{{
+			APIGroups: []string{"argoproj.io"},
+			Resources: []string{"applications", "applicationsets"},
+			Verbs:     []string{"*"},
+		}})
+		objs[GetRBACRoleAllKey(g.zone.Name, name)] = allRole
+		readRole := g.getRole(name, name+"-read", []rbacv1.PolicyRule{{
+			APIGroups: []string{"argoproj.io"},
+			Resources: []string{"applications", "applicationsets"},
+			Verbs:     []string{"get", "watch", "list"},
+		}})
+		objs[GetRBACRoleReadKey(g.zone.Name, name)] = readRole
+		for role, groups := range g.roleMappings {
+			roleName := allRole.Name
+			if role == RoleObserver {
+				roleName = readRole.Name
+			}
+			objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
 		}
-		objs[GetRBKey(g.zone.Name, name, role)] = g.getRoleBinding(name, name+"-"+role, roleName, groups)
 	}
 }
 
@@ -886,51 +905,58 @@ func (g zoneGenerator) getAppProject() client.Object {
 			ClusterResourceBlacklist:   blacklist,
 			NamespaceResourceBlacklist: g.env.AppProject.NamespaceResourceBlacklist,
 			NamespaceResourceWhitelist: g.env.AppProject.NamespaceResourceWhitelist,
-			Roles: []argocd.ProjectRole{
-				{
-					Name:        RoleMaintainer,
-					Description: "Maintainer permissions",
-					Groups:      g.roleMappings[RoleMaintainer],
-					Policies: []string{
-						fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, repositories, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, applicationsets, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, logs, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, exec, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
-					},
-				},
-				{
-					Name:        RoleObserver,
-					Description: "Observer permissions",
-					Groups:      g.roleMappings[RoleObserver],
-					Policies: []string{
-						fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", g.zone.Name, RoleObserver, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", g.zone.Name, RoleObserver, g.zone.Name),
-					},
-				},
-				{
-					Name:        RoleContributor,
-					Description: "Contributor permissions",
-					Groups:      g.roleMappings[RoleContributor],
-					Policies: []string{
-						fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, repositories, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, applicationsets, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, logs, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, exec, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
-					},
-				},
-				{
-					Name:        RoleCICD,
-					Description: "Use this role for your CI/CD pipelines",
-					Groups:      g.roleMappings[RoleMaintainer],
-					Policies: []string{
-						fmt.Sprintf("p, proj:%s:%s, applications, sync, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, applicationsets, sync, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
-						fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
-					},
-				},
+			Roles:                      g.appProjectRoles(),
+		},
+	}
+}
+
+func (g zoneGenerator) appProjectRoles() []argocd.ProjectRole {
+	if g.settings.Enabled() {
+		return g.projectRoles
+	}
+	return []argocd.ProjectRole{
+		{
+			Name:        RoleMaintainer,
+			Description: "Maintainer permissions",
+			Groups:      g.roleMappings[RoleMaintainer],
+			Policies: []string{
+				fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, repositories, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, applicationsets, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, logs, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, exec, *, %s/*, allow", g.zone.Name, RoleMaintainer, g.zone.Name),
+			},
+		},
+		{
+			Name:        RoleObserver,
+			Description: "Observer permissions",
+			Groups:      g.roleMappings[RoleObserver],
+			Policies: []string{
+				fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", g.zone.Name, RoleObserver, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", g.zone.Name, RoleObserver, g.zone.Name),
+			},
+		},
+		{
+			Name:        RoleContributor,
+			Description: "Contributor permissions",
+			Groups:      g.roleMappings[RoleContributor],
+			Policies: []string{
+				fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, repositories, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, applicationsets, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, logs, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, exec, *, %s/*, allow", g.zone.Name, RoleContributor, g.zone.Name),
+			},
+		},
+		{
+			Name:        RoleCICD,
+			Description: "Use this role for your CI/CD pipelines",
+			Groups:      g.roleMappings[RoleMaintainer],
+			Policies: []string{
+				fmt.Sprintf("p, proj:%s:%s, applications, sync, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, applicationsets, sync, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
+				fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", g.zone.Name, RoleCICD, g.zone.Name),
 			},
 		},
 	}
