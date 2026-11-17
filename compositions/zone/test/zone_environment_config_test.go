@@ -64,3 +64,55 @@ func TestZoneEnvironmentConfigGranularEgressExclude(t *testing.T) {
 		}
 	})
 }
+
+// renderInfralibZoneLabels returns metadata.labels of the infralib Zone that the chart renders
+// with the given --set overrides.
+func renderInfralibZoneLabels(t *testing.T, values ...string) map[string]any {
+	t.Helper()
+	args := []string{"template", "test-release", chartDir}
+	for _, v := range values {
+		args = append(args, "--set", v)
+	}
+	out, err := exec.Command("helm", args...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("helm template: %v\n%s", err, out)
+	}
+	for _, doc := range strings.Split(string(out), "\n---") {
+		var obj struct {
+			Kind     string `yaml:"kind"`
+			Metadata struct {
+				Name   string         `yaml:"name"`
+				Labels map[string]any `yaml:"labels"`
+			} `yaml:"metadata"`
+		}
+		if yaml.Unmarshal([]byte(doc), &obj) == nil && obj.Kind == "Zone" && obj.Metadata.Name == "infralib" {
+			return obj.Metadata.Labels
+		}
+	}
+	t.Fatal("Zone infralib not found in rendered chart")
+	return nil
+}
+
+// TestInfralibZoneLabels covers zone.infralibZone.labels. A label value has to be a string, and
+// --set turns "true" into a boolean, so the template must quote it.
+func TestInfralibZoneLabels(t *testing.T) {
+	t.Parallel()
+
+	t.Run("labels are rendered as strings", func(t *testing.T) {
+		t.Parallel()
+		labels := renderInfralibZoneLabels(t,
+			`zone.infralibZone.labels.tenancy\.entigo\.com/default-zone=true`,
+			"zone.infralibZone.labels.team=platform")
+		want := map[string]any{"tenancy.entigo.com/default-zone": "true", "team": "platform"}
+		if !reflect.DeepEqual(labels, want) {
+			t.Fatalf("labels = %#v, want %#v", labels, want)
+		}
+	})
+
+	t.Run("the default renders no labels", func(t *testing.T) {
+		t.Parallel()
+		if labels := renderInfralibZoneLabels(t); len(labels) != 0 {
+			t.Fatalf("labels = %#v, want none", labels)
+		}
+	})
+}

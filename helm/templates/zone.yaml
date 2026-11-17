@@ -517,6 +517,12 @@ apiVersion: tenancy.entigo.com/v1alpha1
 kind: Zone
 metadata:
   name: infralib
+  {{- with .Values.zone.infralibZone.labels }}
+  labels:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | toString | quote }}
+    {{- end }}
+  {{- end }}
   annotations:
     argocd.argoproj.io/sync-wave: "50"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -561,7 +567,7 @@ spec:
         has(object.metadata.labels) &&
         'tenancy.entigo.com/zone' in object.metadata.labels &&
         object.metadata.labels['tenancy.entigo.com/zone'] != ''
-      message: "The namespace must have a 'tenancy.entigo.com/zone' label."
+      message: "The namespace must have a 'tenancy.entigo.com/zone' label. It is only assigned automatically when a Zone is labelled 'tenancy.entigo.com/default-zone=true' or when exactly one Zone exists besides infralib."
     - expression: >-
         !has(object.metadata.labels) ||
         !('tenancy.entigo.com/zone' in object.metadata.labels) ||
@@ -694,10 +700,13 @@ spec:
         dyn(variables.existingZones.items)
           .filter(z, z.metadata.name != 'infralib')
           .map(z, z.metadata.name)
+    # Without a default zone the label is only assigned when the choice is unambiguous,
+    # i.e. exactly one zone exists besides infralib. Otherwise the namespace is left
+    # unlabelled and platform-apis-zone-namespace-pod-security rejects it.
     - name: selectedZone
       expression: >-
         variables.defaultZoneName.size() > 0 ? variables.defaultZoneName[0] :
-          (variables.fallbackZoneName.size() > 0 ? variables.fallbackZoneName[0] : '')
+          (variables.fallbackZoneName.size() == 1 ? variables.fallbackZoneName[0] : '')
   mutations:
     # Must run first: JSONPatch "add" to /metadata/labels/<key> fails if the map is absent.
     - patchType: JSONPatch

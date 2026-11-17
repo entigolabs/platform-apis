@@ -151,7 +151,7 @@ func renderTemplate(t *testing.T, templatePath string, data interface{}) string 
 }
 
 // nsYAML renders the kyverno_namespace.yaml template.
-// When Zone is empty the zone label is omitted (MutatingPolicy auto-assign test).
+// When Zone is empty the zone label is omitted (missing zone label test).
 func nsYAML(t *testing.T, data kyvernoNsData) string {
 	return renderTemplate(t, "./templates/kyverno_namespace.yaml", data)
 }
