@@ -28,7 +28,8 @@ forms. infralib also deploys to GCP, OCI and Azure, and OCI is the next cloud to
 services. Implementing the design on a cloud and moving today's objects to it are follow-up work.
 
 The parts the design is built from and the principles it follows are in [Model and
-Principles](principles.md), and what changes for today's users is in [API Changes](changes.md).
+Principles](principles.md), the mechanisms that apply them in [Common Design](common-design.md), and
+what changes for today's users is in [API Changes](changes.md).
 
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
@@ -39,12 +40,14 @@ Each page of the design holds the following, in the order of the menu:
 
 - [Model and Principles](principles.md): the parts every data service API is built from, and the
   principles each follows.
-- One page per service, showing how it applies the rules: [PostgreSQL](postgresql.md),
-  [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md), [RabbitMQ](rabbitmq.md),
-  [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md). The site shows each in
-  three tabs: its design, how each cloud implements it, and the draft
+- [Common Design](common-design.md): the mechanisms that apply the principles to every service.
+- Service Designs: one page per service, holding what is particular to it:
+  [PostgreSQL](postgresql.md), [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md),
+  [RabbitMQ](rabbitmq.md), [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md).
+  The site shows each in three tabs: its design, how each cloud implements it, and the draft
   schemas of its kinds from [schemas](schemas/).
 - [API Changes](changes.md): every change from today's APIs to the design, per kind.
+- [Open Points](open-points.md): questions to decide before implementation.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
 - [Deferred Capabilities](deferred-capabilities.md): capabilities considered and omitted for now.
 - [Revisions](revisions.md): the design's revisions, newest first.

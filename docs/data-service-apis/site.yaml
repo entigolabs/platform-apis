@@ -19,8 +19,9 @@ nav:
   label: Model and Principles
   aliases: {rules: ""}               # links to the former Design Rules page
   foldItems: [Principles]                      # each rule shows its opening sentence; the rest folds
-- label: Services
-  aliases: {schemas: "*/schemas"}
+- {file: common-design.md, label: Common Design, divider: true}
+- label: Service Designs
+  aliases: {services: "", schemas: "*/schemas"}
   tabs:
   - label: PostgreSQL
     tabs:
@@ -86,9 +87,9 @@ nav:
       files:
       - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
 - {file: changes.md, label: API Changes, compare: true, tabs: sections, subsectionTabs: true}
-- {file: follow-up-work.md, label: Follow-Up Work, divider: true, foldItems: true}
+- {file: open-points.md, label: Open Points, divider: true, checklist: true, foldItems: true}
+- {file: follow-up-work.md, label: Follow-Up Work, foldItems: true}
 - {file: deferred-capabilities.md, label: Deferred Capabilities}
-- {file: open-points.md, label: Open Points, checklist: true, foldItems: true}
 - {file: revisions.md, label: Revisions, divider: true}
 - label: Feedback
   feedback: true

@@ -1,0 +1,178 @@
+# Common Design
+
+Every data service API uses the mechanisms on this page, each of which applies a principle from
+[Model and Principles](principles.md). Each service's page describes only what is particular to that
+service.
+
+## Naming
+
+A user-facing kind is named after its engine or concept (principle 8), and the kinds around it take
+their names from it:
+
+| Kind            | Name                      | Group                     | Example                                            |
+| --------------- | ------------------------- | ------------------------- | -------------------------------------------------- |
+| Class           | `<Engine>Class`           | the core group            | `PostgreSQLClass` in `database.entigo.com`         |
+| Parameters      | `<Engine>Parameters`      | the core group            | `PostgreSQLParameters` in `database.entigo.com`    |
+| Provider config | `<Engine><Product>Config` | `<platform>.<core group>` | `PostgreSQLRDSConfig` in `aws.database.entigo.com` |
+
+*Names of the kinds around a user-facing kind.*
+
+The engine comes first, so the kinds sort together. An on-premises implementation is grouped by the
+platform it runs on, `kubernetes`, with the product in the kind, as `PostgreSQLCNPGConfig` for
+CloudNativePG. An implementation built outside Entigo uses its own domain, so names never collide.
+Each provider config kind versions on its own.
+
+## Installation
+
+The `platform-apis` chart decides which kinds a deployment installs (principle 7). A deployment
+passes only its cloud, and the chart installs each service's core kinds, its provider config kinds
+and its classes where the service is implemented. A per-service switch leaves a service out, never
+adds one that the deployment lacks. A manifest of a kind that is not installed is rejected by the
+Kubernetes API server when it is applied, before any function runs.
+
+## Classes
+
+A class, such as a `PostgreSQLClass`, is cluster-scoped and written by Entigo for each deployment
+(principle 5). It holds two parts of the object's spec, each with the common fields and one provider
+config:
+
+| Part       | Effect                                                                               |
+| ---------- | ------------------------------------------------------------------------------------ |
+| `template` | Defaults: written into the object when it is created, and the object may change them |
+| `enforced` | Always applied; an object that sets a different value is refused when applied        |
+
+*The two parts of a class.*
+
+The class's provider config kind selects the implementation, as `StorageClass.provisioner` does, so
+a class has no separate field for it. A class whose provider config names a kind the deployment does
+not install is refused when applied. A class name is the portable contract: every deployment defines
+its own `standard`, and a chart that says `className: standard` works wherever a class of that name
+exists. Without `className`, the object takes the deployment's default class.
+
+The effective spec is built in three layers, the last winning: the class's `template`, then the
+object with its matching provider config entry, then the class's `enforced`. Engine parameters merge
+key by key in the same order.
+
+The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
+version 1.36. It copies the class's `template` into the object when it is created and keeps the
+values on updates. `enforced` applies all the time: it is policy, and an object that no longer
+complies after a class tightens it reports that in a condition. Observed resources receive no
+defaults.
+
+Each class reports in its status which portable features its implementation supports, such as
+`HighAvailability`, `ReadReplicas` and `DisasterRecovery`. An object that requests a feature its
+class does not report is refused when applied, with a message naming the class and the feature
+(principle 1). The portal reads a class's supported features and hides the fields its class cannot
+fulfil.
+
+## Provider Configs
+
+An object carries its provider configs (principle 2) in `providerConfigs`, a list with one entry per
+kind. Each entry names its own `apiVersion` and `kind`, and holds the settings either inline, in
+`spec`, or in a separate object of that kind, through `ref`. The list is keyed by `apiVersion` and
+`kind`, so Helm, Argo CD and server-side apply merge it entry by entry, and one manifest can carry
+settings for several implementations and be applied on any of them.
+
+A deployment applies only the entry whose kind its class names and ignores the others; the status
+lists which entry was applied and which were ignored, so a misspelled kind shows as nothing applied.
+An object with no matching entry takes the class's provider config as it is.
+
+A machine size is a provider config setting, named as the product names it, such as `db.m7g.large`
+in a `PostgreSQLRDSConfig` and `db-custom-2-8192` in a `PostgreSQLCloudSQLConfig`. A size stated as
+CPU and memory would need the platform to pick the nearest size across fixed and flexible sizes,
+families and availability per region. A class's default size spares users from knowing the names.
+
+## Status
+
+The status (principle 4) shows the common fields as the implementation actually runs them, the usual
+`conditions`, the address applications connect to, and the name of the connection secret. The
+address is `endpoint: { host, port }` where the service has one host, or the service's own form
+where it has several.
+
+Values that only make sense in one implementation, such as its resource IDs, go into
+`status.provider`, whose shape the applied provider config kind defines. `status.providerConfig`
+names the applied entry and the ignored ones, and `status.effective` shows each effective value and
+where it came from: the class's `template`, the object, or the class's `enforced`. If an
+implementation does not report a common field, that field stays empty there, and its mapping says
+so.
+
+## Connection Secrets
+
+Each credential is one Kubernetes Secret in the object's namespace, with the same keys everywhere
+(principle 6): `endpoint`, `port`, `username` and `password`. `port` is omitted where `endpoint`
+already lists hosts with their ports. A service that needs more adds its own keys, such as
+`readerEndpoint` for read replicas. No key is named after a cloud, and no key holds the others as
+JSON.
+
+The secrets are named `<instance>-dbadmin` for a database's admin, `<instance>-credentials` for
+other services, and `<instance>-<user>` for a user object. Every kind with a secret takes an
+optional `secretName` to override that name. The platform never overwrites a Secret that another
+object or person owns: joined names can collide, as a user named `dbadmin` with the admin's secret,
+or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second object reports which
+object holds the name, and `secretName` resolves it. It also allows a user to use a name its
+application already expects.
+
+## Observed Resources
+
+To observe an existing resource (principle 9), the user sets `observe: true` and gives the
+resource's ID in the provider config entry of the implementation that holds it:
+
+```yaml
+spec:
+  observe: true
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      id: ...                          # the resource's ID, copied from the cloud console
+```
+
+*An observed resource on AWS.*
+
+The ID is one value the user copies from the cloud's console, and each service's page says which
+one. The platform turns it into whatever the provider needs. An observed resource takes no other
+spec fields.
+
+A resource can be observed only when its workspace tag (a label on GCP) names this cluster's
+workspace, and only from a namespace of the Zone its Zone tag names, or from any Zone when it has no
+Zone tag. Its owner sets the tags in the cloud. The platform reads them before it uses the resource,
+and a resource that fails the check is refused with `CloudAccepted: False`. The same check lets a
+disaster recovery workspace find the resource it replicates, from the workspaces the object's
+`disasterRecovery` names.
+
+The check holds only because users can create the platform's kinds and nothing else: kcp serves no
+provider kinds, and a Zone's Argo CD project and roles allow only the platform's and Kubernetes' own
+groups. A user who could create a provider's resource directly could observe anything without the
+check.
+
+## Resource Names
+
+When the platform creates a resource, its name in the cloud includes a hash of the object's unique
+ID. As a result, two objects with the same name in different namespaces never share one cloud
+resource. A name that applications use, such as a Kafka topic or an image path, keeps the user's
+name instead, and the platform rejects a second object that requests a name already held.
+
+## References
+
+A kind that exists inside another, such as a database user or a Kafka topic, names its parent in a
+reference, such as `clusterRef`, `serverRef` or `brokerRef`, as `{ name, namespace }`. Without
+`namespace`, the parent is in the same namespace. Such a kind has no class and no provider configs:
+it acts inside the engine, which is the same everywhere, and follows its parent's implementation.
+
+A reference to another namespace is accepted only when both namespaces carry the same
+`tenancy.entigo.com/zone` label (principle 11).
+
+## Validation
+
+Provider config entries are opaque to the core schema (principle 10). Each implementation checks the
+entry that applies on its deployment with a `ValidatingAdmissionPolicy`, and publishes its kind's
+schema, so that CI checks every entry of a manifest, including those for other deployments, before
+it is applied anywhere.
+
+When the cloud rejects a value, the error appears only on the provider's own object, not on the
+user's. The platform therefore also shows it on the user's object, as the condition `CloudAccepted:
+False` and as a warning event. An operation that the running implementation cannot perform, such as
+an upgrade its service does not offer, is reported the same way, without reaching the cloud.
+
+Deletion protection is enforced by a `ValidatingAdmissionPolicy`, which refuses to delete an object
+whose `deletionProtection` is true.
