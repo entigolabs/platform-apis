@@ -25,6 +25,8 @@ jobs:
             do
               image=$(yq eval ".functions.\"${func_name}\".image" "$VALUES_FILE")
               old_version=$(yq eval ".functions.\"${func_name}\".tag" "$VALUES_FILE")
+              # A pinned tag reads "<version>@sha256:<digest>", see pullpush.sh.
+              old_version=${old_version%%@*}
               func_path=$(echo "$image" | cut -d"/" -f2-)
               latest_version=$(curl -s "https://marketplace.upbound.io/functions/$func_path" | cut -d"/" -f5)
               if [ "$latest_version" == "" ]; then
