@@ -107,8 +107,12 @@ func ProjectRoles(zone string, settings apis.Authz, definitions []authz.RoleDefi
 		}
 		groups[grant.Spec.RoleRef] = append(groups[grant.Spec.RoleRef], grantEntry(grant, settings, zone))
 	}
-	roles := make([]argocd.ProjectRole, 0, len(groups))
+	roles := make([]argocd.ProjectRole, 0, len(groups)+1)
 	for _, role := range slices.Sorted(maps.Keys(groups)) {
+		if role == RoleCICD {
+			log.Info("Skipping a RoleDefinition named like the CI/CD project role", "zone", zone, "role", role)
+			continue
+		}
 		policies, err := ProjectPolicies(zone, role, byName[role].Spec.Rules)
 		if err != nil {
 			log.Info("Skipping an AppProject role with an invalid policy", "zone", zone, "role", role, "error", err)
@@ -126,7 +130,28 @@ func ProjectRoles(zone string, settings apis.Authz, definitions []authz.RoleDefi
 			Policies:    policies,
 		})
 	}
-	return roles
+	return append(roles, cicdRole(zone, roles))
+}
+
+func cicdRole(zone string, roles []argocd.ProjectRole) argocd.ProjectRole {
+	var groups []string
+	for _, role := range roles {
+		if slices.Contains(role.Policies, fmt.Sprintf("p, proj:%s:%s, applications, *, %s/*, allow", zone, role.Name, zone)) {
+			groups = append(groups, role.Groups...)
+		}
+	}
+	slices.Sort(groups)
+	return argocd.ProjectRole{
+		Name:        RoleCICD,
+		Description: "Use this role for your CI/CD pipelines",
+		Groups:      slices.Compact(groups),
+		Policies: []string{
+			fmt.Sprintf("p, proj:%s:%s, applications, sync, %s/*, allow", zone, RoleCICD, zone),
+			fmt.Sprintf("p, proj:%s:%s, applicationsets, sync, %s/*, allow", zone, RoleCICD, zone),
+			fmt.Sprintf("p, proj:%s:%s, applications, get, %s/*, allow", zone, RoleCICD, zone),
+			fmt.Sprintf("p, proj:%s:%s, applicationsets, get, %s/*, allow", zone, RoleCICD, zone),
+		},
+	}
 }
 
 func reachesZone(grant authz.RoleGrant, zone string) bool {

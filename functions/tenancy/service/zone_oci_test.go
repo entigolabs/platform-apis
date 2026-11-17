@@ -500,7 +500,7 @@ func TestOCIZoneAppProjectGetsRolesFromRoleGrants(t *testing.T) {
 		Description: "RoleDefinition zone-readonly",
 		Groups:      []string{"zone-readonly@jev/jev"},
 		Policies:    []string{"p, proj:team-a:zone-readonly, applications, get, team-a/*, allow"},
-	}}
+	}, cicdRole("team-a", nil)}
 	if diff := cmp.Diff(want, project.Spec.Roles); diff != "" {
 		t.Errorf("AppProject roles (-want +got):\n%s", diff)
 	}

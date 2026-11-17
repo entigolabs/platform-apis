@@ -978,12 +978,31 @@ func zoneReadonlyRoleJson(groups ...string) string {
 		zoneReadonlyRole, zoneReadonlyRole, quoted, zoneReadonlyPoliciesJson)
 }
 
-func authzAppProjectJson(rolesJson string) string {
-	roles := ""
+func authzAppProjectJson(rolesJson string, cicdGroups []string) string {
+	var roles []any
 	if rolesJson != "" {
-		roles = fmt.Sprintf(`"roles":%s,`, rolesJson)
+		if err := json.Unmarshal([]byte(rolesJson), &roles); err != nil {
+			panic(err)
+		}
 	}
-	return fmt.Sprintf(`{"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"annotations":{"tenancy.entigo.com/zone":"main"},"labels":{"tenancy.entigo.com/zone":"main"},"name":"main","namespace":"argocd"},"spec":{"clusterResourceBlacklist":[{"group":"*","kind":"*"}],"description":"Security zone for isolated team deployment",%s"sourceRepos":["*"]},"status":{}}`, roles)
+	cicd := map[string]any{
+		"name":        "cicd",
+		"description": "Use this role for your CI/CD pipelines",
+		"policies": []string{
+			"p, proj:main:cicd, applications, sync, main/*, allow",
+			"p, proj:main:cicd, applicationsets, sync, main/*, allow",
+			"p, proj:main:cicd, applications, get, main/*, allow",
+			"p, proj:main:cicd, applicationsets, get, main/*, allow",
+		},
+	}
+	if len(cicdGroups) > 0 {
+		cicd["groups"] = cicdGroups
+	}
+	rolesBytes, err := json.Marshal(append(roles, cicd))
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf(`{"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"annotations":{"tenancy.entigo.com/zone":"main"},"labels":{"tenancy.entigo.com/zone":"main"},"name":"main","namespace":"argocd"},"spec":{"clusterResourceBlacklist":[{"group":"*","kind":"*"}],"description":"Security zone for isolated team deployment","roles":%s,"sourceRepos":["*"]},"status":{}}`, rolesBytes)
 }
 
 func authzItems(objects []string) *fnv1.Resources {
@@ -994,7 +1013,7 @@ func authzItems(objects []string) *fnv1.Resources {
 	return &fnv1.Resources{Items: items}
 }
 
-func authzCase(reason string, definitions, grants []string, rolesJson string) test.Case {
+func authzCase(reason string, definitions, grants []string, rolesJson string, cicdGroups ...string) test.Case {
 	environment := map[string]interface{}{
 		"appProject":        map[string]interface{}{"sourceRepos": []interface{}{"*"}},
 		"awsProvider":       "aws-provider",
@@ -1028,7 +1047,7 @@ func authzCase(reason string, definitions, grants []string, rolesJson string) te
 		Want: test.Want{Rsp: &fnv1.RunFunctionResponse{
 			Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(response.DefaultTTL)},
 			Desired: &fnv1.State{Resources: map[string]*fnv1.Resource{
-				service.GetAppProjectKey(authzZoneName): {Resource: resource.MustStructJSON(authzAppProjectJson(rolesJson))},
+				service.GetAppProjectKey(authzZoneName): {Resource: resource.MustStructJSON(authzAppProjectJson(rolesJson, cicdGroups))},
 				service.GetRoleKey(authzZoneName):       {Resource: resource.MustStructJSON(strings.ReplaceAll(roleJson, "test-zone", authzZoneName))},
 			}},
 			Requirements: &fnv1.Requirements{Resources: map[string]*fnv1.ResourceSelector{
@@ -1089,7 +1108,7 @@ func TestZoneAppProjectRoles(t *testing.T) {
 	cases := map[string]test.Case{
 		"AppProject/Contract: every CT-N rule as its own role": authzCase(
 			"Each contract rule renders the Casbin lines of the contract table, rules without lines give no role",
-			contractDefinitions(), contractGrants(), contractRolesJson),
+			contractDefinitions(), contractGrants(), contractRolesJson, "ct-n10@jev/jev"),
 		"AppProject/A grant narrowed to this zone names the zone": authzCase(
 			"The zone entry is <role>@<org>/<ws>/<zone>, lower case",
 			readonly, []string{roleGrantJson("readers", zoneReadonlyRole, "", zone)}, zoneReadonlyRoleJson("zone-readonly@jev/jev/main")),
@@ -1120,6 +1139,16 @@ func TestZoneAppProjectRoles(t *testing.T) {
 			append([]string{roleDefinitionJson("a b", readEverythingRuleJson)}, readonly...),
 			[]string{roleGrantJson("broken", "a b", "", ""), roleGrantJson("readers", zoneReadonlyRole, "", "")},
 			zoneReadonlyRoleJson("zone-readonly@jev/jev")),
+		"AppProject/cicd is granted to the roles that write applications": authzCase(
+			"Like roleMapping maintainer in main, holders of applications * may mint cicd tokens, readers may not",
+			append([]string{roleDefinitionJson("zone-maintainer", `{"apiGroups":["*"],"resources":["*"],"verbs":["*"]}`)}, readonly...),
+			[]string{roleGrantJson("martin", "zone-maintainer", "", zone), roleGrantJson("readers", zoneReadonlyRole, "", "")},
+			`[{"name":"zone-maintainer","description":"RoleDefinition zone-maintainer","groups":["zone-maintainer@jev/jev/main"],"policies":["p, proj:main:zone-maintainer, applications, *, main/*, allow","p, proj:main:zone-maintainer, applicationsets, *, main/*, allow","p, proj:main:zone-maintainer, clusters, *, main/*, allow","p, proj:main:zone-maintainer, exec, *, main/*, allow","p, proj:main:zone-maintainer, logs, *, main/*, allow","p, proj:main:zone-maintainer, repositories, *, main/*, allow"]},`+
+				`{"name":"zone-readonly","description":"RoleDefinition zone-readonly","groups":["zone-readonly@jev/jev"],"policies":`+zoneReadonlyPoliciesJson+`}]`,
+			"zone-maintainer@jev/jev/main"),
+		"AppProject/A RoleDefinition named cicd does not replace the CI/CD role": authzCase(
+			"The cicd name belongs to the fixed CI/CD role of main",
+			[]string{roleDefinitionJson("cicd", readEverythingRuleJson)}, []string{roleGrantJson("pipelines", "cicd", "", "")}, ""),
 	}
 
 	newService := func() base.GroupService {
