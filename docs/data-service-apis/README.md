@@ -29,7 +29,7 @@ services. Implementing the design on a cloud and moving today's objects to it ar
 
 The parts the design is built from are defined in [Model](model.md), the rules it follows in
 [Principles](principles.md), the mechanisms that apply them in [Common Design](common-design.md),
-and what changes for today's users is in [API Changes](changes.md).
+and the changes for today's users in [API Changes](changes.md).
 
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
 [RMIT-44](https://entigo.atlassian.net/browse/RMIT-44).
@@ -41,11 +41,8 @@ Each page of the design holds the following, in the order of the menu:
 - [Model](model.md): the parts every data service API is built from.
 - [Principles](principles.md): the rules every data service API follows, and the reason for each.
 - [Common Design](common-design.md): the mechanisms that apply the principles to every service.
-- [Service Designs](postgresql.md): one page per service, holding what is particular to it:
-  [PostgreSQL](postgresql.md), [MariaDB](mariadb.md), [Valkey](valkey.md), [Kafka](kafka.md),
-  [RabbitMQ](rabbitmq.md), [Bucket](bucket.md) and [ArtifactRepository](artifact-repository.md).
-  The site shows each in three tabs: its design, how each cloud implements it, and the draft
-  schemas of its kinds from [schemas](schemas/).
+- [Service Designs](postgresql.md): the design of each service, its mapping to each cloud and the
+  draft schemas of its kinds.
 - [API Changes](changes.md): every change from today's APIs to the design, per kind.
 - [Open Points](open-points.md): questions to decide before implementation.
 - [Follow-Up Work](follow-up-work.md): work outside the design that it depends on or leads to.
