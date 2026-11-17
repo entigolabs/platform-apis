@@ -24,7 +24,6 @@ nav:
     label: Design Rules
     foldItems: [Rules]                    # each rule shows its opening sentence; the rest folds
   - label: Service Designs
-    gap: true
     submenu: true                         # each service is an entry of its own under Service Designs
     aliases: {services: "", schemas: "*/schemas"}
     intro: "Each data service has a design of its own. A service's page has three tabs: Design holds its kinds and their behaviour, Cloud Mapping their mapping to each cloud's managed service, and Schemas the draft schema of each kind. The services:"
@@ -86,7 +85,7 @@ nav:
       - <<: *schemas
         files:
         - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
-  - {file: changes.md, label: API Changes, gap: true, compare: true, tabs: sections, subsectionTabs: true}
+  - {file: changes.md, label: API Changes, compare: true, tabs: sections, subsectionTabs: true}
 - {file: open-points.md, label: Open Points, divider: true, checklist: true, foldItems: true}
 - {file: follow-up-work.md, label: Follow-Up Work, foldItems: true}
 - {file: deferred-capabilities.md, label: Deferred Capabilities, foldItems: true}
