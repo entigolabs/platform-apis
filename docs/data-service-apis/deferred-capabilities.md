@@ -21,9 +21,8 @@ A `PostgreSQLCluster` or `MariaDBServer` keeps read-only copies of itself, reque
 `readReplicas`, or, where the implementation allows it, as replicas of their own sizes in its
 provider configuration.
 
-Deferred at Rein Remmel's request in November 2026; Valkey keeps the read replicas it has today. The
-design as last written, with its rules, mappings, schemas and the open point on the reader endpoint
-in user secrets, is at commit
+Valkey keeps the read replicas it has today. The design as last written, with its rules, mappings,
+schemas and the open point on the reader endpoint in user secrets, is at commit
 [`3c74fd5`](https://github.com/entigolabs/platform-apis/tree/3c74fd58e082e1cc17c96b5d08e6aa2d1a73f2a1/docs/data-service-apis).
 
 #### 4 Disaster recovery across workspaces
@@ -32,7 +31,6 @@ A database keeps a copy in another Entigo workspace, usually in another region, 
 primary when the user changes `primary` in its `disasterRecovery`; a class in the copy's workspace
 can hold a smaller `standby` provider configuration.
 
-Deferred at Rein Remmel's request in November 2026. The design as last written, with its rules,
-mappings, schemas and its open points on fencing the old primary, the default size of the copy and
-the pairing of workspaces, is at commit
+The design as last written, with its rules, mappings, schemas and its open points on fencing the old
+primary, the default size of the copy and the pairing of workspaces, is at commit
 [`3c74fd5`](https://github.com/entigolabs/platform-apis/tree/3c74fd58e082e1cc17c96b5d08e6aa2d1a73f2a1/docs/data-service-apis).

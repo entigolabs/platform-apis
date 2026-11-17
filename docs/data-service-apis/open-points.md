@@ -1,7 +1,6 @@
 # Open Points
 
-Questions to decide before implementation. Points 4 to 6 come from Rein Remmel's proposal,
-[Provider Configs and Classes for Portable Data Service APIs](https://claude.ai/artifact/XEQLcGTK3Co7dwuygecC7M).
+Questions to decide before implementation.
 
 #### 1 Which API group do the kinds take, and how do existing objects move to it?
 

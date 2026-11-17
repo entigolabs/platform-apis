@@ -1,8 +1,6 @@
 # Related Work
 
-The design draws on the projects in Prior Art, and was chosen over the options in Alternatives. Rein
-Remmel first collected both lists in
-[Provider Configs and Classes for Portable Data Service APIs](https://claude.ai/artifact/XEQLcGTK3Co7dwuygecC7M).
+The design draws on the projects in Prior Art, and was chosen over the options in Alternatives.
 
 ## Prior Art
 

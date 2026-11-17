@@ -9,7 +9,7 @@ the last is agreed.
 
 - Settings of one implementation move from the fixed cloud blocks into an open list of provider
   configurations, one kind per implementation, so a new cloud or an on-premises implementation never
-  changes the core kinds (principles 2, 3 and 8). From Rein Remmel's proposal.
+  changes the core kinds (principles 2, 3 and 8).
 - Classes hold a deployment's defaults (`template`) and the values a user cannot
   change (`enforced`), replacing defaults passed through infralib (principle 5).
 - An object that requests a portable feature its class does not support is refused instead of
