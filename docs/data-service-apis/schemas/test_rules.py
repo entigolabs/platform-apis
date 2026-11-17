@@ -417,15 +417,32 @@ update("RabbitMQAmazonMQConfig changing publiclyAccessible rejected", "RabbitMQA
        "publiclyAccessible is immutable")
 
 print("\n# Bucket")
+S3 = {"apiVersion": "aws.storage.entigo.com/v1alpha1", "kind": "BucketS3Config", "spec": {}}
 B = {"versioning": True, "retention": {"days": 30, "locked": False},
-     "lifecycleRules": [{"prefix": "logs/", "transitions": [{"afterDays": 90, "tier": "Archive"}]}]}
-create("valid spec", "Bucket", B)
-create("unknown tier rejected", "Bucket",
+     "lifecycleRules": [{"prefix": "logs/", "transitions": [{"afterDays": 90, "tier": "Archive"}]}],
+     "providerConfigs": [S3]}
+create("Bucket valid spec", "Bucket", B)
+create("Bucket unknown tier rejected", "Bucket",
        w(B, lifecycleRules=[{"transitions": [{"afterDays": 90, "tier": "Glacier"}]}]), False, "Unsupported value")
-update("locking retention accepted", "Bucket", B, w(B, retention={"days": 30, "locked": True}))
+update("Bucket locking retention accepted", "Bucket", B, w(B, retention={"days": 30, "locked": True}))
 L = w(B, retention={"days": 30, "locked": True})
-update("unlocking retention rejected", "Bucket", L, B, False, "cannot be unlocked")
-update("removing locked retention rejected", "Bucket", L, w(L, retention=None), False, "cannot be unlocked or removed")
+update("Bucket unlocking retention rejected", "Bucket", L, B, False, "cannot be unlocked")
+update("Bucket removing locked retention rejected", "Bucket", L, w(L, retention=None), False,
+       "cannot be unlocked or removed")
+create("Bucket an aws block, the former form, rejected", "Bucket", w(B, aws={}), False,
+       "unknown field")
+create("Bucket observe with an entry accepted", "Bucket",
+       {"observe": True, "providerConfigs": [{**S3, "spec": {"id": "orders-files"}}]})
+create("Bucket observe with a common field rejected", "Bucket",
+       {"observe": True, "versioning": True, "providerConfigs": [{**S3, "spec": {"id": "x"}}]},
+       False, "takes no other common field")
+create("BucketClass valid class", "BucketClass",
+       {"template": {"versioning": True, "providerConfig": S3}, "enforced": {"deletionProtection": True}})
+for kind in ["BucketS3Config", "BucketCloudStorageConfig", "BucketObjectStorageConfig",
+             "BucketBlobStorageConfig"]:
+    create(f"{kind} with an id accepted", kind, {"id": "orders-files"})
+    create(f"{kind} unknown field rejected", kind, {"unknownSetting": 1}, False, "unknown field")
+    update(f"{kind} changing id rejected", kind, {"id": "a"}, {"id": "b"}, False, "id is immutable")
 
 print("\n# ArtifactRepository")
 CR = {"name": "orders-api", "path": "shop",
@@ -449,8 +466,7 @@ update("removing name rejected", "ArtifactRepository", CR, w(CR, name=None), Fal
 
 
 print("\n# Shared rules on every resource kind")
-BLOCKS = {"Bucket": ["aws", "gcp", "oci", "azure"],
-          "ArtifactRepository": ["aws", "gcp", "oci", "azure"]}
+BLOCKS = {"ArtifactRepository": ["aws", "gcp", "oci", "azure"]}
 for kind, blocks in BLOCKS.items():
     if len(blocks) > 1:
         create(f"{kind}: two cloud blocks accepted", kind, {blocks[0]: {}, blocks[1]: {}})

@@ -30,6 +30,8 @@ the last is agreed.
   (`patternType`).
 - RabbitMQ: `RabbitMQBroker` gains `RabbitMQClass`, `RabbitMQParameters` and
   `RabbitMQAmazonMQConfig`; `maintenance.window` becomes `maintenanceWindow`.
+- Bucket: `Bucket` gains `BucketClass` and a provider configuration kind per implementation, which
+  holds the `id` of a bucket to observe.
 - PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
   (`disasterRecovery`).
 

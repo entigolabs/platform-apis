@@ -99,6 +99,11 @@ nav:
     - <<: *schemas
       files:
       - {file: schemas/bucket.yaml, label: Bucket}
+      - {file: schemas/bucketclass.yaml, label: BucketClass}
+      - {file: schemas/buckets3config.yaml, label: BucketS3Config}
+      - {file: schemas/bucketcloudstorageconfig.yaml, label: BucketCloudStorageConfig}
+      - {file: schemas/bucketobjectstorageconfig.yaml, label: BucketObjectStorageConfig}
+      - {file: schemas/bucketblobstorageconfig.yaml, label: BucketBlobStorageConfig}
   - label: ArtifactRepository
     tabs:
     - {file: artifact-repository.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}

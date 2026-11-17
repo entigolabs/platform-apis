@@ -19,15 +19,18 @@ not listed keeps its name and meaning.
 
 Changes shared by all kinds, stated once here:
 
-| Today                                                                              | Design                                                   | Reason                                                                                          |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `v1alpha1`                                                                         | `v1alpha2`                                               | Fields move, so the version changes                                                             |
-| XRD schema defaults, and deployment values the function applies on every reconcile | defaults written into the object once, at creation       | A changed default never changes a running resource (principle 5)                                |
-| (none)                                                                             | `observe`, and a block per cloud with an `id`            | Observing an existing resource, and each cloud's settings in its own block (principles 2 and 9) |
-| (none)                                                                             | `secretName`                                             | Overrides the secret's name (principle 6)                                                       |
-| a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | References cross namespaces within the Zone (principle 11)                                      |
-| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The refusal's cause shows on the object (principle 10)                                          |
-| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.<cloud>`                    | The status reports the resource's actual values (principle 4)                                   |
+| Today                                                                              | Design                                                   | Reason                                                                            |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `v1alpha1`                                                                         | `v1alpha2`                                               | Fields move, so the version changes                                               |
+| XRD schema defaults, and deployment values the function applies on every reconcile | defaults written into the object once, at creation       | A changed default never changes a running resource (principle 5)                  |
+| (none)                                                                             | `className`, naming a class of the kind                  | A deployment's defaults and limits come from a class (principle 5)                |
+| (none)                                                                             | `providerConfigs`, one entry per implementation          | Settings of one implementation belong in its provider configuration (principle 2) |
+| (none)                                                                             | `observe`, and `id` in a provider configuration entry    | Observing an existing resource (principle 9)                                      |
+| (none)                                                                             | `secretName`                                             | Overrides the secret's name (principle 6)                                         |
+| a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | References cross namespaces within the Zone (principle 11)                        |
+| a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | The refusal's cause shows on the object (principle 10)                            |
+| AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.provider`                   | The status reports the resource's actual values (principle 4)                     |
+| (none)                                                                             | `status.providerConfig`, `status.effective`              | The applied entry and each value's source (principle 4)                           |
 
 *Changes shared by all kinds.*
 
@@ -546,16 +549,17 @@ spec:
 
 `S3Bucket` becomes `Bucket`:
 
-| Today                                                        | Design                                                                        | Reason                                              |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------- | --------------------------------------------------- |
-| kind `S3Bucket`                                              | kind `Bucket`                                                                 | Named after the concept (principle 8)               |
-| `enableVersioning`                                           | `versioning`                                                                  | The same word on every cloud                        |
-| `createServiceAccount`, `serviceAccountName`                 | removed                                                                       | An application's identity is not part of the bucket |
-| (none)                                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `softDeleteDays` | New settings                                        |
-| an IAM role, service account and IAM user with an access key | not created                                                                   | A bucket holds no credentials                       |
-| a secret with `AWS_*` and `credentials.json` keys            | removed                                                                       | A bucket holds no credentials                       |
-| `status.s3Url`, `status.s3Uri`                               | `status.url`, with `status.bucketName` and `status.region`                    | The same words on every cloud                       |
-| encryption, public access and ACL status fields              | removed                                                                       | Settings the platform makes (principle 4)           |
+| Today                                                        | Design                                                                        | Reason                                                                         |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| kind `S3Bucket`                                              | kind `Bucket`                                                                 | Named after the concept (principle 8)                                          |
+| `enableVersioning`                                           | `versioning`                                                                  | The same word on every cloud                                                   |
+| `createServiceAccount`, `serviceAccountName`                 | removed                                                                       | An application's identity is not part of the bucket                            |
+| (none)                                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `softDeleteDays` | New settings                                                                   |
+| an IAM role, service account and IAM user with an access key | not created                                                                   | A bucket holds no credentials                                                  |
+| a secret with `AWS_*` and `credentials.json` keys            | removed                                                                       | A bucket holds no credentials                                                  |
+| `status.s3Url`, `status.s3Uri`                               | `status.url`, with `status.bucketName` and `status.region`                    | The same words on every cloud                                                  |
+| encryption, public access and ACL status fields              | removed                                                                       | Settings the platform makes (principle 4)                                      |
+| (none)                                                       | `className`, and `id` in a provider configuration entry to observe            | The kind's class (principle 5), and observing an existing bucket (principle 9) |
 
 *Changes from `S3Bucket` to `Bucket`.*
 

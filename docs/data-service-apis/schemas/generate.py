@@ -391,61 +391,6 @@ write("rabbitmquser", xrd(
 
 # --- Bucket -------------------------------------------------------------------------------
 
-write("bucket", xrd(
-    "Bucket", "buckets", "storage.entigo.com",
-    resource_spec({
-        "versioning": field("boolean", "Keep replaced and deleted objects as versions.",
-                            default=DEPLOY),
-        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
-                                    default="fixed, true"),
-        "lifecycleRules": array(obj({
-            "prefix": field("string", "Objects whose key starts with this. Unset, every "
-                            "object."),
-            "expireAfterDays": field("integer", "Delete objects this old.", minimum=1),
-            "deleteNoncurrentAfterDays": field("integer", "Delete replaced versions this old.",
-                                               minimum=1),
-            "transitions": array(obj({
-                "afterDays": field("integer", minimum=1),
-                "tier": field("string", "One of the two cold tiers every cloud has.",
-                              enum=["Infrequent", "Archive"]),
-            }, required=["afterDays", "tier"]), "Move objects to a colder tier."),
-        })),
-        "retention": obj({
-            "days": field("integer", minimum=1),
-            "locked": field("boolean", "true cannot be undone on any cloud.",
-                            **{"x-kubernetes-validations": [{
-                                "rule": "!oldSelf || self",
-                                "message": "a locked retention cannot be unlocked"}]}),
-        }, "Objects cannot be changed or deleted for this many days.", required=["days"]),
-        "cors": array(obj({
-            "origins": array(field("string")),
-            "methods": array(field("string", enum=["GET", "PUT", "POST", "DELETE", "HEAD"])),
-            "maxAgeSeconds": field("integer", minimum=0),
-        }, required=["origins", "methods"]), "Cross-origin requests browsers may make.",
-            "Ignored on OCI, which allows every origin."),
-        "softDeleteDays": field("integer", "Days deleted objects can be recovered.",
-                                "Ignored on AWS and OCI, which have no soft delete.", DEPLOY, minimum=0),
-    }, {
-        "aws": None,
-        "gcp": None,
-        "oci": None,
-        "azure": None,
-    }, "bucket", [
-        ("!has(oldSelf.retention) || !has(oldSelf.retention.locked) || !oldSelf.retention.locked "
-         "|| (has(self.retention) && has(self.retention.locked) && self.retention.locked)",
-         "a locked retention cannot be unlocked or removed"),
-    ]),
-    obj({
-        "url": field("string"),
-        "bucketName": field("string"),
-        "region": field("string"),
-        "aws": obj({"arn": S()}),
-        "gcp": obj({"selfLink": S()}),
-        "oci": obj({"namespace": S(), "retentionLockedFrom": field(
-            "string", "The time a locked retention takes effect.", format="date-time")}),
-        "azure": obj({"accountId": S(), "containerId": S()}),
-    })))
-
 # --- ArtifactRepository ---------------------------------------------------------------------
 
 write("artifactrepository", xrd(
@@ -1123,3 +1068,83 @@ write("rabbitmqamazonmqconfig", provider_config_crd(
                                     **{"x-kubernetes-validations":
                                        IMMUTABLE_MSG("publiclyAccessible")}),
     }, {"instanceType": S(), "id": S(), "engineVersion": S()}))
+
+# --- Bucket ----------------------------------------------------------------------------------
+
+
+def bucket_common():
+    """Bucket's common fields (principle 1)."""
+    return {
+        "versioning": field("boolean", "Keep replaced and deleted objects as versions.",
+                            default=DEFAULT),
+        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
+                                    default="fixed, true"),
+        "lifecycleRules": array(obj({
+            "prefix": field("string", "Objects whose key starts with this. Unset, every "
+                            "object."),
+            "expireAfterDays": field("integer", "Delete objects this old.", minimum=1),
+            "deleteNoncurrentAfterDays": field("integer", "Delete replaced versions this old.",
+                                               minimum=1),
+            "transitions": array(obj({
+                "afterDays": field("integer", minimum=1),
+                "tier": field("string", "One of the two cold tiers every implementation has.",
+                              enum=["Infrequent", "Archive"]),
+            }, required=["afterDays", "tier"]), "Move objects to a colder tier."),
+        })),
+        "retention": obj({
+            "days": field("integer", minimum=1),
+            "locked": field("boolean", "true cannot be undone in any implementation.",
+                            **{"x-kubernetes-validations": [{
+                                "rule": "!oldSelf || self",
+                                "message": "a locked retention cannot be unlocked"}]}),
+        }, "Objects cannot be changed or deleted for this many days.", required=["days"]),
+        "cors": array(obj({
+            "origins": array(field("string")),
+            "methods": array(field("string", enum=["GET", "PUT", "POST", "DELETE", "HEAD"])),
+            "maxAgeSeconds": field("integer", minimum=0),
+        }, required=["origins", "methods"]), "Cross-origin requests browsers may make."),
+        "softDeleteDays": field("integer", "Days deleted objects can be recovered.",
+                                default=DEFAULT, minimum=0),
+    }
+
+
+write("bucket", xrd("Bucket", "buckets", "storage.entigo.com",
+                    class_spec("BucketClass", bucket_common(), {}, [], [
+                        ("!has(oldSelf.retention) || !has(oldSelf.retention.locked) || "
+                         "!oldSelf.retention.locked || (has(self.retention) && "
+                         "has(self.retention.locked) && self.retention.locked)",
+                         "a locked retention cannot be unlocked or removed"),
+                    ]),
+                    obj({
+                        "url": S(),
+                        "bucketName": S(),
+                        "region": S(),
+                        "providerConfig": obj({"applied": S(), "ignored": array(S())},
+                                              "The provider configuration entries applied and "
+                                              "ignored, as <apiVersion>, <kind> (principle 4)."),
+                        "effective": {"type": "object",
+                                      "x-kubernetes-preserve-unknown-fields": True,
+                                      "description": desc("Each effective value and its source: "
+                                                          "the class's template, the object, or "
+                                                          "the class's enforced (principle 4).")},
+                        "provider": {"type": "object",
+                                     "x-kubernetes-preserve-unknown-fields": True,
+                                     "description": desc("Values of the applied implementation, "
+                                                         "in the shape its provider configuration "
+                                                         "kind's status defines (principle 4).")},
+                    })))
+write("bucketclass", class_crd("BucketClass", "bucketclasses", "storage.entigo.com",
+                               bucket_common()))
+write("buckets3config", provider_config_crd(
+    "BucketS3Config", "buckets3configs", "aws.storage.entigo.com", "Amazon S3", {},
+    {"arn": S()}))
+write("bucketcloudstorageconfig", provider_config_crd(
+    "BucketCloudStorageConfig", "bucketcloudstorageconfigs", "gcp.storage.entigo.com",
+    "Cloud Storage", {}, {"selfLink": S()}))
+write("bucketobjectstorageconfig", provider_config_crd(
+    "BucketObjectStorageConfig", "bucketobjectstorageconfigs", "oci.storage.entigo.com",
+    "OCI Object Storage", {}, {"namespace": S(), "retentionLockedFrom": field(
+        "string", "The time a locked retention takes effect.", format="date-time")}))
+write("bucketblobstorageconfig", provider_config_crd(
+    "BucketBlobStorageConfig", "bucketblobstorageconfigs", "azure.storage.entigo.com",
+    "Azure Blob Storage", {}, {"accountId": S(), "containerId": S()}))

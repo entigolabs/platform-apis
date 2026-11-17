@@ -1,0 +1,48 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: bucketobjectstorageconfigs.oci.storage.entigo.com
+spec:
+  group: oci.storage.entigo.com
+  scope: Namespaced
+  names:
+    kind: BucketObjectStorageConfig
+    plural: bucketobjectstorageconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for OCI Object Storage (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The OCI Object Storage ID of an existing resource to observe (principle 9). Only
+                  with observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for OCI Object Storage (principle 4).
+            properties:
+              namespace:
+                type: string
+              retentionLockedFrom:
+                type: string
+                description: |-
+                  The time a locked retention takes effect.
+                format: date-time
+        required:
+        - spec
+    subresources:
+      status: {}

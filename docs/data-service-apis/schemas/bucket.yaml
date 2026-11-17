@@ -20,17 +20,25 @@ spec:
           spec:
             type: object
             properties:
+              className:
+                type: string
+                description: |-
+                  The BucketClass: the deployment's defaults, enforced values and implementation
+                  (principle 5). Unset, the default class. Set at creation only.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: className is immutable
               observe:
                 type: boolean
                 description: |-
-                  true observes an existing resource, named by the cloud block's id, and never
-                  changes or deletes it. Every other field is then rejected (principle 9). Set at
-                  creation only.
+                  true observes an existing resource, named by the id in its provider
+                  configuration entry, and never changes or deletes it. Every other common field
+                  is then rejected (principle 9). Set at creation only.
               versioning:
                 type: boolean
                 description: |-
                   Keep replaced and deleted objects as versions.
-                  Default: per deployment.
+                  Default: the class's template.
               deletionProtection:
                 type: boolean
                 description: |-
@@ -68,7 +76,7 @@ spec:
                           tier:
                             type: string
                             description: |-
-                              One of the two cold tiers every cloud has.
+                              One of the two cold tiers every implementation has.
                             enum:
                             - Infrequent
                             - Archive
@@ -86,7 +94,7 @@ spec:
                   locked:
                     type: boolean
                     description: |-
-                      true cannot be undone on any cloud.
+                      true cannot be undone in any implementation.
                     x-kubernetes-validations:
                     - rule: "!oldSelf || self"
                       message: a locked retention cannot be unlocked
@@ -96,7 +104,6 @@ spec:
                 type: array
                 description: |-
                   Cross-origin requests browsers may make.
-                  Ignored on OCI, which allows every origin.
                 items:
                   type: object
                   properties:
@@ -124,71 +131,59 @@ spec:
                 type: integer
                 description: |-
                   Days deleted objects can be recovered.
-                  Ignored on AWS and OCI, which have no soft delete.
-                  Default: per deployment.
+                  Default: the class's template.
                 minimum: 0
-              aws:
-                type: object
+              providerConfigs:
+                type: array
                 description: |-
-                  Settings for AWS only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The AWS ID of an existing bucket to observe (principle 9). Only with observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
-              gcp:
-                type: object
-                description: |-
-                  Settings for GCP only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The GCP ID of an existing bucket to observe (principle 9). Only with observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
-              oci:
-                type: object
-                description: |-
-                  Settings for OCI only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The OCI ID of an existing bucket to observe (principle 9). Only with observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
-              azure:
-                type: object
-                description: |-
-                  Settings for Azure only (principle 2).
-                properties:
-                  id:
-                    type: string
-                    description: |-
-                      The Azure ID of an existing bucket to observe (principle 9). Only with observe.
-                    x-kubernetes-validations:
-                    - rule: self == oldSelf
-                      message: id is immutable
+                  Settings of single implementations, one entry per kind (principle 2). The
+                  deployment applies the entry whose kind its class names and ignores the others.
+                items:
+                  type: object
+                  properties:
+                    apiVersion:
+                      type: string
+                      description: |-
+                        The provider configuration kind's group and version, such as
+                        aws.database.entigo.com/v1alpha1.
+                    kind:
+                      type: string
+                      description: |-
+                        The provider configuration kind, such as PostgreSQLRDSConfig.
+                    spec:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      description: |-
+                        The settings, checked by the implementation that applies them (principle 10).
+                    ref:
+                      type: object
+                      description: |-
+                        The settings in a separate object of this kind, instead of spec.
+                      properties:
+                        name:
+                          type: string
+                          description: |-
+                            An object of this kind in the same namespace.
+                      required:
+                      - name
+                  required:
+                  - apiVersion
+                  - kind
+                  x-kubernetes-validations:
+                  - rule: has(self.spec) != has(self.ref)
+                    message: an entry holds either spec or ref
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - apiVersion
+                - kind
             x-kubernetes-validations:
-            - rule: |-
-                [(has(self.aws) && has(self.aws.id)), (has(self.gcp) && has(self.gcp.id)), (has(self.oci) && has(self.oci.id)), (has(self.azure) && has(self.azure.id))].filter(b, b).size() <= 1
-              message: at most one cloud block may hold an id
-            - rule: |-
-                (has(self.observe) && self.observe) == ((has(self.aws) && has(self.aws.id)) || (has(self.gcp) && has(self.gcp.id)) || (has(self.oci) && has(self.oci.id)) || (has(self.azure) && has(self.azure.id)))
-              message: observe and the cloud block's id go together
             - rule: |-
                 (has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)
               message: observe is immutable
             - rule: |-
                 !(has(self.observe) && self.observe)
                 || (!has(self.versioning) && !has(self.deletionProtection) && !has(self.lifecycleRules) && !has(self.retention) && !has(self.cors) && !has(self.softDeleteDays))
-              message: an observed resource takes no other field than its cloud block's id
+              message: an observed resource takes no other common field
             - rule: |-
                 !has(oldSelf.retention)
                 || !has(oldSelf.retention.locked)
@@ -204,32 +199,29 @@ spec:
                 type: string
               region:
                 type: string
-              aws:
+              providerConfig:
                 type: object
+                description: |-
+                  The provider configuration entries applied and ignored, as <apiVersion>, <kind>
+                  (principle 4).
                 properties:
-                  arn:
+                  applied:
                     type: string
-              gcp:
+                  ignored:
+                    type: array
+                    items:
+                      type: string
+              effective:
                 type: object
-                properties:
-                  selfLink:
-                    type: string
-              oci:
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Each effective value and its source: the class's template, the object, or the
+                  class's enforced (principle 4).
+              provider:
                 type: object
-                properties:
-                  namespace:
-                    type: string
-                  retentionLockedFrom:
-                    type: string
-                    description: |-
-                      The time a locked retention takes effect.
-                    format: date-time
-              azure:
-                type: object
-                properties:
-                  accountId:
-                    type: string
-                  containerId:
-                    type: string
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Values of the applied implementation, in the shape its provider configuration
+                  kind's status defines (principle 4).
         required:
         - spec

@@ -2,9 +2,12 @@
 
 Object storage keeps files as objects in buckets, which applications read and write over HTTP.
 
-One kind: `Bucket`, one bucket.
+One kind for users: `Bucket`, one bucket. One kind shapes it: `BucketClass`, a deployment's defaults
+and limits, written by Entigo.
 
-Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (Azure).
+Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (Azure), each with a
+provider configuration kind of its own: `BucketS3Config`, `BucketCloudStorageConfig`,
+`BucketObjectStorageConfig` and `BucketBlobStorageConfig`.
 
 ## Contents
 
@@ -17,15 +20,16 @@ Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (A
 
 ## Kinds
 
-Object storage is offered as one kind, shown below with a manifest a user writes.
+Object storage is offered as two kinds, each with the manifest its owner writes.
 
 ### Bucket
 
-A `Bucket` is only the bucket: who may use it is decided by the user's own identity, not by the
-bucket.
+A `Bucket` is only the bucket: access to it belongs to the identities of the applications that use
+it, not to the bucket.
 
-A user creates a `Bucket` with a manifest like the one below. Its comments note value ranges and
-what holds on one cloud only:
+A user creates a `Bucket` with a manifest like the one below. A bucket has no setting of a single
+implementation, so its manifest carries no provider configuration entry; an entry holds only the
+`id` of an existing bucket to observe (principle 9):
 
 ```yaml
 ---
@@ -35,7 +39,7 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
-  # Common
+  className: standard                  # unset, the deployment's default class (principle 5)
   versioning: true
   deletionProtection: true
   lifecycleRules:
@@ -56,7 +60,6 @@ spec:
     - PUT
     maxAgeSeconds: 3600
   softDeleteDays: 7                    # ignored on AWS and OCI
-  # Cloud-specific: every block takes id (principle 9)
 ```
 
 *A `Bucket` with its common fields.*
@@ -68,31 +71,57 @@ A `Bucket` creates no identity: no IAM role, service account or access key. Thos
 applications that use the bucket; an application's own identity is granted access to the buckets it
 names.
 
-A `Bucket` has no secret: it holds no credentials. The status adds `url`, `bucketName` and `region`,
-which an application needs to find the bucket.
-
-The cloud blocks of the status:
+A `Bucket` has no secret: it holds no credentials. The status shows `url`, `bucketName` and
+`region`, the three values an application needs to reach the bucket, with which entry applied, where
+each effective value came from, and the applied implementation's own values (principle 4):
 
 ```yaml
 status:
-  aws:
+  url: https://orders-files-7f3a2c.s3.eu-north-1.amazonaws.com
+  bucketName: orders-files-7f3a2c
+  region: eu-north-1
+  providerConfig:
+    applied: aws.storage.entigo.com/v1alpha1, BucketS3Config
+  effective:
+    versioning: { value: true, source: object }
+    deletionProtection: { value: true, source: class/standard/enforced }
+  provider:                            # the shape BucketS3Config's status defines
     arn: ...
-  gcp:
-    selfLink: ...
-  oci:
-    namespace: ...
-    retentionLockedFrom: ...
-  azure:
-    accountId: ...
-    containerId: ...
 ```
 
-*The cloud blocks of a `Bucket` status.*
+*A `Bucket` status on AWS.*
+
+### BucketClass
+
+Entigo writes each deployment's classes, with the defaults a bucket starts with (`template`) and the
+values it cannot change (`enforced`) (principle 5):
+
+```yaml
+---
+apiVersion: storage.entigo.com/v1alpha2
+kind: BucketClass
+metadata:
+  name: standard
+  annotations:
+    storage.entigo.com/is-default-class: "true"
+spec:
+  template:
+    versioning: true
+    softDeleteDays: 7
+    providerConfig:
+      apiVersion: aws.storage.entigo.com/v1alpha1
+      kind: BucketS3Config
+      spec: {}
+  enforced:
+    deletionProtection: true
+```
+
+*A `BucketClass` for S3.*
 
 ## Mapping
 
-The table names what each field maps to in the cloud's provider. A setting the cloud lacks shows as
-ignored, with the reason (principle 1), and a field of a cloud's block appears only for that cloud:
+The first table names what each common field maps to in the implementation's provider. A setting
+the implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field                | AWS                                                                                                                                                 | GCP                                                       | OCI                                                                                                                                                 | Azure                                                                                     |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -106,12 +135,17 @@ ignored, with the reason (principle 1), and a field of a cloud's block appears o
 | `retention`          | Object Lock default retention, mode `COMPLIANCE` when `locked` and `GOVERNANCE` when not; needs `versioning`, and Object Lock stays on once enabled | `retentionPolicy.retentionPeriod`, in seconds; `isLocked` | `retentionRules[]`; `locked: true` sets `timeRuleLocked` 15 days ahead, since OCI rejects 14 days or less (tested in OC19), and the rule locks then | `ContainerImmutabilityPolicy`, `locked`                                                   |
 | `cors`               | `BucketCorsConfiguration`                                                                                                                           | `cors[]`                                                  | ignored; OCI allows every origin, though requests still need authorization                                                                          | `Account.blobProperties.corsRule[]`                                                       |
 | `softDeleteDays`     | ignored; deleted objects cannot be recovered, though versioning keeps replaced ones                                                                 | `softDeletePolicy.retentionDurationSeconds`, in seconds   | ignored; deleted objects cannot be recovered, though versioning keeps replaced ones                                                                 | `Account.blobProperties.deleteRetentionPolicy.days`                                       |
-| `aws.id`             | the bucket name                                                                                                                                     |                                                           |                                                                                                                                                     |                                                                                           |
-| `gcp.id`             |                                                                                                                                                     | the bucket name                                           |                                                                                                                                                     |                                                                                           |
-| `oci.id`             |                                                                                                                                                     |                                                           | the bucket name; the function adds `n/<namespace>/b/`                                                                                               |                                                                                           |
-| `azure.id`           |                                                                                                                                                     |                                                           |                                                                                                                                                     | the container's resource ID; the function takes the account, container and resource group |
 
-*Fields of `Bucket` and their provider fields.*
+*Common fields of `Bucket` and their provider fields.*
+
+The second names the implementation's provider configuration kind and what its fields map to:
+
+| Field | AWS              | GCP                        | OCI                                                   | Azure                                                                                     |
+| ----- | ---------------- | -------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| kind  | `BucketS3Config` | `BucketCloudStorageConfig` | `BucketObjectStorageConfig`                           | `BucketBlobStorageConfig`                                                                 |
+| `id`  | the bucket name  | the bucket name            | the bucket name; the function adds `n/<namespace>/b/` | the container's resource ID; the function takes the account, container and resource group |
+
+*Fields of each provider configuration kind.*
 
 **AWS:** S3 enables Object Lock on an existing bucket too, but only once versioning is on, and never
 off again (`aws_s3_bucket_object_lock_configuration` in
@@ -121,7 +155,7 @@ unique, and S3 object ownership is enforced.
 
 **GCP:** bucket names are globally unique, and uniform bucket-level access is on.
 
-**OCI:** `status.oci.retentionLockedFrom` is the date a locked retention takes effect.
+**OCI:** `status.provider.retentionLockedFrom` is the date a locked retention takes effect.
 
 **Azure:** versioning, lifecycle, CORS and soft delete belong to the storage account, so each
 `Bucket` has its own account, with the account's keys turned off (`sharedAccessKeyEnabled: false`).
@@ -130,9 +164,9 @@ Storage account names are globally unique.
 ## Composed Resources
 
 The `Bucket` from [Kinds](#kinds) is composed into the resources below on the cloud it runs on: the
-platform uses that cloud's block and ignores the others. A comment names the source of each value
-the object does not hold as written: `platform` for a value the platform sets, and `deployment` for
-one the deployment sets. The object and its resources:
+platform applies the entry of its class's kind and ignores the others. A comment names the source of
+each value the object does not hold as written: `platform` for a value the platform sets, and
+`deployment` for one the deployment sets. The object and its resources:
 
 ```yaml Object
 ---
@@ -142,6 +176,7 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
+  className: standard
   versioning: true
   deletionProtection: true
   lifecycleRules:
@@ -257,6 +292,7 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
+  className: standard
   versioning: true
   deletionProtection: true
   lifecycleRules:
@@ -339,6 +375,7 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
+  className: standard
   versioning: true
   deletionProtection: true
   lifecycleRules:
@@ -431,6 +468,7 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
+  className: standard
   versioning: true
   deletionProtection: true
   lifecycleRules:
