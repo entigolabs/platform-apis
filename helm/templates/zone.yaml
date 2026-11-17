@@ -517,6 +517,12 @@ apiVersion: tenancy.entigo.com/v1alpha1
 kind: Zone
 metadata:
   name: infralib
+  {{- with .Values.zone.infralibZone.labels }}
+  labels:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | toString | quote }}
+    {{- end }}
+  {{- end }}
   annotations:
     argocd.argoproj.io/sync-wave: "50"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true

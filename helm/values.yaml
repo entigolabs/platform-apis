@@ -549,6 +549,13 @@ zone:
           hosts: ["logging.{region}.oci.{domain}", "ingestion.logging.{region}.oci.{domain}"]
         - name: monitoring
           hosts: ["telemetry.{region}.{domain}"]
+  # The infralib Zone is created by this chart and holds the Namespaces of the platform itself.
+  infralibZone:
+    # Labels added to the infralib Zone object. Setting tenancy.entigo.com/default-zone: "true"
+    # makes it the default Zone: a Namespace created without a tenancy.entigo.com/zone label is
+    # then placed in the infralib Zone. Maintainers cannot use the infralib Zone, so they have to
+    # set the label on their Namespaces themselves.
+    labels: {}
   kyvernoNamespace: kyverno
   # only service accounts of this namespace may create managed resources in Zone Namespaces
   crossplaneNamespace: crossplane-system

@@ -25,7 +25,7 @@ The zone composition ships several Kyverno policies that enforce tenancy rules a
 | Policy | Kind | Description |
 |---|---|---|
 | `platform-apis-zone-namespace-pod-security` | ValidatingPolicy | Rejects namespaces with `privileged` pod security enforce/warn level |
-| `platform-apis-namespace-add-missing-zone-label` | MutatingPolicy | Auto-assigns a zone label to namespaces that do not carry one: the Zone labelled `tenancy.entigo.com/default-zone: "true"`, or the only Zone besides `infralib`. With several Zones and no default the namespace is rejected |
+| `platform-apis-namespace-add-missing-zone-label` | MutatingPolicy | Auto-assigns a zone label to namespaces that do not carry one: the Zone labelled `tenancy.entigo.com/default-zone: "true"`, or the only Zone besides `infralib`. With several Zones and no default the namespace is rejected. The chart value `zone.infralibZone.labels` can put the default label on the `infralib` Zone |
 | `platform-apis-zone-namespace-contributor-deny` | ValidatingPolicy | Blocks contributors from creating, updating, or deleting namespaces |
 | `platform-apis-zone-namespace-maintainer-deny` | ValidatingPolicy | Blocks maintainers from creating/updating namespaces with the `infralib` zone label |
 | `platform-apis-zone-maintainer-infralib-zone-deny` | ValidatingPolicy | Blocks maintainers from creating or updating the Zone named `infralib` |
