@@ -23,6 +23,8 @@ the last is agreed.
 - MariaDB: `MariaDBInstance` becomes `MariaDBServer`, with `MariaDBClass`, `MariaDBParameters` and
   `MariaDBRDSConfig`, read replicas and disaster recovery; users and databases name it in
   `serverRef`.
+- Valkey: `ValkeyInstance` becomes `ValkeyServer`, with `ValkeyClass`, `ValkeyParameters` and a
+  provider config kind per implementation; `replicas` becomes `readReplicas`.
 - PostgreSQL gains read replicas (`readReplicas`) and disaster recovery across workspaces
   (`disasterRecovery`).
 

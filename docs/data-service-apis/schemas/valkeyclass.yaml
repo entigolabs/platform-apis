@@ -1,0 +1,242 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: valkeyclasses.database.entigo.com
+spec:
+  group: database.entigo.com
+  scope: Cluster
+  names:
+    kind: ValkeyClass
+    plural: valkeyclasses
+  versions:
+  - name: v1alpha2
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              template:
+                type: object
+                description: |-
+                  Defaults, written into an object when it is created; the object may change them.
+                properties:
+                  version: &id001
+                    type: string
+                    description: |-
+                      Valkey's major and minor, such as "8.1", and the floor after: raising it
+                      upgrades the server, lowering it is rejected. With autoMinorVersionUpgrade, the
+                      implementation can move the server past it; the status shows the running
+                      version.
+                      Default: the class's template.
+                    pattern: ^[0-9]+\.[0-9]+$
+                  highAvailability: &id002
+                    type: boolean
+                    description: |-
+                      A read replica in another zone, with automatic failover. Needs readReplicas of
+                      at least 1. Refused where the class does not support HighAvailability (principle
+                      1).
+                      Default: the class's template.
+                  readReplicas: &id003
+                    type: integer
+                    description: |-
+                      Read replicas besides the primary, each a copy of it. Refused where the class
+                      does not support ReadReplicas (principle 1).
+                      Default: the class's template.
+                    minimum: 0
+                  deletionProtection: &id004
+                    type: boolean
+                    description: |-
+                      Deleting the object is denied while true.
+                      Default: fixed, true.
+                  maintenanceWindow: &id005
+                    type: object
+                    description: |-
+                      The weekly hour, in UTC, in which the cloud applies updates.
+                    properties:
+                      day:
+                        type: string
+                        enum:
+                        - Mon
+                        - Tue
+                        - Wed
+                        - Thu
+                        - Fri
+                        - Sat
+                        - Sun
+                      hourUTC:
+                        type: integer
+                        minimum: 0
+                        maximum: 23
+                    required:
+                    - day
+                    - hourUTC
+                  autoMinorVersionUpgrade: &id006
+                    type: boolean
+                    description: |-
+                      Allow the implementation to upgrade to newer minor versions on its schedule.
+                      false keeps the server at version.
+                      Default: the class's template.
+                  backup: &id007
+                    type: object
+                    description: |-
+                      Automated daily backups.
+                    properties:
+                      retentionDays:
+                        type: integer
+                        description: |-
+                          Days automated backups are kept, within the implementation's own range
+                          (principle 10). 0 turns automated backups off.
+                          Default: the class's template.
+                        minimum: 0
+                      startHourUTC:
+                        type: integer
+                        description: |-
+                          The hour, in UTC, the daily backup starts.
+                        minimum: 0
+                        maximum: 23
+                  parametersRef:
+                    type: object
+                    description: |-
+                      Engine settings for every object of this class.
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                  parameters: &id008
+                    type: object
+                    description: |-
+                      Valkey settings for this object only, merged after parametersRef.
+                    additionalProperties:
+                      type: string
+                  providerConfig:
+                    type: object
+                    description: |-
+                      The provider config: its kind names the implementation this class uses.
+                    properties:
+                      apiVersion:
+                        type: string
+                        description: |-
+                          The provider config kind's group and version, such as
+                          aws.database.entigo.com/v1alpha1.
+                      kind:
+                        type: string
+                        description: |-
+                          The provider config kind, such as PostgreSQLRDSConfig.
+                      spec:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                        description: |-
+                          The settings.
+                    required:
+                    - apiVersion
+                    - kind
+              enforced:
+                type: object
+                description: |-
+                  Always applied; an object that sets a different value is refused.
+                properties:
+                  version: *id001
+                  highAvailability: *id002
+                  readReplicas: *id003
+                  deletionProtection: *id004
+                  maintenanceWindow: *id005
+                  autoMinorVersionUpgrade: *id006
+                  backup: *id007
+                  parametersRef:
+                    type: object
+                    description: |-
+                      Engine settings for every object of this class.
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                  parameters: *id008
+                  providerConfig:
+                    type: object
+                    description: |-
+                      The provider config: its kind names the implementation this class uses.
+                    properties:
+                      apiVersion:
+                        type: string
+                        description: |-
+                          The provider config kind's group and version, such as
+                          aws.database.entigo.com/v1alpha1.
+                      kind:
+                        type: string
+                        description: |-
+                          The provider config kind, such as PostgreSQLRDSConfig.
+                      spec:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                        description: |-
+                          The settings.
+                    required:
+                    - apiVersion
+                    - kind
+              standby:
+                type: object
+                description: |-
+                  Settings for a disaster recovery replica in this workspace.
+                properties:
+                  providerConfig:
+                    type: object
+                    description: |-
+                      Applied only while this workspace is not the primary of disasterRecovery, such
+                      as a smaller size for a pilot-light replica.
+                    properties:
+                      apiVersion:
+                        type: string
+                        description: |-
+                          The provider config kind's group and version, such as
+                          aws.database.entigo.com/v1alpha1.
+                      kind:
+                        type: string
+                        description: |-
+                          The provider config kind, such as PostgreSQLRDSConfig.
+                      spec:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                        description: |-
+                          The settings.
+                    required:
+                    - apiVersion
+                    - kind
+            x-kubernetes-validations:
+            - rule: |-
+                !has(self.template)
+                || !has(self.enforced)
+                || !has(self.template.providerConfig)
+                || !has(self.enforced.providerConfig)
+                || (self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion && self.template.providerConfig.kind == self.enforced.providerConfig.kind)
+              message: template and enforced name the same provider config kind
+          status:
+            type: object
+            properties:
+              supportedFeatures:
+                type: array
+                description: |-
+                  The portable features the implementation supports, written by the implementation
+                  (principle 1).
+                items:
+                  type: string
+                  enum:
+                  - HighAvailability
+                  - ReadReplicas
+                  - DisasterRecovery
+        required:
+        - spec
+    subresources:
+      status: {}

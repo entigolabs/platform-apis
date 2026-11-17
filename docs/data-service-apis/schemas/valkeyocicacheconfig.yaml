@@ -1,0 +1,53 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: valkeyocicacheconfigs.oci.database.entigo.com
+spec:
+  group: oci.database.entigo.com
+  scope: Namespaced
+  names:
+    kind: ValkeyOCICacheConfig
+    plural: valkeyocicacheconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for OCI Cache (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The OCI Cache ID of an existing resource to observe (principle 9). Only with
+                  observe.
+                x-kubernetes-validations:
+                - rule: self == oldSelf
+                  message: id is immutable
+              memoryGB:
+                type: integer
+                description: |-
+                  Memory per node, within OCI's own range (principle 10).
+                  Default: the class's template.
+                minimum: 1
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for OCI Cache (principle 4).
+            properties:
+              memoryGB:
+                type: integer
+              state:
+                type: string
+              softwareVersion:
+                type: string
+        required:
+        - spec
+    subresources:
+      status: {}

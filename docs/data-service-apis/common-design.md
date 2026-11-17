@@ -170,14 +170,16 @@ parameters.
 
 The rules for replicas:
 
-- **The count or the layout, not both.** An object that sets `readReplicas` and a replica layout in
-  its applied provider config is refused, so the number of replicas is never ambiguous.
-- **Scaling down is predictable.** Replicas are named `<instance>-ro-<index>`, and scaling down
-  removes the highest index first.
+- **The count or the layout, not both.** Where an implementation offers a replica layout, an object
+  that sets `readReplicas` and a layout in its applied provider config is refused, so the number of
+  replicas is never ambiguous.
+- **Scaling down is predictable.** Where each replica is a resource of its own, replicas are named
+  `<instance>-ro-<index>`, and scaling down removes the highest index first.
 - **The reader endpoint follows the implementation.** Where it has a balanced read endpoint,
   `readerEndpoint` holds it; elsewhere it lists the replicas' hosts.
-- **A replica runs the primary's major version.** Read replicas use physical replication, which
-  needs the same major version; a copy on a newer version belongs to upgrades and migration.
+- **A replica runs the primary's major version.** A replica copies the primary through the engine's
+  own replication, which needs the same major version; a copy on a newer version belongs to upgrades
+  and migration.
 
 ## Disaster Recovery
 

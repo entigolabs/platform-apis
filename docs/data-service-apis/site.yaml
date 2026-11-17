@@ -60,7 +60,12 @@ nav:
     - {file: valkey.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "Each cloud implements the design with its own managed service, through its Crossplane provider. For the cloud picked below, the sections map every field to that provider, show the resources composed on it, and list the limits it enforces itself."}
     - <<: *schemas
       files:
-      - {file: schemas/valkeyinstance.yaml, label: ValkeyInstance}
+      - {file: schemas/valkeyserver.yaml, label: ValkeyServer}
+      - {file: schemas/valkeyclass.yaml, label: ValkeyClass}
+      - {file: schemas/valkeyparameters.yaml, label: ValkeyParameters}
+      - {file: schemas/valkeyelasticacheconfig.yaml, label: ValkeyElastiCacheConfig}
+      - {file: schemas/valkeymemorystoreconfig.yaml, label: ValkeyMemorystoreConfig}
+      - {file: schemas/valkeyocicacheconfig.yaml, label: ValkeyOCICacheConfig}
   - label: Kafka
     tabs:
     - {file: kafka.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}

@@ -300,90 +300,6 @@ write("mariadbdatabase", xrd(
     obj({}),
     required_spec=["serverRef"]))
 
-# --- Valkey -------------------------------------------------------------------------------
-
-write("valkeyinstance", xrd(
-    "ValkeyInstance", "valkeyinstances", "database.entigo.com",
-    resource_spec({
-        "version": field("string", "Valkey's major and minor, such as \"8.1\", and the floor "
-                         "after: raising it upgrades the cache, lowering it is rejected. With "
-                         "maintenance.autoMinorVersionUpgrade, the cloud can move the cache "
-                         "past it; the status shows the running version.",
-                         default=DEPLOY, pattern="^[0-9]+\\.[0-9]+$"),
-        "highAvailability": field("boolean", "A replica in another zone, with automatic "
-                                  "failover. Needs replicas of at least 1.",
-                                  "Ignored for false on OCI, which distributes nodes itself.",
-                                  default=DEPLOY),
-        "replicas": field("integer", "Read replicas besides the primary, within the cloud's "
-                          "own limit (principle 10).", default=DEPLOY, minimum=0),
-        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
-                                    default="fixed, true"),
-        "maintenance": obj({
-            "window": window("Ignored on OCI."),
-            "autoMinorVersionUpgrade": field("boolean", "Allow the cloud to upgrade to newer minor "
-                                             "versions on its schedule. false keeps the cache "
-                                             "at version.", "Ignored for false on GCP and OCI.",
-                                             DEPLOY),
-        }),
-        "backup": obj({
-            "retentionDays": field("integer", "Days automated backups are kept, within the "
-                                   "cloud's own range (principle 10). 0 turns automated backups "
-                                   "off.", default=DEPLOY, minimum=0),
-            "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
-                                  minimum=0, maximum=23),
-        }, "Automated daily backups.", "Ignored on OCI, which takes manual backups only."),
-        "secretName": secret_name("<instance>-credentials"),
-        "parameters": string_map("Valkey settings, by name. Keys outside the cloud's allowlist "
-                                 "are rejected."),
-    }, {
-        "aws": {"instanceType": field("string", "The ElastiCache node type, such as "
-                                      "cache.t4g.small.", default=DEPLOY),
-                "parameterGroupName": field("string", "An existing ElastiCache parameter group "
-                                            "to use, in place of parameters."),
-                "fromBackup": field("string", "An ElastiCache snapshot name to create the cache "
-                                    "from, such as status.aws.finalBackup of a deleted cache. "
-                                    "Create time only.")},
-        "gcp": {"instanceType": field("string", "The Memorystore node type.", default=DEPLOY)},
-        "oci": {"memoryGB": field("integer", "Memory per node, within OCI's own range "
-                                  "(principle 10).", default=DEPLOY, minimum=1)},
-    }, "cache", [
-        ("(has(self.aws) && has(self.aws.fromBackup)) == "
-         "(has(oldSelf.aws) && has(oldSelf.aws.fromBackup)) && "
-         "(!has(self.aws) || !has(self.aws.fromBackup) || self.aws.fromBackup == oldSelf.aws.fromBackup)",
-         "aws.fromBackup is set at creation only"),
-        ("!has(self.highAvailability) || !self.highAvailability || "
-         "(has(self.replicas) && self.replicas >= 1)",
-         "highAvailability needs replicas of at least 1"),
-        ("!has(self.version) || !has(oldSelf.version) || "
-         "int(self.version.split('.')[0]) > int(oldSelf.version.split('.')[0]) || "
-         "(int(self.version.split('.')[0]) == int(oldSelf.version.split('.')[0]) && "
-         "int(self.version.split('.')[1]) >= int(oldSelf.version.split('.')[1]))",
-         "version cannot decrease"),
-        ("!has(self.aws) || !has(self.aws.parameterGroupName) || !has(self.parameters)",
-         "aws.parameterGroupName and parameters cannot be used together"),
-        ("!has(oldSelf.aws) || !has(oldSelf.aws.parameterGroupName) || !has(self.version) || "
-         "!has(oldSelf.version) || "
-         "self.version.split('.')[0] == oldSelf.version.split('.')[0] || !has(self.aws) || "
-         "!has(self.aws.parameterGroupName) || "
-         "self.aws.parameterGroupName != oldSelf.aws.parameterGroupName",
-         "a major version change needs a new aws.parameterGroupName, since a parameter group "
-         "fits one major version"),
-    ]),
-    obj({
-        "version": field("string"),
-        "highAvailability": field("boolean"),
-        "replicas": field("integer"),
-        "endpoint": endpoint("The primary's address."),
-        "readerEndpoint": endpoint("The address that spreads reads over the replicas."),
-        "connectionSecret": field("string", "The Secret <instance>-credentials (principle 6)."),
-        "aws": obj({"instanceType": S(), "finalBackup": field(
-            "string", "The ID the final snapshot receives when the cache is deleted."),
-            "id": S(), "engineVersionActual": S()}),
-        "gcp": obj({"instanceType": S(), "id": S()}),
-        "oci": obj({"memoryGB": field("integer"), "id": S(), "state": S(),
-                    "softwareVersion": S()}),
-    })))
-
 # --- Kafka --------------------------------------------------------------------------------
 
 write("kafkacluster", xrd(
@@ -837,8 +753,9 @@ def db_common(engine, version_text, version_pattern):
     }
 
 
-def db_spec(kind, class_kind, common, same_major, has_minor):
-    """A database's spec: its class, observe, the common fields, restore and provider configs."""
+def class_spec(class_kind, common, tail, observed, rules):
+    """The spec of a kind with a class (principle 5): className, observe, the common fields, the
+    kind's own fields in tail, and the provider configs (principle 2)."""
     return obj({
         "className": field("string", f"The {class_kind}: the deployment's defaults, enforced "
                            "values and implementation (principle 5). Unset, the default class. "
@@ -848,6 +765,21 @@ def db_spec(kind, class_kind, common, same_major, has_minor):
                          "provider config entry, and never changes or deletes it. Every other "
                          "common field is then rejected (principle 9). Set at creation only."),
         **common,
+        **tail,
+        "providerConfigs": provider_configs(),
+    }, rules=[
+        ("(has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)",
+         "observe is immutable"),
+        ("!(has(self.observe) && self.observe) || (" + " && ".join(
+            f"!has(self.{k})" for k in [*common, *observed]) + ")",
+         "an observed resource takes no other common field"),
+        *rules,
+    ])
+
+
+def db_spec(kind, class_kind, common, same_major, has_minor):
+    """A database's spec: its class, observe, the common fields, restore and provider configs."""
+    return class_spec(class_kind, common, {
         "restore": obj({
             "fromInstance": field("string", f"A {kind} in this namespace."),
             "pointInTime": field("string", "The time to restore fromInstance to. Unset, the latest "
@@ -855,13 +787,7 @@ def db_spec(kind, class_kind, common, same_major, has_minor):
         }, f"Create the {kind_noun(kind)} from another {kind_noun(kind)}'s backups. Set at "
            "creation only.", required=["fromInstance"]),
         "secretName": secret_name("<instance>-dbadmin"),
-        "providerConfigs": provider_configs(),
-    }, rules=[
-        ("(has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)",
-         "observe is immutable"),
-        ("!(has(self.observe) && self.observe) || (" + " && ".join(
-            f"!has(self.{k})" for k in [*common, "restore"]) + ")",
-         "an observed resource takes no other common field"),
+    }, ["restore"], [
         ("has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || "
          "self.restore == oldSelf.restore)", "restore is set at creation only"),
         ("!has(self.version) || !has(oldSelf.version) || " + same_major + " || "
@@ -1011,3 +937,112 @@ write("mariadbrdsconfig", provider_config_crd(
         "string", "The ID the final backup receives when the server is deleted, for fromBackup."),
         "state": S(), "identifier": S(), "resourceId": S(),
         "latestRestorableTime": field("string", format="date-time")}))
+
+# --- Valkey ----------------------------------------------------------------------------------
+
+
+def valkey_common():
+    """ValkeyServer's common fields (principle 1): one primary and its read replicas, unsharded."""
+    return {
+        "version": field("string", "Valkey's major and minor, such as \"8.1\", and the floor "
+                         "after: raising it upgrades the server, lowering it is rejected. With "
+                         "autoMinorVersionUpgrade, the implementation can move the server past it; "
+                         "the status shows the running version.", default=DEFAULT,
+                         pattern="^[0-9]+\\.[0-9]+$"),
+        "highAvailability": field("boolean", "A read replica in another zone, with automatic "
+                                  "failover. Needs readReplicas of at least 1. Refused where the "
+                                  "class does not support HighAvailability (principle 1).",
+                                  default=DEFAULT),
+        "readReplicas": field("integer", "Read replicas besides the primary, each a copy of it. "
+                              "Refused where the class does not support ReadReplicas "
+                              "(principle 1).", default=DEFAULT, minimum=0),
+        "deletionProtection": field("boolean", "Deleting the object is denied while true.",
+                                    default="fixed, true"),
+        "maintenanceWindow": window(),
+        "autoMinorVersionUpgrade": field("boolean", "Allow the implementation to upgrade to newer "
+                                         "minor versions on its schedule. false keeps the server "
+                                         "at version.", default=DEFAULT),
+        "backup": obj({
+            "retentionDays": field("integer", "Days automated backups are kept, within the "
+                                   "implementation's own range (principle 10). 0 turns automated "
+                                   "backups off.", default=DEFAULT, minimum=0),
+            "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
+                                  minimum=0, maximum=23),
+        }, "Automated daily backups."),
+        "parametersRef": obj({"name": field("string", "A ValkeyParameters in this namespace.")},
+                             "Reusable Valkey settings, merged after the class's.",
+                             required=["name"]),
+        "parameters": string_map("Valkey settings for this object only, merged after "
+                                 "parametersRef."),
+    }
+
+
+write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com",
+                          class_spec("ValkeyClass", valkey_common(), {
+                              "secretName": secret_name("<instance>-credentials")}, [], [
+                              ("!has(self.highAvailability) || !self.highAvailability || "
+                               "(has(self.readReplicas) && self.readReplicas >= 1)",
+                               "highAvailability needs readReplicas of at least 1"),
+                              ("!has(self.version) || !has(oldSelf.version) || "
+                               "int(self.version.split('.')[0]) > int(oldSelf.version.split('.')[0]) || "
+                               "(int(self.version.split('.')[0]) == int(oldSelf.version.split('.')[0]) && "
+                               "int(self.version.split('.')[1]) >= int(oldSelf.version.split('.')[1]))",
+                               "version cannot decrease"),
+                          ]),
+                          obj({
+                              "version": S(),
+                              "highAvailability": field("boolean"),
+                              "readReplicas": field("integer"),
+                              "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
+                              "autoMinorVersionUpgrade": field("boolean"),
+                              "backup": obj({"retentionDays": field("integer"),
+                                             "startHourUTC": field("integer")}),
+                              "endpoint": endpoint("The primary's address."),
+                              "readerEndpoint": endpoint("The address that spreads reads over the "
+                                                         "replicas."),
+                              "connectionSecret": field("string", "The Secret "
+                                                        "<instance>-credentials (principle 6)."),
+                              "providerConfig": obj({"applied": S(), "ignored": array(S())},
+                                                    "The provider config entries applied and "
+                                                    "ignored, as <apiVersion>, <kind> (principle 4)."),
+                              "effective": {"type": "object",
+                                            "x-kubernetes-preserve-unknown-fields": True,
+                                            "description": desc("Each effective value and its "
+                                                                "source: the class's template, the "
+                                                                "object, or the class's enforced "
+                                                                "(principle 4).")},
+                              "provider": {"type": "object",
+                                           "x-kubernetes-preserve-unknown-fields": True,
+                                           "description": desc("Values of the applied "
+                                                               "implementation, in the shape its "
+                                                               "provider config kind's status "
+                                                               "defines (principle 4).")},
+                          })))
+write("valkeyclass", class_crd("ValkeyClass", "valkeyclasses", "database.entigo.com",
+                               valkey_common()))
+write("valkeyparameters", parameters_crd("ValkeyParameters", "valkeyparameters",
+                                         "database.entigo.com", "Valkey"))
+write("valkeyelasticacheconfig", provider_config_crd(
+    "ValkeyElastiCacheConfig", "valkeyelasticacheconfigs", "aws.database.entigo.com",
+    "ElastiCache", {
+        "instanceType": field("string", "The ElastiCache node type, such as cache.t4g.small.",
+                              default=DEFAULT),
+        "parameterGroupName": field("string", "An existing ElastiCache parameter group to use, in "
+                                    "place of the object's parameters. A major version change "
+                                    "needs a new one, since a group fits one major version."),
+        "fromBackup": from_backup("An ElastiCache snapshot name to create the server from, such "
+                                  "as status.provider.finalBackup of a deleted server."),
+    }, {"instanceType": S(), "finalBackup": field(
+        "string", "The ID the final snapshot receives when the server is deleted, for fromBackup."),
+        "engineVersionActual": S()}))
+write("valkeymemorystoreconfig", provider_config_crd(
+    "ValkeyMemorystoreConfig", "valkeymemorystoreconfigs", "gcp.database.entigo.com",
+    "Memorystore for Valkey", {
+        "instanceType": field("string", "The Memorystore node type, such as HIGHMEM_MEDIUM.",
+                              default=DEFAULT),
+    }, {"instanceType": S()}))
+write("valkeyocicacheconfig", provider_config_crd(
+    "ValkeyOCICacheConfig", "valkeyocicacheconfigs", "oci.database.entigo.com", "OCI Cache", {
+        "memoryGB": field("integer", "Memory per node, within OCI's own range (principle 10).",
+                          default=DEFAULT, minimum=1),
+    }, {"memoryGB": field("integer"), "state": S(), "softwareVersion": S()}))

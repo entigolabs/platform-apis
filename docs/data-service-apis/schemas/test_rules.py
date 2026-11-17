@@ -255,33 +255,49 @@ create("MariaDBRDSConfig unknown field rejected", "MariaDBRDSConfig", {**MRS, "u
 update("MariaDBRDSConfig changing fromBackup rejected", "MariaDBRDSConfig",
        {"fromBackup": "a"}, {"fromBackup": "b"}, False, "set at creation only")
 
-print("\n# ValkeyInstance")
-VA = {"version": "8.1", "aws": {"parameterGroupName": "orders-valkey8"}}
-create("Valkey aws.fromBackup accepted at creation", "ValkeyInstance", w(VA, aws={**VA["aws"], "fromBackup": "orders-cache-final"}))
-update("Valkey aws.fromBackup added later rejected", "ValkeyInstance", VA, w(VA, aws={**VA["aws"], "fromBackup": "s"}), False, "set at creation only")
-create("Valkey aws.parameterGroupName accepted", "ValkeyInstance", VA)
-create("Valkey 8 replicas accepted, left to the cloud", "ValkeyInstance",
-       {"replicas": 8, "aws": {}})
-create("Valkey retentionDays 0 accepted, backups off", "ValkeyInstance",
-       {"backup": {"retentionDays": 0}, "aws": {}})
-create("Valkey aws.parameterGroupName with parameters rejected", "ValkeyInstance",
-       w(VA, parameters={"maxmemory-policy": "allkeys-lru"}), False, "cannot be used together")
-update("Valkey major change keeping the parameter group rejected", "ValkeyInstance", VA,
-       w(VA, version="9.0"), False, "needs a new aws.parameterGroupName")
-update("Valkey minor change keeping the parameter group accepted", "ValkeyInstance",
-       w(VA, version="8.0"), VA)
-update("Valkey lowering version rejected", "ValkeyInstance", VA, w(VA, version="8.0"), False,
+print("\n# ValkeyServer")
+EC = {"apiVersion": "aws.database.entigo.com/v1alpha1", "kind": "ValkeyElastiCacheConfig",
+      "spec": {"instanceType": "cache.t4g.small"}}
+OCC = {"apiVersion": "oci.database.entigo.com/v1alpha1", "kind": "ValkeyOCICacheConfig",
+       "spec": {"memoryGB": 16}}
+VA = {"version": "8.1", "highAvailability": True, "readReplicas": 1, "providerConfigs": [EC, OCC]}
+create("Valkey valid spec", "ValkeyServer", VA)
+create("Valkey 8 readReplicas accepted, left to the implementation", "ValkeyServer",
+       w(VA, readReplicas=8))
+create("Valkey retentionDays 0 accepted, backups off", "ValkeyServer",
+       w(VA, backup={"retentionDays": 0}))
+create("Valkey highAvailability with 0 readReplicas rejected", "ValkeyServer",
+       w(VA, readReplicas=0), False, "highAvailability needs")
+create("Valkey highAvailability without readReplicas rejected", "ValkeyServer",
+       w(VA, readReplicas=None), False, "highAvailability needs")
+create("Valkey replicas, the former name, rejected", "ValkeyServer", w(VA, replicas=1), False,
+       "unknown field")
+create("Valkey a full version rejected", "ValkeyServer", w(VA, version="8.1.1"), False,
+       "should match")
+update("Valkey raising the minor accepted", "ValkeyServer", w(VA, version="8.0"), VA)
+update("Valkey lowering version rejected", "ValkeyServer", VA, w(VA, version="8.0"), False,
        "cannot decrease")
-update("Valkey lowering major rejected", "ValkeyInstance", {"version": "8.1"},
-       {"version": "7.2"}, False, "cannot decrease")
-update("Valkey 9.0 to 10.0 accepted", "ValkeyInstance", {"version": "9.0"}, {"version": "10.0"})
-create("valid spec", "ValkeyInstance", {"version": "8.1", "highAvailability": True, "replicas": 1,
-                                        "oci": {"memoryGB": 16}})
-create("highAvailability with 0 replicas rejected", "ValkeyInstance",
-       {"highAvailability": True, "replicas": 0}, False, "highAvailability needs")
-create("highAvailability without replicas rejected", "ValkeyInstance",
-       {"highAvailability": True}, False, "highAvailability needs")
-create("azure block rejected", "ValkeyInstance", {"azure": {}}, False, "unknown field")
+update("Valkey lowering major rejected", "ValkeyServer", VA, w(VA, version="7.2"), False,
+       "cannot decrease")
+update("Valkey 9.0 to 10.0 accepted", "ValkeyServer", w(VA, version="9.0"), w(VA, version="10.0"))
+create("Valkey observe with an entry accepted", "ValkeyServer",
+       {"observe": True, "providerConfigs": [{**EC, "spec": {"id": "orders-cache"}}]})
+create("Valkey observe with a common field rejected", "ValkeyServer",
+       {"observe": True, "version": "8.1", "providerConfigs": [{**EC, "spec": {"id": "x"}}]}, False,
+       "takes no other common field")
+create("ValkeyClass valid class", "ValkeyClass",
+       {"template": {"version": "8.1", "providerConfig": EC}, "enforced": {"deletionProtection": True}})
+create("ValkeyParameters accepted", "ValkeyParameters",
+       {"parameters": {"maxmemory-policy": "allkeys-lru"}})
+for kind, spec in {"ValkeyElastiCacheConfig": {"instanceType": "cache.t4g.small",
+                                               "parameterGroupName": "orders-valkey8"},
+                   "ValkeyMemorystoreConfig": {"instanceType": "HIGHMEM_MEDIUM"},
+                   "ValkeyOCICacheConfig": {"memoryGB": 16}}.items():
+    create(f"{kind} valid spec", kind, spec)
+    create(f"{kind} unknown field rejected", kind, {**spec, "unknownSetting": 1}, False,
+           "unknown field")
+update("ValkeyElastiCacheConfig changing fromBackup rejected", "ValkeyElastiCacheConfig",
+       {"fromBackup": "a"}, {"fromBackup": "b"}, False, "set at creation only")
 
 print("\n# KafkaCluster")
 create("gcp 30 GB for 3 vCPUs accepted, left to the cloud", "KafkaCluster",
@@ -386,9 +402,7 @@ update("removing name rejected", "ArtifactRepository", CR, w(CR, name=None), Fal
 
 
 print("\n# Portability: one object applies on every cloud")
-SIZES = {"ValkeyInstance": {"aws": {"instanceType": "cache.t4g.small"},
-                            "gcp": {"instanceType": "SHARED_CORE_NANO"}, "oci": {"memoryGB": 16}},
-         "KafkaCluster": {"aws": {"instanceType": "kafka.m7g.large"},
+SIZES = {"KafkaCluster": {"aws": {"instanceType": "kafka.m7g.large"},
                           "gcp": {"vcpus": 3, "memoryGB": 12},
                           "oci": {"instanceType": "VM.Standard.E5.Flex", "ocpus": 2}},
          "RabbitMQBroker": {"aws": {"instanceType": "mq.m7g.medium"}}}
@@ -398,7 +412,7 @@ for kind, spec in SIZES.items():
            {"instanceType": "db.t4g.small"}, False, "unknown field")
 
 print("\n# Shared rules on every resource kind")
-BLOCKS = {"ValkeyInstance": ["aws", "gcp", "oci"], "KafkaCluster": ["aws", "gcp", "oci"],
+BLOCKS = {"KafkaCluster": ["aws", "gcp", "oci"],
           "RabbitMQBroker": ["aws"], "Bucket": ["aws", "gcp", "oci", "azure"],
           "ArtifactRepository": ["aws", "gcp", "oci", "azure"]}
 for kind, blocks in BLOCKS.items():
