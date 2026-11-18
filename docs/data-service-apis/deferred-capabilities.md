@@ -34,3 +34,13 @@ can hold a smaller `standby` provider configuration.
 The design as last written, with its rules, mappings, schemas and its open points on fencing the old
 primary, the default size of the copy and the pairing of workspaces, is at commit
 [`3c74fd5`](https://github.com/entigolabs/platform-apis/tree/3c74fd58e082e1cc17c96b5d08e6aa2d1a73f2a1/docs/data-service-apis).
+
+#### 5 Credential rotation on request
+
+A field such as `spec.rotation` replaces a credential when its value changes, so a leaked or aged
+credential can be retired; today a credential changes only when its object is recreated. A user
+kind keeps two logins and alternates between them: a rotation moves the Secret to the other login,
+and the previous one keeps working until the next rotation, so applications that reread the Secret
+within one rotation never lose their connection. A GCP `KafkaUser` alternates its service account's
+two keys. The admin login and a Valkey password have a single login each, so they change at once,
+and an application connected with the old value reconnects.
