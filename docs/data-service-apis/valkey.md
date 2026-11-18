@@ -142,8 +142,8 @@ spec:
 
 *`ValkeyClass` for ElastiCache.*
 
-A class reports `HighAvailability` and `ReadReplicas` in `status.supportedFeatures` on ElastiCache
-and Memorystore, and `ReadReplicas` only on OCI Cache, whose failover is unverified.
+A class reports `HighAvailability` and `ReadReplicas` in `status.supportedFeatures` on every
+implementation.
 
 ### ValkeyParameters
 
@@ -197,19 +197,19 @@ spec:
 The first table maps each common field to the implementation's provider. A setting the
 implementation lacks shows as ignored, with the reason (principle 1):
 
-| Field                     | AWS                                          | GCP                                                                                                               | OCI                                                             |
-| ------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `observe`                 | `managementPolicies: [Observe]`              | `managementPolicies: [Observe]`                                                                                   | `managementPolicies: [Observe]`                                 |
-| `version`                 | `engineVersion`                              | `engineVersion: VALKEY_8_1`                                                                                       | `softwareVersion: VALKEY_8_1`                                   |
-| `highAvailability`        | `multiAzEnabled`, automatic failover         | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                         | refused; the class does not report `HighAvailability`           |
-| `readReplicas`            | `numCacheClusters` = replicas + 1            | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends                | `nodeCount` = replicas + 1                                      |
-| `deletionProtection`      | platform blocks deletion                     | `deletionProtectionEnabled`                                                                                       | platform blocks deletion                                        |
-| `maintenanceWindow`       | `maintenanceWindow`                          | `maintenancePolicy.weeklyMaintenanceWindow` (`day`, `startTime.hours`)                                            | ignored; OCI patches on its own schedule                        |
-| `autoMinorVersionUpgrade` | `autoMinorVersionUpgrade`                    | `false` ignored; Memorystore cannot opt out of maintenance                                                        | `false` ignored; OCI applies minor versions on its own schedule |
-| `backup.retentionDays`    | `snapshotRetentionLimit`; 0 disables backups | `automatedBackupConfig.retention`, in seconds (`"604800s"` for 7 days); 0 omits the block, which disables backups | ignored; OCI Cache has manual backups only                      |
-| `backup.startHourUTC`     | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    | ignored                                                         |
-| `parameters`              | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | a configuration set, allowlist of about 15 keys                 |
-| `parametersRef`           | merged into `parameters`                     | merged into `parameters`                                                                                          | merged into `parameters`                                        |
+| Field                     | AWS                                          | GCP                                                                                                               | OCI                                                                                                                  |
+| ------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `observe`                 | `managementPolicies: [Observe]`              | `managementPolicies: [Observe]`                                                                                   | `managementPolicies: [Observe]`                                                                                      |
+| `version`                 | `engineVersion`                              | `engineVersion: VALKEY_8_1`                                                                                       | `softwareVersion: VALKEY_8_1`                                                                                        |
+| `highAvailability`        | `multiAzEnabled`, automatic failover         | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                         | at least one replica node; OCI Cache spreads nodes across availability or fault domains and fails over automatically |
+| `readReplicas`            | `numCacheClusters` = replicas + 1            | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends                | `nodeCount` = replicas + 1                                                                                           |
+| `deletionProtection`      | platform blocks deletion                     | `deletionProtectionEnabled`                                                                                       | platform blocks deletion                                                                                             |
+| `maintenanceWindow`       | `maintenanceWindow`                          | `maintenancePolicy.weeklyMaintenanceWindow` (`day`, `startTime.hours`)                                            | ignored; OCI patches on its own schedule                                                                             |
+| `autoMinorVersionUpgrade` | `autoMinorVersionUpgrade`                    | `false` ignored; Memorystore cannot opt out of maintenance                                                        | `false` ignored; OCI applies minor versions on its own schedule                                                      |
+| `backup.retentionDays`    | `snapshotRetentionLimit`; 0 disables backups | `automatedBackupConfig.retention`, in seconds (`"604800s"` for 7 days); 0 omits the block, which disables backups | ignored; OCI Cache has manual backups only                                                                           |
+| `backup.startHourUTC`     | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    | ignored                                                                                                              |
+| `parameters`              | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | a configuration set, allowlist of about 15 keys                                                                      |
+| `parametersRef`           | merged into `parameters`                     | merged into `parameters`                                                                                          | merged into `parameters`                                                                                             |
 
 *`ValkeyServer` common fields and their provider fields.*
 
@@ -408,6 +408,7 @@ metadata:
 spec:
   className: standard
   version: "8.1"
+  highAvailability: true
   readReplicas: 1
   deletionProtection: true
   maintenanceWindow:
@@ -456,7 +457,7 @@ spec:
     - ocid1.networksecuritygroup.oc1..deployment
 ```
 
-*`ValkeyServer` on OCI without `highAvailability` and its composed resource.*
+*`ValkeyServer` on OCI and its composed resource.*
 
 ## Platform Decisions
 
