@@ -1,9 +1,9 @@
 # API Changes
 
-Every change from the data service APIs of
-[`platform-apis`](https://github.com/entigolabs/platform-apis) release
-[`v0.2.100`](https://github.com/entigolabs/platform-apis/tree/v0.2.100) (commit `4ae2a66`) to this
-design, per kind. A field not listed keeps its name and meaning.
+This page lists every change from today's data service APIs to this design, per kind. Today's APIs
+are those of [`platform-apis`](https://github.com/entigolabs/platform-apis) release
+[`v0.2.100`](https://github.com/entigolabs/platform-apis/tree/v0.2.100) (commit `4ae2a66`). A field
+not listed keeps its name and meaning.
 
 ## Contents
 
@@ -27,7 +27,7 @@ These changes span all data services. Applicability varies by kind.
 | (none)                                                                             | `className`, naming a class of the kind                  | Kinds with a class                                                                                                                   | A deployment's defaults and limits come from a class (principle 5)                |
 | (none)                                                                             | `providerConfigs`, one entry per implementation          | Kinds with a class                                                                                                                   | Settings of one implementation belong in its provider configuration (principle 2) |
 | (none)                                                                             | `observe`, and `id` in a provider configuration entry    | Kinds with a class                                                                                                                   | Observing an existing resource (principle 9)                                      |
-| (none)                                                                             | `secretName`                                             | `PostgreSQLCluster`, `MariaDBServer`, `ValkeyServer`, `RabbitMQBroker`, `PostgreSQLUser`, `MariaDBUser`, `KafkaUser`, `RabbitMQUser` | Overrides the secret's name (principle 6)                                         |
+| (none)                                                                             | `secretName`                                             | `PostgreSQLCluster`, `MariaDBServer`, `ValkeyServer`, `RabbitMQBroker`, `PostgreSQLUser`, `MariaDBUser`, `KafkaUser`, `RabbitMQUser` | A secret name chosen by the user (principle 6)                                    |
 | a reference without `namespace`                                                    | `namespace`, valid within the Zone                       | Kinds inside another: users, databases, `KafkaTopic`, `RabbitMQVirtualHost`                                                          | References cross namespaces within the Zone (principle 11)                        |
 | a cloud's rejection only on the composed resource                                  | `CloudAccepted: False` and a warning event on the object | All kinds                                                                                                                            | The refusal's cause shows on the object (principle 10)                            |
 | AWS-only status fields, such as security groups, KMS keys and hosted zone IDs      | removed; the rest in `status.provider`                   | Kinds with a class                                                                                                                   | The status reports the resource's actual values (principle 4)                     |
@@ -61,7 +61,7 @@ The kinds with a class are `PostgreSQLCluster`, `MariaDBServer`, `ValkeyServer`,
 | `parameterGroupParameters` (a map with a reserved `applyMethod` key)                                                    | `parameters` and `parameterApplyMethod`                           | The apply method becomes its own field                                                                |
 | (none)                                                                                                                  | `parametersRef`                                                   | Settings shared through a `PostgreSQLParameters`                                                      |
 | `snapshotIdentifier`                                                                                                    | `fromBackup` in the `PostgreSQLRDSConfig` entry                   | A backup ID belongs to one implementation (principle 2)                                               |
-| (none)                                                                                                                  | `restore.fromInstance`, `restore.pointInTime`                     | Restore from another cluster                                                                          |
+| (none)                                                                                                                  | `restore.fromInstance`, `restore.pointInTime`                     | Restoring from another cluster                                                                        |
 | (none)                                                                                                                  | `className`                                                       | The deployment's defaults and limits come from a class (principle 5)                                  |
 | (none)                                                                                                                  | `providerConfigs` entries of other kinds                          | Sizes and settings of other implementations (principle 2)                                             |
 | `status.endpoint.address`                                                                                               | `status.endpoint.host`                                            | The same word everywhere                                                                              |
@@ -73,7 +73,7 @@ The kinds with a class are `PostgreSQLCluster`, `MariaDBServer`, `ValkeyServer`,
 
 *`PostgreSQLCluster` changes from `PostgreSQLInstance`, with reasons.*
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---
@@ -158,7 +158,7 @@ and `name` and `clusterRef` become immutable.
 | `parameterGroupParameters` (a map with a reserved `applyMethod` key)                                                             | `parameters` and `parameterApplyMethod`                           | The apply method becomes its own field                                                                            |
 | (none)                                                                                                                           | `parametersRef`                                                   | Settings shared through a `MariaDBParameters`                                                                     |
 | `snapshotIdentifier`                                                                                                             | `fromBackup` in the `MariaDBRDSConfig` entry                      | A backup ID belongs to one implementation (principle 2)                                                           |
-| (none)                                                                                                                           | `restore.fromInstance`, `restore.pointInTime`                     | Restore from another server                                                                                       |
+| (none)                                                                                                                           | `restore.fromInstance`, `restore.pointInTime`                     | Restoring from another server                                                                                     |
 | (none)                                                                                                                           | `className`                                                       | The deployment's defaults and limits come from a class (principle 5)                                              |
 | `status.endpoint.address`                                                                                                        | `status.endpoint.host`                                            | The same word everywhere                                                                                          |
 | `status.dbInstanceIdentifier`, `status.resourceId`, `status.status`, `status.latestRestorableTime`                               | `status.provider`                                                 | Values of one implementation (principle 4)                                                                        |
@@ -169,7 +169,7 @@ and `name` and `clusterRef` become immutable.
 
 *`MariaDBServer` changes from `MariaDBInstance`, with reasons.*
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---
@@ -236,7 +236,7 @@ spec:
 
 *`MariaDBUser` changes, with reasons.*
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---
@@ -297,7 +297,7 @@ and `name` and `serverRef` become immutable.
 | `parameterGroupName`                                            | `parameterGroupName` in the `ValkeyElastiCacheConfig` entry    | An ElastiCache concept (principle 2)                                                                                                    |
 | `parameterGroupParameters`                                      | `parameters`                                                   | One map everywhere                                                                                                                      |
 | (none)                                                          | `parametersRef`                                                | Settings shared through a `ValkeyParameters`                                                                                            |
-| (none)                                                          | `fromBackup` in the `ValkeyElastiCacheConfig` entry            | Create a server from a snapshot, such as the final one                                                                                  |
+| (none)                                                          | `fromBackup` in the `ValkeyElastiCacheConfig` entry            | Creating a server from a snapshot, such as the final one                                                                                |
 | (none)                                                          | `className`                                                    | The deployment's defaults and limits come from a class (principle 5)                                                                    |
 | (none)                                                          | `providerConfigs` entries of other kinds                       | Sizes and settings of other implementations (principle 2)                                                                               |
 | `status.endpoint.address`                                       | `status.endpoint.host`                                         | The same word everywhere                                                                                                                |
@@ -310,7 +310,7 @@ and `name` and `serverRef` become immutable.
 
 *`ValkeyServer` changes from `ValkeyInstance`, with reasons.*
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---
@@ -373,7 +373,7 @@ creates one or observes one:
 
 *`KafkaCluster` changes from `MSK`, with reasons.*
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---
@@ -417,7 +417,7 @@ spec:
 
 *`KafkaTopic` changes from `Topic`, with reasons.*
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---
@@ -489,7 +489,7 @@ spec:
 
 *`RabbitMQBroker` changes, with reasons.*
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---
@@ -566,10 +566,10 @@ spec:
 
 *`Bucket` changes from `S3Bucket`, with reasons.*
 
-Until applications have a cloud identity of their own, applications that read the secret keep
-`S3Bucket`, which stays served next to `Bucket`.
+Until applications have a cloud identity of their own, those that read the bucket's secret keep
+`S3Bucket`, which stays served beside `Bucket`.
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---
@@ -615,7 +615,7 @@ spec:
 
 *`ArtifactRepository` changes from `Repository`, with reasons.*
 
-An example, today and in the design:
+The example below shows the kind today and in the design:
 
 ```yaml
 ---

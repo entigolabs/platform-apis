@@ -1,10 +1,10 @@
 # Open Points
 
-Questions to decide before implementation.
+Each question below needs a decision before implementation.
 
 #### 1 Which API group do the kinds take, and how do existing objects move to it?
 
-**Context.** Most user-facing kinds take new names, such as `PostgreSQLCluster` beside today's
+**Context.** Most core kinds take new names, such as `PostgreSQLCluster` beside today's
 `PostgreSQLInstance` and `Bucket` beside `S3Bucket`, and are served beside today's kinds in today's
 category groups (`database.`, `queue.`, `mq.`, `storage.` and `artifact.entigo.com`). Six kinds keep
 their names: `RabbitMQBroker`, `KafkaUser`, `PostgreSQLUser`, `PostgreSQLDatabase`, `MariaDBUser`
@@ -21,7 +21,7 @@ also do not present the design as one family.
 
 | Option                                                         | Effect                                                                                                                                                                                    | Trade-offs                                                                                                          |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Same groups, renamed kinds beside today's                      | Each object of a renamed kind moves at its user's pace, through `observe` and adoption; the six kinds that keep their names switch at once, by a conversion webhook or a one-time rewrite | Proving for the six kinds that no cloud resource changes; today's kinds stay served until the last object has moved |
+| Same groups, renamed kinds beside today's                      | Each object of a renamed kind moves at its user's pace, through `observe` and adoption; the six kinds that keep their names switch at once, by a conversion webhook or a one-time rewrite | A proof for the six kinds that no cloud resource changes; today's kinds stay served until the last object has moved |
 | One new group, `data.entigo.com`                               | Every object moves at its user's pace, the six kinds included                                                                                                                             | Today's kinds stay served, and their functions run, until the last object has moved                                 |
 | A new group per category, `database.data.entigo.com` and so on | As with one new group                                                                                                                                                                     | As with one new group, with longer names                                                                            |
 
@@ -31,12 +31,12 @@ also do not present the design as one family.
 
 **Context.** The platform generates every credential: an instance's admin password, the password of
 each database, RabbitMQ and Kafka user, and a Valkey cache's password; a `KafkaUser` on GCP has a
-service account key instead. Applications read it from one Secret with the same keys on every cloud
-(principle 6).
+service account key instead. Applications read each credential from a Secret with the same keys on
+every cloud (principle 6).
 
 **Problem.** Nothing in the API replaces a credential, so a leaked or aged one stays valid. Once a
-credential is replaced, an application keeps the old value until it reads the Secret again, so how
-the switch happens decides whether applications lose their connection.
+credential is replaced, an application keeps the old value until it reads the Secret again, so the
+way the switch happens decides whether applications lose their connection.
 
 **Options:**
 
@@ -51,9 +51,9 @@ the switch happens decides whether applications lose their connection.
 #### 3 How do users see a resource's health?
 
 **Context.** A resource's status reports what the cloud runs, such as its version, size and
-endpoint. Its metrics, such as CPU, storage used and connections, live in each cloud's monitoring
-service, to which platform users usually have no access. Infralib deploys Prometheus, Grafana and
-Mimir in every cluster.
+endpoint. Its metrics, such as CPU, storage used and connections, are kept in each cloud's
+monitoring service, to which platform users usually have no access. Infralib deploys Prometheus,
+Grafana and Mimir in every cluster.
 
 **Problem.** A user cannot see whether a resource is healthy. A disk that fills up to `maxSizeGB`,
 exhausted connections or a failed backup show only when the application breaks.

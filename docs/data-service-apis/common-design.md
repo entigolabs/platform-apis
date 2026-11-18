@@ -5,7 +5,7 @@ Every data service API uses the mechanisms on this page, each of which applies a
 
 ## Naming
 
-A user-facing kind is named after its engine or concept (principle 8), and the kinds around it take
+A core kind is named after its engine or concept (principle 8), and the kinds around it take
 their names from it:
 
 | Kind                   | Name                      | Group                     | Example                                            |
@@ -24,7 +24,7 @@ name, such as RDS, Cloud SQL or MSK; where it has none, the platform's name stan
 `PostgreSQLOCIConfig` for OCI Database with PostgreSQL. An on-premises implementation is grouped by
 the platform it runs on, `kubernetes`, with the product in the kind, as `PostgreSQLCNPGConfig` for
 CloudNativePG. An implementation built outside Entigo uses its own domain, so names never collide.
-Each provider configuration kind versions on its own.
+Each provider configuration kind is versioned independently.
 
 ## Installation
 
@@ -40,10 +40,10 @@ A class, such as a `PostgreSQLClass`, is cluster-scoped and written by Entigo fo
 (principle 5). It holds two parts of the object's spec, each with the common fields and one provider
 configuration:
 
-| Part       | Effect                                                                               |
-| ---------- | ------------------------------------------------------------------------------------ |
-| `template` | Defaults: written into the object when it is created, and the object may change them |
-| `enforced` | Always applied; an object that sets a different value is refused when applied        |
+| Part       | Effect                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| `template` | Defaults, written into the object when it is created; the object may change them               |
+| `enforced` | Enforced values, always applied; an object that sets a different value is refused when applied |
 
 *Class parts and their effects.*
 
@@ -67,7 +67,7 @@ defaults.
 Each class reports in its status which portable features its implementation supports, such as
 `HighAvailability` and `ReadReplicas`. An object that requests a feature its class does not report
 is refused when applied, with a message naming the class and the feature (principle 1). The portal
-reads a class's supported features and hides the fields its class cannot fulfil.
+reads a class's supported features and hides the fields the class cannot fulfil.
 
 ## Provider Configurations
 
@@ -78,8 +78,8 @@ inline, in `spec`, or in a separate object of that kind, through `ref`. The list
 manifest can carry settings for several implementations and be applied on any of them.
 
 A deployment applies only the entry whose kind its class names and ignores the others; the status
-lists which entry was applied and which were ignored, so a misspelled kind shows as nothing applied.
-An object with no matching entry takes the class's provider configuration as it is.
+names the applied entry and the ignored ones, so a misspelled kind shows as no entry applied. An
+object with no matching entry takes the class's provider configuration as it is.
 
 A machine size is a provider configuration setting, named as the product names it, such as
 `db.m7g.large` in a `PostgreSQLRDSConfig` and `db-custom-2-8192` in a `PostgreSQLCloudSQLConfig`. A
@@ -94,11 +94,11 @@ The status (principle 4) shows the common fields as the implementation actually 
 address is `endpoint: { host, port }` where the service has one host, or the service's own form
 where it has several.
 
-Values that only make sense in one implementation, such as its resource IDs, go into
-`status.provider`, whose shape the applied provider configuration kind defines.
-`status.providerConfig` names the applied entry and the ignored ones, and `status.effective` shows
-each effective value and where it came from: the class's `template`, the object, or the class's
-`enforced`. If an implementation does not report a common field, that field stays empty there.
+Values that exist in only one implementation, such as its resource IDs, go into `status.provider`,
+whose shape the applied provider configuration kind defines. `status.providerConfig` names the
+applied entry and the ignored ones, and `status.effective` shows each effective value and where it
+came from: the class's `template`, the object, or the class's `enforced`. If an implementation does
+not report a common field, that field stays empty there.
 
 ## Connection Secrets
 
@@ -113,8 +113,8 @@ other services, and `<instance>-<user>` for a user object. Every kind with a sec
 optional `secretName` to override that name. The platform never overwrites a Secret that another
 object or person owns: joined names can collide, as a user named `dbadmin` with the admin's secret,
 or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second object reports which
-object holds the name, and `secretName` resolves it. It also allows a user to keep a name
-its application already uses.
+object holds the name, and `secretName` resolves it. `secretName` also lets a user keep a Secret
+name their application already uses.
 
 ## Observed Resources
 
@@ -134,7 +134,7 @@ spec:
 *Observed resource on AWS.*
 
 The ID is one value the user copies from the cloud's console. The platform converts it into the form
-the provider takes. An observed resource takes no other spec fields.
+the Crossplane provider takes. An observed resource takes no other spec fields.
 
 A resource can be observed only when its workspace tag (a label on GCP) names this cluster's
 workspace, and only from a namespace of the Zone its Zone tag names, or from any Zone when it has no
@@ -142,10 +142,10 @@ Zone tag. Its owner sets the tags in the cloud. The platform reads them before i
 and a resource that fails the check is refused with `CloudAccepted: False`.
 
 The check holds only where users can create the platform's kinds and nothing else, so it has a
-prerequisite: kcp serves no provider kinds, and a Zone's Argo CD project and roles allow only the
-platform's and Kubernetes' own groups. Today's Argo CD project does not yet limit itself to an
-allowlist of groups. A user who could create a provider's resource directly could observe anything
-without the check.
+prerequisite: kcp serves no Crossplane provider kinds, and a Zone's Argo CD project and roles allow
+only the platform's and Kubernetes' own groups. Today's Argo CD project does not yet limit itself to
+an allowlist of groups. A user who could create a Crossplane provider's resource directly could
+observe anything without the check.
 
 ## Resource Names
 
@@ -188,8 +188,8 @@ checks the entry that applies on its deployment with a `ValidatingAdmissionPolic
 its kind's schema, so that CI checks every entry of a manifest, including those for other
 deployments, before it is applied anywhere.
 
-When the cloud rejects a value, the error appears only on the provider's own object, not on the
-user's. The platform therefore also shows it on the user's object, as the condition
+When the cloud rejects a value, the error appears only on the Crossplane provider's own object, not
+on the user's. The platform therefore also shows it on the user's object, as the condition
 `CloudAccepted: False` and as a warning event. An operation that the running implementation cannot
 perform, such as an upgrade its service does not offer, is reported the same way, without reaching
 the cloud.

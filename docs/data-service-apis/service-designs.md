@@ -5,10 +5,13 @@ Each data service has a design of its own, built on the mechanisms of
 has three tabs: Design holds its kinds and their behaviour, Cloud Mapping their mapping to each
 cloud's managed service, and Schemas the draft schema of each kind.
 
-The design covers each service on the clouds below. Designed means the design maps the cloud's
-managed service and defines its provider configuration kind; it describes the design's coverage, not
-a rollout. Mapping only means the service is mapped, but its kinds wait on support in the cloud's
-Crossplane provider. No implementation means the cloud has no managed service that fits the kind.
+The design covers each service on the clouds below, in one of three states:
+
+- Designed. The design maps the cloud's managed service and defines its provider configuration kind.
+  The state describes design coverage, not a rollout.
+- Mapping only. The design maps the cloud's managed service, but its kinds wait on support in the
+  cloud's Crossplane provider.
+- No implementation. The cloud has no managed service that fits the kind.
 
 | Service            | AWS      | GCP               | OCI               | Azure             |
 | ------------------ | -------- | ----------------- | ----------------- | ----------------- |

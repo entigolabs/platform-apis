@@ -1,8 +1,8 @@
 # Deferred Capabilities
 
-Capabilities considered and omitted for now; the design is complete without them.
+The capabilities below were considered and omitted for now; the design is complete without them.
 
-#### 1 Per-cluster extension allow list for PostgreSQL, deferred as a second list to manage
+#### 1 Per-cluster extension allowlist for PostgreSQL, deferred as a second list to manage
 
 On Azure a server allows an extension through its `azure.extensions` parameter before any database
 can create it. The design sets it to the platform's whole allowlist on every Azure cluster, so

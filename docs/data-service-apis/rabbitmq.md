@@ -9,9 +9,8 @@ isolated set of queues and exchanges in a broker. Two kinds shape them: `RabbitM
 deployment's defaults and limits, written by Entigo, and `RabbitMQParameters`, reusable
 `rabbitmq.conf` settings.
 
-Built on Amazon MQ (AWS), the only managed RabbitMQ among the four clouds, with the provider
-configuration kind `RabbitMQAmazonMQConfig`; the API follows RabbitMQ's own concepts. GCP, OCI and
-Azure have none.
+Built on Amazon MQ (AWS), with the provider configuration kind `RabbitMQAmazonMQConfig`. GCP, OCI
+and Azure have no managed RabbitMQ. The API follows RabbitMQ's own concepts.
 
 ## Contents
 
@@ -62,9 +61,10 @@ spec:
 *`RabbitMQBroker` with common fields and an Amazon MQ entry.*
 
 The platform names the broker, the engine is always RabbitMQ, and Amazon MQ requires minor version
-upgrades, so none of these is a field. `highAvailability` chooses the deployment mode, and
-`parameters`, a map, is rendered into `rabbitmq.conf`. `highAvailability` is a portable feature: an
-object that requests it where its class does not support it is refused when applied (principle 1).
+upgrades, so none of these is a field. `parameters`, a map, is rendered into `rabbitmq.conf`.
+
+`highAvailability` chooses the deployment mode. It is a portable feature: an object that requests it
+where its class does not support it is refused when applied (principle 1).
 
 The status shows the common fields, `managementEndpoint`, the management console URL, which entry
 applied, where each effective value came from, and Amazon MQ's own values (principle 4):
@@ -147,23 +147,23 @@ accept are rejected by the cloud and reported as `CloudAccepted: False` (princip
 
 ### RabbitMQUser
 
-`RabbitMQUser` acts inside RabbitMQ, so that each application has its own login instead of the
-broker's admin login. It has no class or provider configurations: it follows its broker's
-implementation.
+`RabbitMQUser` acts inside RabbitMQ and gives each application its own login instead of the broker's
+admin login. It has no class or provider configurations: it follows its broker's implementation.
 
 Amazon MQ does not manage RabbitMQ users through its own API; users, virtual hosts and permissions
 are created through RabbitMQ's management API, with the broker's admin login ([Amazon MQ for
 RabbitMQ broker
 users](https://docs.aws.amazon.com/amazon-mq/latest/developer-guide/rabbitmq-basic-elements-user.html)).
 
-A user receives the secret `<broker>-<user>` with the keys of the broker's secret except
-`managementEndpoint`, and no management tags, so its login cannot open the management console.
+A user receives the secret `<broker>-<user>`, with the keys of the broker's secret except
+`managementEndpoint`. A user has no management tags, so its login cannot open the management
+console.
 
 Permissions follow RabbitMQ's own model: per virtual host, three regular expressions over queue and
 exchange names, for `configure` (create and delete), `write` (publish) and `read` (consume).
 Permissions are held in the user (principle 12).
 
-An example:
+A user creates a `RabbitMQUser` with a manifest like the one below:
 
 ```yaml
 ---
@@ -189,13 +189,12 @@ spec:
 
 ### RabbitMQVirtualHost
 
-`RabbitMQVirtualHost` acts inside RabbitMQ, through its management API, and has no class or
-provider configurations. A virtual host is an
-isolated set of queues and exchanges inside the broker; deleting one deletes its queues and
-messages, so it has `deletionProtection`. A new virtual host grants nothing until a user is given
-permissions on it.
+`RabbitMQVirtualHost` acts inside RabbitMQ, through its management API, and has no class or provider
+configurations. A virtual host is an isolated set of queues and exchanges inside the broker;
+deleting one deletes its queues and messages, so it has `deletionProtection`. A new virtual host
+grants nothing until a user is given permissions on it.
 
-An example:
+A user creates a `RabbitMQVirtualHost` with a manifest like the one below:
 
 ```yaml
 ---
@@ -216,7 +215,7 @@ spec:
 
 ## Mapping
 
-The first table names what each common field maps to in Amazon MQ:
+The first table maps each common field to Amazon MQ:
 
 | Field                | AWS                                                                      |
 | -------------------- | ------------------------------------------------------------------------ |
@@ -249,9 +248,10 @@ only the release line.
 
 ## Composed Resources
 
-A comment names the source of each value the object does not hold as written: `platform` for a value
-the platform sets, and `deployment` for one the deployment sets. The `RabbitMQBroker` from
-[Kinds](#kinds) is composed into the resource below on AWS, the only cloud that offers it:
+The `RabbitMQBroker` from [Kinds](#kinds) is composed into the resource below on AWS, the only cloud
+that offers it. A comment names the source of each value the object does not hold as written:
+`platform` for a value the platform sets, and `deployment` for one the deployment sets. The object
+and its resource:
 
 ```yaml Object on AWS
 ---

@@ -1,6 +1,6 @@
 # PostgreSQL
 
-PostgreSQL is an open-source relational database, used by applications for their transactional data.
+PostgreSQL is an open-source relational database that applications use for their transactional data.
 
 Three kinds for users: `PostgreSQLCluster`, one database cluster with its standby;
 `PostgreSQLUser`, one application's login on a cluster, with its permissions; and
@@ -127,8 +127,9 @@ spec:
 *`PostgreSQLCluster` using its class defaults.*
 
 `restore` creates a cluster from another cluster's backups, at a point in time. A deleted cluster is
-restored instead with its provider configuration's `fromBackup`, such as an RDS snapshot ID. Both
-are set at creation only and cannot be combined:
+restored instead with its provider configuration's `fromBackup` and the final backup's ID, such as
+an RDS snapshot ID. The status loses that ID with the cluster, so it is taken from the cloud
+console. `restore` and `fromBackup` are set at creation only and cannot be combined:
 
 ```yaml
 ---
@@ -157,9 +158,8 @@ further, so the status reports the actual size, and the platform never shrinks t
 `highAvailability` is a portable feature: an object that requests it where its class does not
 support it is refused when applied (principle 1).
 
-The final backup's ID, which `fromBackup` needs, is lost with the cluster's status, so it is taken
-from the cloud console. Besides the common fields, the status shows which entry applied, where each
-effective value came from, and the applied implementation's own values (principle 4):
+The status shows the common fields, which entry applied, where each effective value came from, and
+the applied implementation's own values (principle 4):
 
 ```yaml
 status:
@@ -188,7 +188,7 @@ status:
 
 *`PostgreSQLCluster` status on AWS.*
 
-The admin login is in the secret `<instance>-dbadmin`, with the keys of principle 6.
+The connection secret `<instance>-dbadmin` holds the admin login, with the keys of principle 6.
 
 ### PostgreSQLClass
 
@@ -261,9 +261,8 @@ spec:
 
 *`PostgreSQLParameters` shared between a user's clusters.*
 
-A `PostgreSQLParameters` names no other: settings layer only through where it is referenced, so
-references never chain. Settings the implementation does not allow are rejected by the cloud and
-reported as `CloudAccepted: False` (principle 10).
+A `PostgreSQLParameters` names no other, so references never chain. Settings the implementation does
+not allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### PostgreSQLUser
 
@@ -274,7 +273,7 @@ of the same Zone (principle 11), and it has no class or provider configurations.
 A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
 which other users receive through `grant.roles`.
 
-An example:
+A user creates a `PostgreSQLUser` with a manifest like the one below:
 
 ```yaml
 ---
@@ -306,11 +305,11 @@ spec:
 implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
 of the same Zone (principle 11), and it has no class or provider configurations.
 
-`extensions` creates an extension in that database. Azure also needs the server to allow it, so
-every Azure cluster allows the whole allowlist, and any database can create any of them, as
-elsewhere.
+`extensions` creates each listed extension in the database. Azure also requires the server to allow
+an extension, so every Azure cluster allows the whole allowlist, and any database can create any
+extension on it, as on the other clouds.
 
-An example:
+A user creates a `PostgreSQLDatabase` with a manifest like the one below:
 
 ```yaml
 ---
@@ -341,7 +340,7 @@ spec:
 
 ## Mapping
 
-The first table names what each common field maps to in the implementation's provider. A setting the
+The first table maps each common field to the implementation's provider. A setting the
 implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field                      | AWS                                                                         | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                |
@@ -400,7 +399,8 @@ v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3
 only delays minor upgrades. The size belongs to an edition: `db-custom-*` to `ENTERPRISE`,
 `db-perf-optimized-*` to `ENTERPRISE_PLUS`, which Cloud SQL selects by default from PostgreSQL 16.
 The platform therefore always sets `edition`, and a class's `edition` and `instanceType` must belong
-together. The provider reports only `finalBackupDescription`, and `endpoint.host` is an IP address.
+together. The Crossplane provider reports only `finalBackupDescription`, and `endpoint.host` is an
+IP address.
 
 **OCI:** provider keys are from the CRDs of [crossplane-provider-oci
 v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0). `storage.sizeGB`
@@ -801,14 +801,14 @@ spec:
 ## Platform Decisions
 
 Besides the settings it makes for every service
-([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
-for a `PostgreSQLCluster` itself:
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these for a
+`PostgreSQLCluster` itself:
 
-| Setting      | Platform's Choice                                                                      |
-| ------------ | -------------------------------------------------------------------------------------- |
-| Admin login  | An admin username and a generated password                                             |
-| Port         | 5432                                                                                   |
-| Final backup | Taken when a cluster is deleted, switched on per deployment, where the cloud takes one |
+| Setting      | Platform's Choice                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| Admin login  | An admin username and a generated password                                                      |
+| Port         | 5432                                                                                            |
+| Final backup | A backup taken when a cluster is deleted, switched on per deployment, where the cloud takes one |
 
 *`PostgreSQLCluster` settings chosen by the platform.*
 

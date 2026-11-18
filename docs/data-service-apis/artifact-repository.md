@@ -7,10 +7,10 @@ One kind for users: `ArtifactRepository`, one application's image path, such as 
 with its tags. One kind shapes it: `ArtifactRepositoryClass`, a deployment's defaults and limits,
 written by Entigo.
 
-Built on ECR (AWS), Artifact Registry (GCP), OCIR (OCI) and Azure Container Registry (Azure), which
-store every OCI artifact alike, each with a provider configuration kind of its own:
-`ArtifactRepositoryECRConfig`, `ArtifactRepositoryArtifactRegistryConfig`,
-`ArtifactRepositoryOCIRConfig` and `ArtifactRepositoryACRConfig`.
+Built on ECR (AWS), Artifact Registry (GCP), OCIR (OCI) and Azure Container Registry (Azure), each
+with a provider configuration kind of its own: `ArtifactRepositoryECRConfig`,
+`ArtifactRepositoryArtifactRegistryConfig`, `ArtifactRepositoryOCIRConfig` and
+`ArtifactRepositoryACRConfig`. Each stores every OCI artifact alike.
 
 ## Contents
 
@@ -32,9 +32,9 @@ creates on the first push, with no resource of their own. The API's unit is the 
 an application owns its image path.
 
 A user creates an `ArtifactRepository` with a manifest like the one below. A repository has no
-setting of a single implementation, so its manifest carries no provider configuration entry; an
-entry holds only the `id` of an existing repository to observe (principle 9), which fails on Azure,
-where a repository has no resource of its own:
+setting specific to one implementation, so its manifest carries a provider configuration entry only
+to observe an existing repository, and that entry holds only the repository's `id` (principle 9).
+Observing fails on Azure, where a repository has no resource of its own:
 
 ```yaml
 ---
@@ -76,8 +76,9 @@ image) and one bound (`keepCount` newest, or `expireAfterDays` since the push). 
 and `immutableTags` take the class's defaults, so a repository whose spec is empty is still cleaned
 up; `lifecycleRules` set on the object replace the class's rules.
 
-There is no connection secret. The status shows `uri`, the image URI, with which entry applied,
-where each effective value came from, and the applied implementation's own values (principle 4):
+An `ArtifactRepository` has no connection secret. The status shows `uri`, the image URI, with which
+entry applied, where each effective value came from, and the applied implementation's own values
+(principle 4):
 
 ```yaml
 status:
@@ -125,8 +126,8 @@ spec:
 
 ## Mapping
 
-The first table names what each common field maps to in the implementation's provider. A setting
-the implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the implementation's provider. A setting the
+implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field                | AWS                                 | GCP                                                                                                                                                                                                                                                    | OCI                                                                                                      | Azure                                                                                     |
 | -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -145,7 +146,7 @@ The second names the implementation's provider configuration kind and what its f
 | kind  | `ArtifactRepositoryECRConfig`       | `ArtifactRepositoryArtifactRegistryConfig` | `ArtifactRepositoryOCIRConfig` | `ArtifactRepositoryACRConfig`                                                 |
 | `id`  | the repository name, the whole path | the repository ID                          | the repository's OCID          | accepted, but observing fails: an Azure repository has no resource of its own |
 
-*ArtifactRepository provider configuration fields.*
+*Artifact repository provider configuration fields.*
 
 **AWS:** ECR's `IMMUTABLE_WITH_EXCLUSION` and `MUTABLE_WITH_EXCLUSION` modes, which only ECR has,
 are not offered. Images are scanned on push by ECR.

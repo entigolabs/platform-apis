@@ -24,12 +24,9 @@ Object storage is offered as two kinds, each with the manifest its owner writes.
 
 ### Bucket
 
-A `Bucket` is only the bucket: access to it belongs to the identities of the applications that use
-it, not to the bucket.
-
-A user creates a `Bucket` with a manifest like the one below. A bucket has no setting of a single
-implementation, so its manifest carries no provider configuration entry; an entry holds only the
-`id` of an existing bucket to observe (principle 9):
+A user creates a `Bucket` with a manifest like the one below. A bucket has no setting specific to
+one implementation, so its manifest carries a provider configuration entry only to observe an
+existing bucket, and that entry holds only the bucket's `id` (principle 9):
 
 ```yaml
 ---
@@ -71,9 +68,10 @@ A `Bucket` creates no identity: no IAM role, service account or access key. Thos
 applications that use the bucket; an application's own identity is granted access to the buckets it
 names.
 
-A `Bucket` has no secret: it holds no credentials. The status shows `url`, `bucketName` and
-`region`, the three values an application needs to reach the bucket, with which entry applied, where
-each effective value came from, and the applied implementation's own values (principle 4):
+A `Bucket` has no connection secret, since it holds no credentials. The status shows `url`,
+`bucketName` and `region`, the three values an application needs to reach the bucket, with which
+entry applied, where each effective value came from, and the applied implementation's own values
+(principle 4):
 
 ```yaml
 status:
@@ -120,8 +118,8 @@ spec:
 
 ## Mapping
 
-The first table names what each common field maps to in the implementation's provider. A setting
-the implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the implementation's provider. A setting the
+implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field                | AWS                                                                                                                                                 | GCP                                                       | OCI                                                                                                                                                 | Azure                                                                                     |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -158,7 +156,7 @@ unique, and S3 object ownership is enforced.
 **OCI:** `status.provider.retentionLockedFrom` is the date a locked retention takes effect.
 
 **Azure:** versioning, lifecycle, CORS and soft delete belong to the storage account, so each
-`Bucket` has its own account, with the account's keys turned off (`sharedAccessKeyEnabled: false`).
+`Bucket` has its own account, with the account's keys disabled (`sharedAccessKeyEnabled: false`).
 Storage account names are globally unique.
 
 ## Composed Resources

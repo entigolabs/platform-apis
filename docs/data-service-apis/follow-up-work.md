@@ -1,13 +1,13 @@
 # Follow-Up Work
 
-Work outside the design that it depends on or leads to.
+Each item below is work outside the design that the design depends on or leads to.
 
 #### 1 Implement the design on each cloud
 
 Each cloud gets its own implementation of the design, built on its managed services and its
 Crossplane provider.
 
-Known so far:
+The following points are known so far:
 
 - A floor (`sizeGB`, Valkey's `version`) is set in `initProvider`, which Crossplane uses at
   creation only, and in `forProvider` only when the spec requests more than the resource has, with
@@ -19,9 +19,9 @@ Known so far:
   it, comes from where the cloud keeps one: provider-kafka's IAM role on MSK, the RDS-managed master
   secret where the instance has one, and the superuser's Vault secret on OCI Kafka. Where the cloud
   keeps none, the implementation chooses how the login is supplied.
-- No Crossplane provider for RabbitMQ's management API was found, which `RabbitMQUser` and
-  `RabbitMQVirtualHost` need. The Terraform `rabbitmq` provider covers users, virtual hosts and
-  permissions and could be wrapped with upjet.
+- `RabbitMQUser` and `RabbitMQVirtualHost` need a Crossplane provider for RabbitMQ's management API,
+  and none was found. The Terraform `rabbitmq` provider covers users, virtual hosts and permissions
+  and could be wrapped with upjet.
 - The `platform-apis` chart takes the deployment's cloud and installs each service where it is
   implemented (principle 7). Today infralib's per-cloud values switch services off, such as
   [values-oracle.yaml](https://github.com/entigolabs/entigo-infralib/blob/main/modules/k8s/platform-apis/values-oracle.yaml)
@@ -33,17 +33,18 @@ Known so far:
   selector with that label, and Crossplane picks the Composition by it: a composite resource without
   a Composition reference takes one whose labels match its selector (checked in Crossplane v2.4.3).
 
-#### 2 Migrate objects from the current APIs
+#### 2 Migrate today's objects to the design
 
-Existing objects of today's kinds move to the design without losing their cloud resources.
+Today's objects move to the design without losing their cloud resources.
 
-The differences are listed in [API Changes](changes.md). Known so far for the migration itself:
+The differences are listed in [API Changes](changes.md). The following points of the migration
+itself are known so far:
 
 - The renamed and changed kinds need new XRDs. `MSK` is cluster-scoped today, while `KafkaCluster`
   is namespaced and shared within its Zone (principle 11).
 - Kafka clusters switch to deny by default. Today's clusters are open, so applications that use
-  topics without ACLs, such as FleetComplete's, lose access at the switch, which is therefore agreed
-  with that team first.
+  topics without ACLs, such as FleetComplete's, lose access at the switch, which is agreed with that
+  team first.
 
 #### 3 Give each application a cloud identity
 
@@ -52,7 +53,7 @@ repositories and other cloud services.
 
 The identity belongs to the application, not to the resource it uses: a [Bucket](bucket.md) creates
 no identity, and [API Changes](changes.md#bucket) keeps `S3Bucket` served until applications have
-one. Known so far:
+one. The following points are known so far:
 
 - Portal applications currently reach buckets only through the keys of `S3Bucket`, because `WebApp`
   sets no service account, so they keep `S3Bucket` until application identity is available.

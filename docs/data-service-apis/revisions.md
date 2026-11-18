@@ -10,13 +10,14 @@ the last is agreed.
 - Settings of one implementation move from the fixed cloud blocks into an open list of provider
   configurations, one kind per implementation, so a new cloud or an on-premises implementation never
   changes the core kinds (principles 2, 3 and 8).
-- Classes hold a deployment's defaults (`template`) and the values a user cannot
-  change (`enforced`), replacing defaults passed through infralib (principle 5).
+- Classes hold a deployment's defaults (`template`) and the values a user cannot change
+  (`enforced`), replacing defaults passed through infralib (principle 5).
 - An object that requests a portable feature its class does not support is refused instead of
   ignored (principle 1).
 - Provider configuration entries are checked by their implementation, and by CI against every
   implementation's published schema (principle 10).
 - Field groups exist only as units or subsystems (principle 13).
+- Every resource the platform creates carries workspace and Zone tags, on every service.
 - PostgreSQL: `PostgreSQLInstance` becomes `PostgreSQLCluster`, with `PostgreSQLClass`,
   `PostgreSQLParameters` and a provider configuration kind per implementation; users and databases
   name it in `clusterRef`.
@@ -35,7 +36,6 @@ the last is agreed.
 - ArtifactRepository: `ArtifactRepository` gains `ArtifactRepositoryClass` and a provider
   configuration kind per implementation; `immutableTags` and `lifecycleRules` default from the
   class.
-- Every resource the platform creates carries workspace and Zone tags, on every service.
 
 #### 1 2026-11-16
 

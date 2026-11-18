@@ -29,7 +29,7 @@ Valkey is offered as three kinds, each with the manifest its owner writes.
 
 ### ValkeyServer
 
-A server has no sharding: its data lives on the primary and is copied to each replica.
+A server has no sharding: its data is held on the primary and copied to each replica.
 
 A user creates a `ValkeyServer` with a manifest like the one below. It names its class and carries
 one provider configuration entry per implementation it may run on (principle 2):
@@ -87,9 +87,10 @@ running version, and the platform never moves the server back to `version`.
 does not support is refused when applied (principle 1).
 
 A deleted server is restored with its provider configuration's `fromBackup` and the final backup's
-ID, which the status loses with the server, so it is taken from the cloud console. The status shows
-the common fields, which entry applied, where each effective value came from, and the applied
-implementation's own values (principle 4):
+ID. The status loses that ID with the server, so it is taken from the cloud console.
+
+The status shows the common fields, which entry applied, where each effective value came from, and
+the applied implementation's own values (principle 4):
 
 ```yaml
 status:
@@ -118,14 +119,14 @@ status:
 
 *`ValkeyServer` status on AWS.*
 
-The connection secret is `<instance>-credentials`, with `endpoint`, `port` (6379),
-`username: default`, `password` and `readerEndpoint`. `default` is the user a password-only client
-authenticates as, so a client that always sends a username and password works unchanged.
+The connection secret `<instance>-credentials` holds `endpoint`, `port` (6379), `username: default`,
+`password` and `readerEndpoint`. `default` is the user a password-only client authenticates as, so a
+client that always sends a username and password works unchanged.
 
 ### ValkeyClass
 
-Entigo writes each deployment's classes, with the defaults a server starts with (`template`) and the
-values it cannot change (`enforced`) (principle 5):
+Entigo writes each deployment's classes, with the defaults a server starts with, in `template`, and
+the values it cannot change, in `enforced` (principle 5):
 
 ```yaml
 ---
@@ -175,17 +176,16 @@ spec:
 
 *`ValkeyParameters` shared between a user's servers.*
 
-A `ValkeyParameters` names no other, so references never chain. Each implementation allows only some
-settings, and the others are rejected by the cloud and reported as `CloudAccepted: False`
-(principle 10).
+A `ValkeyParameters` names no other, so references never chain. Settings the implementation does not
+allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ## Read Replicas
 
-`readReplicas: N` requests N read-only copies of the primary, nodes of the server with its node type,
-its parameters and its major version, since a replica copies the primary through Valkey's own
-replication. Applications send reads to them through the secret's `readerEndpoint` key, which holds
-the implementation's balanced read endpoint. `highAvailability` places one of them in another zone,
-so it needs `readReplicas` of at least 1:
+`readReplicas: N` requests N read-only copies of the primary. Each replica is a node of the server
+with the primary's node type, parameters and major version, since it copies the primary through
+Valkey's own replication. Applications send reads to them through the secret's `readerEndpoint` key,
+which holds the implementation's balanced read endpoint. `highAvailability` places one of them in
+another zone, so it needs `readReplicas` of at least 1:
 
 ```yaml
 ---
@@ -204,8 +204,8 @@ spec:
 
 ## Mapping
 
-The first table names what each common field maps to in the implementation's provider. A setting
-the implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the implementation's provider. A setting the
+implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field                     | AWS                                          | GCP                                                                                                               | OCI                                                             |
 | ------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -241,8 +241,8 @@ applies to one major version (family `valkey<major>`), so a change of the major 
 `parameterGroupName` changes or is removed in the same edit. `status.provider.finalBackup` is the ID
 the final snapshot will receive.
 
-**GCP:** the provider's Memorystore `Instance` offers no password authentication. Data at rest uses
-the platform's data key, through `kmsKey`, and Memorystore takes no final backup.
+**GCP:** the Crossplane provider's Memorystore `Instance` offers no password authentication. Data at
+rest uses the platform's data key, through `kmsKey`, and Memorystore takes no final backup.
 
 **OCI:** nodes are sized by memory only, so the class's `ValkeyOCICacheConfig` sets `memoryGB` for a
 server that names none. `readerEndpoint` comes from `replicasFqdn`. Data at rest uses the service's
@@ -471,8 +471,8 @@ spec:
 ## Platform Decisions
 
 Besides the settings it makes for every service
-([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
-for a `ValkeyServer` itself:
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these for a
+`ValkeyServer` itself:
 
 | Setting               | Platform's Choice                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------------ |

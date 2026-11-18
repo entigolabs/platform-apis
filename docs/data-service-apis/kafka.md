@@ -1,9 +1,9 @@
 # Kafka
 
-Apache Kafka is a distributed event log that applications publish streams of records to and consume
-them from.
+Apache Kafka is a distributed event log: applications publish streams of records to it and consume
+them from it.
 
-Three kinds for users: `KafkaCluster`, the cluster itself; `KafkaUser`, one application's login,
+Three kinds for users: `KafkaCluster`, one cluster of brokers; `KafkaUser`, one application's login,
 with its ACLs; and `KafkaTopic`, one topic in a cluster. Two kinds shape them: `KafkaClass`, a
 deployment's defaults and limits, written by Entigo, and `KafkaParameters`, reusable broker
 settings.
@@ -172,7 +172,7 @@ A `KafkaUser` is an identity that applications use to log in to the cluster, wit
 granted. Its `clusterRef` is immutable, may name another namespace of the same Zone (principle 11),
 and it has no class or provider configurations: it follows its cluster's implementation.
 
-An example:
+A user creates a `KafkaUser` with a manifest like the one below:
 
 ```yaml
 ---
@@ -203,11 +203,11 @@ name it covers. An application that adds topics at runtime, such as one per cust
 `orders-globex`), then needs one entry for `orders-` instead of a new entry before it can use each
 topic. `Literal` and `Prefixed` are Kafka's own ACL pattern types.
 
-| Cloud | Identity                                           | Login                                   |
-| ----- | -------------------------------------------------- | --------------------------------------- |
-| AWS   | a SCRAM secret in Secrets Manager (`AmazonMSK_*`)  | SASL SCRAM-SHA-512                      |
-| GCP   | a service account with a key                       | SASL PLAIN: the account's email and key |
-| OCI   | provider-kafka `User`, through the Kafka admin API | SASL SCRAM-SHA-512                      |
+| Cloud | Identity                                             | Login                                   |
+| ----- | ---------------------------------------------------- | --------------------------------------- |
+| AWS   | a SCRAM secret in Secrets Manager (`AmazonMSK_*`)    | SASL SCRAM-SHA-512                      |
+| GCP   | a service account with a key                         | SASL PLAIN: the account's email and key |
+| OCI   | a provider-kafka `User`, through the Kafka admin API | SASL SCRAM-SHA-512                      |
 
 *`KafkaUser` identity and login per cloud.*
 
@@ -221,18 +221,18 @@ Sources:
 [`acl.kafka.crossplane.io_accesscontrollists.yaml`](https://github.com/crossplane-contrib/provider-kafka/blob/main/package/crds/acl.kafka.crossplane.io_accesscontrollists.yaml)
 (provider-kafka `main`, November 2026).
 
-Secret `<cluster>-<user>`: `endpoint` (the bootstrap servers, as `host:port` pairs, so no `port`),
-`username`, `password` and `saslMechanism` (`SCRAM-SHA-512` or `PLAIN`), since the mechanism
-differs by cloud.
+A user receives the secret `<cluster>-<user>`, with `endpoint` (the bootstrap servers, as
+`host:port` pairs, so no `port`), `username`, `password` and `saslMechanism` (`SCRAM-SHA-512` or
+`PLAIN`, since the mechanism differs by cloud).
 
 ### KafkaTopic
 
-A `KafkaTopic` is a topic in the cluster, created through the Kafka admin API on every
+A `KafkaTopic` is one topic in a cluster, created through the Kafka admin API on every
 implementation. It has no class or provider configurations: it follows its cluster's
 implementation, and `partitions` and `replicationFactor` default to the `topicTemplate` of its
 cluster's `KafkaClass`.
 
-An example:
+A user creates a `KafkaTopic` with a manifest like the one below:
 
 ```yaml
 ---
@@ -254,15 +254,15 @@ spec:
 
 *`KafkaTopic` with a Kafka name different from its object name.*
 
-`name` is the topic's Kafka name, which can hold what a Kubernetes name cannot, such as `Orders` or
-`orders_v2`. Applications use that name, so it cannot carry a hash like principle 9's cloud names,
-and two `KafkaTopic` objects on one cluster could request the same topic and both manage it. The
-platform rejects the newer one instead, naming the object that holds the name.
+`name` is the topic's Kafka name, which can hold characters a Kubernetes name cannot, such as
+`Orders` or `orders_v2`. Applications use that name, so it cannot carry a hash like principle 9's
+cloud names, and two `KafkaTopic` objects on one cluster could request the same topic and both
+manage it. The platform rejects the newer one instead, naming the object that holds the name.
 
 ## Mapping
 
-The first table names what each common field maps to in the implementation's provider. A setting
-the implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the implementation's provider. A setting the
+implementation lacks shows as ignored, with the reason (principle 1):
 
 | Field              | AWS                                                         | GCP                                                                                                         | OCI                                                                                 |
 | ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -454,8 +454,8 @@ for a `KafkaCluster` itself:
 | Setting               | Platform's Choice                                                                                 |
 | --------------------- | ------------------------------------------------------------------------------------------------- |
 | Encryption in transit | TLS                                                                                               |
-| Login mechanism       | Chosen by the platform per cloud, and named in each user's secret                                 |
-| Admin login           | The one provider-kafka uses                                                                       |
+| Login mechanism       | One per cloud, named in each user's secret                                                        |
+| Admin login           | The login provider-kafka uses                                                                     |
 | Access                | Denied by default: a topic or group is reachable only by users with an ACL on it and by the admin |
 
 *`KafkaCluster` settings chosen by the platform.*
@@ -487,8 +487,9 @@ The design relies on these facts, which need no decision.
   [provider-upjet-gcp
   v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0) has none of
   them yet.
-- MSK Express brokers have no storage to size, so `storage.sizeGB` would be rejected with an
+- AWS: MSK Express brokers have no storage to size, so `storage.sizeGB` would be rejected with an
   `express.*` instance type.
 - GCP: users are IAM service accounts, and a service account key in a secret is the only static
   credential; workload identity would need no secret but cloud-specific client code.
-- Unverified: OCI SCRAM users through the Kafka admin API (Oracle documents only the superuser).
+- OCI: SCRAM users created through the Kafka admin API are unverified, since Oracle documents only
+  the superuser.

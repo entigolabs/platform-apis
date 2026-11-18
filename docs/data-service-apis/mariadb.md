@@ -1,12 +1,12 @@
 # MariaDB
 
-MariaDB is an open-source relational database that began as a fork of MySQL, used by applications
-for their transactional data.
+MariaDB is an open-source relational database, a fork of MySQL, that applications use for their
+transactional data.
 
-Three kinds for users: `MariaDBServer`, one database server with its standby;
-`MariaDBUser`, one application's login on a server, with its permissions; and `MariaDBDatabase`, one
-database on a server. Two kinds shape them: `MariaDBClass`, a deployment's defaults and limits,
-written by Entigo, and `MariaDBParameters`, reusable MariaDB settings.
+Three kinds for users: `MariaDBServer`, one database server with its standby; `MariaDBUser`, one
+application's login on a server, with its permissions; and `MariaDBDatabase`, one database on a
+server. Two kinds shape them: `MariaDBClass`, a deployment's defaults and limits, written by Entigo,
+and `MariaDBParameters`, reusable MariaDB settings.
 
 Built on Amazon RDS (AWS), with the provider configuration kind `MariaDBRDSConfig`. GCP, OCI and
 Azure have no implementation: their MySQL services are not MariaDB (principle 7), and Azure Database
@@ -73,8 +73,9 @@ spec:
 *`MariaDBServer` with common fields and an RDS entry.*
 
 `restore` creates a server from another server's backups, at a point in time. A deleted server is
-restored instead with its provider configuration's `fromBackup` and an RDS snapshot ID. Both are set
-at creation only and cannot be combined:
+restored instead with its provider configuration's `fromBackup` and the final snapshot's ID. The
+status loses that ID with the server, so it is taken from the AWS console. `restore` and
+`fromBackup` are set at creation only and cannot be combined:
 
 ```yaml
 ---
@@ -103,9 +104,8 @@ reports the actual size, and the platform never shrinks the disk back to `sizeGB
 `highAvailability` is a portable feature: an object that requests it where its class does not
 support it is refused when applied (principle 1).
 
-The final snapshot's ID, which `fromBackup` needs, is lost with the server's status, so it is taken
-from the AWS console. The status shows the common fields, which entry applied, where each effective
-value came from, and the RDS values of `MariaDBRDSConfig` (principle 4):
+The status shows the common fields, which entry applied, where each effective value came from, and
+the RDS values of `MariaDBRDSConfig` (principle 4):
 
 ```yaml
 status:
@@ -130,12 +130,12 @@ status:
 
 *`MariaDBServer` status on AWS.*
 
-The admin login is in the secret `<instance>-dbadmin`, with the keys of principle 6.
+The connection secret `<instance>-dbadmin` holds the admin login, with the keys of principle 6.
 
 ### MariaDBClass
 
-Entigo writes each deployment's classes, with the defaults a server starts with (`template`) and the
-values it cannot change (`enforced`) (principle 5):
+Entigo writes each deployment's classes, with the defaults a server starts with, in `template`, and
+the values it cannot change, in `enforced` (principle 5):
 
 ```yaml
 ---
@@ -164,7 +164,7 @@ spec:
 
 *`MariaDBClass` for RDS.*
 
-On RDS, a class reports `HighAvailability` in `status.supportedFeatures`.
+A class reports `HighAvailability` in `status.supportedFeatures` on RDS.
 
 ### MariaDBParameters
 
@@ -208,7 +208,7 @@ Sources:
 [provider-sql v0.16.1](https://github.com/crossplane-contrib/provider-sql/releases/tag/v0.16.1),
 [CREATE USER](https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/create-user).
 
-An example:
+A user creates a `MariaDBUser` with a manifest like the one below:
 
 ```yaml
 ---
@@ -249,7 +249,7 @@ spec:
 implementation. Its `name` and `serverRef` are immutable, `serverRef` may name another namespace of
 the same Zone (principle 11), and it has no class or provider configurations.
 
-An example:
+A user creates a `MariaDBDatabase` with a manifest like the one below:
 
 ```yaml
 ---
@@ -272,8 +272,8 @@ spec:
 
 ## Mapping
 
-The first table names what each common field maps to in RDS. A setting RDS lacks shows as ignored,
-with the reason (principle 1):
+The first table maps each common field to RDS. A setting RDS lacks shows as ignored, with the reason
+(principle 1):
 
 | Field                      | AWS                                                                         |
 | -------------------------- | --------------------------------------------------------------------------- |
@@ -411,8 +411,8 @@ spec:
 ## Platform Decisions
 
 Besides the settings it makes for every service
-([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
-for a `MariaDBServer` itself:
+([Platform Decisions](common-design.md#platform-decisions)), the platform makes these for a
+`MariaDBServer` itself:
 
 | Setting      | Platform's Choice                                                     |
 | ------------ | --------------------------------------------------------------------- |

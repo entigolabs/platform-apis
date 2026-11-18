@@ -58,8 +58,8 @@ A provider configuration is a block of settings whose kind belongs to one implem
 groups, Cloud SQL has editions, OCI has flexible shapes. If the core kind held them all, every new
 implementation would change it (principle 3).
 
-Everything that is neither a common field nor in a provider configuration, such as network placement
-and encryption keys, is decided by the platform.
+Settings that are neither common fields nor provider configuration settings, such as network
+placement and encryption keys, are decided by the platform.
 
 #### 3 Adding an implementation never changes the core kinds
 
@@ -78,12 +78,12 @@ not the values the manifest requested.
 The two can differ: a class adds its defaults and enforced values, an implementation applies minor
 versions in its maintenance window, and a disk grows with `autoGrow`. A user can rely only on the
 actual values. Values that exist in only one implementation, such as its resource IDs, are kept
-apart from the common fields, as its settings are (principle 2).
+apart from the common fields, as that implementation's settings are (principle 2).
 
 #### 5 A class sets the defaults and limits of a deployment
 
 Entigo defines each deployment's implementation, defaults and limits for a kind in classes, and an
-object names its class; defaults are written once, when the object is created.
+object names its class; defaults are written into the object when it is created.
 
 A deployment's choices, such as its implementation, default sizes and the values no user may change,
 are written once per deployment instead of in every manifest. Defaults written at creation stay in
@@ -102,20 +102,19 @@ cloud.
 A service is offered on a deployment only if an implementation there runs the same engine; no other
 engine stands in for it.
 
-A kind is installed on a deployment only if an implementation runs its engine there. On other
-deployments the kind does not exist, and the portal does not show the service. A different engine is
-never substituted: MySQL is not MariaDB.
+On other deployments the kind is not installed, and the portal does not show the service. A similar
+engine is never substituted: MySQL is not MariaDB.
 
 #### 8 A kind is named after its engine, and a provider configuration after its product
 
-A user-facing kind takes the name of its engine or concept, never of a product; a provider
-configuration kind takes the name of its product.
+A core kind takes the name of its engine or concept, never of a product; a provider configuration
+kind takes the name of its product.
 
-A product name ties a user-facing kind to one cloud: `S3Bucket` reads as Amazon S3 even where the
-bucket is in Cloud Storage. A user-facing kind therefore takes the engine's own term, as
-`PostgreSQLCluster` and `KafkaTopic` do, or, where the engine has no term for it, the concept every
-cloud shares, as `Bucket` and `ArtifactRepository` do. A provider configuration is specific to one
-implementation by definition, so naming the product is accurate.
+A product name ties a core kind to one cloud: `S3Bucket` reads as Amazon S3 even where the bucket is
+in Cloud Storage. A core kind therefore takes the engine's own term, as `PostgreSQLCluster` and
+`KafkaTopic` do, or, where the engine has no term for it, the concept every cloud shares, as
+`Bucket` and `ArtifactRepository` do. A provider configuration is specific to one implementation by
+definition, so naming the product is accurate.
 
 #### 9 A kind either creates its resource or observes an existing one
 
@@ -150,10 +149,9 @@ login.
 
 A user is one application's identity on one instance of the engine: its login, its Secret and its
 permissions there, in the engine's own form, such as ACLs or privileges. It is not shared between
-applications or instances, and access for persons is outside these kinds. A user's access is
-therefore read from one object. A set of permissions shared by several users exists only where the
-engine has one, such as PostgreSQL's roles. The platform adds no permission mechanism that no engine
-has.
+applications or instances, and human access is outside these kinds. A user's access is therefore
+read from one object. A set of permissions shared by several users exists only where the engine has
+one, such as PostgreSQL's roles. The platform adds no permission mechanism that no engine has.
 
 #### 13 A field group is a unit or a subsystem
 
