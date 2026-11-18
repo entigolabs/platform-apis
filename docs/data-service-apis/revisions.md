@@ -5,7 +5,7 @@ default, a rule, a mapping, a platform decision or a cloud limit. Changes to wor
 not revisions. A change to the design adds its line to the open revision, or opens the next one once
 the last is agreed.
 
-#### 2 in progress
+#### 2 2026-11-18
 
 | Change                                                     | Details                                                                                                                                                                                                                                          |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
