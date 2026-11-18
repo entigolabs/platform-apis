@@ -52,6 +52,8 @@ artifact repositories. For each service:
 - Bounds on user-chosen values beyond a class's fixed values, such as permitted sizes or a storage
   maximum. A class can take allowed values later without changes elsewhere.
 - Human access. User kinds cover applications only.
+- Resource health and metrics. A central monitoring capability reads them from each cloud's
+  monitoring service directly.
 
 ## Pages
 

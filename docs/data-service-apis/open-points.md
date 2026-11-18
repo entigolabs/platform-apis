@@ -2,27 +2,7 @@
 
 Each question below needs a decision before implementation.
 
-#### 1 How do users see a resource's health?
-
-**Context.** A resource's status reports what the cloud runs, such as its version, size and
-endpoint. Its metrics, such as CPU, storage used and connections, are kept in each cloud's
-monitoring service, to which platform users usually have no access. Infralib deploys Prometheus,
-Grafana and Mimir in every cluster.
-
-**Problem.** A user cannot see whether a resource is healthy. A disk that fills up to `maxSizeGB`,
-exhausted connections or a failed backup show only when the application breaks.
-
-**Options:**
-
-| Option                     | Effect                                                                                                                              | Trade-offs                                                                                                                            |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| None in the platform       | Users ask the platform team, who read the cloud's console                                                                           | Nothing to build; problems surface as outages                                                                                         |
-| Console link in the status | `status.provider.consoleURL` opens the resource in its cloud's console                                                              | Little to build; useful only to users with access to the cloud                                                                        |
-| Metrics in the cluster     | The platform exports each resource's cloud metrics into Prometheus, labelled by object and namespace, with standard alerts per kind | An exporter per cloud (CloudWatch, Cloud Monitoring, OCI Monitoring, Azure Monitor); users see health in the Grafana they already use |
-
-*Resource health reporting options.*
-
-#### 2 Can a class require a provider configuration entry?
+#### 1 Can a class require a provider configuration entry?
 
 **Context.** An object with no provider configuration entry of its class's kind takes the class's
 provider configuration as it is
@@ -41,7 +21,7 @@ way to require the entry.
 
 *Options for objects without a provider configuration entry.*
 
-#### 3 Can a Zone restrict the classes its namespaces use?
+#### 2 Can a Zone restrict the classes its namespaces use?
 
 **Context.** Classes are cluster-scoped, and an object in any namespace may name any class of its
 kind ([Classes](common-design.md#classes)).
@@ -59,7 +39,7 @@ limits the classes per Zone.
 
 *Per-Zone class restriction options.*
 
-#### 4 Which further needs become portable features?
+#### 3 Which further needs become portable features?
 
 **Context.** Classes report two portable features, `HighAvailability` and `ReadReplicas`, and an
 object that requests one its class does not report is refused (principle 1).
