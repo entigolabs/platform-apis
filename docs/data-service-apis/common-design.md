@@ -16,8 +16,9 @@ their names from it:
 
 *Related kind names, groups and examples.*
 
-The groups in this page's examples, such as `database.entigo.com`, are provisional: the API group
-the kinds take is still open.
+The kinds keep today's category groups: `database.`, `queue.`, `mq.`, `storage.` and
+`artifact.entigo.com`. A group exists only where it serves a purpose, so no umbrella group gathers
+them.
 
 The engine comes first, so the kinds sort together. The product is the implementation's own short
 name, such as RDS, Cloud SQL or MSK; where it has none, the platform's name stands in for it, as in
@@ -33,6 +34,17 @@ passes only its cloud, and the chart installs each service's core kinds, its pro
 kinds and its classes where the service is implemented. A per-service switch leaves a service out,
 never adds one that the deployment lacks. A manifest of a kind that is not installed is rejected by
 the Kubernetes API server when it is applied, before any function runs.
+
+## Versions
+
+A kind that keeps its name from today's API, such as `PostgreSQLUser`, stays one CRD that serves
+today's `v1alpha1` and the design's `v1alpha2`. Kubernetes stores one version, and a conversion
+webhook translates between the two, so a manifest written for today's API still applies.
+
+A renamed kind, such as `PostgreSQLCluster`, is a new kind beside today's `PostgreSQLInstance`,
+since a conversion only translates between versions of one kind. Today's kind stays served, with its
+function, until its last object has moved; client teams move their own objects, as follow-up work
+describes.
 
 ## Classes
 

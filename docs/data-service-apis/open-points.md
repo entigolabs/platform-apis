@@ -2,32 +2,7 @@
 
 Each question below needs a decision before implementation.
 
-#### 1 Which API group do the kinds take, and how do today's objects move to it?
-
-**Context.** Most core kinds take new names, such as `PostgreSQLCluster` beside today's
-`PostgreSQLInstance` and `Bucket` beside `S3Bucket`, and are served beside today's kinds in today's
-category groups (`database.`, `queue.`, `mq.`, `storage.` and `artifact.entigo.com`). Six kinds keep
-their names: `RabbitMQBroker`, `KafkaUser`, `PostgreSQLUser`, `PostgreSQLDatabase`, `MariaDBUser`
-and `MariaDBDatabase`. Kubernetes stores the objects of a group and kind in a single version; any
-other version it serves is a conversion of that one. The groups in the design's examples, such as
-those in [Common Design](common-design.md#naming), are provisional until this point is settled.
-
-**Problem.** An object of a renamed kind can move by itself, but the steps of a move, from today's
-object to the new one without touching the cloud resource, are not designed. The six kinds that keep
-their names cannot run in both forms side by side, so each switches at once. The category groups
-also do not present the design as one family.
-
-**Options:**
-
-| Option                                                         | Effect                                                                                                                                                                                    | Trade-offs                                                                                                          |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Same groups, renamed kinds beside today's                      | Each object of a renamed kind moves at its user's pace, through `observe` and adoption; the six kinds that keep their names switch at once, by a conversion webhook or a one-time rewrite | A proof for the six kinds that no cloud resource changes; today's kinds stay served until the last object has moved |
-| One new group, `data.entigo.com`                               | Every object moves at its user's pace, the six kinds included                                                                                                                             | Today's kinds stay served, and their functions run, until the last object has moved                                 |
-| A new group per category, `database.data.entigo.com` and so on | As with one new group                                                                                                                                                                     | As with one new group, with longer names                                                                            |
-
-*Migration options for today's objects.*
-
-#### 2 How are credentials rotated?
+#### 1 How are credentials rotated?
 
 **Context.** The platform generates every credential: an instance's admin password, the password of
 each database, RabbitMQ and Kafka user, and a Valkey cache's password; a `KafkaUser` on GCP has a
@@ -48,7 +23,7 @@ way the switch happens decides whether applications lose their connection.
 
 *Credential rotation options.*
 
-#### 3 How do users see a resource's health?
+#### 2 How do users see a resource's health?
 
 **Context.** A resource's status reports what the cloud runs, such as its version, size and
 endpoint. Its metrics, such as CPU, storage used and connections, are kept in each cloud's
@@ -68,7 +43,7 @@ exhausted connections or a failed backup show only when the application breaks.
 
 *Resource health reporting options.*
 
-#### 4 Can a class require a provider configuration entry?
+#### 3 Can a class require a provider configuration entry?
 
 **Context.** An object with no provider configuration entry of its class's kind takes the class's
 provider configuration as it is
@@ -87,7 +62,7 @@ way to require the entry.
 
 *Options for objects without a provider configuration entry.*
 
-#### 5 Can a Zone restrict the classes its namespaces use?
+#### 4 Can a Zone restrict the classes its namespaces use?
 
 **Context.** Classes are cluster-scoped, and an object in any namespace may name any class of its
 kind ([Classes](common-design.md#classes)).
@@ -105,7 +80,7 @@ limits the classes per Zone.
 
 *Per-Zone class restriction options.*
 
-#### 6 Which further needs become portable features?
+#### 5 Which further needs become portable features?
 
 **Context.** Classes report two portable features, `HighAvailability` and `ReadReplicas`, and an
 object that requests one its class does not report is refused (principle 1).
