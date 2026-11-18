@@ -2,26 +2,7 @@
 
 Each question below needs a decision before implementation.
 
-#### 1 Can a class require a provider configuration entry?
-
-**Context.** An object with no provider configuration entry of its class's kind takes the class's
-provider configuration as it is
-([Provider Configurations](common-design.md#provider-configurations)).
-
-**Problem.** A setting chosen per application, such as a machine size, then falls back to the
-class's value without notice. A deployment where every application must choose its own size has no
-way to require the entry.
-
-**Options:**
-
-| Option                       | Effect                                                                                                                    | Trade-offs                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Always fall back             | An object without an entry runs with the class's provider configuration                                                   | Nothing to build; a forgotten entry goes unnoticed                                            |
-| A class can require an entry | A class marks its provider configuration as required, and an object without an entry of that kind is refused when applied | A manifest for several deployments carries an entry for each implementation that requires one |
-
-*Options for objects without a provider configuration entry.*
-
-#### 2 Can a Zone restrict the classes its namespaces use?
+#### 1 Can a Zone restrict the classes its namespaces use?
 
 **Context.** Classes are cluster-scoped, and an object in any namespace may name any class of its
 kind ([Classes](common-design.md#classes)).
@@ -39,7 +20,7 @@ limits the classes per Zone.
 
 *Per-Zone class restriction options.*
 
-#### 3 Which further needs become portable features?
+#### 2 Which further needs become portable features?
 
 **Context.** Classes report two portable features, `HighAvailability` and `ReadReplicas`, and an
 object that requests one its class does not report is refused (principle 1).

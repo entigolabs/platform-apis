@@ -93,6 +93,11 @@ A deployment applies only the entry whose kind its class names and ignores the o
 names the applied entry and the ignored ones, so a misspelled kind shows as no entry applied. An
 object with no matching entry takes the class's provider configuration as it is.
 
+Each provider configuration kind marks the settings its implementation cannot run without, such as a
+machine size. An object for which neither its entry nor its class sets one is refused when applied,
+with a message naming the setting. A deployment that wants every application to choose a setting,
+such as its size, leaves it out of its class.
+
 A machine size is a provider configuration setting, named as the product names it, such as
 `db.m7g.large` in a `PostgreSQLRDSConfig` and `db-custom-2-8192` in a `PostgreSQLCloudSQLConfig`. A
 size stated as CPU and memory would need the platform to pick the nearest size across fixed and
