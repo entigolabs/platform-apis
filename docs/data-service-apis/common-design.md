@@ -49,8 +49,9 @@ describes.
 ## Classes
 
 A class, such as a `PostgreSQLClass`, is cluster-scoped and written by Entigo for each deployment
-(principle 5). It holds two parts of the object's spec, each with the common fields and one provider
-configuration:
+(principle 5), and an object in any namespace may name any class of its kind; no Zone restricts the
+classes its namespaces use. It holds two parts of the object's spec, each with the common fields and
+one provider configuration:
 
 | Part       | Effect                                                                                         |
 | ---------- | ---------------------------------------------------------------------------------------------- |

@@ -2,25 +2,7 @@
 
 Each question below needs a decision before implementation.
 
-#### 1 Can a Zone restrict the classes its namespaces use?
-
-**Context.** Classes are cluster-scoped, and an object in any namespace may name any class of its
-kind ([Classes](common-design.md#classes)).
-
-**Problem.** A Zone for a test environment can request the deployment's largest class, and nothing
-limits the classes per Zone.
-
-**Options:**
-
-| Option                   | Effect                                                                                                                                           | Trade-offs                                           |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| No restriction           | Every Zone may use every class                                                                                                                   | Nothing to build; cost control stays outside the API |
-| A Zone lists its classes | The Zone names the classes its namespaces may use, and an admission policy refuses others, as Gateway API's `allowedRoutes` restricts attachment | A list per Zone to keep current as classes are added |
-| A class lists its Zones  | The class names the Zones that may use it                                                                                                        | Entigo's classes change whenever a Zone is added     |
-
-*Per-Zone class restriction options.*
-
-#### 2 Which further needs become portable features?
+#### 1 Which further needs become portable features?
 
 **Context.** Classes report two portable features, `HighAvailability` and `ReadReplicas`, and an
 object that requests one its class does not report is refused (principle 1).
