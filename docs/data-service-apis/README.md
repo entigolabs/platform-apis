@@ -2,8 +2,9 @@
 
 The Portable Data Service APIs give each data service in
 [`platform-apis`](https://github.com/entigolabs/platform-apis), from PostgreSQL to buckets, one form
-that every cloud infralib deploys to can implement with its own managed service. One manifest then
-works on every deployment with a compatible implementation, on AWS, GCP, OCI or Azure.
+that each cloud can implement with its own managed service. One manifest then works on every
+deployment with a compatible implementation, on any cloud infralib deploys to: AWS, GCP, OCI or
+Azure.
 
 ```mermaid
 flowchart LR
