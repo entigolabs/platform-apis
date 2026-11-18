@@ -46,7 +46,8 @@ provider configurations: a manifest is only as portable as its common fields.
 A portable feature that an implementation cannot provide, such as a standby or a read replica, is
 refused, never dropped silently, because the user's applications rely on that capacity. A minor
 field that an implementation cannot honour is ignored there. An operation an implementation cannot
-perform fails, with the reason shown on the object.
+perform fails, with the reason shown on the object. A need becomes a portable feature by the same
+rule as a common field: once two or more implementations support it, in a revision of the design.
 
 #### 2 A setting of one implementation belongs in its provider configuration
 
