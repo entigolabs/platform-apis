@@ -128,10 +128,11 @@ spec:
 
 `PostgreSQLDatabase` changes as follows:
 
-| Today                                | Design                                     | Reason                                       |
-| ------------------------------------ | ------------------------------------------ | -------------------------------------------- |
-| `instanceRef`                        | `clusterRef`, naming a `PostgreSQLCluster` | The parent's new kind (principle 8)          |
-| `name` and `instanceRef`, changeable | `name` and `clusterRef`, immutable         | The database is created once, on one cluster |
+| Today                                | Design                                     | Reason                                                             |
+| ------------------------------------ | ------------------------------------------ | ------------------------------------------------------------------ |
+| `instanceRef`                        | `clusterRef`, naming a `PostgreSQLCluster` | The parent's new kind (principle 8)                                |
+| `name` and `instanceRef`, changeable | `name` and `clusterRef`, immutable         | The database is created once, on one cluster                       |
+| `extensions` without `vector`        | `vector` allowed in `extensions`           | Allowed on `main` since release `v0.2.104`, so the design keeps it |
 
 *`PostgreSQLDatabase` changes, with reasons.*
 

@@ -77,6 +77,7 @@ spec:
                   - postgis_tiger_geocoder
                   - uuid-ossp
                   - btree_gist
+                  - vector
               extensionConfig:
                 type: object
                 description: |-

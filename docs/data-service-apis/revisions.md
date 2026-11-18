@@ -18,6 +18,8 @@ the last is agreed.
   implementation's published schema (principle 10).
 - Field groups exist only as units or subsystems (principle 13).
 - Every resource the platform creates carries workspace and Zone tags, on every service.
+- `PostgreSQLDatabase` allows the `vector` extension (pgvector), which today's API allows since
+  release `v0.2.104`.
 - PostgreSQL: `PostgreSQLInstance` becomes `PostgreSQLCluster`, with `PostgreSQLClass`,
   `PostgreSQLParameters` and a provider configuration kind per implementation; users and databases
   name it in `clusterRef`.

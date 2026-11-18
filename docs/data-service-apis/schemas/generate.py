@@ -197,7 +197,7 @@ write("postgresqldatabase", xrd(
         "dbTemplate": field("string", "The template database to create it from."),
         "extensions": array(field("string", enum=["postgis", "postgis_topology", "fuzzystrmatch",
                                                   "postgis_tiger_geocoder", "uuid-ossp",
-                                                  "btree_gist"]),
+                                                  "btree_gist", "vector"]),
                             "PostgreSQL extensions to create in the database."),
         "extensionConfig": {"type": "object", "description": desc(
             "Per-extension settings, by extension name."),
