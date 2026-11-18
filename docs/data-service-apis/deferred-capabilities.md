@@ -35,7 +35,7 @@ The design as last written, with its rules, mappings, schemas and its open point
 primary, the default size of the copy and the pairing of workspaces, is at commit
 [`3c74fd5`](https://github.com/entigolabs/platform-apis/tree/3c74fd58e082e1cc17c96b5d08e6aa2d1a73f2a1/docs/data-service-apis).
 
-#### 5 Credential rotation on request
+#### 5 Credential rotation
 
 A field such as `spec.rotation` replaces a credential when its value changes, so a leaked or aged
 credential can be retired; today a credential changes only when its object is recreated. A user
