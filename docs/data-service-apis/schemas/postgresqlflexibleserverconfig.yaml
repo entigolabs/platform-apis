@@ -46,6 +46,8 @@ spec:
               The shape of status.provider for Azure Database for PostgreSQL flexible server
               (principle 4).
             properties:
+              id:
+                type: string
               instanceType:
                 type: string
               state:

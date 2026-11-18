@@ -66,6 +66,8 @@ spec:
                   The ID the final backup receives when the cluster is deleted, for fromBackup.
               state:
                 type: string
+              id:
+                type: string
               connectionName:
                 type: string
               maintenanceVersion:

@@ -66,6 +66,8 @@ spec:
                 type: string
               resourceId:
                 type: string
+              engineVersionActual:
+                type: string
               latestRestorableTime:
                 type: string
                 format: date-time

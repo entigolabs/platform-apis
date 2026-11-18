@@ -68,6 +68,8 @@ spec:
                   The ID the final backup receives when the cluster is deleted, for fromBackup.
               state:
                 type: string
+              id:
+                type: string
               instanceOcpuCount:
                 type: number
               instanceMemorySizeInGbs:

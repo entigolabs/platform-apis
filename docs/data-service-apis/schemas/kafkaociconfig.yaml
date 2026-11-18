@@ -46,6 +46,8 @@ spec:
             description: |-
               The shape of status.provider for OCI Streaming with Apache Kafka (principle 4).
             properties:
+              id:
+                type: string
               instanceType:
                 type: string
               ocpus:

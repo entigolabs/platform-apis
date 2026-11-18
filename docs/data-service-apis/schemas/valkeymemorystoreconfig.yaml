@@ -40,6 +40,8 @@ spec:
             description: |-
               The shape of status.provider for Memorystore for Valkey (principle 4).
             properties:
+              id:
+                type: string
               instanceType:
                 type: string
         required:

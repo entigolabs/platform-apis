@@ -633,7 +633,7 @@ write("postgresqlrdsconfig", provider_config_crd(
                                     "new one, since a group fits one major version."),
         "fromBackup": from_backup("An RDS snapshot ID to create the cluster from, such as "
                                   "status.provider.finalBackup of a deleted cluster."),
-    }, {**PG_STATUS, "identifier": S(), "resourceId": S(),
+    }, {**PG_STATUS, "identifier": S(), "resourceId": S(), "engineVersionActual": S(),
         "latestRestorableTime": field("string", format="date-time")}))
 write("postgresqlcloudsqlconfig", provider_config_crd(
     "PostgreSQLCloudSQLConfig", "postgresqlcloudsqlconfigs", "gcp.database.entigo.com",
@@ -644,7 +644,7 @@ write("postgresqlcloudsqlconfig", provider_config_crd(
         "diskType": field("string", "The Cloud SQL disk type, such as PD_SSD.", default=DEFAULT),
         "fromBackup": from_backup("A Cloud SQL backup to create the cluster from, as "
                                   "<instance>/<backup run ID>."),
-    }, {**PG_STATUS, "connectionName": S(), "maintenanceVersion": S()}))
+    }, {**PG_STATUS, "id": S(), "connectionName": S(), "maintenanceVersion": S()}))
 write("postgresqlociconfig", provider_config_crd(
     "PostgreSQLOCIConfig", "postgresqlociconfigs", "oci.database.entigo.com",
     "OCI Database with PostgreSQL", {
@@ -653,7 +653,7 @@ write("postgresqlociconfig", provider_config_crd(
         "ocpus": field("number", "Required with a .Flex shape.", default=DEFAULT, minimum=1),
         "memoryGB": field("integer", "Required with a .Flex shape.", default=DEFAULT, minimum=1),
         "fromBackup": from_backup("A DB system backup OCID to create the cluster from."),
-    }, {**PG_STATUS, "instanceOcpuCount": field("number"),
+    }, {**PG_STATUS, "id": S(), "instanceOcpuCount": field("number"),
         "instanceMemorySizeInGbs": field("integer")}))
 write("postgresqlflexibleserverconfig", provider_config_crd(
     "PostgreSQLFlexibleServerConfig", "postgresqlflexibleserverconfigs",
@@ -662,7 +662,7 @@ write("postgresqlflexibleserverconfig", provider_config_crd(
                               default=DEFAULT),
         "storageTier": field("string", "The disk tier, such as P10, which sets its IOPS.",
                              default=DEFAULT),
-    }, {"instanceType": S(), "state": S()}))
+    }, {"id": S(), "instanceType": S(), "state": S()}))
 
 # --- MariaDB -------------------------------------------------------------------------------
 
@@ -696,7 +696,7 @@ write("mariadbrdsconfig", provider_config_crd(
                                   "status.provider.finalBackup of a deleted server."),
     }, {"instanceType": S(), "finalBackup": field(
         "string", "The ID the final backup receives when the server is deleted, for fromBackup."),
-        "state": S(), "identifier": S(), "resourceId": S(),
+        "state": S(), "identifier": S(), "resourceId": S(), "engineVersionActual": S(),
         "latestRestorableTime": field("string", format="date-time")}))
 
 # --- Valkey ----------------------------------------------------------------------------------
@@ -801,12 +801,12 @@ write("valkeymemorystoreconfig", provider_config_crd(
     "Memorystore for Valkey", {
         "instanceType": field("string", "The Memorystore node type, such as HIGHMEM_MEDIUM.",
                               default=DEFAULT),
-    }, {"instanceType": S()}))
+    }, {"id": S(), "instanceType": S()}))
 write("valkeyocicacheconfig", provider_config_crd(
     "ValkeyOCICacheConfig", "valkeyocicacheconfigs", "oci.database.entigo.com", "OCI Cache", {
         "memoryGB": field("integer", "Memory per node, within OCI's own range (principle 10).",
                           default=DEFAULT, minimum=1),
-    }, {"memoryGB": field("integer"), "state": S(), "softwareVersion": S()}))
+    }, {"id": S(), "memoryGB": field("integer"), "state": S(), "softwareVersion": S()}))
 
 # --- Kafka -----------------------------------------------------------------------------------
 
@@ -876,7 +876,7 @@ write("kafkagcpconfig", provider_config_crd(
         "vcpus": field("integer", "The whole cluster's vCPUs.", default=DEFAULT, minimum=1),
         "memoryGB": field("integer", "The whole cluster's memory, within GCP's range per vCPU "
                           "(principle 10).", default=DEFAULT, minimum=1),
-    }, {"vcpus": field("integer"), "memoryGB": field("integer")}))
+    }, {"id": S(), "vcpus": field("integer"), "memoryGB": field("integer")}))
 write("kafkaociconfig", provider_config_crd(
     "KafkaOCIConfig", "kafkaociconfigs", "oci.queue.entigo.com",
     "OCI Streaming with Apache Kafka", {
@@ -884,7 +884,7 @@ write("kafkaociconfig", provider_config_crd(
                               default=DEFAULT),
         "ocpus": field("number", "OCPUs per broker. Required with a .Flex shape.",
                        default=DEFAULT, minimum=1),
-    }, {"instanceType": S(), "ocpus": field("number"), "state": S()}))
+    }, {"id": S(), "instanceType": S(), "ocpus": field("number"), "state": S()}))
 
 # --- RabbitMQ --------------------------------------------------------------------------------
 

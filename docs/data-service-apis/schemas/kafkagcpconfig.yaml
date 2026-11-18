@@ -48,6 +48,8 @@ spec:
               The shape of status.provider for Google Cloud Managed Service for Apache Kafka
               (principle 4).
             properties:
+              id:
+                type: string
               vcpus:
                 type: integer
               memoryGB:
