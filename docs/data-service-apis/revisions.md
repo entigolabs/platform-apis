@@ -7,6 +7,10 @@ the last is agreed.
 
 #### 2 2026-11-18
 
+Settings of one implementation move out of fixed cloud blocks into classes and provider
+configurations, so a deployment sets its own defaults and limits, and a new cloud or an on-premises
+implementation is added without changing the core kinds.
+
 | Change                                                     | Details                                                                                                                                                                                                                                          |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Fixed cloud blocks replaced<br>Changed, Common             | Settings of one implementation move from the fixed cloud blocks into an open list of provider configurations, one kind per implementation, so a new cloud or an on-premises implementation never changes the core kinds (principles 2, 3 and 8). |
@@ -42,4 +46,5 @@ the last is agreed.
 
 #### 1 2026-11-16
 
-Initial release.
+Each data service gets one form, with a fixed block of settings per cloud, so one manifest works on
+AWS, GCP, OCI and Azure alike.
