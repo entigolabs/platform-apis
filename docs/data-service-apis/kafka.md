@@ -15,15 +15,6 @@ Crossplane provider supports the service (principle 7). Azure has none: Event Hu
 Kafka protocol but has no Kafka ACLs, no topic creation through the Kafka admin API and no broker
 settings.
 
-## Contents
-
-- [Kinds](#kinds)
-- [Mapping](#mapping)
-- [Composed Resources](#composed-resources)
-- [Platform Decisions](#platform-decisions)
-- [Cloud Limits](#cloud-limits)
-- [Notes](#notes)
-
 ## Kinds
 
 Kafka is offered as five kinds, each with the manifest its owner writes.

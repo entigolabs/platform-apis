@@ -5,17 +5,6 @@ are those of [`platform-apis`](https://github.com/entigolabs/platform-apis) rele
 [`v0.2.100`](https://github.com/entigolabs/platform-apis/tree/v0.2.100) (commit `4ae2a66`). A field
 not listed keeps its name and meaning.
 
-## Contents
-
-- [All Services](#all-services)
-- [PostgreSQL](#postgresql)
-- [MariaDB](#mariadb)
-- [Valkey](#valkey)
-- [Kafka](#kafka)
-- [RabbitMQ](#rabbitmq)
-- [Bucket](#bucket)
-- [ArtifactRepository](#artifactrepository)
-
 ## All Services
 
 These changes span all data services. Applicability varies by kind: the Applies To column names the

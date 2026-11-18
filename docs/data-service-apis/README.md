@@ -35,19 +35,19 @@ Status: a draft awaiting the agreement of the `platform-apis` maintainers, track
 The design covers seven data services: PostgreSQL, MariaDB, Valkey, Kafka, RabbitMQ, buckets and
 artifact repositories. For each service:
 
-- Core kinds. The kinds a user writes.
-- Classes and provider configurations. The kinds that shape the core kinds.
-- Status and connection secret. Reported by every implementation.
-- Cloud mapping. The managed service each cloud implements the service with.
-- API changes. The differences from today's API.
+- Core kinds. The design defines the kinds a user writes.
+- Classes and provider configurations. These kinds shape the core kinds.
+- Status and connection secret. Every implementation reports them.
+- Cloud mapping. Each cloud implements the service with its own managed service.
+- API changes. The design lists its differences from today's API.
 
 ## Out of Scope
 
 - Cloud implementation and migration of today's objects. Covered by follow-up work.
 - Read replicas for PostgreSQL and MariaDB, and cross-workspace disaster recovery.
   [Deferred capabilities](deferred-capabilities.md).
-- Copies on a newer major version, and replication between clouds. Logical replication, part of
-  upgrades and migration.
+- Copies on a newer major version, and replication between clouds. Both use logical replication
+  and belong to upgrades and migration.
 - Bounds on user-chosen values beyond a class's fixed values, such as permitted sizes or a storage
   maximum. A class can take allowed values later without changes elsewhere.
 - Human access. User kinds cover applications only.

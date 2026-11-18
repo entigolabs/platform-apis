@@ -9,15 +9,6 @@ Built on S3 (AWS), Cloud Storage (GCP), Object Storage (OCI) and Blob Storage (A
 provider configuration kind of its own: `BucketS3Config`, `BucketCloudStorageConfig`,
 `BucketObjectStorageConfig` and `BucketBlobStorageConfig`.
 
-## Contents
-
-- [Kinds](#kinds)
-- [Mapping](#mapping)
-- [Composed Resources](#composed-resources)
-- [Platform Decisions](#platform-decisions)
-- [Cloud Limits](#cloud-limits)
-- [Notes](#notes)
-
 ## Kinds
 
 Object storage is offered as two kinds, each with the manifest its owner writes.

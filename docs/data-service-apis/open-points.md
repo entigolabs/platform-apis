@@ -2,7 +2,7 @@
 
 Each question below needs a decision before implementation.
 
-#### 1 Which API group do the kinds take, and how do existing objects move to it?
+#### 1 Which API group do the kinds take, and how do today's objects move to it?
 
 **Context.** Most core kinds take new names, such as `PostgreSQLCluster` beside today's
 `PostgreSQLInstance` and `Bucket` beside `S3Bucket`, and are served beside today's kinds in today's

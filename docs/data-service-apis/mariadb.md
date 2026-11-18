@@ -12,14 +12,6 @@ Built on Amazon RDS (AWS), with the provider configuration kind `MariaDBRDSConfi
 Azure have no implementation: their MySQL services are not MariaDB (principle 7), and Azure Database
 for MariaDB is retired.
 
-## Contents
-
-- [Kinds](#kinds)
-- [Mapping](#mapping)
-- [Composed Resources](#composed-resources)
-- [Platform Decisions](#platform-decisions)
-- [Cloud Limits](#cloud-limits)
-
 ## Kinds
 
 MariaDB is offered as five kinds, each with the manifest its owner writes.

@@ -13,14 +13,6 @@ for PostgreSQL flexible server (Azure), each with a provider configuration kind 
 `PostgreSQLRDSConfig`, `PostgreSQLCloudSQLConfig`, `PostgreSQLOCIConfig` and
 `PostgreSQLFlexibleServerConfig`.
 
-## Contents
-
-- [Kinds](#kinds)
-- [Mapping](#mapping)
-- [Composed Resources](#composed-resources)
-- [Platform Decisions](#platform-decisions)
-- [Cloud Limits](#cloud-limits)
-
 ## Kinds
 
 PostgreSQL is offered as five kinds, each with the manifest its owner writes.

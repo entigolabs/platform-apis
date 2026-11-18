@@ -12,14 +12,6 @@ with a provider configuration kind of its own: `ArtifactRepositoryECRConfig`,
 `ArtifactRepositoryArtifactRegistryConfig`, `ArtifactRepositoryOCIRConfig` and
 `ArtifactRepositoryACRConfig`. Each stores every OCI artifact alike.
 
-## Contents
-
-- [Kinds](#kinds)
-- [Mapping](#mapping)
-- [Composed Resources](#composed-resources)
-- [Platform Decisions](#platform-decisions)
-- [Notes](#notes)
-
 ## Kinds
 
 The artifact registry is offered as two kinds, each with the manifest its owner writes.

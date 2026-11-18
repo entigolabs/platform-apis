@@ -13,16 +13,6 @@ Built on ElastiCache (AWS) and OCI Cache (OCI), each with a provider configurati
 password login, which the connection secret needs (principle 6). Azure has none: Azure Managed Redis
 runs Redis, not Valkey.
 
-## Contents
-
-- [Kinds](#kinds)
-- [Read Replicas](#read-replicas)
-- [Mapping](#mapping)
-- [Composed Resources](#composed-resources)
-- [Platform Decisions](#platform-decisions)
-- [Cloud Limits](#cloud-limits)
-- [Notes](#notes)
-
 ## Kinds
 
 Valkey is offered as three kinds, each with the manifest its owner writes.

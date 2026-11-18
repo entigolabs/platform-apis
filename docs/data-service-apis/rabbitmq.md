@@ -12,15 +12,6 @@ deployment's defaults and limits, written by Entigo, and `RabbitMQParameters`, r
 Built on Amazon MQ (AWS), with the provider configuration kind `RabbitMQAmazonMQConfig`. GCP, OCI
 and Azure have no managed RabbitMQ. The API follows RabbitMQ's own concepts.
 
-## Contents
-
-- [Kinds](#kinds)
-- [Mapping](#mapping)
-- [Composed Resources](#composed-resources)
-- [Platform Decisions](#platform-decisions)
-- [Cloud Limits](#cloud-limits)
-- [Notes](#notes)
-
 ## Kinds
 
 RabbitMQ is offered as five kinds, each with the manifest its owner writes.
