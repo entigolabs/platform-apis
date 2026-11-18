@@ -18,7 +18,9 @@ not listed keeps its name and meaning.
 
 ## All Services
 
-These changes span all data services. Applicability varies by kind.
+These changes span all data services. Applicability varies by kind: the Applies To column names the
+kinds each change covers, where "kinds with a class" are `PostgreSQLCluster`, `MariaDBServer`,
+`ValkeyServer`, `KafkaCluster`, `RabbitMQBroker`, `Bucket` and `ArtifactRepository`:
 
 | Today                                                                              | Design                                                   | Applies To                                                                                                                           | Reason                                                                            |
 | ---------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
@@ -34,9 +36,6 @@ These changes span all data services. Applicability varies by kind.
 | (none)                                                                             | `status.providerConfig`, `status.effective`              | Kinds with a class                                                                                                                   | The applied entry and each value's source (principle 4)                           |
 
 *Shared data service API changes.*
-
-The kinds with a class are `PostgreSQLCluster`, `MariaDBServer`, `ValkeyServer`, `KafkaCluster`,
-`RabbitMQBroker`, `Bucket` and `ArtifactRepository`.
 
 ## PostgreSQL
 
