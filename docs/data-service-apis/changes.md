@@ -127,13 +127,25 @@ spec:
 
 ### PostgreSQLUser
 
-`PostgreSQLUser` keeps its fields; `instanceRef` becomes `clusterRef`, naming a `PostgreSQLCluster`,
-and `name` and `clusterRef` become immutable.
+`PostgreSQLUser` changes as follows:
+
+| Today                                | Design                                     | Reason                                    |
+| ------------------------------------ | ------------------------------------------ | ----------------------------------------- |
+| `instanceRef`                        | `clusterRef`, naming a `PostgreSQLCluster` | The parent's new kind (principle 8)       |
+| `name` and `instanceRef`, changeable | `name` and `clusterRef`, immutable         | The login is created once, on one cluster |
+
+*`PostgreSQLUser` changes, with reasons.*
 
 ### PostgreSQLDatabase
 
-`PostgreSQLDatabase` keeps its fields; `instanceRef` becomes `clusterRef`, naming a
-`PostgreSQLCluster`, and `name` and `clusterRef` become immutable.
+`PostgreSQLDatabase` changes as follows:
+
+| Today                                | Design                                     | Reason                                       |
+| ------------------------------------ | ------------------------------------------ | -------------------------------------------- |
+| `instanceRef`                        | `clusterRef`, naming a `PostgreSQLCluster` | The parent's new kind (principle 8)          |
+| `name` and `instanceRef`, changeable | `name` and `clusterRef`, immutable         | The database is created once, on one cluster |
+
+*`PostgreSQLDatabase` changes, with reasons.*
 
 ## MariaDB
 
@@ -275,8 +287,14 @@ spec:
 
 ### MariaDBDatabase
 
-`MariaDBDatabase` keeps its fields; `instanceRef` becomes `serverRef`, naming a `MariaDBServer`,
-and `name` and `serverRef` become immutable.
+`MariaDBDatabase` changes as follows:
+
+| Today                                | Design                                | Reason                                      |
+| ------------------------------------ | ------------------------------------- | ------------------------------------------- |
+| `instanceRef`                        | `serverRef`, naming a `MariaDBServer` | The parent's new kind (principle 8)         |
+| `name` and `instanceRef`, changeable | `name` and `serverRef`, immutable     | The database is created once, on one server |
+
+*`MariaDBDatabase` changes, with reasons.*
 
 ## Valkey
 
@@ -540,11 +558,23 @@ spec:
 
 ### RabbitMQUser
 
-`RabbitMQUser` is new.
+`RabbitMQUser` is a new kind:
+
+| Today  | Design         | Reason                                                                  |
+| ------ | -------------- | ----------------------------------------------------------------------- |
+| (none) | `RabbitMQUser` | Each application gets its own login instead of the broker's admin login |
+
+*New `RabbitMQUser` kind, with its reason.*
 
 ### RabbitMQVirtualHost
 
-`RabbitMQVirtualHost` is new.
+`RabbitMQVirtualHost` is a new kind:
+
+| Today  | Design                | Reason                                                                            |
+| ------ | --------------------- | --------------------------------------------------------------------------------- |
+| (none) | `RabbitMQVirtualHost` | Applications that share a broker keep their queues and exchanges in isolated sets |
+
+*New `RabbitMQVirtualHost` kind, with its reason.*
 
 ## Bucket
 
