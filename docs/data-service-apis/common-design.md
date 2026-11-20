@@ -39,7 +39,9 @@ the Kubernetes API server when it is applied, before any function runs.
 
 A kind that keeps its name from today's API, such as `PostgreSQLUser`, stays one CRD that serves
 today's `v1alpha1` and the design's `v1alpha2`. Kubernetes stores one version, and a conversion
-webhook translates between the two, so a manifest written for today's API still applies.
+webhook translates between the two, so a manifest written for today's API still applies. A field
+only one version has is kept in an annotation on the other version's form and restored from it on
+the way back, so an object written through either version loses none of its fields.
 
 A renamed kind, such as `PostgreSQLCluster`, is a new kind beside today's `PostgreSQLInstance`,
 since a conversion only translates between versions of one kind. Today's kind stays served, with its
