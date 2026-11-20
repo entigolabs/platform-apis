@@ -2,9 +2,10 @@ name: Execute Infralib Tests
 
 # Runs the end-to-end suites on the infralib branch prepare-infralib-branch
 # made: the framework's test.sh (entigo-infralib-test) applies the module in
-# its regular step on aws_biz and oracle_biz and runs the tests copied into
-# the module. The contributor and maintainer IAM users of the role tests
-# travel into the test container through INFRALIB_TEST_EXTRA_ENV.
+# its regular step on aws_biz, aws_pri and oracle_biz and runs the tests
+# copied into the module. The contributor and maintainer IAM users of the
+# group-mode role tests (aws_biz) travel into the test container through
+# INFRALIB_TEST_EXTRA_ENV; aws_pri checks its roles by impersonation.
 
 on:
   workflow_call:
@@ -21,7 +22,7 @@ on:
 env:
   INFRALIB_REPO: entigolabs/entigo-infralib
   INFRALIB_MODULE_PATH: modules/k8s/platform-apis
-  ENVIRONMENTS: aws_biz,oracle_biz
+  ENVIRONMENTS: aws_biz,aws_pri,oracle_biz
 
 jobs:
   run-tests:

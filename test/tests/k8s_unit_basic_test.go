@@ -15,24 +15,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type zoneApplicationData struct {
+	Namespace string
+}
+
 // TestPlatformApis runs the end-to-end suites on the environments the
 // platform-apis module is part of (one parallel subtest each). The map must
-// name exactly those environments; the suites themselves run on aws_biz only,
-// aws_pri lacks what some of them need. oracle_biz runs the OCI Zone test.
+// name exactly those environments. aws_biz runs every suite with zone access
+// from roleMapping groups; aws_pri runs the zone suite with zone access from
+// RoleGrants (authz.enabled), the other suites need what only aws_biz has.
+// oracle_biz runs the OCI Zone test.
 func TestPlatformApis(t *testing.T) {
 	env.RunEach(t, map[string]env.TestFunc{
-		"aws_biz":    testPlatformApis,
-		"aws_pri":    func(t *testing.T, e *env.Environment) { t.Skip("the end-to-end suites run on aws_biz only") },
+		"aws_biz":    func(t *testing.T, e *env.Environment) { testPlatformApis(t, e, nil) },
+		"aws_pri":    func(t *testing.T, e *env.Environment) { testPlatformApis(t, e, []string{"zone"}) },
 		"oracle_biz": testPlatformApisOCI,
 		"oracle_pri": func(t *testing.T, e *env.Environment) { t.Skip("the OCI Zone test runs on oracle_biz only") },
 	})
 }
 
-func testPlatformApis(t *testing.T, e *env.Environment) {
+func testPlatformApis(t *testing.T, e *env.Environment, only []string) {
 	// The framework picks the kubeconfig context of the environment's cluster
 	// and checks it answers; the suites then drive kubectl through terratest.
 	c := k8s.Connect(t, e)
-	cfg := loadSuiteConfig()
+	cfg := loadSuiteConfig().Only(only)
 
 	cluster, argocd := setupKubectlClients(c.Context, e.Prefix)
 
@@ -65,7 +71,7 @@ func testPlatformApis(t *testing.T, e *env.Environment) {
 		}
 
 		if cfg.Has("zone") {
-			runSuite("zone", func(t *testing.T, ctx context.Context) { testZone(t, ctx, cluster) })
+			runSuite("zone", func(t *testing.T, ctx context.Context) { testZone(t, ctx, cluster, argocd) })
 		}
 		if cfg.Has("postgresql") {
 			runSuite("postgresql", func(t *testing.T, ctx context.Context) { testPostgresql(t, ctx, cluster, argocd) })
@@ -198,7 +204,8 @@ func setupKubectlClients(contextName, prefix string) (*terrak8s.KubectlOptions, 
 func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.KubectlOptions) {
 	t.Helper()
 
-	applyFile(t, cluster, "./templates/zone_test_application.yaml")
+	applyFile(t, cluster, writeTempYAML(t, renderTemplate(t, "./templates/zone_test_application.yaml",
+		zoneApplicationData{Namespace: argocd.Namespace})))
 	syncWithRetry(t, argocd, ZoneApplicationName)
 
 	t.Run("zone-readiness", func(t *testing.T) {

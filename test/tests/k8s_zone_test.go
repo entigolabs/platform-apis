@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testZone(t *testing.T, ctx context.Context, cluster *terrak8s.KubectlOptions) {
+func testZone(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -22,7 +22,7 @@ func testZone(t *testing.T, ctx context.Context, cluster *terrak8s.KubectlOption
 		return
 	}
 	testZoneKyverno(t, cluster)
-	testZoneRBAC(t, cluster)
+	testZoneRBAC(t, cluster, argocd)
 	if t.Failed() {
 		return
 	}

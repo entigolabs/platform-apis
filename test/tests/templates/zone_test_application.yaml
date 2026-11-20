@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app-of-zones
-  namespace: argocd-biz
+  namespace: {{ .Namespace }}
 spec:
   destination:
     server: https://kubernetes.default.svc

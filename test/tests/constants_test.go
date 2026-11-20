@@ -74,6 +74,10 @@ const (
 	AAppsApplicationName   = "a-apps"
 	BAppsApplicationName   = "b-apps"
 	BDeniedApplicationName = "b-denied"
+	AuthzTestUser          = "oidc:e2e-zone-authz"
+	ArgoCDRBACConfig       = "argocd-rbac-cm"
+	AppProjectKind         = "appprojects.argoproj.io"
+	RoleGrantKind          = "rolegrants.authz.entigo.com"
 
 	// ── Zone secret store ────────────────────────────────────────────────────
 
