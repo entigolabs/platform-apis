@@ -54,6 +54,8 @@ artifact repositories. For each service:
 - Human access. User kinds cover applications only.
 - Resource health and metrics. A central monitoring capability reads them from each cloud's
   monitoring service directly.
+- Cost limits. Cost management is a layer above the APIs: a Kubernetes `ResourceQuota` caps the
+  objects of each kind in a namespace, and cloud budgets cap spend.
 
 ## Pages
 
