@@ -74,8 +74,8 @@ parameters merge key by key in the same order.
 The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
 version 1.36. It copies the class's `template` into the object when it is created and keeps the
 values on updates. `enforced` applies all the time: it is policy, and an object that no longer
-complies after a class tightens it reports that in a condition. Observed resources receive no
-defaults.
+complies after a class tightens it reports that in a condition. The effect of a class change on the
+objects that already use the class is still to be decided. Observed resources receive no defaults.
 
 Each class reports in its status which portable features its implementation supports, such as
 `HighAvailability` and `ReadReplicas`. An object that requests a feature its class does not report
