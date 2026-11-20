@@ -13,32 +13,84 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testZone(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions) {
+type testZones struct {
+	prefix string
+}
+
+type zoneApplicationData struct {
+	Namespace, Prefix string
+}
+
+func (z testZones) Prefix() string {
+	return z.prefix
+}
+
+func (z testZones) A() string {
+	return fmt.Sprintf("%s%s", z.prefix, ZoneAName)
+}
+
+func (z testZones) B() string {
+	return fmt.Sprintf("%s%s", z.prefix, ZoneBName)
+}
+
+func (z testZones) AApps() string {
+	return fmt.Sprintf("%s-apps", z.A())
+}
+
+func (z testZones) BApps() string {
+	return fmt.Sprintf("%s-apps", z.B())
+}
+
+func (z testZones) PoolA() string {
+	return fmt.Sprintf("%s-%s", z.A(), ZoneAPool)
+}
+
+func (z testZones) PoolB() string {
+	return fmt.Sprintf("%s-%s", z.B(), ZoneBPool)
+}
+
+func (z testZones) SecretStoreA() string {
+	return fmt.Sprintf("zone-%s", z.A())
+}
+
+func (z testZones) RemoteKeyA() string {
+	return fmt.Sprintf("%s%s", SecretStoreRemoteKeyPrefix, z.A())
+}
+
+func (z testZones) RemoteKeyB() string {
+	return fmt.Sprintf("%s%s", SecretStoreRemoteKeyPrefix, z.B())
+}
+
+func (z testZones) RemoteKeyUntagged() string {
+	return fmt.Sprintf("%s%suntagged", SecretStoreRemoteKeyPrefix, z.prefix)
+}
+
+func testZone(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.KubectlOptions, z testZones) {
 	if ctx.Err() != nil {
 		return
 	}
-	testZoneApps(t, cluster)
+	testZoneApps(t, cluster, z)
 	if t.Failed() {
 		return
 	}
-	testZoneKyverno(t, cluster)
-	testZoneRBAC(t, cluster, argocd)
+	testZoneKyverno(t, cluster, z)
+	testZoneRBAC(t, cluster, argocd, z)
 	if t.Failed() {
 		return
 	}
-	testZoneSecretStore(t, cluster)
+	testZoneSecretStore(t, cluster, z)
 }
 
-func testZoneApps(t *testing.T, cluster *terrak8s.KubectlOptions) {
-	aApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, AAppsNamespace)
-	bApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, BAppsNamespace)
+func testZoneApps(t *testing.T, cluster *terrak8s.KubectlOptions, z testZones) {
+	aApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, z.AApps())
+	bApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, z.BApps())
 
-	deployAndVerifyApp(t, cluster, aApps, "./templates/a_test_application.yaml", AAppsApplicationName)
-	deployAndVerifyApp(t, cluster, bApps, "./templates/b_test_application.yaml", BAppsApplicationName)
+	deployAndVerifyApp(t, cluster, aApps, writeTempYAML(t, renderTemplate(t, "./templates/a_test_application.yaml", z)), AAppsApplicationName)
+	deployAndVerifyApp(t, cluster, bApps, writeTempYAML(t, renderTemplate(t, "./templates/b_test_application.yaml", z)), BAppsApplicationName)
 
-	verifySourceReposAllowList(t, cluster)
-	verifyAppsRunning(t, cluster)
-	verifyNetworkPolicies(t, cluster)
+	verifySourceReposAllowList(t, cluster, z)
+	verifyAppsRunning(t, cluster, z)
+	verifyNetworkPolicies(t, cluster, z)
 }
 
 func testPodsRunning(t *testing.T, nsOpts *terrak8s.KubectlOptions, podName string) {
@@ -72,10 +124,10 @@ func deployAndVerifyApp(t *testing.T, cluster, appOpts *terrak8s.KubectlOptions,
 // already covered above: every test app (repoURL ghcr.io/entigolabs) only syncs because that
 // repo is in the list. Here we assert the negative: an Application pointing at a repo outside
 // the list is rejected by ArgoCD and never deploys.
-func verifySourceReposAllowList(t *testing.T, cluster *terrak8s.KubectlOptions) {
+func verifySourceReposAllowList(t *testing.T, cluster *terrak8s.KubectlOptions, z testZones) {
 	t.Run("sourcerepos-allow-list", func(t *testing.T) {
-		bApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, BAppsNamespace)
-		applyFile(t, cluster, "./templates/b_denied_application.yaml")
+		bApps := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, z.BApps())
+		applyFile(t, cluster, writeTempYAML(t, renderTemplate(t, "./templates/b_denied_application.yaml", z)))
 		defer func() {
 			_, _ = terrak8s.RunKubectlAndGetOutputE(t, bApps, "delete", "application", BDeniedApplicationName, "--ignore-not-found")
 		}()
@@ -94,19 +146,19 @@ func verifySourceReposAllowList(t *testing.T, cluster *terrak8s.KubectlOptions) 
 	})
 }
 
-func verifyAppsRunning(t *testing.T, cluster *terrak8s.KubectlOptions) {
+func verifyAppsRunning(t *testing.T, cluster *terrak8s.KubectlOptions, z testZones) {
 	t.Run("apps-running", func(t *testing.T) {
 		t.Run("a1", func(t *testing.T) {
 			t.Parallel()
 			nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, "a1")
 			testPodsRunning(t, nsOpts, "a1-curl")
-			testPodNodeSelector(t, nsOpts, "a1-curl", "tenancy.entigo.com/zone", "a")
+			testPodNodeSelector(t, nsOpts, "a1-curl", "tenancy.entigo.com/zone", z.A())
 		})
 		t.Run("b1", func(t *testing.T) {
 			t.Parallel()
 			nsOpts := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, "b1")
 			testPodsRunning(t, nsOpts, "b1-curl")
-			testPodNodeSelector(t, nsOpts, "b1-curl", "tenancy.entigo.com/zone-pool", "b-default-a")
+			testPodNodeSelector(t, nsOpts, "b1-curl", "tenancy.entigo.com/zone-pool", z.PoolB())
 		})
 	})
 }
@@ -119,11 +171,11 @@ func testPodNodeSelector(t *testing.T, nsOpts *terrak8s.KubectlOptions, podName,
 		"pod %s/%s nodeSelector[%q] mismatch (full: %v)", nsOpts.Namespace, podName, key, pod.Spec.NodeSelector)
 }
 
-func verifyNetworkPolicies(t *testing.T, cluster *terrak8s.KubectlOptions) {
+func verifyNetworkPolicies(t *testing.T, cluster *terrak8s.KubectlOptions, z testZones) {
 	t.Run("network-policies", func(t *testing.T) {
 		t.Run("a1", func(t *testing.T) {
 			t.Parallel()
-			testNetworkPolicyMatchLabels(t, cluster, "a1", map[string]string{"tenancy.entigo.com/zone": "a"})
+			testNetworkPolicyMatchLabels(t, cluster, "a1", map[string]string{"tenancy.entigo.com/zone": z.A()})
 		})
 		t.Run("b1", func(t *testing.T) {
 			t.Parallel()

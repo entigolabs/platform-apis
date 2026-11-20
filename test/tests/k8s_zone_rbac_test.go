@@ -85,10 +85,10 @@ func oidcGroup(entry string) string {
 	return fmt.Sprintf("oidc:%s", entry)
 }
 
-func (g authzGrant) entry(a zoneAuthz) string {
+func (g authzGrant) entry(a zoneAuthz, z testZones) string {
 	switch g.scope {
 	case "zone":
-		return a.zoneEntry(g.role, ZoneAName)
+		return a.zoneEntry(g.role, z.A())
 	case "organization":
 		return a.organizationEntry(g.role)
 	}
@@ -107,15 +107,15 @@ func waitAuthzGrantsRendered(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	}
 }
 
-func testZoneRBAC(t *testing.T, cluster *terrak8s.KubectlOptions, argocd *terrak8s.KubectlOptions) {
+func testZoneRBAC(t *testing.T, cluster, argocd *terrak8s.KubectlOptions, z testZones) {
 	if a := readZoneAuthz(t, cluster); a.Enabled {
-		testZoneRBACAuthz(t, cluster, a)
-		testZoneArgoCDAuthz(t, argocd, a)
+		testZoneRBACAuthz(t, cluster, a, z)
+		testZoneArgoCDAuthz(t, argocd, a, z)
 		return
 	}
 
 	t.Run("zone-rbac", func(t *testing.T) {
-		ensureKyvernoTestNamespace(t, cluster)
+		ensureKyvernoTestNamespace(t, cluster, z)
 		waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "contributor")
 		waitNamespaceRoleBinding(t, cluster, KyvernoTestNSName, "maintainer")
 		if t.Failed() {
@@ -315,16 +315,16 @@ func allowed(t *testing.T, cluster *terrak8s.KubectlOptions, group, namespace, v
 	return strings.TrimSpace(out) == "true"
 }
 
-func testZoneRBACAuthz(t *testing.T, cluster *terrak8s.KubectlOptions, a zoneAuthz) {
+func testZoneRBACAuthz(t *testing.T, cluster *terrak8s.KubectlOptions, a zoneAuthz, z testZones) {
 	t.Run("zone-rbac", func(t *testing.T) {
-		ensureKyvernoTestNamespace(t, cluster)
+		ensureKyvernoTestNamespace(t, cluster, z)
 		waitAuthzGrantsRendered(t, cluster)
 		if t.Failed() {
 			return
 		}
 		ns := KyvernoTestNSName
-		zoneA := fmt.Sprintf("zones/%s.tenancy.entigo.com", ZoneAName)
-		zoneB := fmt.Sprintf("zones/%s.tenancy.entigo.com", ZoneBName)
+		zoneA := fmt.Sprintf("zones/%s.tenancy.entigo.com", z.A())
+		zoneB := fmt.Sprintf("zones/%s.tenancy.entigo.com", z.B())
 		type scoped struct {
 			namespace string
 			checks    []rbacCheck
@@ -401,7 +401,7 @@ func testZoneRBACAuthz(t *testing.T, cluster *terrak8s.KubectlOptions, a zoneAut
 				t.Parallel()
 				require.NotEmpty(t, want[g.role], "no checks for role %s", g.role)
 				for _, s := range want[g.role] {
-					assertRBAC(t, cluster, oidcGroup(g.entry(a)), s.namespace, s.checks)
+					assertRBAC(t, cluster, oidcGroup(g.entry(a, z)), s.namespace, s.checks)
 				}
 			})
 		}
@@ -412,22 +412,22 @@ func testZoneRBACAuthz(t *testing.T, cluster *terrak8s.KubectlOptions, a zoneAut
 	})
 }
 
-func testZoneArgoCDAuthz(t *testing.T, argocd *terrak8s.KubectlOptions, a zoneAuthz) {
+func testZoneArgoCDAuthz(t *testing.T, argocd *terrak8s.KubectlOptions, a zoneAuthz, z testZones) {
 	t.Run("argocd-authz", func(t *testing.T) {
 		t.Run("project-roles", func(t *testing.T) {
 			t.Parallel()
 			want := map[string]string{
 				"admin":           a.organizationEntry("admin"),
 				"workspace-owner": a.workspaceEntry("workspace-owner"),
-				"contributor":     a.zoneEntry("contributor", ZoneAName),
-				"zone-maintainer": a.zoneEntry("zone-maintainer", ZoneAName),
-				"zone-readonly":   a.zoneEntry("zone-readonly", ZoneAName),
-				"argocd-deployer": a.zoneEntry("argocd-deployer", ZoneAName),
+				"contributor":     a.zoneEntry("contributor", z.A()),
+				"zone-maintainer": a.zoneEntry("zone-maintainer", z.A()),
+				"zone-readonly":   a.zoneEntry("zone-readonly", z.A()),
+				"argocd-deployer": a.zoneEntry("argocd-deployer", z.A()),
 			}
 			cicd := []string{want["admin"], want["workspace-owner"], want["contributor"], want["zone-maintainer"]}
-			_, err := retry.DoWithRetryE(t, fmt.Sprintf("AppProject %s roles from grants", ZoneAName), 30, 10*time.Second,
+			_, err := retry.DoWithRetryE(t, fmt.Sprintf("AppProject %s roles from grants", z.A()), 30, 10*time.Second,
 				func() (string, error) {
-					out, err := terrak8s.RunKubectlAndGetOutputE(t, argocd, "get", AppProjectKind, ZoneAName, "-o", "jsonpath={.spec.roles}")
+					out, err := terrak8s.RunKubectlAndGetOutputE(t, argocd, "get", AppProjectKind, z.A(), "-o", "jsonpath={.spec.roles}")
 					if err != nil {
 						return "", err
 					}

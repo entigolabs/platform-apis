@@ -15,10 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type zoneApplicationData struct {
-	Namespace string
-}
-
 // TestPlatformApis runs the end-to-end suites on the environments the
 // platform-apis module is part of (one parallel subtest each). The map must
 // name exactly those environments. aws_biz runs every suite with zone access
@@ -27,14 +23,16 @@ type zoneApplicationData struct {
 // oracle_biz runs the OCI Zone test.
 func TestPlatformApis(t *testing.T) {
 	env.RunEach(t, map[string]env.TestFunc{
-		"aws_biz":    func(t *testing.T, e *env.Environment) { testPlatformApis(t, e, nil) },
-		"aws_pri":    func(t *testing.T, e *env.Environment) { testPlatformApis(t, e, []string{"zone"}) },
+		"aws_biz": func(t *testing.T, e *env.Environment) { testPlatformApis(t, e, nil, testZones{}) },
+		"aws_pri": func(t *testing.T, e *env.Environment) {
+			testPlatformApis(t, e, []string{"zone"}, testZones{prefix: "pri-"})
+		},
 		"oracle_biz": testPlatformApisOCI,
 		"oracle_pri": func(t *testing.T, e *env.Environment) { t.Skip("the OCI Zone test runs on oracle_biz only") },
 	})
 }
 
-func testPlatformApis(t *testing.T, e *env.Environment, only []string) {
+func testPlatformApis(t *testing.T, e *env.Environment, only []string, z testZones) {
 	// The framework picks the kubeconfig context of the environment's cluster
 	// and checks it answers; the suites then drive kubectl through terratest.
 	c := k8s.Connect(t, e)
@@ -48,7 +46,7 @@ func testPlatformApis(t *testing.T, e *env.Environment, only []string) {
 	}
 
 	t.Run("setup-zone", func(t *testing.T) {
-		setupZoneSync(t, cfg, cluster, argocd)
+		setupZoneSync(t, cfg, cluster, argocd, z)
 	})
 	if t.Failed() {
 		t.Fatal("Zones deployment failed. Can not run tests.")
@@ -71,7 +69,7 @@ func testPlatformApis(t *testing.T, e *env.Environment, only []string) {
 		}
 
 		if cfg.Has("zone") {
-			runSuite("zone", func(t *testing.T, ctx context.Context) { testZone(t, ctx, cluster, argocd) })
+			runSuite("zone", func(t *testing.T, ctx context.Context) { testZone(t, ctx, cluster, argocd, z) })
 		}
 		if cfg.Has("postgresql") {
 			runSuite("postgresql", func(t *testing.T, ctx context.Context) { testPostgresql(t, ctx, cluster, argocd) })
@@ -201,11 +199,11 @@ func setupKubectlClients(contextName, prefix string) (*terrak8s.KubectlOptions, 
 	return cluster, argocd
 }
 
-func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.KubectlOptions) {
+func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.KubectlOptions, z testZones) {
 	t.Helper()
 
 	applyFile(t, cluster, writeTempYAML(t, renderTemplate(t, "./templates/zone_test_application.yaml",
-		zoneApplicationData{Namespace: argocd.Namespace})))
+		zoneApplicationData{Namespace: argocd.Namespace, Prefix: z.Prefix()})))
 	syncWithRetry(t, argocd, ZoneApplicationName)
 
 	t.Run("zone-readiness", func(t *testing.T) {
@@ -214,16 +212,16 @@ func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.Kube
 		// warm environment it is seconds. Fifteen minutes keeps the first run of the day from failing here.
 		t.Run("zone-a", func(t *testing.T) {
 			t.Parallel()
-			waitSyncedAndReady(t, cluster, ZoneKind, ZoneAName, 90, 10*time.Second)
-			waitZoneNodegroupReady(t, cluster, ZoneAName)
-			waitZoneNodesReady(t, cluster, ZoneAName)
+			waitSyncedAndReady(t, cluster, ZoneKind, z.A(), 90, 10*time.Second)
+			waitZoneNodegroupReady(t, cluster, z.A())
+			waitZoneNodesReady(t, cluster, z.A())
 			preCreateTestNamespaces(t, cfg, cluster)
 		})
 		t.Run("zone-b", func(t *testing.T) {
 			t.Parallel()
-			waitSyncedAndReady(t, cluster, ZoneKind, ZoneBName, 90, 10*time.Second)
-			waitZoneNodegroupReady(t, cluster, ZoneBName)
-			waitZoneNodesReady(t, cluster, ZoneBName)
+			waitSyncedAndReady(t, cluster, ZoneKind, z.B(), 90, 10*time.Second)
+			waitZoneNodegroupReady(t, cluster, z.B())
+			waitZoneNodesReady(t, cluster, z.B())
 		})
 	})
 	if t.Failed() {

@@ -50,12 +50,12 @@ type kyvernoPodData struct {
 
 // ensureKyvernoTestNamespace creates the shared kyverno-test namespace if it does not exist,
 // then waits until the zone composition has reconciled the per-namespace Kyverno policies.
-func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions) {
+func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions, z testZones) {
 	t.Helper()
 	applyFile(t, cluster, writeTempYAML(t, nsYAML(t, kyvernoNsData{
-		Name: KyvernoTestNSName, Zone: ZoneAName, Enforce: "baseline", Warn: "baseline",
+		Name: KyvernoTestNSName, Zone: z.A(), Enforce: "baseline", Warn: "baseline",
 	})))
-	waitNamespacePoliciesReady(t, cluster, ZoneAName, KyvernoTestNSName)
+	waitNamespacePoliciesReady(t, cluster, z.A(), KyvernoTestNSName)
 }
 
 // waitNamespaceRoleBinding waits until the zone composition has created the per-namespace

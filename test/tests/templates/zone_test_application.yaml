@@ -15,4 +15,5 @@ spec:
       releaseName: platform-apis-test-zones
       values: |
         targetRevision: '*.*.*-0'
+        prefix: '{{ .Prefix }}'
   syncPolicy: {}

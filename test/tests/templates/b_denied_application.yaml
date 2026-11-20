@@ -2,12 +2,12 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: b-denied
-  namespace: b-apps
+  namespace: {{ .BApps }}
 spec:
   destination:
     server: https://kubernetes.default.svc
-    namespace: b-apps
-  project: b
+    namespace: {{ .BApps }}
+  project: {{ .B }}
   source:
     # Repo not in the environment sourceRepos allow-list — ArgoCD must reject this.
     chart: platform-apis-test-b-apps
