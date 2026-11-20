@@ -5,12 +5,7 @@ default, a rule, a mapping, a platform decision or a cloud limit. Changes to wor
 not revisions. A change to the design adds its line to the open revision, or opens the next one once
 the last is agreed.
 
-#### 3 in progress
-
-Open for one decision: the effect of a class change on the objects that already use the class.
-It has no changes yet.
-
-#### 2 2026-11-18
+#### 2 in progress
 
 Settings of one implementation move out of fixed cloud blocks into classes and provider
 configurations, so a deployment sets its own defaults and limits, and a new cloud or an on-premises
