@@ -17,22 +17,26 @@ import (
 
 // TestPlatformApis runs the end-to-end suites on the environments the
 // platform-apis module is part of (one parallel subtest each). The map must
-// name exactly those environments; the suites themselves run on aws_biz only,
-// aws_pri lacks what some of them need. oracle_biz runs the OCI Zone test.
+// name exactly those environments. aws_biz runs every suite with zone access
+// from roleMapping groups; aws_pri runs the zone suite with zone access from
+// RoleGrants (authz.enabled), the other suites need what only aws_biz has.
+// oracle_biz runs the OCI Zone test.
 func TestPlatformApis(t *testing.T) {
 	env.RunEach(t, map[string]env.TestFunc{
-		"aws_biz":    testPlatformApis,
-		"aws_pri":    func(t *testing.T, e *env.Environment) { t.Skip("the end-to-end suites run on aws_biz only") },
+		"aws_biz": func(t *testing.T, e *env.Environment) { testPlatformApis(t, e, nil, testZones{}) },
+		"aws_pri": func(t *testing.T, e *env.Environment) {
+			testPlatformApis(t, e, []string{"zone"}, testZones{prefix: "pri-"})
+		},
 		"oracle_biz": testPlatformApisOCI,
 		"oracle_pri": func(t *testing.T, e *env.Environment) { t.Skip("the OCI Zone test runs on oracle_biz only") },
 	})
 }
 
-func testPlatformApis(t *testing.T, e *env.Environment) {
+func testPlatformApis(t *testing.T, e *env.Environment, only []string, z testZones) {
 	// The framework picks the kubeconfig context of the environment's cluster
 	// and checks it answers; the suites then drive kubectl through terratest.
 	c := k8s.Connect(t, e)
-	cfg := loadSuiteConfig()
+	cfg := loadSuiteConfig().Only(only)
 
 	cluster, argocd := setupKubectlClients(c.Context, e.Prefix)
 
@@ -42,7 +46,7 @@ func testPlatformApis(t *testing.T, e *env.Environment) {
 	}
 
 	t.Run("setup-zone", func(t *testing.T) {
-		setupZoneSync(t, cfg, cluster, argocd)
+		setupZoneSync(t, cfg, cluster, argocd, z)
 	})
 	if t.Failed() {
 		t.Fatal("Zones deployment failed. Can not run tests.")
@@ -65,7 +69,7 @@ func testPlatformApis(t *testing.T, e *env.Environment) {
 		}
 
 		if cfg.Has("zone") {
-			runSuite("zone", func(t *testing.T, ctx context.Context) { testZone(t, ctx, cluster) })
+			runSuite("zone", func(t *testing.T, ctx context.Context) { testZone(t, ctx, cluster, argocd, z) })
 		}
 		if cfg.Has("postgresql") {
 			runSuite("postgresql", func(t *testing.T, ctx context.Context) { testPostgresql(t, ctx, cluster, argocd) })
@@ -195,10 +199,11 @@ func setupKubectlClients(contextName, prefix string) (*terrak8s.KubectlOptions, 
 	return cluster, argocd
 }
 
-func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.KubectlOptions) {
+func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.KubectlOptions, z testZones) {
 	t.Helper()
 
-	applyFile(t, cluster, "./templates/zone_test_application.yaml")
+	applyFile(t, cluster, writeTempYAML(t, renderTemplate(t, "./templates/zone_test_application.yaml",
+		zoneApplicationData{Namespace: argocd.Namespace, Prefix: z.Prefix()})))
 	syncWithRetry(t, argocd, ZoneApplicationName)
 
 	t.Run("zone-readiness", func(t *testing.T) {
@@ -207,16 +212,16 @@ func setupZoneSync(t *testing.T, cfg SuiteConfig, cluster, argocd *terrak8s.Kube
 		// warm environment it is seconds. Fifteen minutes keeps the first run of the day from failing here.
 		t.Run("zone-a", func(t *testing.T) {
 			t.Parallel()
-			waitSyncedAndReady(t, cluster, ZoneKind, ZoneAName, 90, 10*time.Second)
-			waitZoneNodegroupReady(t, cluster, ZoneAName)
-			waitZoneNodesReady(t, cluster, ZoneAName)
+			waitSyncedAndReady(t, cluster, ZoneKind, z.A(), 90, 10*time.Second)
+			waitZoneNodegroupReady(t, cluster, z.A())
+			waitZoneNodesReady(t, cluster, z.A())
 			preCreateTestNamespaces(t, cfg, cluster)
 		})
 		t.Run("zone-b", func(t *testing.T) {
 			t.Parallel()
-			waitSyncedAndReady(t, cluster, ZoneKind, ZoneBName, 90, 10*time.Second)
-			waitZoneNodegroupReady(t, cluster, ZoneBName)
-			waitZoneNodesReady(t, cluster, ZoneBName)
+			waitSyncedAndReady(t, cluster, ZoneKind, z.B(), 90, 10*time.Second)
+			waitZoneNodegroupReady(t, cluster, z.B())
+			waitZoneNodesReady(t, cluster, z.B())
 		})
 	})
 	if t.Failed() {

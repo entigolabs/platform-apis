@@ -4,7 +4,7 @@ kind: Namespace
 metadata:
   name: test-kafka
   labels:
-    tenancy.entigo.com/zone: a
+    tenancy.entigo.com/zone: {{ .A }}
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: baseline
 ---
@@ -13,7 +13,7 @@ kind: Namespace
 metadata:
   name: a1
   labels:
-    tenancy.entigo.com/zone: a
+    tenancy.entigo.com/zone: {{ .A }}
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/warn: restricted
     istio-injection: enabled
@@ -22,12 +22,12 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: a-apps
-  namespace: a-apps
+  namespace: {{ .AApps }}
 spec:
   destination:
     server: https://kubernetes.default.svc
-    namespace: a-apps
-  project: a
+    namespace: {{ .AApps }}
+  project: {{ .A }}
   source:
     chart: platform-apis-test-a-apps
     repoURL: ghcr.io/entigolabs
@@ -36,4 +36,5 @@ spec:
       releaseName: platform-apis-test-a-apps
       values: |
         targetRevision: '*.*.*-0'
+        prefix: '{{ .Prefix }}'
   syncPolicy: {}

@@ -9,6 +9,7 @@ import (
 
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 type kyvernoNsData struct {
@@ -49,12 +50,12 @@ type kyvernoPodData struct {
 
 // ensureKyvernoTestNamespace creates the shared kyverno-test namespace if it does not exist,
 // then waits until the zone composition has reconciled the per-namespace Kyverno policies.
-func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions) {
+func ensureKyvernoTestNamespace(t *testing.T, cluster *terrak8s.KubectlOptions, z testZones) {
 	t.Helper()
 	applyFile(t, cluster, writeTempYAML(t, nsYAML(t, kyvernoNsData{
-		Name: KyvernoTestNSName, Zone: ZoneAName, Enforce: "baseline", Warn: "baseline",
+		Name: KyvernoTestNSName, Zone: z.A(), Enforce: "baseline", Warn: "baseline",
 	})))
-	waitNamespacePoliciesReady(t, cluster, ZoneAName, KyvernoTestNSName)
+	waitNamespacePoliciesReady(t, cluster, z.A(), KyvernoTestNSName)
 }
 
 // waitNamespaceRoleBinding waits until the zone composition has created the per-namespace
@@ -222,4 +223,25 @@ func assertForbidden(t *testing.T, out string, err error) {
 	require.Error(t, err, "expected operation to be blocked (RBAC or Kyverno); output: %s", combined)
 	require.True(t, strings.Contains(combined, "denied") || strings.Contains(combined, "forbidden"),
 		"rejection should mention 'denied' or 'forbidden'; output: %s", combined)
+}
+
+// impersonatedKubectlOptions copies the base kubeconfig and makes its user impersonate
+// user and groups, so admission sees an oidc: user as after a real login.
+func impersonatedKubectlOptions(t *testing.T, base *terrak8s.KubectlOptions, user string, groups ...string) *terrak8s.KubectlOptions {
+	t.Helper()
+	raw, err := terrak8s.RunKubectlAndGetOutputE(t, base, "config", "view", "--raw", "--minify")
+	require.NoError(t, err, "read kubeconfig")
+	var cfg map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(raw), &cfg), "parse kubeconfig")
+	users, ok := cfg["users"].([]any)
+	require.True(t, ok && len(users) == 1, "minified kubeconfig has one user")
+	entry, ok := users[0].(map[string]any)
+	require.True(t, ok, "kubeconfig user entry")
+	auth, ok := entry["user"].(map[string]any)
+	require.True(t, ok, "kubeconfig user credentials")
+	auth["as"] = user
+	auth["as-groups"] = append(append([]string{}, groups...), "system:authenticated")
+	out, err := yaml.Marshal(cfg)
+	require.NoError(t, err, "write kubeconfig")
+	return terrak8s.NewKubectlOptions(base.ContextName, writeTempYAML(t, string(out)), "")
 }

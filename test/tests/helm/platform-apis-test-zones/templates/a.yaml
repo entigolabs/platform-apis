@@ -1,7 +1,7 @@
 apiVersion: tenancy.entigo.com/v1alpha1
 kind: Zone
 metadata:
-  name: a
+  name: {{ .Values.prefix }}a
   annotations:
     tags.entigo.com/etag: eztest
     tags.entigo.com/zutag: zutest

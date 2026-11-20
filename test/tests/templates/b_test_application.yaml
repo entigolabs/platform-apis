@@ -2,12 +2,12 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: b-apps
-  namespace: b-apps
+  namespace: {{ .BApps }}
 spec:
   destination:
     server: https://kubernetes.default.svc
-    namespace: b-apps
-  project: b
+    namespace: {{ .BApps }}
+  project: {{ .B }}
   source:
     chart: platform-apis-test-b-apps
     repoURL: ghcr.io/entigolabs
@@ -16,4 +16,5 @@ spec:
       releaseName: platform-apis-test-b-apps
       values: |
         targetRevision: '*.*.*-0'
+        prefix: '{{ .Prefix }}'
   syncPolicy: {}

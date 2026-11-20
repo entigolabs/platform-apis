@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app-of-zones
-  namespace: argocd-biz
+  namespace: {{ .Namespace }}
 spec:
   destination:
     server: https://kubernetes.default.svc
@@ -15,4 +15,5 @@ spec:
       releaseName: platform-apis-test-zones
       values: |
         targetRevision: '*.*.*-0'
+        prefix: '{{ .Prefix }}'
   syncPolicy: {}
