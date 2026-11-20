@@ -164,7 +164,8 @@ The check holds only where users can create the platform's kinds and nothing els
 prerequisite: kcp serves no Crossplane provider kinds, and a Zone's Argo CD project and roles allow
 only the platform's and Kubernetes' own groups. Today's Argo CD project does not yet limit itself to
 an allowlist of groups. A user who could create a Crossplane provider's resource directly could
-observe anything without the check.
+observe anything without the check, so the platform refuses `observe: true` until the allowlist is
+in place.
 
 ## Resource Names
 
