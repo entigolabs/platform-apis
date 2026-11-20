@@ -21,3 +21,23 @@ the change out gradually.
 | Update policy per object | Each class change creates a numbered revision; an object with `classUpdatePolicy: Automatic` follows the newest, and one with `Manual`, the default, stays on its revision until moved, with a condition that shows a newer one | Classes keep stored revisions, as Crossplane's CompositionRevisions do, and every object gains a field |
 
 *Ways a class change can reach existing objects.*
+
+#### 2 How are class defaults written on clusters older than Kubernetes 1.36?
+
+**Context.** A `MutatingAdmissionPolicy` writes a class's `template` into each object when it is
+created ([Classes](common-design.md#classes)). It is stable and on by default from Kubernetes 1.36;
+in 1.34 and 1.35 it is a beta API that is off unless the cluster enables it.
+
+**Problem.** A deployment whose cluster runs an older version gets no defaults from its classes, so
+an object that relies on its class for a required setting is refused. Some clients may still run
+such versions when the design rolls out.
+
+**Options:**
+
+| Option                   | Effect                                                                | Trade-offs                                                                                    |
+| ------------------------ | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Kubernetes 1.36 required | The chart installs only on 1.36 or later                              | A client on an older version cannot use the design until it upgrades                          |
+| Mutating webhook         | A webhook served by the platform writes the defaults on every version | The platform runs, secures and keeps available one more webhook, which every create waits for |
+| Both, by version         | The policy on 1.36 or later, the webhook below it                     | Two ways to write the same defaults, which must give the same result                          |
+
+*Ways to write class defaults on older clusters.*
