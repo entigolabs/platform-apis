@@ -9,6 +9,7 @@ import (
 
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 type kyvernoNsData struct {
@@ -222,4 +223,25 @@ func assertForbidden(t *testing.T, out string, err error) {
 	require.Error(t, err, "expected operation to be blocked (RBAC or Kyverno); output: %s", combined)
 	require.True(t, strings.Contains(combined, "denied") || strings.Contains(combined, "forbidden"),
 		"rejection should mention 'denied' or 'forbidden'; output: %s", combined)
+}
+
+// impersonatedKubectlOptions copies the base kubeconfig and makes its user impersonate
+// user and groups, so admission sees an oidc: user as after a real login.
+func impersonatedKubectlOptions(t *testing.T, base *terrak8s.KubectlOptions, user string, groups ...string) *terrak8s.KubectlOptions {
+	t.Helper()
+	raw, err := terrak8s.RunKubectlAndGetOutputE(t, base, "config", "view", "--raw", "--minify")
+	require.NoError(t, err, "read kubeconfig")
+	var cfg map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(raw), &cfg), "parse kubeconfig")
+	users, ok := cfg["users"].([]any)
+	require.True(t, ok && len(users) == 1, "minified kubeconfig has one user")
+	entry, ok := users[0].(map[string]any)
+	require.True(t, ok, "kubeconfig user entry")
+	auth, ok := entry["user"].(map[string]any)
+	require.True(t, ok, "kubeconfig user credentials")
+	auth["as"] = user
+	auth["as-groups"] = append(append([]string{}, groups...), "system:authenticated")
+	out, err := yaml.Marshal(cfg)
+	require.NoError(t, err, "write kubeconfig")
+	return terrak8s.NewKubectlOptions(base.ContextName, writeTempYAML(t, string(out)), "")
 }
