@@ -165,8 +165,8 @@ test/tests/
 
 1. **CI builds** the platform-apis Helm chart and all `platform-apis-test-<suite>` Helm charts and pushes them to GHCR.
 2. **`prepare-infralib-branch`** workflow clones `entigolabs/entigo-infralib`, copies the `test/tests/` Go files and the relevant ArgoCD Application templates into the infralib module, and commits to a feature branch.
-3. **`run-infralib-tests`** checks that branch out and runs the framework's `./test.sh --env aws_biz modules/k8s/platform-apis`, which applies the module with the new chart in its regular step on aws_biz and runs the module's tests in the framework's AWS test image against the live cluster. The contributor and maintainer credentials of the role tests reach the test container through `INFRALIB_TEST_EXTRA_ENV`.
-4. `TestPlatformApis` runs on aws_biz (aws_pri is named, as the framework requires, and skipped): it connects to the cluster, reads `testconfig/suites.yaml` to determine which suites are active, waits for all required Crossplane packages in parallel, then dispatches to the suite-specific test functions in parallel.
+3. **`run-infralib-tests`** checks that branch out and runs the framework's `./test.sh --env aws_biz --env aws_pri --env oracle_biz modules/k8s/platform-apis`, which applies the module with the new chart in its regular step on each environment and runs the module's tests in the framework's AWS test image against the live cluster. The contributor and maintainer credentials of the role tests reach the test container through `INFRALIB_TEST_EXTRA_ENV`.
+4. `TestPlatformApis` runs every suite on aws_biz and the zone suite on aws_pri in authz mode: it connects to the cluster, reads `testconfig/suites.yaml` to determine which suites are active, waits for all required Crossplane packages in parallel, then dispatches to the suite-specific test functions in parallel.
 
 ### Suite Selection
 

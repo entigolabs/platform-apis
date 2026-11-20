@@ -15,7 +15,7 @@ CI builds Helm charts  →  prepare-infralib-branch copies test files
 →  ArgoCD deploys CRs  →  Crossplane reconciles  →  tests run
 ```
 
-The entry point is `TestPlatformApis` in `k8s_unit_basic_test.go`, which the framework's `env.RunEach` runs on aws_biz (aws_pri is named, as the framework requires of every environment the module is part of, and skipped). It:
+The entry point is `TestPlatformApis` in `k8s_unit_basic_test.go`, which the framework's `env.RunEach` runs on aws_biz (every suite, zone access from roleMapping groups) and aws_pri (the zone suite only, zone access from RoleGrants, `authz.enabled`). It:
 1. Waits for all Crossplane packages (Functions + Configurations) to be Healthy+Installed.
 2. Sets up zone infrastructure (required base for all suites).
 3. Dispatches active suites in parallel.
@@ -586,6 +586,18 @@ if contributorKeyID != "" && contributorSecret != "" {
 The credentials are injected by `run-infralib-tests.yml` from GitHub secrets (`CONTRIBUTOR_AWS_ACCESS_KEY_ID`, `CONTRIBUTOR_AWS_SECRET_ACCESS_KEY`, `MAINTAINER_AWS_ACCESS_KEY_ID`, `MAINTAINER_AWS_SECRET_ACCESS_KEY`).
 
 Use `assertForbidden` (not `assertKyvernoDenied`) for role-based tests because low-privilege roles may be blocked by RBAC before even reaching the Kyverno webhook.
+
+#### Authz mode (aws_pri)
+
+The zone tests read the mode from the env of DeploymentRuntimeConfig `platform-apis-tenancy-fn` (`readZoneAuthz`). With `AUTHZ_ENABLED=true`:
+
+- Access comes from RoleGrants kept in kcp `root:<organization>:<workspace>` (for aws_pri `root:martin:pri`): the default `org-admin` and one `e2e-*` grant per other default role, listed in `authzGrants` in `k8s_zone_rbac_test.go`. The clusters are rebuilt every night; kcp is not, and the portal agent copies the grants into each new cluster. Create or change them in kcp, never on the cluster.
+- `testZoneRBACAuthz` checks each grant by SubjectAccessReview on group `oidc:<entry>` (`<role>@<org>`, `<role>@<org>/<ws>` or `<role>@<org>/<ws>/pri-a`). `testZoneArgoCDAuthz` checks the AppProject roles and `argocd-rbac-cm`.
+- `testKyvernoAuthz` impersonates `oidc:e2e-zone-authz` with one `pri-a` entry (`impersonatedKubectlOptions`); the IAM users are not used.
+
+#### Zone names per environment
+
+aws_biz and aws_pri share an AWS account, and a Zone names account-wide objects after itself (IAM role `<zone>-secrets`, launch templates `<zone>-<pool>`; the secret-store test writes `platform-apis-test-zss-<zone>`). The zone suite therefore takes `testZones` from `TestPlatformApis`: aws_biz uses zones `a`/`b`, aws_pri `pri-a`/`pri-b` (prefix `pri-`, passed to the test charts as the `prefix` value). Use `z.A()`, `z.B()`, `z.AApps()` and the other `testZones` methods in zone tests, never `ZoneAName`/`ZoneBName` directly.
 
 ### Adding a new policy test
 
