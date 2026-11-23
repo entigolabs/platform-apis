@@ -236,6 +236,45 @@ platform sets `autoMinorVersionUpgrade: true`, which Amazon MQ requires from Rab
 oldest version. Amazon MQ then applies patch versions in the maintenance window, so `version` holds
 only the release line.
 
+## Provider Configurations
+
+Each implementation's provider configuration kind holds the settings of that implementation, with
+every field it takes; commented fields are alternatives or apply only with `observe`. The settings
+sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
+pair shows, and they override the class's settings for the same kind field by field (principle 2):
+
+```yaml Separate object
+---
+apiVersion: aws.mq.entigo.com/v1alpha1
+kind: RabbitMQAmazonMQConfig
+metadata:
+  name: orders-mq-aws
+  namespace: shop
+spec:
+  instanceType: mq.m7g.medium      # the Amazon MQ host instance type
+  publiclyAccessible: false        # set at creation only
+  # id: b-1234abcd-56ef-78ab-90cd-ef1234567890  # an existing broker's ID, with observe
+```
+
+```yaml AWS entry
+---
+apiVersion: mq.entigo.com/v1alpha2
+kind: RabbitMQBroker
+metadata:
+  name: orders-mq
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: aws.mq.entigo.com/v1alpha1
+    kind: RabbitMQAmazonMQConfig
+    spec:
+      instanceType: mq.m7g.medium      # the Amazon MQ host instance type
+      publiclyAccessible: false        # set at creation only
+      # id: b-1234abcd-56ef-78ab-90cd-ef1234567890  # an existing broker's ID, with observe
+```
+
+*`RabbitMQAmazonMQConfig`: a separate object, and the same settings in an entry.*
+
 ## Composed Resources
 
 The `RabbitMQBroker` from [Kinds](#kinds) is composed into the resource below on AWS, the only cloud

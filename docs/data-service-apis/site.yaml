@@ -37,8 +37,8 @@ nav:
     tabs:
     - label: PostgreSQL
       tabs:
-      - {file: postgresql.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-      - {file: postgresql.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
+      - {file: postgresql.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: postgresql.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
         - {file: schemas/postgresqlcluster.yaml, label: PostgreSQLCluster}
@@ -52,8 +52,8 @@ nav:
         - {file: schemas/postgresqlflexibleserverconfig.yaml, label: PostgreSQLFlexibleServerConfig}
     - label: MariaDB
       tabs:
-      - {file: mariadb.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-      - {file: mariadb.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
+      - {file: mariadb.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: mariadb.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
         - {file: schemas/mariadbserver.yaml, label: MariaDBServer}
@@ -64,8 +64,8 @@ nav:
         - {file: schemas/mariadbrdsconfig.yaml, label: MariaDBRDSConfig}
     - label: Valkey
       tabs:
-      - {file: valkey.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-      - {file: valkey.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
+      - {file: valkey.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: valkey.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
         - {file: schemas/valkeyserver.yaml, label: ValkeyServer}
@@ -76,8 +76,8 @@ nav:
         - {file: schemas/valkeyocicacheconfig.yaml, label: ValkeyOCICacheConfig}
     - label: Kafka
       tabs:
-      - {file: kafka.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-      - {file: kafka.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
+      - {file: kafka.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: kafka.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
         - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
@@ -90,8 +90,8 @@ nav:
         - {file: schemas/kafkaociconfig.yaml, label: KafkaOCIConfig}
     - label: RabbitMQ
       tabs:
-      - {file: rabbitmq.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-      - {file: rabbitmq.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
+      - {file: rabbitmq.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: rabbitmq.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
         - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
@@ -102,8 +102,8 @@ nav:
         - {file: schemas/rabbitmqamazonmqconfig.yaml, label: RabbitMQAmazonMQConfig}
     - label: Bucket
       tabs:
-      - {file: bucket.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-      - {file: bucket.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
+      - {file: bucket.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: bucket.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
         - {file: schemas/bucket.yaml, label: Bucket}
@@ -114,8 +114,8 @@ nav:
         - {file: schemas/bucketblobstorageconfig.yaml, label: BucketBlobStorageConfig}
     - label: ArtifactRepository
       tabs:
-      - {file: artifact-repository.md, label: Design, omit: [Mapping, Composed Resources, Cloud Limits], tabSections: [Kinds]}
-      - {file: artifact-repository.md, label: Cloud Mapping, sections: [Mapping, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider and show the composed resources."}
+      - {file: artifact-repository.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], tabSections: [Kinds]}
+      - {file: artifact-repository.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider and show the composed resources."}
       - <<: *schemas
         files:
         - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}

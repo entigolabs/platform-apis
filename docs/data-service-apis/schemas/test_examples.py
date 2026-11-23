@@ -54,7 +54,7 @@ def install():
 
 def examples():
     for f in sorted(DOCS.glob("*.md")):
-        for block in re.findall(r"^```yaml\n(.*?)^```", f.read_text(), re.M | re.S):
+        for block in re.findall(r"^```yaml[^\n]*\n(.*?)^```", f.read_text(), re.M | re.S):
             for doc in yaml.safe_load_all(block):
                 if isinstance(doc, dict) and "kind" in doc and "apiVersion" in doc:
                     yield f.name, doc

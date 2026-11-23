@@ -149,6 +149,12 @@ enforced.
 `Bucket` has its own account, with the account's keys disabled (`sharedAccessKeyEnabled: false`).
 Storage account names are globally unique.
 
+## Provider Configurations
+
+Each implementation's provider configuration kind for a bucket holds only `id`, the existing bucket
+an observed object names (principle 9); every other setting is a common field or a decision the
+platform makes. An entry for an object the platform creates is empty, so it can be left out.
+
 ## Composed Resources
 
 The `Bucket` from [Kinds](#kinds) is composed into the resources below on the cloud it runs on: the

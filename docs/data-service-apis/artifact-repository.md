@@ -153,6 +153,13 @@ nodes pull through Oracle's kubelet credential provider (oke-credential-provider
 registry and only path-scoped access is per application. A registry takes a key only at creation.
 Images are scanned by Defender for Containers.
 
+## Provider Configurations
+
+Each implementation's provider configuration kind for a repository holds only `id`, the existing
+repository an observed object names (principle 9); every other setting is a common field or a
+decision the platform makes. An entry for an object the platform creates is empty, so it can be left
+out.
+
 ## Composed Resources
 
 **Azure:** nothing is composed, since a repository there is a path in the platform's registry,

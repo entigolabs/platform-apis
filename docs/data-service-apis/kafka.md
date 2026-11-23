@@ -296,6 +296,107 @@ resource.
 no customer key. provider-kafka logs in with the superuser's Vault secret.
 `allow.everyone.if.no.acl.found` is `false`, with the admin as a superuser.
 
+## Provider Configurations
+
+Each implementation's provider configuration kind holds the settings of that implementation, with
+every field it takes; commented fields are alternatives or apply only with `observe`. The settings
+sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
+pair shows, and they override the class's settings for the same kind field by field (principle 2):
+
+```yaml Separate object
+---
+apiVersion: aws.queue.entigo.com/v1alpha1
+kind: KafkaMSKConfig
+metadata:
+  name: orders-kafka-aws
+  namespace: shop
+spec:
+  instanceType: kafka.m7g.large    # the broker instance type
+  # id: arn:aws:kafka:eu-north-1:123456789012:cluster/orders-kafka/abc  # with observe
+```
+
+```yaml AWS entry
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaCluster
+metadata:
+  name: orders-kafka
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: aws.queue.entigo.com/v1alpha1
+    kind: KafkaMSKConfig
+    spec:
+      instanceType: kafka.m7g.large    # the broker instance type
+      # id: arn:aws:kafka:eu-north-1:123456789012:cluster/orders-kafka/abc  # with observe
+```
+
+*`KafkaMSKConfig`: a separate object, and the same settings in an entry.*
+
+```yaml Separate object
+---
+apiVersion: gcp.queue.entigo.com/v1alpha1
+kind: KafkaGCPConfig
+metadata:
+  name: orders-kafka-gcp
+  namespace: shop
+spec:
+  vcpus: 3                         # the whole cluster's vCPUs
+  memoryGB: 12                     # within GCP's range per vCPU
+  # id: projects/shop-project/locations/europe-north1/clusters/orders-kafka  # with observe
+```
+
+```yaml GCP entry
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaCluster
+metadata:
+  name: orders-kafka
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: gcp.queue.entigo.com/v1alpha1
+    kind: KafkaGCPConfig
+    spec:
+      vcpus: 3                         # the whole cluster's vCPUs
+      memoryGB: 12                     # within GCP's range per vCPU
+      # id: projects/shop-project/locations/europe-north1/clusters/orders-kafka  # with observe
+```
+
+*`KafkaGCPConfig`: a separate object, and the same settings in an entry.*
+
+```yaml Separate object
+---
+apiVersion: oci.queue.entigo.com/v1alpha1
+kind: KafkaOCIConfig
+metadata:
+  name: orders-kafka-oci
+  namespace: shop
+spec:
+  instanceType: VM.Standard.E5.Flex  # the broker shape
+  ocpus: 2                         # per broker, required with a .Flex shape
+  # id: ocid1.kafkacluster.oc1..example  # an existing cluster's OCID, with observe
+```
+
+```yaml OCI entry
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaCluster
+metadata:
+  name: orders-kafka
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: oci.queue.entigo.com/v1alpha1
+    kind: KafkaOCIConfig
+    spec:
+      instanceType: VM.Standard.E5.Flex  # the broker shape
+      ocpus: 2                         # per broker, required with a .Flex shape
+      # id: ocid1.kafkacluster.oc1..example  # an existing cluster's OCID, with observe
+```
+
+*`KafkaOCIConfig`: a separate object, and the same settings in an entry.*
+
 ## Composed Resources
 
 **GCP:** nothing is composed, since its provider has no Managed Kafka resource.

@@ -312,6 +312,47 @@ version, so a major change is rejected unless `parameterGroupName` changes or is
 edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an increase under 10% up to
 10%. `status.provider.finalBackup` is the ID the final snapshot will receive. Storage is gp3.
 
+## Provider Configurations
+
+Each implementation's provider configuration kind holds the settings of that implementation, with
+every field it takes; commented fields are alternatives or apply only with `observe`. The settings
+sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
+pair shows, and they override the class's settings for the same kind field by field (principle 2):
+
+```yaml Separate object
+---
+apiVersion: aws.database.entigo.com/v1alpha1
+kind: MariaDBRDSConfig
+metadata:
+  name: orders-db-aws
+  namespace: shop
+spec:
+  instanceType: db.t4g.small       # the RDS instance class
+  # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
+  # fromBackup: orders-final       # an RDS snapshot ID, at creation only, instead of restore
+  # id: orders-db                  # an existing instance's ID, with observe
+```
+
+```yaml AWS entry
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBServer
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: MariaDBRDSConfig
+    spec:
+      instanceType: db.t4g.small       # the RDS instance class
+      # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
+      # fromBackup: orders-final       # an RDS snapshot ID, at creation only, instead of restore
+      # id: orders-db                  # an existing instance's ID, with observe
+```
+
+*`MariaDBRDSConfig`: a separate object, and the same settings in an entry.*
+
 ## Composed Resources
 
 The `MariaDBServer` from [Kinds](#kinds) is composed into the resource below on AWS, the only cloud

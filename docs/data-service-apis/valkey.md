@@ -238,6 +238,107 @@ own key. The password is set on a user named `default`, as its SHA-256 hash, whi
 built-in user that has no password. OCI Cache takes manual backups only, so no final backup is
 taken.
 
+## Provider Configurations
+
+Each implementation's provider configuration kind holds the settings of that implementation, with
+every field it takes; commented fields are alternatives or apply only with `observe`. The settings
+sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
+pair shows, and they override the class's settings for the same kind field by field (principle 2):
+
+```yaml Separate object
+---
+apiVersion: aws.database.entigo.com/v1alpha1
+kind: ValkeyElastiCacheConfig
+metadata:
+  name: orders-cache-aws
+  namespace: shop
+spec:
+  instanceType: cache.t4g.small    # the ElastiCache node type
+  # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
+  # fromBackup: orders-cache-final  # a snapshot name, at creation only
+  # id: orders-cache               # an existing replication group's ID, with observe
+```
+
+```yaml AWS entry
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyServer
+metadata:
+  name: orders-cache
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: ValkeyElastiCacheConfig
+    spec:
+      instanceType: cache.t4g.small    # the ElastiCache node type
+      # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
+      # fromBackup: orders-cache-final  # a snapshot name, at creation only
+      # id: orders-cache               # an existing replication group's ID, with observe
+```
+
+*`ValkeyElastiCacheConfig`: a separate object, and the same settings in an entry.*
+
+```yaml Separate object
+---
+apiVersion: gcp.database.entigo.com/v1alpha1
+kind: ValkeyMemorystoreConfig
+metadata:
+  name: orders-cache-gcp
+  namespace: shop
+spec:
+  instanceType: HIGHMEM_MEDIUM     # the Memorystore node type
+  # id: projects/shop-project/locations/europe-north1/instances/orders-cache  # with observe
+```
+
+```yaml GCP entry
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyServer
+metadata:
+  name: orders-cache
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: gcp.database.entigo.com/v1alpha1
+    kind: ValkeyMemorystoreConfig
+    spec:
+      instanceType: HIGHMEM_MEDIUM     # the Memorystore node type
+      # id: projects/shop-project/locations/europe-north1/instances/orders-cache  # with observe
+```
+
+*`ValkeyMemorystoreConfig`: a separate object, and the same settings in an entry.*
+
+```yaml Separate object
+---
+apiVersion: oci.database.entigo.com/v1alpha1
+kind: ValkeyOCICacheConfig
+metadata:
+  name: orders-cache-oci
+  namespace: shop
+spec:
+  memoryGB: 16                     # per node, within OCI's range
+  # id: ocid1.rediscluster.oc1..example  # an existing cluster's OCID, with observe
+```
+
+```yaml OCI entry
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyServer
+metadata:
+  name: orders-cache
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: ValkeyOCICacheConfig
+    spec:
+      memoryGB: 16                     # per node, within OCI's range
+      # id: ocid1.rediscluster.oc1..example  # an existing cluster's OCID, with observe
+```
+
+*`ValkeyOCICacheConfig`: a separate object, and the same settings in an entry.*
+
 ## Composed Resources
 
 The `ValkeyServer` from [Kinds](#kinds) is composed into the resources below on the cloud it runs

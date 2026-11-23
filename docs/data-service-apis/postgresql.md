@@ -395,6 +395,151 @@ v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/
 keeps no copy in another zone, so `highAvailability: true` maps to its zone-redundant mode only. No
 final backup is taken. The platform also creates a private DNS zone for the server.
 
+## Provider Configurations
+
+Each implementation's provider configuration kind holds the settings of that implementation, with
+every field it takes; commented fields are alternatives or apply only with `observe`. The settings
+sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
+pair shows, and they override the class's settings for the same kind field by field (principle 2):
+
+```yaml Separate object
+---
+apiVersion: aws.database.entigo.com/v1alpha1
+kind: PostgreSQLRDSConfig
+metadata:
+  name: orders-db-aws
+  namespace: shop
+spec:
+  instanceType: db.t4g.small       # the RDS instance class
+  # parameterGroupName: orders-pg17  # an existing group, instead of parameters
+  # fromBackup: orders-final       # an RDS snapshot ID, at creation only, instead of restore
+  # id: orders-db                  # an existing instance's ID, with observe
+```
+
+```yaml AWS entry
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.t4g.small       # the RDS instance class
+      # parameterGroupName: orders-pg17  # an existing group, instead of parameters
+      # fromBackup: orders-final       # an RDS snapshot ID, at creation only, instead of restore
+      # id: orders-db                  # an existing instance's ID, with observe
+```
+
+*`PostgreSQLRDSConfig`: a separate object, and the same settings in an entry.*
+
+```yaml Separate object
+---
+apiVersion: gcp.database.entigo.com/v1alpha1
+kind: PostgreSQLCloudSQLConfig
+metadata:
+  name: orders-db-gcp
+  namespace: shop
+spec:
+  instanceType: db-custom-2-7680   # the Cloud SQL tier, which belongs to edition
+  edition: ENTERPRISE              # or ENTERPRISE_PLUS
+  diskType: PD_SSD                 # PD_HDD, HYPERDISK_BALANCED
+  # fromBackup: orders-db/1700000000000  # <instance>/<backup run ID>, at creation only
+  # id: shop-project:orders-db     # an existing instance's ID, with observe
+```
+
+```yaml GCP entry
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: gcp.database.entigo.com/v1alpha1
+    kind: PostgreSQLCloudSQLConfig
+    spec:
+      instanceType: db-custom-2-7680   # the Cloud SQL tier, which belongs to edition
+      edition: ENTERPRISE              # or ENTERPRISE_PLUS
+      diskType: PD_SSD                 # PD_HDD, HYPERDISK_BALANCED
+      # fromBackup: orders-db/1700000000000  # <instance>/<backup run ID>, at creation only
+      # id: shop-project:orders-db     # an existing instance's ID, with observe
+```
+
+*`PostgreSQLCloudSQLConfig`: a separate object, and the same settings in an entry.*
+
+```yaml Separate object
+---
+apiVersion: oci.database.entigo.com/v1alpha1
+kind: PostgreSQLOCIConfig
+metadata:
+  name: orders-db-oci
+  namespace: shop
+spec:
+  instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
+  ocpus: 2                         # required with a .Flex shape
+  memoryGB: 32                     # required with a .Flex shape
+  # fromBackup: ocid1.postgresqlbackup.oc1..example  # a backup OCID, at creation only
+  # id: ocid1.postgresqldbsystem.oc1..example  # an existing DB system's OCID, with observe
+```
+
+```yaml OCI entry
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: PostgreSQLOCIConfig
+    spec:
+      instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
+      ocpus: 2                         # required with a .Flex shape
+      memoryGB: 32                     # required with a .Flex shape
+      # fromBackup: ocid1.postgresqlbackup.oc1..example  # a backup OCID, at creation only
+      # id: ocid1.postgresqldbsystem.oc1..example  # an existing DB system's OCID, with observe
+```
+
+*`PostgreSQLOCIConfig`: a separate object, and the same settings in an entry.*
+
+```yaml Separate object
+---
+apiVersion: azure.database.entigo.com/v1alpha1
+kind: PostgreSQLFlexibleServerConfig
+metadata:
+  name: orders-db-azure
+  namespace: shop
+spec:
+  instanceType: GP_Standard_D2ds_v5  # the flexible server SKU
+  storageTier: P10                 # P4 to P80; sets the disk's IOPS
+  # id: /subscriptions/.../flexibleServers/orders-db  # an existing server's ID, with observe
+```
+
+```yaml Azure entry
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  providerConfigs:
+  - apiVersion: azure.database.entigo.com/v1alpha1
+    kind: PostgreSQLFlexibleServerConfig
+    spec:
+      instanceType: GP_Standard_D2ds_v5  # the flexible server SKU
+      storageTier: P10                 # P4 to P80; sets the disk's IOPS
+      # id: /subscriptions/.../flexibleServers/orders-db  # an existing server's ID, with observe
+```
+
+*`PostgreSQLFlexibleServerConfig`: a separate object, and the same settings in an entry.*
+
 ## Composed Resources
 
 The `PostgreSQLCluster` from [Kinds](#kinds) is composed into the resources below on the cloud it
