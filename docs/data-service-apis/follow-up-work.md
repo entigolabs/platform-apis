@@ -16,6 +16,9 @@ The following points are known so far:
   downgrade, which blocks every later change.
 - Azure deletes a storage account with its blobs, without checking that it is empty, so the Azure
   implementation needs its own way to refuse deleting a `Bucket` that still holds objects.
+- The function records the `fromBackup` and `id` it resolved at creation, from an inline entry or a
+  `ref`, and refuses a later difference with a condition: a changed `ref`, or a referenced object
+  deleted and created again, passes admission, since the policy cannot read the referenced object.
 - provider-kafka finds a topic by name only, so the duplicate-name check of `KafkaTopic` must run in
   the function.
 - An observed resource's admin login, which kinds such as `KafkaUser` need in order to act inside

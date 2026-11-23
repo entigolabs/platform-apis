@@ -119,7 +119,9 @@ spec:
 `restore` creates a cluster from another cluster's backups, at a point in time. A deleted cluster is
 restored instead with its provider configuration's `fromBackup` and the final backup's ID, such as
 an RDS snapshot ID. The status loses that ID with the cluster, so it is taken from the cloud
-console. `restore` and `fromBackup` are set at creation only and cannot be combined:
+console. OCI and Azure take no final backup, so a deleted cluster cannot be restored there;
+`deletionProtection` is the only guard. `restore` and `fromBackup` are set at creation only and
+cannot be combined:
 
 ```yaml
 ---

@@ -254,6 +254,8 @@ An object that holds others is deleted only once it is empty (principle 14). Eac
 another, such as a user, a database, a topic or a virtual host, creates a Crossplane `Usage` of its
 parent, which blocks the parent's deletion until the kind inside is gone; a `Usage` also orders the
 objects inside an engine, such as a grant before the database it names. When a namespace or an
-application is deleted as a whole, the kinds inside therefore go first and the parent last. A bucket
-that holds objects is refused by its cloud, except on Azure, whose implementation needs its own
-guard.
+application is deleted as a whole, the kinds inside therefore go first and the parent last. A kind
+inside another also holds a `Usage` of the Secret and the provider configuration it logs in with, so
+they outlive it when everything is deleted at once. A class in use cannot be deleted either: each
+object holds a `Usage` of its class. A bucket that holds objects is refused by its cloud, except on
+Azure, whose implementation needs its own guard.

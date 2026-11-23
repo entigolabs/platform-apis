@@ -23,7 +23,9 @@ the change out gradually.
 *Ways a class change can reach existing objects.*
 
 The answer also decides whether `className` can be added, removed or changed after creation. The
-draft schema refuses only a change from one class to another.
+draft schema refuses only a change from one class to another. It also covers the default class:
+moving the default-class annotation to another class changes the class of every object created
+without `className`.
 
 #### 2 How are class defaults written on clusters older than Kubernetes 1.36?
 
