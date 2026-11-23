@@ -79,7 +79,7 @@ status:
     applied: aws.artifact.entigo.com/v1alpha1, ArtifactRepositoryECRConfig
   effective:
     immutableTags: { value: false, source: object }
-    deletionProtection: { value: true, source: class/standard/enforced }
+    deletionProtection: { value: true, source: object }
   provider:                            # the shape ArtifactRepositoryECRConfig's status defines
     arn: ...
 ```
@@ -101,6 +101,7 @@ metadata:
     artifact.entigo.com/is-default-class: "true"
 spec:
   template:
+    deletionProtection: true
     immutableTags: true
     lifecycleRules:
     - untagged: true
@@ -110,8 +111,6 @@ spec:
       apiVersion: aws.artifact.entigo.com/v1alpha1
       kind: ArtifactRepositoryECRConfig
       spec: {}
-  enforced:
-    deletionProtection: true
 ```
 
 *`ArtifactRepositoryClass` for ECR.*

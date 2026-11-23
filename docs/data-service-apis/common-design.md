@@ -230,4 +230,5 @@ perform, such as an upgrade its service does not offer, is reported the same way
 the cloud.
 
 Deletion protection is enforced by a `ValidatingAdmissionPolicy`, which refuses to delete an object
-whose `deletionProtection` is true.
+whose `deletionProtection` is true. It guards against accidental deletion: the user sets it to false
+before deleting the object, so a class sets it in `template`, never in `enforced`.

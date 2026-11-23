@@ -100,7 +100,7 @@ status:
     - oci.database.entigo.com/v1alpha1, ValkeyOCICacheConfig
   effective:
     backup.retentionDays: { value: 7, source: object }
-    deletionProtection: { value: true, source: class/standard/enforced }
+    deletionProtection: { value: true, source: object }
     instanceType: { value: cache.t4g.small, source: object/ValkeyElastiCacheConfig }
   provider:                            # the shape ValkeyElastiCacheConfig's status defines
     finalBackup: ...
@@ -128,6 +128,7 @@ metadata:
     database.entigo.com/is-default-class: "true"
 spec:
   template:
+    deletionProtection: true
     version: "8.1"
     backup:
       retentionDays: 7
@@ -136,8 +137,6 @@ spec:
       kind: ValkeyElastiCacheConfig
       spec:
         instanceType: cache.t4g.medium
-  enforced:
-    deletionProtection: true
 ```
 
 *`ValkeyClass` for ElastiCache.*

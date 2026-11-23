@@ -85,7 +85,7 @@ status:
     - oci.queue.entigo.com/v1alpha1, KafkaOCIConfig
   effective:
     brokers: { value: 3, source: object }
-    deletionProtection: { value: true, source: class/standard/enforced }
+    deletionProtection: { value: true, source: object }
     instanceType: { value: kafka.m7g.large, source: object/KafkaMSKConfig }
   provider:                            # the shape KafkaMSKConfig's status defines
     arn: ...
@@ -112,6 +112,7 @@ metadata:
     queue.entigo.com/is-default-class: "true"
 spec:
   template:
+    deletionProtection: true
     version: "4.0"
     brokers: 3
     storage:
@@ -121,8 +122,6 @@ spec:
       kind: KafkaMSKConfig
       spec:
         instanceType: kafka.m7g.large
-  enforced:
-    deletionProtection: true
   topicTemplate:                       # defaults for the topics on clusters of this class
     partitions: 3
     replicationFactor: 3

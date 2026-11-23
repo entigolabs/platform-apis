@@ -72,7 +72,7 @@ status:
   providerConfig:
     applied: aws.mq.entigo.com/v1alpha1, RabbitMQAmazonMQConfig
   effective:
-    deletionProtection: { value: true, source: class/standard/enforced }
+    deletionProtection: { value: true, source: object }
     instanceType: { value: mq.m7g.medium, source: object/RabbitMQAmazonMQConfig }
   provider:                            # the shape RabbitMQAmazonMQConfig's status defines
     id: b-0123
@@ -99,14 +99,13 @@ metadata:
     mq.entigo.com/is-default-class: "true"
 spec:
   template:
+    deletionProtection: true
     version: "4.2"
     providerConfig:
       apiVersion: aws.mq.entigo.com/v1alpha1
       kind: RabbitMQAmazonMQConfig
       spec:
         instanceType: mq.m7g.medium
-  enforced:
-    deletionProtection: true
 ```
 
 *`RabbitMQClass` for Amazon MQ.*

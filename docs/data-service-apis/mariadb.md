@@ -110,7 +110,7 @@ status:
     applied: aws.database.entigo.com/v1alpha1, MariaDBRDSConfig
   effective:
     backup.retentionDays: { value: 7, source: object }
-    deletionProtection: { value: true, source: class/standard/enforced }
+    deletionProtection: { value: true, source: object }
     instanceType: { value: db.t4g.small, source: object/MariaDBRDSConfig }
   provider:                            # the shape MariaDBRDSConfig's status defines
     finalBackup: ...
@@ -140,6 +140,7 @@ metadata:
     database.entigo.com/is-default-class: "true"
 spec:
   template:
+    deletionProtection: true
     version: "11.4"
     storage:
       sizeGB: 50
@@ -151,8 +152,6 @@ spec:
       kind: MariaDBRDSConfig
       spec:
         instanceType: db.t4g.medium
-  enforced:
-    deletionProtection: true
 ```
 
 *`MariaDBClass` for RDS.*
