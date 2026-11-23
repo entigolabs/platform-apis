@@ -198,7 +198,7 @@ spec:
   forProvider:
     region: eu-north-1         # deployment
     objectLockEnabled: true
-    forceDestroy: true         # platform; deletionProtection guards deletion
+    forceDestroy: false        # platform
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: BucketVersioning
@@ -316,7 +316,7 @@ spec:
     location: EUROPE-NORTH1    # deployment
     uniformBucketLevelAccess: true  # platform
     publicAccessPrevention: enforced  # platform
-    forceDestroy: true         # platform; deletionProtection guards deletion
+    forceDestroy: false        # platform
     versioning:
       enabled: true
     lifecycleRule:
@@ -567,16 +567,16 @@ Besides the settings it makes for every service
 ([Platform Decisions](common-design.md#platform-decisions)), the platform makes these
 for a `Bucket` itself:
 
-| Setting        | Platform's Choice                        |
-| -------------- | ---------------------------------------- |
-| Access control | Cloud IAM only                           |
-| Deletion       | The bucket's objects are deleted with it |
+| Setting        | Platform's Choice                      |
+| -------------- | -------------------------------------- |
+| Access control | Cloud IAM only                         |
+| Deletion       | Refused while the bucket holds objects |
 
 *`Bucket` settings chosen by the platform.*
 
-Deleting a `Bucket` deletes its objects on every implementation, since setting `deletionProtection`
-to false is the confirmation. An object under a locked retention cannot be deleted before its
-retention ends, so the bucket's deletion fails and is retried until then.
+The platform never deletes a bucket's objects. Deleting a `Bucket` that still holds objects fails on
+every implementation, with the cloud's error in its status, and the user empties the bucket;
+`deletionProtection: false` only allows the object to be deleted.
 
 ## Cloud Limits
 
