@@ -51,12 +51,10 @@ spec:
               partitions:
                 type: integer
                 description: |-
-                  Kafka cannot remove partitions, so this only grows.
+                  Kafka cannot remove partitions: a value below the topic's count is ignored, and
+                  the status shows the real count.
                   Default: the topicTemplate of the cluster's KafkaClass.
                 minimum: 1
-                x-kubernetes-validations:
-                - rule: self >= oldSelf
-                  message: partitions cannot decrease
               replicationFactor:
                 type: integer
                 description: |-

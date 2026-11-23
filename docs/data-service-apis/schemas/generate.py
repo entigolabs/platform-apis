@@ -314,11 +314,9 @@ write("kafkatopic", xrd(
                       "rejects a name another KafkaTopic on the same cluster already claims; "
                       "the older one keeps it. Kafka cannot rename a topic, so it is immutable.",
                       minLength=1, maxLength=249, pattern="^[a-zA-Z0-9._-]+$"),
-        "partitions": field("integer", "Kafka cannot remove partitions, so this only grows.",
-                            default=TOPIC_DEFAULT, minimum=1,
-                            **{"x-kubernetes-validations": [{"rule": "self >= oldSelf",
-                                                             "message": "partitions cannot "
-                                                             "decrease"}]}),
+        "partitions": field("integer", "Kafka cannot remove partitions: a value below the topic's "
+                            "count is ignored, and the status shows the real count.",
+                            default=TOPIC_DEFAULT, minimum=1),
         "replicationFactor": field("integer", "Copies of each partition, at most the broker "
                                    "count.", default=TOPIC_DEFAULT, minimum=1),
         "parameters": string_map("Topic settings, by name, such as retention.ms."),
@@ -517,12 +515,10 @@ def db_common(engine, version_text, version_pattern):
         "version": field("string", version_text, default=DEFAULT, pattern=version_pattern),
         "storage": obj({
             "sizeGB": field("integer", "Disk size in GB at creation, and its floor after: raising "
-                            "it grows the disk, lowering it is rejected. The disk can be larger: "
-                            "it is rounded up to a size the implementation accepts, and autoGrow "
-                            "can take it further. The status shows the real size.",
-                            default=DEFAULT, minimum=1, **{"x-kubernetes-validations": [
-                                {"rule": "self >= oldSelf",
-                                 "message": "storage.sizeGB cannot decrease"}]}),
+                            "it grows the disk, and a value below the real size is ignored. The "
+                            "disk can be larger: it is rounded up to a size the implementation "
+                            "accepts, and autoGrow can take it further. The status shows the real "
+                            "size.", default=DEFAULT, minimum=1),
             "autoGrow": field("boolean", "Grow the disk as it fills.", default="fixed, true"),
             "maxSizeGB": field("integer", "The size autoGrow stops at.", default=DEFAULT,
                                minimum=1),
@@ -789,11 +785,6 @@ write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com"
                               ("!has(self.highAvailability) || !self.highAvailability || "
                                "(has(self.readReplicas) && self.readReplicas >= 1)",
                                "highAvailability needs readReplicas of at least 1" + FROM_CLASS),
-                              ("!has(self.version) || !has(oldSelf.version) || "
-                               "int(self.version.split('.')[0]) > int(oldSelf.version.split('.')[0]) || "
-                               "(int(self.version.split('.')[0]) == int(oldSelf.version.split('.')[0]) && "
-                               "int(self.version.split('.')[1]) >= int(oldSelf.version.split('.')[1]))",
-                               "version cannot decrease"),
                           ]),
                           obj({
                               "version": S(),

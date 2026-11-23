@@ -70,8 +70,8 @@ spec:
 
 `version` is Valkey's major and minor, such as `"8.1"`, the only form all three implementations
 take. With `autoMinorVersionUpgrade` on, the implementation can move the server to a newer minor, so
-`version` is a floor: raising it upgrades the server, lowering it is rejected, the status shows the
-running version, and the platform never moves the server back to `version`.
+`version` is a floor: raising it upgrades the server, a version below the running one is ignored,
+the status shows the running version, and the platform never moves the server back to `version`.
 
 `highAvailability` and `readReplicas` are portable features: an object that requests one its class
 does not support is refused when applied (principle 1).

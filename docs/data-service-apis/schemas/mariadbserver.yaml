@@ -48,15 +48,12 @@ spec:
                   sizeGB:
                     type: integer
                     description: |-
-                      Disk size in GB at creation, and its floor after: raising it grows the disk,
-                      lowering it is rejected. The disk can be larger: it is rounded up to a size the
-                      implementation accepts, and autoGrow can take it further. The status shows the
-                      real size.
+                      Disk size in GB at creation, and its floor after: raising it grows the disk, and
+                      a value below the real size is ignored. The disk can be larger: it is rounded up
+                      to a size the implementation accepts, and autoGrow can take it further. The
+                      status shows the real size.
                       Default: the class's template.
                     minimum: 1
-                    x-kubernetes-validations:
-                    - rule: self >= oldSelf
-                      message: storage.sizeGB cannot decrease
                   autoGrow:
                     type: boolean
                     description: |-

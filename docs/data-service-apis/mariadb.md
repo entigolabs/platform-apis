@@ -87,9 +87,10 @@ spec:
 applies minor versions in the maintenance window. A major change is a change in the first two
 numbers.
 
-`storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and
-lowering it is rejected. RDS may round it up and `autoGrow` can take the disk further, so the status
-reports the actual size, and the platform never shrinks the disk back to `sizeGB`.
+`storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and a
+value below the real size is ignored, so a rejected increase can still be corrected. RDS may round
+it up and `autoGrow` can take the disk further, so the status reports the actual size, and the
+platform never shrinks the disk back to `sizeGB`.
 
 `highAvailability` is a portable feature: an object that requests it where its class does not
 support it is refused when applied (principle 1).

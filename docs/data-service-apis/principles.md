@@ -133,10 +133,12 @@ The core schema checks the API's own rules; each implementation checks its provi
 and each cloud enforces its own value limits.
 
 The core schema checks only the rules the API itself defines: field types, fields that cannot
-change, fields that cannot be combined, and the API's own minimums, such as a disk that cannot
-shrink. It does not copy the limits each cloud sets on values, such as the longest backup retention.
-Those limits change, and a Kubernetes schema rule can never be loosened once released. The cloud
-rejects such values itself.
+change, fields that cannot be combined, and the API's own minimums, such as a disk of at least 1 GB.
+A value that would shrink a resource, such as a smaller disk, is accepted and ignored: the platform
+never sends it, and the status shows the real value, so a value the cloud rejects can always be
+corrected. It does not copy the limits each cloud sets on values, such as the longest backup
+retention. Those limits change, and a Kubernetes schema rule can never be loosened once released.
+The cloud rejects such values itself.
 
 #### 11 A reference crosses namespaces only within one Zone
 

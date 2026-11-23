@@ -156,8 +156,8 @@ update("major version change with allowMajorVersionUpgrade accepted", "PostgreSQ
        w(PG, allowMajorVersionUpgrade=True), w(PG, version="18", allowMajorVersionUpgrade=True))
 update("raising storage.sizeGB accepted", "PostgreSQLCluster", PG,
        w(PG, storage={"sizeGB": 40, "autoGrow": True, "maxSizeGB": 100}))
-update("lowering storage.sizeGB rejected", "PostgreSQLCluster", PG,
-       w(PG, storage={"sizeGB": 10, "autoGrow": True, "maxSizeGB": 100}), False, "cannot decrease")
+update("lowering storage.sizeGB accepted, the function ignores it", "PostgreSQLCluster", PG,
+       w(PG, storage={"sizeGB": 10, "autoGrow": True, "maxSizeGB": 100}))
 create("restore without fromInstance rejected", "PostgreSQLCluster",
        w(PG, restore={"pointInTime": "2026-11-01T10:00:00Z"}), False, "Required value")
 rs = w(PG, restore={"fromInstance": "orders-db-old"})
@@ -233,8 +233,8 @@ update("MariaDB major change without allowMajorVersionUpgrade rejected", "MariaD
        w(MA, version="11.8"), False, "allowMajorVersionUpgrade")
 update("MariaDB major change with allowMajorVersionUpgrade accepted", "MariaDBServer",
        w(MA, allowMajorVersionUpgrade=True), w(MA, version="11.8", allowMajorVersionUpgrade=True))
-update("MariaDB lowering storage.sizeGB rejected", "MariaDBServer", MA,
-       w(MA, storage={"sizeGB": 10}), False, "cannot decrease")
+update("MariaDB lowering storage.sizeGB accepted, the function ignores it", "MariaDBServer", MA,
+       w(MA, storage={"sizeGB": 10}))
 create("MariaDB maxSizeGB below sizeGB rejected", "MariaDBServer",
        w(MA, storage={"sizeGB": 100, "maxSizeGB": 50}), False, "maxSizeGB must be at least sizeGB")
 create("MariaDB readReplicas, a deferred capability, rejected", "MariaDBServer",
@@ -278,10 +278,8 @@ create("Valkey replicas, the former name, rejected", "ValkeyServer", w(VA, repli
 create("Valkey a full version rejected", "ValkeyServer", w(VA, version="8.1.1"), False,
        "should match")
 update("Valkey raising the minor accepted", "ValkeyServer", w(VA, version="8.0"), VA)
-update("Valkey lowering version rejected", "ValkeyServer", VA, w(VA, version="8.0"), False,
-       "cannot decrease")
-update("Valkey lowering major rejected", "ValkeyServer", VA, w(VA, version="7.2"), False,
-       "cannot decrease")
+update("Valkey lowering version accepted, the function ignores it", "ValkeyServer", VA,
+       w(VA, version="8.0"))
 update("Valkey 9.0 to 10.0 accepted", "ValkeyServer", w(VA, version="9.0"), w(VA, version="10.0"))
 create("Valkey observe with an entry accepted", "ValkeyServer",
        {"observe": True, "providerConfigs": [{**EC, "spec": {"id": "orders-cache"}}]})
@@ -408,8 +406,7 @@ create("topic name with a slash rejected", "KafkaTopic", w(KT, name="orders/v2")
 update("adding a topic name rejected", "KafkaTopic", KT, w(KT, name="b"), False, "name is immutable")
 update("renaming a topic rejected", "KafkaTopic", w(KT, name="a"), w(KT, name="b"), False,
        "name is immutable")
-update("fewer partitions rejected", "KafkaTopic", KT, w(KT, partitions=2), False,
-       "partitions cannot decrease")
+update("fewer partitions accepted, the function ignores it", "KafkaTopic", KT, w(KT, partitions=2))
 
 print("\n# RabbitMQBroker")
 AMQ = {"apiVersion": "aws.mq.entigo.com/v1alpha1", "kind": "RabbitMQAmazonMQConfig",

@@ -190,12 +190,6 @@ spec:
                 || (has(self.readReplicas) && self.readReplicas >= 1)
               message: highAvailability needs readReplicas of at least 1; a value the object does not
                 set comes from its class's template
-            - rule: |-
-                !has(self.version)
-                || !has(oldSelf.version)
-                || int(self.version.split('.')[0]) > int(oldSelf.version.split('.')[0])
-                || (int(self.version.split('.')[0]) == int(oldSelf.version.split('.')[0]) && int(self.version.split('.')[1]) >= int(oldSelf.version.split('.')[1]))
-              message: version cannot decrease
           status:
             type: object
             properties:

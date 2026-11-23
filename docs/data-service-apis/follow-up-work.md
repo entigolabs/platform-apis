@@ -9,10 +9,11 @@ Crossplane provider.
 
 The following points are known so far:
 
-- A floor (`sizeGB`, Valkey's `version`) is set in `initProvider`, which Crossplane uses at
-  creation only, and in `forProvider` only when the spec requests more than the resource has, with
-  `LateInitialize` omitted. Sending an older value back would shrink a GCP disk, replace an Azure
-  server, or be refused by upjet as a Valkey downgrade, which blocks every later change.
+- A floor (`sizeGB`, Valkey's `version`) is set in `initProvider`, which Crossplane uses at creation
+  only, and in `forProvider` only when the spec requests more than the resource has, with
+  `LateInitialize` omitted; a lower value is ignored, with a condition saying so. Sending an older
+  value back would shrink a GCP disk, replace an Azure server, or be refused by upjet as a Valkey
+  downgrade, which blocks every later change.
 - Azure deletes a storage account with its blobs, without checking that it is empty, so the Azure
   implementation needs its own way to refuse deleting a `Bucket` that still holds objects.
 - provider-kafka finds a topic by name only, so the duplicate-name check of `KafkaTopic` must run in
