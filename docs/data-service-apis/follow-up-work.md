@@ -19,6 +19,12 @@ The following points are known so far:
 - The function records the `fromBackup` and `id` it resolved at creation, from an inline entry or a
   `ref`, and refuses a later difference with a condition: a changed `ref`, or a referenced object
   deleted and created again, passes admission, since the policy cannot read the referenced object.
+- A kind inside another logs in to its parent with the parent's admin login, which stays in the
+  parent's namespace, while a reference may cross namespaces within the Zone (principle 11).
+  provider-sql reads its login Secret only in the namespace of the object it acts for, and a
+  namespaced object creates objects only in its own namespace, so a cluster-wide login setting per
+  parent is needed, created by a cluster-wide component, with the Argo CD allowlist (item 4) keeping
+  teams from using it directly.
 - provider-kafka finds a topic by name only, so the duplicate-name check of `KafkaTopic` must run in
   the function.
 - An observed resource's admin login, which kinds such as `KafkaUser` need in order to act inside
