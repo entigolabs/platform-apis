@@ -218,12 +218,15 @@ A kind that exists inside another, such as a database user or a Kafka topic, nam
 reference, such as `clusterRef`, `serverRef` or `brokerRef`, as `{ name, namespace }`. Without
 `namespace`, the parent is in the same namespace. Such a kind has no class and no provider
 configurations: it acts inside the engine, which is the same everywhere, and follows its parent's
-implementation. Its defaults come from its parent's class, where that class defines them, such as
-a `KafkaClass`'s `topicTemplate`, and are written into it at creation like a class's `template`
-(principle 5).
+implementation. Its defaults come from its parent's class, where that class defines them, such as a
+`KafkaClass`'s `topicTemplate` (principle 5). Admission cannot look up the parent, so the function
+applies them when it first reconciles the object and keeps them, and the object's status shows the
+values applied.
 
-A reference to another namespace is accepted only when both namespaces carry the same
-`tenancy.entigo.com/zone` label (principle 11).
+A reference to another namespace is followed only when both namespaces carry the same
+`tenancy.entigo.com/zone` label (principle 11). Admission sees only the object's own namespace, so
+the function checks the label: for a parent in another Zone it creates nothing and reports the
+refusal in a condition.
 
 ## Validation
 
