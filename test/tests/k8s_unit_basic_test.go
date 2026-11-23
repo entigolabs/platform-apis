@@ -25,7 +25,7 @@ func TestPlatformApis(t *testing.T) {
 	env.RunEach(t, map[string]env.TestFunc{
 		"aws_biz": func(t *testing.T, e *env.Environment) {
 			testPlatformApis(t, e, nil, testZones{domain: "biz-net-route53.infralib.entigo.io",
-				gateway: "service", gatewayNamespace: "aws-alb-biz", serviceIngressClass: "service"})
+				gateway: "service", gatewayNamespace: "aws-alb-biz", serviceIngressClass: "service", secretStoreWrite: true})
 		},
 		"aws_pri": func(t *testing.T, e *env.Environment) {
 			testPlatformApis(t, e, []string{"zone"}, testZones{prefix: "pri-", domain: "pri-net-route53.infralib.entigo.io",

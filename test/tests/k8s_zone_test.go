@@ -15,6 +15,7 @@ import (
 
 type testZones struct {
 	prefix, domain, gateway, gatewayNamespace, serviceIngressClass string
+	secretStoreWrite                                               bool
 }
 
 type zoneApplicationData struct {
@@ -92,6 +93,12 @@ func testZone(t *testing.T, ctx context.Context, cluster, argocd *terrak8s.Kubec
 	testZoneKyverno(t, cluster, z)
 	testZoneRBAC(t, cluster, argocd, z)
 	if t.Failed() {
+		return
+	}
+	if !z.secretStoreWrite {
+		t.Run("secret-store", func(t *testing.T) {
+			t.Skip("the cluster-wide store of this environment is read-only, the fixtures cannot be pushed")
+		})
 		return
 	}
 	testZoneSecretStore(t, cluster, z)

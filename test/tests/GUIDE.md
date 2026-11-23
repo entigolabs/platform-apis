@@ -599,6 +599,8 @@ The zone tests read the mode from the env of DeploymentRuntimeConfig `platform-a
 
 aws_biz and aws_pri share an AWS account, and a Zone names account-wide objects after itself (IAM role `<zone>-secrets`, launch templates `<zone>-<pool>`; the secret-store test writes `platform-apis-test-zss-<zone>`). The zone suite therefore takes `testZones` from `TestPlatformApis`: aws_biz uses zones `a`/`b`, aws_pri `pri-a`/`pri-b` (prefix `pri-`, passed to the test charts as the `prefix` value). Use `z.A()`, `z.B()`, `z.AApps()` and the other `testZones` methods in zone tests, never `ZoneAName`/`ZoneBName` directly.
 
+`testZones` also carries what the test apps route through on that cluster — domain, Gateway and the ingress class of b1 (biz: `biz-net-route53`, `aws-alb-biz/service`, `service`; pri: `pri-net-route53`, `aws-alb-pri/internal`, `internal`) — and `secretStoreWrite`. The secret-store test pushes its fixtures through the cluster-wide store, so it is skipped where that store is read-only (pri, `enableWriteForClusterSecretStore: false` in infralib).
+
 ### Adding a new policy test
 
 1. Add the test function to `k8s_zone_kyverno_test.go` following the naming convention `testKyverno<PolicyName>`.
