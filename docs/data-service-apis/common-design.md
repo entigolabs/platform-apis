@@ -173,12 +173,16 @@ the Crossplane provider takes. An observed resource takes no other spec fields.
 A resource can be observed only when its workspace tag (a label on GCP) names this cluster's
 workspace, and only from a namespace of the Zone its Zone tag names, or from any Zone when it has no
 Zone tag. Its owner sets the tags in the cloud. The platform reads them before it uses the resource,
-and a resource that fails the check is refused with `CloudAccepted: False`.
+and a resource that fails the check is refused with `CloudAccepted: False`. A resource without a
+Zone tag is read only: no kind inside it, such as a user or a database, is created on it. The
+parent's status records whether the resource has a Zone tag, and the function of a kind inside it
+reads that status and refuses with a condition instead of creating anything.
 
 To take ownership of the resource, the user removes `observe` and sets the common fields in the same
-edit; `id` stays in the entry. `observe` can be removed once and never set again after creation.
-From then on the platform changes the resource to match the object, and deleting the object deletes
-the resource, as for a resource the platform created.
+edit; `id` stays in the entry. `observe` can be removed once and never set again after creation, and
+only when the resource's Zone tag names the object's Zone. From then on the platform changes the
+resource to match the object, and deleting the object deletes the resource, as for a resource the
+platform created.
 
 The check holds only where users can create the platform's kinds and nothing else, so it has a
 prerequisite: kcp serves no Crossplane provider kinds, and a Zone's Argo CD project and roles allow
