@@ -37,8 +37,6 @@ spec:
     sizeGB: 20
     autoGrow: true
     maxSizeGB: 100                     # autoGrow ceiling
-    iops: 12000
-    throughputMBps: 500
   highAvailability: false              # a standby in another zone
   deletionProtection: true
   maintenanceWindow:
@@ -427,8 +425,6 @@ spec:
     sizeGB: 20
     autoGrow: true
     maxSizeGB: 100
-    iops: 12000
-    throughputMBps: 500
   highAvailability: false
   deletionProtection: true
   maintenanceWindow:
@@ -484,8 +480,6 @@ spec:
     instanceClass: db.t4g.small
     allocatedStorage: 20
     maxAllocatedStorage: 100
-    iops: 12000
-    storageThroughput: 500
     storageType: gp3           # platform
     multiAz: false
     deletionProtection: true
@@ -524,8 +518,6 @@ spec:
     sizeGB: 20
     autoGrow: true
     maxSizeGB: 100
-    iops: 12000
-    throughputMBps: 500
   highAvailability: false
   deletionProtection: true
   maintenanceWindow:
@@ -621,8 +613,6 @@ spec:
     sizeGB: 20
     autoGrow: true
     maxSizeGB: 100
-    iops: 12000
-    throughputMBps: 500
   highAvailability: false
   deletionProtection: true
   maintenanceWindow:
@@ -683,7 +673,6 @@ spec:
     storageDetails:
     - systemType: OCI_OPTIMIZED_STORAGE
       isRegionallyDurable: false
-      iops: "12000"
     managementPolicy:
     - maintenanceWindowStart: SUN 03:00
       backupPolicy:
@@ -717,8 +706,6 @@ spec:
     sizeGB: 20
     autoGrow: true
     maxSizeGB: 100
-    iops: 12000
-    throughputMBps: 500
   highAvailability: false
   deletionProtection: true
   maintenanceWindow:
