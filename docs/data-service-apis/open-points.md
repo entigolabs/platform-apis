@@ -44,3 +44,27 @@ such versions when the design rolls out.
 | Both, by version         | The policy on 1.36 or later, the webhook below it                     | Two ways to write the same defaults, which must give the same result                          |
 
 *Ways to write class defaults on older clusters.*
+
+#### 3 How does a user object tie a login to an application's identity?
+
+**Context.** An application logs in with its workload identity where the implementation supports it
+(principle 15). A user object, such as `PostgreSQLUser` or `KafkaUser`, today creates a login with a
+password and writes it to the application's connection Secret
+([Connection Secrets](common-design.md#connection-secrets)).
+
+**Problem.** Each cloud ties a login to an identity differently. On RDS a database user is granted
+`rds_iam` and can then no longer log in with a password; on Cloud SQL the login is named after the
+service account; on Azure an Entra admin creates it with `pgaadauth_create_principal`. On MSK an IAM
+identity's permissions come from IAM policies, and Kafka ACLs do not apply to it. Tokens last 15 to
+60 minutes, so the application's client library or pool must fetch new ones. The migration of each
+team's applications depends on the answer.
+
+**Options:**
+
+| Option                         | Effect                                                                                                                                                       | Trade-offs                                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Service account on the user    | The user object names the application's service account; the implementation creates the login and grants for that identity, and the Secret holds no password | The platform manages each implementation's IAM roles or principals, and each implementation names logins its own way |
+| Identity kind                  | A separate kind holds an application's identity, and user objects, buckets and artifact repositories name it                                                 | One more kind, which every service shares                                                                            |
+| Static credentials until later | User objects keep passwords in this design, and identity comes in a later revision                                                                           | Teams change their applications twice: once in the migration and once for identity                                   |
+
+*Ways to tie a login to an application's identity.*

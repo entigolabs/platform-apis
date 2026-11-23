@@ -42,6 +42,10 @@ resources, over a migration period of 6 to 12 months on AWS. Today's renamed kin
 their last object has moved, and the kinds that keep their names convert between versions
 ([Versions](common-design.md#versions)).
 
+Each application moves straight to its own identity where the implementation supports it (principle
+15), so a team changes its applications once: application identity (item 3) is delivered as part of
+the migration, and [Open Point 3](open-points.md) is settled before the migration starts.
+
 The differences are listed in [API Changes](changes.md). The teams get four aids:
 
 - Manifest converter. A command rewrites an old manifest into the new one, renaming the kind where
@@ -69,7 +73,7 @@ The following points of the migration itself are known so far:
 #### 3 Give each application a cloud identity
 
 Each application gets a cloud identity of its own, through which it reaches buckets, artifact
-repositories and other cloud services.
+repositories, databases, caches and brokers, as part of the migration (item 2).
 
 The identity belongs to the application, not to the resource it uses: a [Bucket](bucket.md) creates
 no identity, and [API Changes](changes.md#bucket) keeps `S3Bucket` served until applications have

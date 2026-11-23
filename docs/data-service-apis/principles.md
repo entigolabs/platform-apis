@@ -174,3 +174,14 @@ A bucket that holds objects, or a cluster, server or broker that holds databases
 virtual hosts, is not deleted: its deletion waits, and its status shows what is still inside. The
 platform never deletes contents on the user's behalf. `deletionProtection` is a separate guard
 against deleting an object by mistake.
+
+#### 15 An application reaches a service through its own identity
+
+An application authenticates with its workload identity wherever the implementation supports it,
+and static credentials are the fallback.
+
+An application on AWS uses its IAM role through IRSA, and on GCP and Azure its Workload Identity, to
+log in to a database, cache or broker, so it holds no password that can leak or must be rotated.
+Implementations without such a login, such as OCI Database with PostgreSQL, OCI's Kafka offerings
+and, for most uses, Amazon MQ for RabbitMQ, give the application static credentials in its connection
+Secret.
