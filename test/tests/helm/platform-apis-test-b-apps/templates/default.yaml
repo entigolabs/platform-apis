@@ -15,5 +15,9 @@ spec:
     helm:
       values: |
         targetRevision: '{{ .Values.targetRevision }}'
+        domain: '{{ .Values.domain }}'
+        gateway:
+          name: '{{ .Values.gateway.name }}'
+          namespace: '{{ .Values.gateway.namespace }}'
       releaseName: bar
 

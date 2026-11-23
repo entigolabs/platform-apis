@@ -15,7 +15,11 @@ spec:
     helm:
       values: |
         targetRevision: '{{ .Values.targetRevision }}'
-        ingressClassName: service
+        domain: '{{ .Values.domain }}'
+        gateway:
+          name: '{{ .Values.gateway.name }}'
+          namespace: '{{ .Values.gateway.namespace }}'
+        ingressClassName: '{{ .Values.serviceIngressClass }}'
       releaseName: b1
   syncPolicy:
     automated:

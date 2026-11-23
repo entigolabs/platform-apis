@@ -1,4 +1,5 @@
 ingressClassName: "internal"
+domain: "biz-net-route53.infralib.entigo.io"
 gateway:
   name: "service"
   namespace: "aws-alb-biz"

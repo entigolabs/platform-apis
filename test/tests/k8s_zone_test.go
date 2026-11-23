@@ -14,7 +14,7 @@ import (
 )
 
 type testZones struct {
-	prefix string
+	prefix, domain, gateway, gatewayNamespace, serviceIngressClass string
 }
 
 type zoneApplicationData struct {
@@ -23,6 +23,22 @@ type zoneApplicationData struct {
 
 func (z testZones) Prefix() string {
 	return z.prefix
+}
+
+func (z testZones) Domain() string {
+	return z.domain
+}
+
+func (z testZones) Gateway() string {
+	return z.gateway
+}
+
+func (z testZones) GatewayNamespace() string {
+	return z.gatewayNamespace
+}
+
+func (z testZones) ServiceIngressClass() string {
+	return z.serviceIngressClass
 }
 
 func (z testZones) A() string {

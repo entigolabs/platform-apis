@@ -37,4 +37,8 @@ spec:
       values: |
         targetRevision: '*.*.*-0'
         prefix: '{{ .Prefix }}'
+        domain: '{{ .Domain }}'
+        gateway:
+          name: '{{ .Gateway }}'
+          namespace: '{{ .GatewayNamespace }}'
   syncPolicy: {}
