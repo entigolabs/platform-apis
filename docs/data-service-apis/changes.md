@@ -585,8 +585,8 @@ spec:
 
 *`Bucket` changes from `S3Bucket`, with reasons.*
 
-Until applications have a cloud identity of their own, those that read the bucket's secret keep
-`S3Bucket`, which stays served beside `Bucket`.
+An application that reads the bucket's secret moves to its own service account, listed in the
+bucket's `access`, before the bucket moves; `S3Bucket` stays served beside `Bucket` until then.
 
 The example below shows the kind today and in the design:
 

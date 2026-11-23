@@ -56,15 +56,16 @@ password and writes it to the application's connection Secret
 `rds_iam` and can then no longer log in with a password; on Cloud SQL the login is named after the
 service account; on Azure an Entra admin creates it with `pgaadauth_create_principal`. On MSK an IAM
 identity's permissions come from IAM policies, and Kafka ACLs do not apply to it. Tokens last 15 to
-60 minutes, so the application's client library or pool must fetch new ones. The migration of each
-team's applications depends on the answer.
+60 minutes, so the application's client library or pool must fetch new ones. Until it is decided,
+these users keep passwords, also through the migration; a bucket grants identities through its
+`access` already.
 
 **Options:**
 
 | Option                         | Effect                                                                                                                                                       | Trade-offs                                                                                                           |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | Service account on the user    | The user object names the application's service account; the implementation creates the login and grants for that identity, and the Secret holds no password | The platform manages each implementation's IAM roles or principals, and each implementation names logins its own way |
-| Identity kind                  | A separate kind holds an application's identity, and user objects, buckets and artifact repositories name it                                                 | One more kind, which every service shares                                                                            |
-| Static credentials until later | User objects keep passwords in this design, and identity comes in a later revision                                                                           | Teams change their applications twice: once in the migration and once for identity                                   |
+| Identity kind                  | A separate kind holds an application's identity, and user objects and artifact repositories name it                                                          | One more kind, which every service shares                                                                            |
+| Static credentials until later | User objects keep passwords in this design, and identity comes in a later revision                                                                           | Applications keep passwords that can leak and must be rotated                                                        |
 
 *Ways to tie a login to an application's identity.*

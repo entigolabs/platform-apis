@@ -42,9 +42,19 @@ resources, over a migration period of 6 to 12 months on AWS. Today's renamed kin
 their last object has moved, and the kinds that keep their names convert between versions
 ([Versions](common-design.md#versions)).
 
-Each application moves straight to its own identity where the implementation supports it (principle
-15), so a team changes its applications once: application identity (item 3) is delivered as part of
-the migration, and [Open Point 3](open-points.md) is settled before the migration starts.
+A team moves an application that uses a bucket to the application's own identity before it moves
+the bucket, so nothing the application uses disappears with today's `S3Bucket`
+([Bucket](bucket.md)):
+
+1. The team creates a `Bucket` that observes today's bucket and lists a service account the
+   application owns, never the one today's `S3Bucket` created, in `access`; the platform grants it
+   on the bucket.
+2. The team switches the application to that service account; a rolling update replaces its pods.
+3. The `Bucket` takes ownership, and today's `S3Bucket` is deleted without deleting the bucket,
+   taking its IAM user, keys, role and service account with it.
+
+Database, cache and broker users move with their passwords in connection Secrets; their workload
+identity is still to be decided ([Open Point 3](open-points.md)).
 
 The differences are listed in [API Changes](changes.md). The teams get four aids:
 
@@ -72,18 +82,18 @@ The following points of the migration itself are known so far:
 
 #### 3 Give each application a cloud identity
 
-Each application gets a cloud identity of its own, through which it reaches buckets, artifact
-repositories, databases, caches and brokers, as part of the migration (item 2).
+Each application gets a cloud identity of its own, through which it reaches artifact repositories,
+databases, caches and brokers; a bucket already grants one through its `access`
+([Bucket](bucket.md)).
 
-The identity belongs to the application, not to the resource it uses: a [Bucket](bucket.md) creates
-no identity, and [API Changes](changes.md#bucket) keeps `S3Bucket` served until applications have
-one. The following points are known so far:
+The identity belongs to the application, not to the resource it uses. The following points are
+known so far:
 
 - Portal applications currently reach buckets only through the keys of `S3Bucket`, because `WebApp`
-  sets no service account, so they keep `S3Bucket` until application identity is available.
-- For buckets, the identity is a role or managed identity per service account on AWS and Azure, the
-  service account itself on GCP and OCI, or a key pair. On OCI, crossplane-provider-oci v2.0.0
-  writes a `CustomerSecretKey`'s secret only to its plain status (`status.atProvider.key`).
+  sets no service account, so their pods run as `default`. `WebApp` needs a service account of its
+  own, which a `Bucket` lists in `access`, before these applications move.
+- A database, cache or broker login tied to an identity is still to be decided
+  ([Open Point 3](open-points.md)).
 - For pushing to an artifact repository, CI currently uses credentials configured outside the API.
   OCIR accepts a user's auth token or an instance principal through Oracle's
   docker-credential-ocir.

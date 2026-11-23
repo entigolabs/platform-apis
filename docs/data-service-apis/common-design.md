@@ -168,7 +168,8 @@ spec:
 *Observed resource on AWS.*
 
 The ID is one value the user copies from the cloud's console. The platform converts it into the form
-the Crossplane provider takes. An observed resource takes no other spec fields.
+the Crossplane provider takes. An observed resource takes no other spec fields, except a bucket's
+`access`.
 
 A resource can be observed only when its workspace tag (a label on GCP) names this cluster's
 workspace, and only from a namespace of the Zone its Zone tag names, or from any Zone when it has no
@@ -180,9 +181,9 @@ reads that status and refuses with a condition instead of creating anything.
 
 To take ownership of the resource, the user removes `observe` and sets the common fields in the same
 edit; `id` stays in the entry. `observe` can be removed once and never set again after creation, and
-only when the resource's Zone tag names the object's Zone. From then on the platform changes the
-resource to match the object, and deleting the object deletes the resource, as for a resource the
-platform created.
+only when the resource's Zone tag names the object's Zone; a bucket's `access` on an observed bucket
+needs the same. From then on the platform changes the resource to match the object, and deleting the
+object deletes the resource, as for a resource the platform created.
 
 The check holds only where users can create the platform's kinds and nothing else, so it has a
 prerequisite: kcp serves no Crossplane provider kinds, and a Zone's Argo CD project and roles allow

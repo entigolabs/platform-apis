@@ -134,6 +134,32 @@ spec:
                   Days deleted objects can be recovered.
                   Default: the class's template.
                 minimum: 0
+              access:
+                type: array
+                description: |-
+                  Applications that may use the bucket. The platform gives each service account a
+                  workload identity and grants it on this bucket (principle 15).
+                items:
+                  type: object
+                  properties:
+                    serviceAccount:
+                      type: string
+                      description: |-
+                        A service account in this namespace, matched by name: it may be created before
+                        or after the bucket.
+                    mode:
+                      type: string
+                      description: |-
+                        Read lists and reads objects; ReadWrite also writes and deletes them.
+                      enum:
+                      - Read
+                      - ReadWrite
+                  required:
+                  - serviceAccount
+                  - mode
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - serviceAccount
               providerConfigs:
                 type: array
                 description: |-
