@@ -176,6 +176,8 @@ CLS = {"template": {"version": "17", "storage": {"sizeGB": 50}, "backup": {"rete
        "enforced": {"deletionProtection": True,
                     "providerConfig": {**RDS, "spec": {"instanceType": "db.t4g.medium"}}}}
 create("valid class", "PostgreSQLClass", CLS)
+update("lowering a class's storage.sizeGB accepted", "PostgreSQLClass", CLS,
+       w(CLS, template={**CLS["template"], "storage": {"sizeGB": 20}}))
 create("template and enforced naming different kinds rejected", "PostgreSQLClass",
        w(CLS, enforced={"providerConfig": SQL}), False, "the same provider configuration kind")
 create("a class with only common fields accepted", "PostgreSQLClass",

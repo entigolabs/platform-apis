@@ -44,9 +44,6 @@ spec:
                           real size.
                           Default: the class's template.
                         minimum: 1
-                        x-kubernetes-validations:
-                        - rule: self >= oldSelf
-                          message: storage.sizeGB cannot decrease
                       autoGrow:
                         type: boolean
                         description: |-

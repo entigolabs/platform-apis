@@ -428,9 +428,27 @@ def provider_config(text):
     return obj(props, text, required=["apiVersion", "kind"])
 
 
+def without_transition_rules(x):
+    """A copy without the rules that compare a value with the previous one, such as a disk that
+    only grows: they protect a running resource, and a class only holds starting values."""
+    if isinstance(x, list):
+        return [without_transition_rules(v) for v in x]
+    if not isinstance(x, dict):
+        return x
+    out = {k: without_transition_rules(v) for k, v in x.items()}
+    rules = [r for r in out.get("x-kubernetes-validations", []) if "oldSelf" not in r["rule"]]
+    if "x-kubernetes-validations" in out:
+        if rules:
+            out["x-kubernetes-validations"] = rules
+        else:
+            del out["x-kubernetes-validations"]
+    return out
+
+
 def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameters=None):
     """A cluster-scoped class (principle 5): template defaults, enforced values, the engine's base
     parameters, and in extra, defaults for the kinds inside an object of the class."""
+    common = without_transition_rules(common)
     part = lambda text: obj({**common, "providerConfig": provider_config(
         "The provider configuration: its kind names the implementation this class uses.")}, text)
     if parameters:

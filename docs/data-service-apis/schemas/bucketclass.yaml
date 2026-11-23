@@ -86,9 +86,6 @@ spec:
                         type: boolean
                         description: |-
                           true cannot be undone in any implementation.
-                        x-kubernetes-validations:
-                        - rule: "!oldSelf || self"
-                          message: a locked retention cannot be unlocked
                     required:
                     - days
                   cors: &id005
