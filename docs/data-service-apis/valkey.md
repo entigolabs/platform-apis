@@ -146,9 +146,9 @@ implementation.
 
 ### ValkeyParameters
 
-`ValkeyParameters` holds Valkey settings that several servers or a class share. A class, a server
-and a server's provider configuration may each reference one, and their settings merge key by key in
-that order, followed by the server's own `parameters`:
+`ValkeyParameters` holds Valkey settings that several servers or a class share. A class and a server
+may each reference one, and their settings merge key by key in that order, followed by the server's
+own `parameters`:
 
 ```yaml
 ---

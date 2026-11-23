@@ -146,18 +146,6 @@ spec:
                     required:
                     - apiVersion
                     - kind
-                  parametersRef:
-                    type: object
-                    description: |-
-                      Engine settings for every object of this class.
-                    properties:
-                      name:
-                        type: string
-                      namespace:
-                        type: string
-                    required:
-                    - name
-                    - namespace
               enforced:
                 type: object
                 description: |-
@@ -191,18 +179,6 @@ spec:
                     required:
                     - apiVersion
                     - kind
-                  parametersRef:
-                    type: object
-                    description: |-
-                      Engine settings for every object of this class.
-                    properties:
-                      name:
-                        type: string
-                      namespace:
-                        type: string
-                    required:
-                    - name
-                    - namespace
             x-kubernetes-validations:
             - rule: |-
                 !has(self.template)

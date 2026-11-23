@@ -79,7 +79,9 @@ one annotated `<group>/is-default-class: "true"`, as a default StorageClass is.
 
 The effective spec is built in three layers, the last winning: the class's `template`, then the
 object with its matching provider configuration entry, then the class's `enforced`. Engine
-parameters merge key by key in the same order.
+parameters merge key by key in the same order, with the class's `parametersRef` beneath them all: it
+stays in the class, and the platform applies it at every reconcile instead of copying it into the
+object.
 
 The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
 version 1.36. It copies the class's `template` into the object when it is created and keeps the

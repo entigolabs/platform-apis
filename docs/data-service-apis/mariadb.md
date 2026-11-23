@@ -160,9 +160,9 @@ A class reports `HighAvailability` in `status.supportedFeatures` on RDS.
 
 ### MariaDBParameters
 
-`MariaDBParameters` holds MariaDB settings that several servers or a class share. A class, a server
-and a server's provider configuration may each reference one, and their settings merge key by key in
-that order, followed by the server's own `parameters`:
+`MariaDBParameters` holds MariaDB settings that several servers or a class share. A class and a
+server may each reference one, and their settings merge key by key in that order, followed by the
+server's own `parameters`:
 
 ```yaml
 ---

@@ -57,19 +57,18 @@ spec:
                     description: |-
                       Deleting the object is denied while true.
                       Default: fixed, true.
-                  parametersRef:
+                  parametersRef: &id006
                     type: object
                     description: |-
-                      Engine settings for every object of this class.
+                      Reusable broker settings, merged after the class's.
                     properties:
                       name:
                         type: string
-                      namespace:
-                        type: string
+                        description: |-
+                          A KafkaParameters in this namespace.
                     required:
                     - name
-                    - namespace
-                  parameters: &id006
+                  parameters: &id007
                     type: object
                     description: |-
                       Broker settings for this object only, merged after parametersRef.
@@ -107,19 +106,8 @@ spec:
                   storage: *id003
                   highAvailability: *id004
                   deletionProtection: *id005
-                  parametersRef:
-                    type: object
-                    description: |-
-                      Engine settings for every object of this class.
-                    properties:
-                      name:
-                        type: string
-                      namespace:
-                        type: string
-                    required:
-                    - name
-                    - namespace
-                  parameters: *id006
+                  parametersRef: *id006
+                  parameters: *id007
                   providerConfig:
                     type: object
                     description: |-
@@ -142,6 +130,20 @@ spec:
                     required:
                     - apiVersion
                     - kind
+              parametersRef:
+                type: object
+                description: |-
+                  A KafkaParameters beneath every object of this class. It is never copied into
+                  the object: the platform merges the object's parametersRef and parameters over
+                  it, key by key, at every reconcile.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
               topicTemplate:
                 type: object
                 description: |-

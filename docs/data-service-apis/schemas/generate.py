@@ -421,14 +421,17 @@ def provider_config(text):
     return obj(props, text, required=["apiVersion", "kind"])
 
 
-def class_crd(kind, plural, group, common, extra_rules=(), extra=None):
-    """A cluster-scoped class (principle 5): template defaults, enforced values, and in extra,
-    defaults for the kinds inside an object of the class."""
+def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameters=None):
+    """A cluster-scoped class (principle 5): template defaults, enforced values, the engine's base
+    parameters, and in extra, defaults for the kinds inside an object of the class."""
     part = lambda text: obj({**common, "providerConfig": provider_config(
-        "The provider configuration: its kind names the implementation this class uses."),
-        "parametersRef": obj({"name": field("string"), "namespace": field("string")},
-                             "Engine settings for every object of this class.",
-                             required=["name", "namespace"])}, text)
+        "The provider configuration: its kind names the implementation this class uses.")}, text)
+    if parameters:
+        extra = {"parametersRef": obj(
+            {"name": field("string"), "namespace": field("string")},
+            f"A {parameters} beneath every object of this class. It is never copied into the "
+            "object: the platform merges the object's parametersRef and parameters over it, key by "
+            "key, at every reconcile.", required=["name", "namespace"]), **(extra or {})}
     same = ("!has(self.template) || !has(self.enforced) || !has(self.template.providerConfig) || "
             "!has(self.enforced.providerConfig) || "
             "(self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion "
@@ -626,7 +629,7 @@ write("postgresqlcluster", xrd("PostgreSQLCluster", "postgresqlclusters", "datab
 
 pg_class_common = pg_common()
 write("postgresqlclass", class_crd("PostgreSQLClass", "postgresqlclasses", "database.entigo.com",
-                                   pg_class_common))
+                                   pg_class_common, parameters="PostgreSQLParameters"))
 write("postgresqlparameters", parameters_crd("PostgreSQLParameters", "postgresqlparameters",
                                              "database.entigo.com", "PostgreSQL"))
 
@@ -691,7 +694,7 @@ write("mariadbserver", xrd("MariaDBServer", "mariadbservers", "database.entigo.c
                                    "(self.version.split('.').size() == 3)"),
                            db_status("MariaDB")))
 write("mariadbclass", class_crd("MariaDBClass", "mariadbclasses", "database.entigo.com",
-                                mariadb_common()))
+                                mariadb_common(), parameters="MariaDBParameters"))
 write("mariadbparameters", parameters_crd("MariaDBParameters", "mariadbparameters",
                                           "database.entigo.com", "MariaDB"))
 write("mariadbrdsconfig", provider_config_crd(
@@ -789,7 +792,7 @@ write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com"
                                                                "defines (principle 4).")},
                           })))
 write("valkeyclass", class_crd("ValkeyClass", "valkeyclasses", "database.entigo.com",
-                               valkey_common()))
+                               valkey_common(), parameters="ValkeyParameters"))
 write("valkeyparameters", parameters_crd("ValkeyParameters", "valkeyparameters",
                                          "database.entigo.com", "Valkey"))
 write("valkeyelasticacheconfig", provider_config_crd(
@@ -867,7 +870,7 @@ write("kafkacluster", xrd("KafkaCluster", "kafkaclusters", "queue.entigo.com",
                                                                "defines (principle 4).")},
                           })))
 write("kafkaclass", class_crd("KafkaClass", "kafkaclasses", "queue.entigo.com", kafka_common(),
-                              extra={"topicTemplate": obj({
+                              parameters="KafkaParameters", extra={"topicTemplate": obj({
                                   "partitions": field("integer", minimum=1),
                                   "replicationFactor": field("integer", minimum=1),
                               }, "Defaults written into a KafkaTopic on a cluster of this class "
@@ -946,7 +949,7 @@ write("rabbitmqbroker", xrd("RabbitMQBroker", "rabbitmqbrokers", "mq.entigo.com"
                                                                  "status defines (principle 4).")},
                             })))
 write("rabbitmqclass", class_crd("RabbitMQClass", "rabbitmqclasses", "mq.entigo.com",
-                                 rabbitmq_common()))
+                                 rabbitmq_common(), parameters="RabbitMQParameters"))
 write("rabbitmqparameters", parameters_crd("RabbitMQParameters", "rabbitmqparameters",
                                            "mq.entigo.com", "rabbitmq.conf"))
 write("rabbitmqamazonmqconfig", provider_config_crd(

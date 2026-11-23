@@ -206,14 +206,14 @@ spec:
       maxSizeGB: 500
     backup:
       retentionDays: 14
-    parametersRef:                     # a cluster-scoped class names the namespace
-      name: pg-baseline
-      namespace: platform-apis
     providerConfig:
       apiVersion: aws.database.entigo.com/v1alpha1
       kind: PostgreSQLRDSConfig
       spec:
         instanceType: db.t4g.medium
+  parametersRef:                       # beneath every cluster's own settings
+    name: pg-baseline
+    namespace: platform-apis
 ```
 
 *`PostgreSQLClass` for RDS.*
@@ -234,9 +234,9 @@ holds only common fields and can be copied to every deployment unchanged.
 
 ### PostgreSQLParameters
 
-`PostgreSQLParameters` holds PostgreSQL settings that several clusters or a class share. A class, a
-cluster and a cluster's provider configuration may each reference one, and their settings merge key
-by key in that order, followed by the cluster's own `parameters`:
+`PostgreSQLParameters` holds PostgreSQL settings that several clusters or a class share. A class and
+a cluster may each reference one, and their settings merge key by key in that order, followed by the
+cluster's own `parameters`:
 
 ```yaml
 ---

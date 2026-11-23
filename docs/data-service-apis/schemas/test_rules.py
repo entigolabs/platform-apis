@@ -171,8 +171,8 @@ create("secretName accepted", "PostgreSQLCluster", w(PG, secretName="orders-db-a
 
 print("\n# PostgreSQLClass")
 CLS = {"template": {"version": "17", "storage": {"sizeGB": 50}, "backup": {"retentionDays": 14},
-                    "providerConfig": RDS,
-                    "parametersRef": {"name": "pg-baseline", "namespace": "platform-apis"}},
+                    "providerConfig": RDS},
+       "parametersRef": {"name": "pg-baseline", "namespace": "platform-apis"},
        "enforced": {"deletionProtection": True,
                     "providerConfig": {**RDS, "spec": {"instanceType": "db.t4g.medium"}}}}
 create("valid class", "PostgreSQLClass", CLS)
@@ -183,7 +183,9 @@ create("a class with only common fields accepted", "PostgreSQLClass",
 create("a standby, a deferred capability, rejected", "PostgreSQLClass",
        w(CLS, standby={"providerConfig": RDS}), False, "unknown field")
 create("a class without parametersRef namespace rejected", "PostgreSQLClass",
-       {"template": {"parametersRef": {"name": "x"}}}, False, "Required value")
+       {"parametersRef": {"name": "x"}}, False, "Required value")
+create("parametersRef in a class template rejected", "PostgreSQLClass",
+       {"template": {"parametersRef": {"name": "x", "namespace": "p"}}}, False, "unknown field")
 create("disasterRecovery in a class rejected", "PostgreSQLClass",
        {"template": {"disasterRecovery": {"workspaces": ["a", "b"], "primary": "a"}}}, False,
        "unknown field")

@@ -133,9 +133,9 @@ A class reports `HighAvailability` in `status.supportedFeatures` on every implem
 
 ### KafkaParameters
 
-`KafkaParameters` holds broker settings that several clusters or a class share. A class, a cluster
-and a cluster's provider configuration may each reference one, and their settings merge key by key
-in that order, followed by the cluster's own `parameters`:
+`KafkaParameters` holds broker settings that several clusters or a class share. A class and a
+cluster may each reference one, and their settings merge key by key in that order, followed by the
+cluster's own `parameters`:
 
 ```yaml
 ---

@@ -114,9 +114,9 @@ On Amazon MQ, a class reports `HighAvailability` in `status.supportedFeatures`.
 
 ### RabbitMQParameters
 
-`RabbitMQParameters` holds `rabbitmq.conf` settings that several brokers or a class share. A class,
-a broker and a broker's provider configuration may each reference one, and their settings merge key
-by key in that order, followed by the broker's own `parameters`:
+`RabbitMQParameters` holds `rabbitmq.conf` settings that several brokers or a class share. A class
+and a broker may each reference one, and their settings merge key by key in that order, followed by
+the broker's own `parameters`:
 
 ```yaml
 ---

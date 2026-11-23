@@ -146,25 +146,24 @@ spec:
                         || !has(self.retentionDays)
                         || self.retentionDays > 0
                       message: pointInTimeDays needs backups, which retentionDays 0 disables
-                  parametersRef:
+                  parametersRef: &id009
                     type: object
                     description: |-
-                      Engine settings for every object of this class.
+                      Reusable PostgreSQL settings, merged after the class's.
                     properties:
                       name:
                         type: string
-                      namespace:
-                        type: string
+                        description: |-
+                          A PostgreSQLParameters in this namespace.
                     required:
                     - name
-                    - namespace
-                  parameters: &id009
+                  parameters: &id010
                     type: object
                     description: |-
                       PostgreSQL settings for this object only, merged after parametersRef.
                     additionalProperties:
                       type: string
-                  parameterApplyMethod: &id010
+                  parameterApplyMethod: &id011
                     type: string
                     description: |-
                       The moment changed parameters take effect. Immediate restarts the instance where
@@ -208,20 +207,9 @@ spec:
                   autoMinorVersionUpgrade: *id006
                   allowMajorVersionUpgrade: *id007
                   backup: *id008
-                  parametersRef:
-                    type: object
-                    description: |-
-                      Engine settings for every object of this class.
-                    properties:
-                      name:
-                        type: string
-                      namespace:
-                        type: string
-                    required:
-                    - name
-                    - namespace
-                  parameters: *id009
-                  parameterApplyMethod: *id010
+                  parametersRef: *id009
+                  parameters: *id010
+                  parameterApplyMethod: *id011
                   providerConfig:
                     type: object
                     description: |-
@@ -244,6 +232,20 @@ spec:
                     required:
                     - apiVersion
                     - kind
+              parametersRef:
+                type: object
+                description: |-
+                  A PostgreSQLParameters beneath every object of this class. It is never copied
+                  into the object: the platform merges the object's parametersRef and parameters
+                  over it, key by key, at every reconcile.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
             x-kubernetes-validations:
             - rule: |-
                 !has(self.template)

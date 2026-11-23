@@ -64,19 +64,18 @@ spec:
                     required:
                     - day
                     - hourUTC
-                  parametersRef:
+                  parametersRef: &id005
                     type: object
                     description: |-
-                      Engine settings for every object of this class.
+                      Reusable rabbitmq.conf settings, merged after the class's.
                     properties:
                       name:
                         type: string
-                      namespace:
-                        type: string
+                        description: |-
+                          A RabbitMQParameters in this namespace.
                     required:
                     - name
-                    - namespace
-                  parameters: &id005
+                  parameters: &id006
                     type: object
                     description: |-
                       rabbitmq.conf settings for this object only, merged after parametersRef.
@@ -113,19 +112,8 @@ spec:
                   highAvailability: *id002
                   deletionProtection: *id003
                   maintenanceWindow: *id004
-                  parametersRef:
-                    type: object
-                    description: |-
-                      Engine settings for every object of this class.
-                    properties:
-                      name:
-                        type: string
-                      namespace:
-                        type: string
-                    required:
-                    - name
-                    - namespace
-                  parameters: *id005
+                  parametersRef: *id005
+                  parameters: *id006
                   providerConfig:
                     type: object
                     description: |-
@@ -148,6 +136,20 @@ spec:
                     required:
                     - apiVersion
                     - kind
+              parametersRef:
+                type: object
+                description: |-
+                  A RabbitMQParameters beneath every object of this class. It is never copied into
+                  the object: the platform merges the object's parametersRef and parameters over
+                  it, key by key, at every reconcile.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
             x-kubernetes-validations:
             - rule: |-
                 !has(self.template)

@@ -99,19 +99,18 @@ spec:
                           The hour, in UTC, the daily backup starts.
                         minimum: 0
                         maximum: 23
-                  parametersRef:
+                  parametersRef: &id008
                     type: object
                     description: |-
-                      Engine settings for every object of this class.
+                      Reusable Valkey settings, merged after the class's.
                     properties:
                       name:
                         type: string
-                      namespace:
-                        type: string
+                        description: |-
+                          A ValkeyParameters in this namespace.
                     required:
                     - name
-                    - namespace
-                  parameters: &id008
+                  parameters: &id009
                     type: object
                     description: |-
                       Valkey settings for this object only, merged after parametersRef.
@@ -151,19 +150,8 @@ spec:
                   maintenanceWindow: *id005
                   autoMinorVersionUpgrade: *id006
                   backup: *id007
-                  parametersRef:
-                    type: object
-                    description: |-
-                      Engine settings for every object of this class.
-                    properties:
-                      name:
-                        type: string
-                      namespace:
-                        type: string
-                    required:
-                    - name
-                    - namespace
-                  parameters: *id008
+                  parametersRef: *id008
+                  parameters: *id009
                   providerConfig:
                     type: object
                     description: |-
@@ -186,6 +174,20 @@ spec:
                     required:
                     - apiVersion
                     - kind
+              parametersRef:
+                type: object
+                description: |-
+                  A ValkeyParameters beneath every object of this class. It is never copied into
+                  the object: the platform merges the object's parametersRef and parameters over
+                  it, key by key, at every reconcile.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
             x-kubernetes-validations:
             - rule: |-
                 !has(self.template)
