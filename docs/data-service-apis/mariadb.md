@@ -381,10 +381,7 @@ spec:
     backupWindow: 02:00-02:30
     parameterGroupName: orders-db-7f3a2c  # composed from parametersRef and parameters
     username: dbadmin          # platform
-    autoGeneratePassword: true  # platform
-    passwordSecretRef:
-      name: orders-db-admin
-      key: password
+    manageMasterUserPassword: true  # platform; the admin Secret is read from the RDS-managed secret
     dbSubnetGroupName: deployment-db  # platform
     vpcSecurityGroupIds:       # platform
     - sg-0123456789abcdef0
@@ -401,11 +398,11 @@ Besides the settings it makes for every service
 ([Platform Decisions](common-design.md#platform-decisions)), the platform makes these for a
 `MariaDBServer` itself:
 
-| Setting      | Platform's Choice                                                     |
-| ------------ | --------------------------------------------------------------------- |
-| Admin login  | An admin username and a generated password                            |
-| Port         | 3306                                                                  |
-| Final backup | A snapshot taken when a server is deleted, switched on per deployment |
+| Setting      | Platform's Choice                                                                                                                                                |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin login  | An admin username and a generated password; on RDS, the password RDS manages, read into the admin Secret, so taking ownership of an instance changes no password |
+| Port         | 3306                                                                                                                                                             |
+| Final backup | A snapshot taken when a server is deleted, switched on per deployment                                                                                            |
 
 *`MariaDBServer` settings chosen by the platform.*
 
