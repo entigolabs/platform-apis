@@ -105,7 +105,7 @@ spec:
                 type: object
                 description: |-
                   Applied from creation and at each class sync; an object that sets a different
-                  value is refused.
+                  value is refused when created or synced.
                 properties:
                   deletionProtection: *id001
                   immutableTags: *id002

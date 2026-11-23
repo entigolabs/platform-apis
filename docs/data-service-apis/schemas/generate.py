@@ -475,7 +475,7 @@ def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameter
         "template": part("Defaults, written into an object when it is created; the object may "
                          "change them."),
         "enforced": part("Applied from creation and at each class sync; an object that sets a "
-                         "different value is refused."),
+                         "different value is refused when created or synced."),
         **(extra or {}),
     }, rules=[same, *extra_rules])
     return crd(kind, plural, group, "Cluster", spec)

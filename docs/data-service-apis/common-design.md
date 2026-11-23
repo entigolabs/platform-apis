@@ -63,10 +63,10 @@ A class, such as a `PostgreSQLClass`, is cluster-scoped and written by Entigo fo
 classes its namespaces use. It holds two parts of the object's spec, each with the common fields and
 one provider configuration:
 
-| Part       | Effect                                                                                                                 |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `template` | Defaults, written into the object when it is created; the object may change them                                       |
-| `enforced` | Enforced values, applied from creation and at each sync; an object that sets a different value is refused when applied |
+| Part       | Effect                                                                                                                           |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `template` | Defaults, written into the object when it is created; the object may change them                                                 |
+| `enforced` | Enforced values, applied from creation and at each sync; an object that sets a different value is refused when created or synced |
 
 *Class parts and their effects.*
 
@@ -97,10 +97,13 @@ function records the class's generation and the values it applied, its `enforced
 `parametersRef` and its provider configuration, and keeps applying them when the class changes; the
 condition `ClassSynced: False` shows that the class has changed since. A user applies the class's
 current values with the annotation `<group>/class-sync`: each new value of it, such as a date,
-starts one sync, and `status.classSync` records the value last applied. A deleted class stops
-nothing: the object keeps applying its recorded values, reports `ClassSynced: False` with the class
-missing, and a sync waits until a class of that name exists again. The `template` is not applied
-again, since its values are the object's own after creation.
+starts one sync, and `status.classSync` records the value last applied. Admission compares an object
+with the class's `enforced` only when it is created and when its `class-sync` value changes, so a
+class change never blocks an unrelated edit; between syncs the object keeps the enforced values
+recorded at the last one. A deleted class stops nothing: the object keeps applying its recorded
+values, reports `ClassSynced: False` with the class missing, and a sync waits until a class of that
+name exists again. The `template` is not applied again, since its values are the object's own after
+creation.
 
 An object that requests a portable feature, such as `HighAvailability` or `ReadReplicas`, that its
 implementation does not support is refused when applied, by the implementation's own validation
