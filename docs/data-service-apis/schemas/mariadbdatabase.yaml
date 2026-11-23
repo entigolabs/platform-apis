@@ -39,11 +39,19 @@ spec:
                     description: |-
                       The MariaDBServer's namespace, which must be in this object's Zone (principle
                       11). Unset, this object's namespace.
+                  kind:
+                    type: string
+                    description: |-
+                      Set to MariaDBInstance while the parent is still today's MariaDBInstance, so
+                      this object keeps today's behaviour; unset, a MariaDBServer. It can be removed
+                      once, when the parent moves to a MariaDBServer.
+                    enum:
+                    - MariaDBInstance
                 required:
                 - name
                 x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: serverRef is immutable
+                - rule: self == oldSelf || (has(oldSelf.kind) && !has(self.kind))
+                  message: serverRef is immutable, except that kind can be removed once
               defaultCharacterSet:
                 type: string
                 description: |-

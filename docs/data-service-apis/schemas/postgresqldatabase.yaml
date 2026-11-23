@@ -39,11 +39,19 @@ spec:
                     description: |-
                       The PostgreSQLCluster's namespace, which must be in this object's Zone
                       (principle 11). Unset, this object's namespace.
+                  kind:
+                    type: string
+                    description: |-
+                      Set to PostgreSQLInstance while the parent is still today's PostgreSQLInstance,
+                      so this object keeps today's behaviour; unset, a PostgreSQLCluster. It can be
+                      removed once, when the parent moves to a PostgreSQLCluster.
+                    enum:
+                    - PostgreSQLInstance
                 required:
                 - name
                 x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: clusterRef is immutable
+                - rule: self == oldSelf || (has(oldSelf.kind) && !has(self.kind))
+                  message: clusterRef is immutable, except that kind can be removed once
               owner:
                 type: string
                 description: |-

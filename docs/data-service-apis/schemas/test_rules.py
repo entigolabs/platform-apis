@@ -339,6 +339,16 @@ update("changing clusterRef rejected", "KafkaUser", KU, w(KU, clusterRef={"name"
        "clusterRef is immutable")
 update("changing clusterRef namespace rejected", "KafkaUser", KU,
        w(KU, clusterRef={"name": "c1", "namespace": "platform"}), False, "clusterRef is immutable")
+KM = w(KU, clusterRef={"kind": "MSK", "name": "events"})
+create("clusterRef to today's MSK accepted", "KafkaUser", KM)
+create("clusterRef to another today's kind rejected", "KafkaUser",
+       w(KU, clusterRef={"kind": "KafkaCluster", "name": "events"}), False, "Unsupported value")
+update("removing kind once the parent moves accepted", "KafkaUser", KM,
+       w(KU, clusterRef={"name": "events", "namespace": "platform"}))
+update("adding kind rejected", "KafkaUser", KU, w(KU, clusterRef={"kind": "MSK", "name": "c1"}),
+       False, "clusterRef is immutable")
+update("changing the MSK while kind stays rejected", "KafkaUser", KM,
+       w(KU, clusterRef={"kind": "MSK", "name": "other"}), False, "clusterRef is immutable")
 create("a prefixed ACL and consumer group accepted", "KafkaUser",
        w(KU, acls=[{"topic": "orders-", "patternType": "Prefixed", "operation": "Read"}],
          consumerGroups=[{"name": "orders-", "patternType": "Prefixed"}]))

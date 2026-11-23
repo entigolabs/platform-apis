@@ -98,13 +98,20 @@ def array(items, text=None, ext=None, sc=False, default=None, **kw):
 IMMUTABLE = [("self == oldSelf", "is immutable")]
 
 
-def parent_ref(kind, name):
-    return obj({"name": field("string", f"The {kind}."),
-                "namespace": field("string", f"The {kind}'s namespace, which must be in this "
-                                   "object's Zone (principle 11). Unset, this object's "
-                                   "namespace.")},
-               f"The {kind} this object lives in.", required=["name"],
-               rules=[("self == oldSelf", f"{name} is immutable")])
+def parent_ref(kind, name, today=None):
+    props = {"name": field("string", f"The {kind}."),
+             "namespace": field("string", f"The {kind}'s namespace, which must be in this "
+                                "object's Zone (principle 11). Unset, this object's "
+                                "namespace.")}
+    rules = [("self == oldSelf", f"{name} is immutable")]
+    if today:
+        props["kind"] = field("string", f"Set to {today} while the parent is still today's "
+                              f"{today}, so this object keeps today's behaviour; unset, a {kind}. "
+                              f"It can be removed once, when the parent moves to a {kind}.",
+                              enum=[today])
+        rules = [("self == oldSelf || (has(oldSelf.kind) && !has(self.kind))",
+                  f"{name} is immutable, except that kind can be removed once")]
+    return obj(props, f"The {kind} this object lives in.", required=["name"], rules=rules)
 
 
 def secret_name(default):
@@ -173,7 +180,7 @@ write("postgresqluser", xrd(
     "PostgreSQLUser", "postgresqlusers", "database.entigo.com",
     obj({
         "name": engine_name("role"),
-        "clusterRef": parent_ref("PostgreSQLCluster", "clusterRef"),
+        "clusterRef": parent_ref("PostgreSQLCluster", "clusterRef", "PostgreSQLInstance"),
         "secretName": secret_name("<instance>-<user>"),
         "login": field("boolean", "The role can log in.", default="fixed, true"),
         "createDb": field("boolean", "The role can create databases.", default="fixed, false"),
@@ -189,7 +196,7 @@ write("postgresqldatabase", xrd(
     "PostgreSQLDatabase", "postgresqldatabases", "database.entigo.com",
     obj({
         "name": engine_name("database"),
-        "clusterRef": parent_ref("PostgreSQLCluster", "clusterRef"),
+        "clusterRef": parent_ref("PostgreSQLCluster", "clusterRef", "PostgreSQLInstance"),
         "owner": field("string", "The owning role's name in PostgreSQL."),
         "encoding": field("string", "The character set encoding, such as UTF8."),
         "lcCType": field("string", "The character classification (LC_CTYPE)."),
@@ -213,7 +220,7 @@ write("mariadbuser", xrd(
     "MariaDBUser", "mariadbusers", "database.entigo.com",
     obj({
         "name": engine_name("user"),
-        "serverRef": parent_ref("MariaDBServer", "serverRef"),
+        "serverRef": parent_ref("MariaDBServer", "serverRef", "MariaDBInstance"),
         "secretName": secret_name("<instance>-<user>"),
         "databases": array(obj({
             "databaseRef": obj({"name": field("string", "The MariaDBDatabase.", maxLength=253),
@@ -250,7 +257,7 @@ write("mariadbdatabase", xrd(
     "MariaDBDatabase", "mariadbdatabases", "database.entigo.com",
     obj({
         "name": engine_name("database"),
-        "serverRef": parent_ref("MariaDBServer", "serverRef"),
+        "serverRef": parent_ref("MariaDBServer", "serverRef", "MariaDBInstance"),
         "defaultCharacterSet": field("string", "The default character set."),
         "defaultCollation": field("string", "The default collation."),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
@@ -269,7 +276,7 @@ PATTERN_TYPE = field("string", "Kafka's ACL pattern type: Literal matches the na
 write("kafkauser", xrd(
     "KafkaUser", "kafkausers", "queue.entigo.com",
     obj({
-        "clusterRef": CLUSTER_REF,
+        "clusterRef": parent_ref("KafkaCluster", "clusterRef", "MSK"),
         "secretName": secret_name("<cluster>-<user>"),
         "consumerGroups": array(obj({
             "name": field("string", "The group's name, or with patternType Prefixed, the start of "

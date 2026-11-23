@@ -47,7 +47,8 @@ The differences are listed in [API Changes](changes.md). The teams get four aids
   repositories.
 - Move path. For each kind, a documented sequence moves an object without touching its cloud
   resource: the new object observes the resource by its ID and adopts it, then the old object is
-  deleted without deleting the resource.
+  deleted without deleting the resource. A parent moves first, then the team removes `kind` from its
+  users' parent reference ([Versions](common-design.md#versions)).
 - Deprecation signal. Every object of a renamed kind reports a status condition that names the new
   kind and links to the steps, also shown in Argo CD and the portal.
 - Migration guide. One page per kind, built from API Changes, states what changes, what to check
