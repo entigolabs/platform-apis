@@ -147,8 +147,8 @@ value below the real size is ignored, so a rejected increase can still be correc
 implementation may round it up and `autoGrow` can take the disk further, so the status reports the
 actual size, and the platform never shrinks the disk back to `sizeGB`.
 
-`highAvailability` is a portable feature: an object that requests it where its class does not
-support it is refused when applied (principle 1).
+`highAvailability` is a portable feature: an object that requests it where its implementation does
+not support it is refused when applied (principle 1).
 
 The status shows the common fields, which entry applied, where each effective value came from, and
 the applied implementation's own values (principle 4):
@@ -217,17 +217,6 @@ spec:
 ```
 
 *`PostgreSQLClass` for RDS.*
-
-A class's status lists the portable features its implementation supports, written by the
-implementation (principle 1):
-
-```yaml
-status:
-  supportedFeatures:
-  - HighAvailability
-```
-
-*`PostgreSQLClass` supported features.*
 
 A class with no provider configuration uses the one implementation its deployment installs, so it
 holds only common fields and can be copied to every deployment unchanged.

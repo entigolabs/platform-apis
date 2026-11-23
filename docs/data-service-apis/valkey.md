@@ -141,8 +141,7 @@ spec:
 
 *`ValkeyClass` for ElastiCache.*
 
-A class reports `HighAvailability` and `ReadReplicas` in `status.supportedFeatures` on every
-implementation.
+Every implementation supports `HighAvailability` and `ReadReplicas`.
 
 ### ValkeyParameters
 

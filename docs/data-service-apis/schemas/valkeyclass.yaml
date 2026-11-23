@@ -38,14 +38,14 @@ spec:
                     type: boolean
                     description: |-
                       A read replica in another zone, with automatic failover. Needs readReplicas of
-                      at least 1. Refused where the class does not support HighAvailability (principle
-                      1).
+                      at least 1. Refused where the implementation does not support HighAvailability
+                      (principle 1).
                       Default: the class's template.
                   readReplicas: &id003
                     type: integer
                     description: |-
-                      Read replicas besides the primary, each a copy of it. Refused where the class
-                      does not support ReadReplicas (principle 1).
+                      Read replicas besides the primary, each a copy of it. Refused where the
+                      implementation does not support ReadReplicas (principle 1).
                       Default: the class's template.
                     minimum: 0
                   deletionProtection: &id004
@@ -201,20 +201,5 @@ spec:
                 || !has(self.enforced.providerConfig)
                 || (self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion && self.template.providerConfig.kind == self.enforced.providerConfig.kind)
               message: template and enforced name the same provider configuration kind
-          status:
-            type: object
-            properties:
-              supportedFeatures:
-                type: array
-                description: |-
-                  The portable features the implementation supports, written by the implementation
-                  (principle 1).
-                items:
-                  type: string
-                  enum:
-                  - HighAvailability
-                  - ReadReplicas
         required:
         - spec
-    subresources:
-      status: {}

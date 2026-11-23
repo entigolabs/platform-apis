@@ -368,7 +368,6 @@ write("rabbitmquser", xrd(
 
 # --- Provider configurations and classes (principles 2, 5 and 8) ---------------------------------
 
-FEATURES = ["HighAvailability", "ReadReplicas"]
 
 
 def crd(kind, plural, group, scope, spec, status=None, required_spec=None):
@@ -479,10 +478,7 @@ def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameter
                          "different value is refused."),
         **(extra or {}),
     }, rules=[same, *extra_rules])
-    status = obj({"supportedFeatures": array(field("string", enum=FEATURES),
-                                             "The portable features the implementation supports, "
-                                             "written by the implementation (principle 1).")})
-    return crd(kind, plural, group, "Cluster", spec, status)
+    return crd(kind, plural, group, "Cluster", spec)
 
 
 def parameters_crd(kind, plural, group, engine):
@@ -535,7 +531,7 @@ def db_common(engine, version_text, version_pattern):
         }, rules=[("!has(self.maxSizeGB) || !has(self.sizeGB) || self.maxSizeGB >= self.sizeGB",
                    "maxSizeGB must be at least sizeGB" + FROM_CLASS)]),
         "highAvailability": field("boolean", "A standby in another zone, with automatic "
-                                  "failover. Refused where the class does not support "
+                                  "failover. Refused where the implementation does not support "
                                   "HighAvailability (principle 1).", default=DEFAULT),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
@@ -761,10 +757,10 @@ def valkey_common():
                          pattern="^[0-9]+\\.[0-9]+$"),
         "highAvailability": field("boolean", "A read replica in another zone, with automatic "
                                   "failover. Needs readReplicas of at least 1. Refused where the "
-                                  "class does not support HighAvailability (principle 1).",
+                                  "implementation does not support HighAvailability (principle 1).",
                                   default=DEFAULT),
         "readReplicas": field("integer", "Read replicas besides the primary, each a copy of it. "
-                              "Refused where the class does not support ReadReplicas "
+                              "Refused where the implementation does not support ReadReplicas "
                               "(principle 1).", default=DEFAULT, minimum=0),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
@@ -864,7 +860,7 @@ def kafka_common():
         "storage": obj({"sizeGB": field("integer", "Disk per broker, in GB.", default=DEFAULT,
                                         minimum=1)}),
         "highAvailability": field("boolean", "Survive the loss of one zone. Refused where the "
-                                  "class does not support HighAvailability (principle 1).",
+                                  "implementation does not support HighAvailability (principle 1).",
                                   default=DEFAULT),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
@@ -939,7 +935,7 @@ def rabbitmq_common():
         "version": field("string", "RabbitMQ's release line, such as \"4.2\". The implementation "
                          "manages the patch.", default=DEFAULT, pattern="^[0-9]+\\.[0-9]+$"),
         "highAvailability": field("boolean", "A three-node cluster across zones. Refused where the "
-                                  "class does not support HighAvailability (principle 1).",
+                                  "implementation does not support HighAvailability (principle 1).",
                                   default=DEFAULT),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),

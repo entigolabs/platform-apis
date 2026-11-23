@@ -66,8 +66,8 @@ A cluster's size is its brokers times each broker's size. The implementations si
 differently, so the size is in each provider configuration (principle 2). No implementation offers a
 maintenance window.
 
-`highAvailability` is a portable feature: an object that requests it where its class does not
-support it is refused when applied (principle 1).
+`highAvailability` is a portable feature: an object that requests it where its implementation does
+not support it is refused when applied (principle 1).
 
 The status shows the common fields, `bootstrapServers`, the listener applications use, which entry
 applied, where each effective value came from, and the applied implementation's own values
@@ -129,7 +129,7 @@ spec:
 
 *`KafkaClass` for MSK.*
 
-A class reports `HighAvailability` in `status.supportedFeatures` on every implementation.
+Every implementation supports `HighAvailability`.
 
 ### KafkaParameters
 

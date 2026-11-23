@@ -92,8 +92,8 @@ value below the real size is ignored, so a rejected increase can still be correc
 it up and `autoGrow` can take the disk further, so the status reports the actual size, and the
 platform never shrinks the disk back to `sizeGB`.
 
-`highAvailability` is a portable feature: an object that requests it where its class does not
-support it is refused when applied (principle 1).
+`highAvailability` is a portable feature: an object that requests it where its implementation does
+not support it is refused when applied (principle 1).
 
 The status shows the common fields, which entry applied, where each effective value came from, and
 the RDS values of `MariaDBRDSConfig` (principle 4):
@@ -155,7 +155,7 @@ spec:
 
 *`MariaDBClass` for RDS.*
 
-A class reports `HighAvailability` in `status.supportedFeatures` on RDS.
+RDS supports `HighAvailability`.
 
 ### MariaDBParameters
 

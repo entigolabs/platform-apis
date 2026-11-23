@@ -55,7 +55,7 @@ The platform names the broker, the engine is always RabbitMQ, and Amazon MQ requ
 upgrades, so none of these is a field. `parameters`, a map, is rendered into `rabbitmq.conf`.
 
 `highAvailability` chooses the deployment mode. It is a portable feature: an object that requests it
-where its class does not support it is refused when applied (principle 1).
+where its implementation does not support it is refused when applied (principle 1).
 
 The status shows the common fields, `managementEndpoint`, the management console URL, which entry
 applied, where each effective value came from, and Amazon MQ's own values (principle 4):
@@ -110,7 +110,7 @@ spec:
 
 *`RabbitMQClass` for Amazon MQ.*
 
-On Amazon MQ, a class reports `HighAvailability` in `status.supportedFeatures`.
+Amazon MQ supports `HighAvailability`.
 
 ### RabbitMQParameters
 

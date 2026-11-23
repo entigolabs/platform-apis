@@ -74,8 +74,8 @@ spec:
                   highAvailability: &id003
                     type: boolean
                     description: |-
-                      A standby in another zone, with automatic failover. Refused where the class does
-                      not support HighAvailability (principle 1).
+                      A standby in another zone, with automatic failover. Refused where the
+                      implementation does not support HighAvailability (principle 1).
                       Default: the class's template.
                   deletionProtection: &id004
                     type: boolean
@@ -256,20 +256,5 @@ spec:
                 || !has(self.enforced.providerConfig)
                 || (self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion && self.template.providerConfig.kind == self.enforced.providerConfig.kind)
               message: template and enforced name the same provider configuration kind
-          status:
-            type: object
-            properties:
-              supportedFeatures:
-                type: array
-                description: |-
-                  The portable features the implementation supports, written by the implementation
-                  (principle 1).
-                items:
-                  type: string
-                  enum:
-                  - HighAvailability
-                  - ReadReplicas
         required:
         - spec
-    subresources:
-      status: {}

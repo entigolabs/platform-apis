@@ -102,10 +102,9 @@ nothing: the object keeps applying its recorded values, reports `ClassSynced: Fa
 missing, and a sync waits until a class of that name exists again. The `template` is not applied
 again, since its values are the object's own after creation.
 
-Each class reports in its status which portable features its implementation supports, such as
-`HighAvailability` and `ReadReplicas`. An object that requests a feature its class does not report
-is refused when applied, with a message naming the class and the feature (principle 1). The portal
-reads a class's supported features and hides the fields the class cannot fulfil.
+An object that requests a portable feature, such as `HighAvailability` or `ReadReplicas`, that its
+implementation does not support is refused when applied, by the implementation's own validation
+policy, with a message naming the implementation and the feature (principle 1).
 
 ## Provider Configurations
 

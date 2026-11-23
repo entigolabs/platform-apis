@@ -46,14 +46,14 @@ spec:
                 type: boolean
                 description: |-
                   A read replica in another zone, with automatic failover. Needs readReplicas of
-                  at least 1. Refused where the class does not support HighAvailability (principle
-                  1).
+                  at least 1. Refused where the implementation does not support HighAvailability
+                  (principle 1).
                   Default: the class's template.
               readReplicas:
                 type: integer
                 description: |-
-                  Read replicas besides the primary, each a copy of it. Refused where the class
-                  does not support ReadReplicas (principle 1).
+                  Read replicas besides the primary, each a copy of it. Refused where the
+                  implementation does not support ReadReplicas (principle 1).
                   Default: the class's template.
                 minimum: 0
               deletionProtection:

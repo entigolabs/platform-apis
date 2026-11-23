@@ -57,7 +57,7 @@ spec:
               highAvailability:
                 type: boolean
                 description: |-
-                  Survive the loss of one zone. Refused where the class does not support
+                  Survive the loss of one zone. Refused where the implementation does not support
                   HighAvailability (principle 1).
                   Default: the class's template.
               deletionProtection:
