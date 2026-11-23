@@ -13,8 +13,8 @@ The following points are known so far:
   creation only, and in `forProvider` only when the spec requests more than the resource has, with
   `LateInitialize` omitted. Sending an older value back would shrink a GCP disk, replace an Azure
   server, or be refused by upjet as a Valkey downgrade, which blocks every later change.
-- Where an implementation's bucket resource has no setting that deletes its objects with it, the
-  implementation empties the bucket before deleting it, so a `Bucket` deletes its objects everywhere.
+- A bucket resource without a setting that deletes its objects with it is emptied by its
+  implementation before deletion, so a `Bucket` deletes its objects everywhere.
 - provider-kafka finds a topic by name only, so the duplicate-name check of `KafkaTopic` must run in
   the function.
 - An observed resource's admin login, which kinds such as `KafkaUser` need in order to act inside
