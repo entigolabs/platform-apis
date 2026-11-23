@@ -194,7 +194,9 @@ create("a standby, a deferred capability, rejected", "PostgreSQLClass",
 create("a class without parametersRef namespace rejected", "PostgreSQLClass",
        {"parametersRef": {"name": "x"}}, False, "Required value")
 create("parametersRef in a class template rejected", "PostgreSQLClass",
-       {"template": {"parametersRef": {"name": "x", "namespace": "p"}}}, False, "unknown field")
+       {"template": {"parametersRef": {"name": "x"}}}, False, "unknown field")
+create("parametersRef in a class's enforced rejected", "PostgreSQLClass",
+       {"enforced": {"parametersRef": {"name": "x"}}}, False, "unknown field")
 create("disasterRecovery in a class rejected", "PostgreSQLClass",
        {"template": {"disasterRecovery": {"workspaces": ["a", "b"], "primary": "a"}}}, False,
        "unknown field")

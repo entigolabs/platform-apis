@@ -64,18 +64,7 @@ spec:
                     required:
                     - day
                     - hourUTC
-                  parametersRef: &id005
-                    type: object
-                    description: |-
-                      Reusable rabbitmq.conf settings, merged after the class's.
-                    properties:
-                      name:
-                        type: string
-                        description: |-
-                          A RabbitMQParameters in this namespace.
-                    required:
-                    - name
-                  parameters: &id006
+                  parameters: &id005
                     type: object
                     description: |-
                       rabbitmq.conf settings for this object only, merged after parametersRef.
@@ -115,8 +104,7 @@ spec:
                   highAvailability: *id002
                   deletionProtection: *id003
                   maintenanceWindow: *id004
-                  parametersRef: *id005
-                  parameters: *id006
+                  parameters: *id005
                   providerConfig:
                     type: object
                     description: |-

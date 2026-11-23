@@ -99,18 +99,7 @@ spec:
                           The hour, in UTC, the daily backup starts.
                         minimum: 0
                         maximum: 23
-                  parametersRef: &id008
-                    type: object
-                    description: |-
-                      Reusable Valkey settings, merged after the class's.
-                    properties:
-                      name:
-                        type: string
-                        description: |-
-                          A ValkeyParameters in this namespace.
-                    required:
-                    - name
-                  parameters: &id009
+                  parameters: &id008
                     type: object
                     description: |-
                       Valkey settings for this object only, merged after parametersRef.
@@ -153,8 +142,7 @@ spec:
                   maintenanceWindow: *id005
                   autoMinorVersionUpgrade: *id006
                   backup: *id007
-                  parametersRef: *id008
-                  parameters: *id009
+                  parameters: *id008
                   providerConfig:
                     type: object
                     description: |-

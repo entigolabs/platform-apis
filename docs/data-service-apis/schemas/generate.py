@@ -457,7 +457,7 @@ def without_transition_rules(x):
 def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameters=None):
     """A cluster-scoped class (principle 5): template defaults, enforced values, the engine's base
     parameters, and in extra, defaults for the kinds inside an object of the class."""
-    common = without_transition_rules(common)
+    common = {k: v for k, v in without_transition_rules(common).items() if k != "parametersRef"}
     part = lambda text: obj({**common, "providerConfig": provider_config(
         "The provider configuration: its kind names the implementation this class uses.")}, text)
     if parameters:

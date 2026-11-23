@@ -57,18 +57,7 @@ spec:
                     description: |-
                       Deleting the object is denied while true.
                       Default: fixed, true.
-                  parametersRef: &id006
-                    type: object
-                    description: |-
-                      Reusable broker settings, merged after the class's.
-                    properties:
-                      name:
-                        type: string
-                        description: |-
-                          A KafkaParameters in this namespace.
-                    required:
-                    - name
-                  parameters: &id007
+                  parameters: &id006
                     type: object
                     description: |-
                       Broker settings for this object only, merged after parametersRef.
@@ -109,8 +98,7 @@ spec:
                   storage: *id003
                   highAvailability: *id004
                   deletionProtection: *id005
-                  parametersRef: *id006
-                  parameters: *id007
+                  parameters: *id006
                   providerConfig:
                     type: object
                     description: |-
