@@ -88,7 +88,8 @@ object names its class; defaults are written into the object when it is created.
 
 A deployment's choices, such as its implementation, default sizes and the values no user may change,
 are written once per deployment instead of in every manifest. Defaults written at creation stay in
-the object, so a later change to a class never resizes or upgrades a running resource.
+the object, and an object keeps its class's values until its user asks for a sync, so a later change
+to a class never resizes or upgrades a running resource on its own.
 
 #### 6 Applications connect the same way on every cloud
 

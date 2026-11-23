@@ -104,7 +104,8 @@ spec:
               enforced:
                 type: object
                 description: |-
-                  Always applied; an object that sets a different value is refused.
+                  Applied from creation and at each class sync; an object that sets a different
+                  value is refused.
                 properties:
                   deletionProtection: *id001
                   immutableTags: *id002

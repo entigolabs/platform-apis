@@ -2,32 +2,7 @@
 
 Questions to decide before implementation.
 
-#### 1 How does a class change reach the objects that use it?
-
-**Context.** A class's `template` is written into an object when it is created, and its `enforced`
-values apply all the time ([Classes](common-design.md#classes)). The class name is the portable
-contract that charts name, so a deployment changes a class in place rather than under a new name.
-
-**Problem.** When Entigo adds or changes an `enforced` value, such as `highAvailability: true`, every
-object of that class changes at once: fifty clusters gain a standby together, with no way to roll
-the change out gradually.
-
-**Options:**
-
-| Option                   | Effect                                                                                                                                                                                                                          | Trade-offs                                                                                             |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Creation only            | A class applies when an object is created; an existing object changes only when its owner edits it                                                                                                                              | `enforced` holds only at creation, unless every update is checked against the class                    |
-| Continuous               | Every class change applies to every object of the class at once                                                                                                                                                                 | One edit changes the whole deployment, with no gradual rollout                                         |
-| Update policy per object | Each class change creates a numbered revision; an object with `classUpdatePolicy: Automatic` follows the newest, and one with `Manual`, the default, stays on its revision until moved, with a condition that shows a newer one | Classes keep stored revisions, as Crossplane's CompositionRevisions do, and every object gains a field |
-
-*Ways a class change can reach existing objects.*
-
-The answer also decides whether `className` can be added, removed or changed after creation. The
-draft schema refuses only a change from one class to another. It also covers the default class:
-moving the default-class annotation to another class changes the class of every object created
-without `className`.
-
-#### 2 How are class defaults written on clusters older than Kubernetes 1.36?
+#### 1 How are class defaults written on clusters older than Kubernetes 1.36?
 
 **Context.** A `MutatingAdmissionPolicy` writes a class's `template` into each object when it is
 created ([Classes](common-design.md#classes)). It is stable and on by default from Kubernetes 1.36;
@@ -47,7 +22,7 @@ such versions when the design rolls out.
 
 *Ways to write class defaults on older clusters.*
 
-#### 3 How does an application get its identity and its grants?
+#### 2 How does an application get its identity and its grants?
 
 **Context.** An application reaches a service with its workload identity where the implementation
 supports it (principle 15). A `Bucket` creates no service account or key

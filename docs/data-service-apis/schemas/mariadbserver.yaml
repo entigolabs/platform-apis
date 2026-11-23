@@ -24,10 +24,8 @@ spec:
                 type: string
                 description: |-
                   The MariaDBClass: the deployment's defaults, enforced values and implementation
-                  (principle 5). Unset, the default class. Set at creation only.
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: className is immutable
+                  (principle 5). Unset, the default class. Written at creation when unset, and
+                  immutable after.
               observe:
                 type: boolean
                 description: |-
@@ -255,6 +253,9 @@ spec:
                     == a.apiVersion.split('/')[0]))
                   message: one entry per group and kind, whatever its version
             x-kubernetes-validations:
+            - rule: |-
+                has(self.className) == has(oldSelf.className) && (!has(self.className) || self.className == oldSelf.className)
+              message: className is immutable
             - rule: |-
                 !(has(self.observe) && self.observe)
                 || (has(oldSelf.observe) && oldSelf.observe)

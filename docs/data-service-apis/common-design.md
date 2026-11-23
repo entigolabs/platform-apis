@@ -63,10 +63,10 @@ A class, such as a `PostgreSQLClass`, is cluster-scoped and written by Entigo fo
 classes its namespaces use. It holds two parts of the object's spec, each with the common fields and
 one provider configuration:
 
-| Part       | Effect                                                                                         |
-| ---------- | ---------------------------------------------------------------------------------------------- |
-| `template` | Defaults, written into the object when it is created; the object may change them               |
-| `enforced` | Enforced values, always applied; an object that sets a different value is refused when applied |
+| Part       | Effect                                                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `template` | Defaults, written into the object when it is created; the object may change them                                       |
+| `enforced` | Enforced values, applied from creation and at each sync; an object that sets a different value is refused when applied |
 
 *Class parts and their effects.*
 
@@ -88,10 +88,17 @@ version 1.36. It copies the class's `template` into the object when it is create
 values on updates. A default is written field by field, so it can break a rule that ties fields
 together, such as a `maxSizeGB` below the user's `sizeGB`; the refusal message then ends with a note
 that a value the object does not set comes from its class's template. The way defaults reach
-clusters older than 1.36 is still to be decided. `enforced` applies all the time: it is policy, and
-an object that no longer complies after a class tightens it reports that in a condition. The effect
-of a class change on the objects that already use the class is still to be decided. Observed
-resources receive no defaults.
+clusters older than 1.36 is still to be decided. Observed resources receive no defaults.
+
+An object keeps the class it was created with, and the class's values as they were then. Its
+`className` is written at creation when the user leaves it out, so moving the default-class
+annotation later moves no object, and it cannot be changed, added or removed afterwards. The
+function records the class's generation and the values it applied, its `enforced`, its
+`parametersRef` and its provider configuration, and keeps applying them when the class changes; the
+condition `ClassSynced: False` shows that the class has changed since. A user applies the class's
+current values with the annotation `<group>/class-sync`: each new value of it, such as a date,
+starts one sync, and `status.classSync` records the value last applied. The `template` is not
+applied again, since its values are the object's own after creation.
 
 Each class reports in its status which portable features its implementation supports, such as
 `HighAvailability` and `ReadReplicas`. An object that requests a feature its class does not report

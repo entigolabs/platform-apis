@@ -475,7 +475,8 @@ def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameter
     spec = obj({
         "template": part("Defaults, written into an object when it is created; the object may "
                          "change them."),
-        "enforced": part("Always applied; an object that sets a different value is refused."),
+        "enforced": part("Applied from creation and at each class sync; an object that sets a "
+                         "different value is refused."),
         **(extra or {}),
     }, rules=[same, *extra_rules])
     status = obj({"supportedFeatures": array(field("string", enum=FEATURES),
@@ -577,8 +578,7 @@ def class_spec(class_kind, common, tail, observed, rules):
     return obj({
         "className": field("string", f"The {class_kind}: the deployment's defaults, enforced "
                            "values and implementation (principle 5). Unset, the default class. "
-                           "Set at creation only.", **{"x-kubernetes-validations": [
-                               {"rule": "self == oldSelf", "message": "className is immutable"}]}),
+                           "Written at creation when unset, and immutable after."),
         "observe": field("boolean", "true observes an existing resource, named by the id in its "
                          "provider configuration entry, and never changes or deletes it. Every other "
                          "common field is then rejected (principle 9). Set at creation only; removing "
@@ -587,6 +587,7 @@ def class_spec(class_kind, common, tail, observed, rules):
         **tail,
         "providerConfigs": provider_configs(),
     }, rules=[
+        fixed("className"),
         ("!(has(self.observe) && self.observe) || (has(oldSelf.observe) && oldSelf.observe)",
          "observe can be removed but never set after creation"),
         ("!(has(self.observe) && self.observe) || (" + " && ".join(
