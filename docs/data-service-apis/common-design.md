@@ -97,8 +97,10 @@ function records the class's generation and the values it applied, its `enforced
 `parametersRef` and its provider configuration, and keeps applying them when the class changes; the
 condition `ClassSynced: False` shows that the class has changed since. A user applies the class's
 current values with the annotation `<group>/class-sync`: each new value of it, such as a date,
-starts one sync, and `status.classSync` records the value last applied. The `template` is not
-applied again, since its values are the object's own after creation.
+starts one sync, and `status.classSync` records the value last applied. A deleted class stops
+nothing: the object keeps applying its recorded values, reports `ClassSynced: False` with the class
+missing, and a sync waits until a class of that name exists again. The `template` is not applied
+again, since its values are the object's own after creation.
 
 Each class reports in its status which portable features its implementation supports, such as
 `HighAvailability` and `ReadReplicas`. An object that requests a feature its class does not report
@@ -263,6 +265,5 @@ parent, which blocks the parent's deletion until the kind inside is gone; a `Usa
 objects inside an engine, such as a grant before the database it names. When a namespace or an
 application is deleted as a whole, the kinds inside therefore go first and the parent last. A kind
 inside another also holds a `Usage` of the Secret and the provider configuration it logs in with, so
-they outlive it when everything is deleted at once. A class in use cannot be deleted either: each
-object holds a `Usage` of its class. A bucket that holds objects is refused by its cloud, except on
-Azure, whose implementation needs its own guard.
+they outlive it when everything is deleted at once. A bucket that holds objects is refused by its
+cloud, except on Azure, whose implementation needs its own guard.
