@@ -574,9 +574,9 @@ for a `Bucket` itself:
 
 *`Bucket` settings chosen by the platform.*
 
-The platform never deletes a bucket's objects. Deleting a `Bucket` that still holds objects fails on
-every implementation, with the cloud's error in its status, and the user empties the bucket;
-`deletionProtection: false` only allows the object to be deleted.
+The platform never deletes a bucket's objects (principle 14). Deleting a `Bucket` that still holds
+objects fails on every implementation, with the cloud's error in its status, and the user empties
+the bucket; `deletionProtection: false` only allows the object to be deleted.
 
 ## Cloud Limits
 

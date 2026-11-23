@@ -241,6 +241,16 @@ on the user's. The platform therefore also shows it on the user's object, as the
 perform, such as an upgrade its service does not offer, is reported the same way, without reaching
 the cloud.
 
+## Deletion
+
 Deletion protection is enforced by a `ValidatingAdmissionPolicy`, which refuses to delete an object
 whose `deletionProtection` is true. It guards against accidental deletion: the user sets it to false
 before deleting the object, so a class sets it in `template`, never in `enforced`.
+
+An object that holds others is deleted only once it is empty (principle 14). Each kind inside
+another, such as a user, a database, a topic or a virtual host, creates a Crossplane `Usage` of its
+parent, which blocks the parent's deletion until the kind inside is gone; a `Usage` also orders the
+objects inside an engine, such as a grant before the database it names. When a namespace or an
+application is deleted as a whole, the kinds inside therefore go first and the parent last. A bucket
+that holds objects is refused by its cloud, except on Azure, whose implementation needs its own
+guard.

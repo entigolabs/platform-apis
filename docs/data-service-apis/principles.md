@@ -165,3 +165,12 @@ A unit is a set of values without meaning on their own, such as
 rule. A subsystem is an area that classes treat as a whole, such as `storage` and `backup`, as
 CloudNativePG, Crunchy and Zalando group them. Any other field stays at the top level, such as
 `autoMinorVersionUpgrade`.
+
+#### 14 Deleting an object never deletes what it contains
+
+An object is deleted only once it is empty; the user removes its contents first.
+
+A bucket that holds objects, or a cluster, server or broker that holds databases, users, topics or
+virtual hosts, is not deleted: its deletion waits, and its status shows what is still inside. The
+platform never deletes contents on the user's behalf. `deletionProtection` is a separate guard
+against deleting an object by mistake.
