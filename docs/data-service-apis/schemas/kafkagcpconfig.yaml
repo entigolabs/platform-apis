@@ -28,9 +28,6 @@ spec:
                   The Google Cloud Managed Service for Apache Kafka ID of an existing resource to
                   observe (principle 9). Set with observe; it stays when observe is removed, and
                   the object then owns the resource.
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: id is immutable
               vcpus:
                 type: integer
                 description: |-
@@ -43,6 +40,10 @@ spec:
                   The whole cluster's memory, within GCP's range per vCPU (principle 10).
                   Default: the class's template.
                 minimum: 1
+            x-kubernetes-validations:
+            - rule: |-
+                has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
+              message: id is immutable
           status:
             type: object
             description: |-

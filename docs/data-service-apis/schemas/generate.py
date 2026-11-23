@@ -120,6 +120,14 @@ def secret_name(default):
                  default=f"fixed, {default}")
 
 
+def fixed(name, message=None):
+    """A field that cannot be added, removed or changed after creation. A rule on the field itself
+    runs only when the old and new values both exist, so this rule sits on its parent."""
+    return (f"has(self.{name}) == has(oldSelf.{name}) && "
+            f"(!has(self.{name}) || self.{name} == oldSelf.{name})",
+            message or f"{name} is immutable")
+
+
 def IMMUTABLE_MSG(name):
     return [{"rule": "self == oldSelf", "message": f"{name} is immutable"}]
 
@@ -305,8 +313,7 @@ write("kafkatopic", xrd(
         "name": field("string", "The Kafka topic's name. Unset, metadata.name. The function "
                       "rejects a name another KafkaTopic on the same cluster already claims; "
                       "the older one keeps it. Kafka cannot rename a topic, so it is immutable.",
-                      minLength=1, maxLength=249, pattern="^[a-zA-Z0-9._-]+$",
-                      **{"x-kubernetes-validations": IMMUTABLE_MSG("name")}),
+                      minLength=1, maxLength=249, pattern="^[a-zA-Z0-9._-]+$"),
         "partitions": field("integer", "Kafka cannot remove partitions, so this only grows.",
                             default=TOPIC_DEFAULT, minimum=1,
                             **{"x-kubernetes-validations": [{"rule": "self >= oldSelf",
@@ -315,7 +322,7 @@ write("kafkatopic", xrd(
         "replicationFactor": field("integer", "Copies of each partition, at most the broker "
                                    "count.", default=TOPIC_DEFAULT, minimum=1),
         "parameters": string_map("Topic settings, by name, such as retention.ms."),
-    }),
+    }, rules=[fixed("name")]),
     obj({"name": field("string", "The Kafka topic's name."), "partitions": field("integer"),
          "replicationFactor": field("integer")}),
     required_spec=["clusterRef"]))
@@ -461,16 +468,19 @@ def provider_config_crd(kind, plural, group, product, settings, status, rules=()
     return crd(kind, plural, group, "Namespaced", obj({
         "id": field("string", f"The {product} ID of an existing resource to observe (principle 9). "
                     "Set with observe; it stays when observe is removed, and the object then owns "
-                    "the resource.", **{"x-kubernetes-validations": [
-                        {"rule": "self == oldSelf", "message": "id is immutable"}]}),
-        **settings}, f"Settings for {product} (principle 2).", rules=list(rules)),
+                    "the resource."),
+        **settings}, f"Settings for {product} (principle 2).",
+        rules=[fixed("id"), *[fixed(k, FIXED_SETTINGS[k]) for k in settings if k in FIXED_SETTINGS],
+               *rules]),
         obj(status, f"The shape of status.provider for {product} (principle 4)."))
 
 
+FIXED_SETTINGS = {"fromBackup": "fromBackup is set at creation only",
+                  "publiclyAccessible": "publiclyAccessible is immutable"}
+
+
 def from_backup(text):
-    return field("string", text + " Set at creation only; not with restore.", **{
-        "x-kubernetes-validations": [{"rule": "self == oldSelf",
-                                      "message": "fromBackup is set at creation only"}]})
+    return field("string", text + " Set at creation only; not with restore.")
 
 
 # --- PostgreSQL ------------------------------------------------------------------------------
@@ -959,9 +969,7 @@ write("rabbitmqamazonmqconfig", provider_config_crd(
         "publiclyAccessible": field("boolean", "Reachable from the internet, without the "
                                     "platform's security group. Amazon MQ replaces the broker to "
                                     "change it, so it is set at creation only.",
-                                    default="fixed, false",
-                                    **{"x-kubernetes-validations":
-                                       IMMUTABLE_MSG("publiclyAccessible")}),
+                                    default="fixed, false"),
     }, {"instanceType": S(), "id": S(), "engineVersion": S()}))
 
 # --- Bucket ----------------------------------------------------------------------------------

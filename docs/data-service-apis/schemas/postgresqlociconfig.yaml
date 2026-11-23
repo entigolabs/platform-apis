@@ -28,9 +28,6 @@ spec:
                   The OCI Database with PostgreSQL ID of an existing resource to observe
                   (principle 9). Set with observe; it stays when observe is removed, and the
                   object then owns the resource.
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: id is immutable
               instanceType:
                 type: string
                 description: |-
@@ -53,9 +50,13 @@ spec:
                 description: |-
                   A DB system backup OCID to create the cluster from. Set at creation only; not
                   with restore.
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: fromBackup is set at creation only
+            x-kubernetes-validations:
+            - rule: |-
+                has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
+              message: id is immutable
+            - rule: |-
+                has(self.fromBackup) == has(oldSelf.fromBackup) && (!has(self.fromBackup) || self.fromBackup == oldSelf.fromBackup)
+              message: fromBackup is set at creation only
           status:
             type: object
             description: |-

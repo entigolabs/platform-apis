@@ -28,15 +28,16 @@ spec:
                   The OCI Cache ID of an existing resource to observe (principle 9). Set with
                   observe; it stays when observe is removed, and the object then owns the
                   resource.
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: id is immutable
               memoryGB:
                 type: integer
                 description: |-
                   Memory per node, within OCI's own range (principle 10).
                   Default: the class's template.
                 minimum: 1
+            x-kubernetes-validations:
+            - rule: |-
+                has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
+              message: id is immutable
           status:
             type: object
             description: |-

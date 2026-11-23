@@ -28,9 +28,6 @@ spec:
                   The Amazon MQ ID of an existing resource to observe (principle 9). Set with
                   observe; it stays when observe is removed, and the object then owns the
                   resource.
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: id is immutable
               instanceType:
                 type: string
                 description: |-
@@ -42,9 +39,13 @@ spec:
                   Reachable from the internet, without the platform's security group. Amazon MQ
                   replaces the broker to change it, so it is set at creation only.
                   Default: fixed, false.
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: publiclyAccessible is immutable
+            x-kubernetes-validations:
+            - rule: |-
+                has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
+              message: id is immutable
+            - rule: |-
+                has(self.publiclyAccessible) == has(oldSelf.publiclyAccessible) && (!has(self.publiclyAccessible) || self.publiclyAccessible == oldSelf.publiclyAccessible)
+              message: publiclyAccessible is immutable
           status:
             type: object
             description: |-

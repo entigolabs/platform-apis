@@ -48,9 +48,6 @@ spec:
                 minLength: 1
                 maxLength: 249
                 pattern: ^[a-zA-Z0-9._-]+$
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: name is immutable
               partitions:
                 type: integer
                 description: |-
@@ -72,6 +69,10 @@ spec:
                   Topic settings, by name, such as retention.ms.
                 additionalProperties:
                   type: string
+            x-kubernetes-validations:
+            - rule: |-
+                has(self.name) == has(oldSelf.name) && (!has(self.name) || self.name == oldSelf.name)
+              message: name is immutable
             required:
             - clusterRef
           status:

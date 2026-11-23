@@ -28,9 +28,6 @@ spec:
                   The Azure Database for PostgreSQL flexible server ID of an existing resource to
                   observe (principle 9). Set with observe; it stays when observe is removed, and
                   the object then owns the resource.
-                x-kubernetes-validations:
-                - rule: self == oldSelf
-                  message: id is immutable
               instanceType:
                 type: string
                 description: |-
@@ -41,6 +38,10 @@ spec:
                 description: |-
                   The disk tier, such as P10, which sets its IOPS.
                   Default: the class's template.
+            x-kubernetes-validations:
+            - rule: |-
+                has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
+              message: id is immutable
           status:
             type: object
             description: |-

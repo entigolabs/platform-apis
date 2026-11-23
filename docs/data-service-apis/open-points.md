@@ -22,6 +22,9 @@ the change out gradually.
 
 *Ways a class change can reach existing objects.*
 
+The answer also decides whether `className` can be added, removed or changed after creation. The
+draft schema refuses only a change from one class to another.
+
 #### 2 How are class defaults written on clusters older than Kubernetes 1.36?
 
 **Context.** A `MutatingAdmissionPolicy` writes a class's `template` into each object when it is

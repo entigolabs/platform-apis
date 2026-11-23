@@ -204,8 +204,14 @@ for kind, spec in {"PostgreSQLRDSConfig": {"instanceType": "db.m7g.large"},
     create(f"{kind} unknown field rejected", kind, {**spec, "unknownSetting": 1}, False, "unknown field")
     update(f"{kind} changing id rejected", kind, {**spec, "id": "a"}, {**spec, "id": "b"}, False,
            "id is immutable")
+    update(f"{kind} adding id rejected", kind, spec, {**spec, "id": "a"}, False, "id is immutable")
 update("PostgreSQLRDSConfig changing fromBackup rejected", "PostgreSQLRDSConfig",
        {"fromBackup": "rds:a"}, {"fromBackup": "rds:b"}, False, "set at creation only")
+update("PostgreSQLRDSConfig adding fromBackup rejected", "PostgreSQLRDSConfig",
+       {"instanceType": "db.t4g.small"}, {"instanceType": "db.t4g.small", "fromBackup": "rds:a"},
+       False, "set at creation only")
+update("PostgreSQLRDSConfig removing fromBackup rejected", "PostgreSQLRDSConfig",
+       {"fromBackup": "rds:a"}, {"instanceType": "db.t4g.small"}, False, "set at creation only")
 
 print("\n# MariaDBServer")
 MRDS = {"apiVersion": "aws.database.entigo.com/v1alpha1", "kind": "MariaDBRDSConfig",
@@ -397,6 +403,7 @@ KT = {"clusterRef": {"name": "c1"}, "partitions": 3}
 update("more partitions accepted", "KafkaTopic", KT, w(KT, partitions=6))
 create("topic name with underscore and capitals accepted", "KafkaTopic", w(KT, name="Orders_v2"))
 create("topic name with a slash rejected", "KafkaTopic", w(KT, name="orders/v2"), False, "should match")
+update("adding a topic name rejected", "KafkaTopic", KT, w(KT, name="b"), False, "name is immutable")
 update("renaming a topic rejected", "KafkaTopic", w(KT, name="a"), w(KT, name="b"), False,
        "name is immutable")
 update("fewer partitions rejected", "KafkaTopic", KT, w(KT, partitions=2), False,
