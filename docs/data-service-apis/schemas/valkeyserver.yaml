@@ -136,7 +136,8 @@ spec:
                 type: array
                 description: |-
                   Settings of single implementations, one entry per kind (principle 2). The
-                  deployment applies the entry whose kind its class names and ignores the others.
+                  deployment applies the entry whose group and kind its class names, whatever its
+                  version, and ignores the others.
                 items:
                   type: object
                   properties:
@@ -145,10 +146,12 @@ spec:
                       description: |-
                         The provider configuration kind's group and version, such as
                         aws.database.entigo.com/v1alpha1.
+                      maxLength: 253
                     kind:
                       type: string
                       description: |-
                         The provider configuration kind, such as PostgreSQLRDSConfig.
+                      maxLength: 63
                     spec:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
@@ -171,10 +174,15 @@ spec:
                   x-kubernetes-validations:
                   - rule: has(self.spec) != has(self.ref)
                     message: an entry holds either spec or ref
+                maxItems: 16
                 x-kubernetes-list-type: map
                 x-kubernetes-list-map-keys:
                 - apiVersion
                 - kind
+                x-kubernetes-validations:
+                - rule: self.all(a, self.exists_one(b, b.kind == a.kind && b.apiVersion.split('/')[0]
+                    == a.apiVersion.split('/')[0]))
+                  message: one entry per group and kind, whatever its version
             x-kubernetes-validations:
             - rule: |-
                 !(has(self.observe) && self.observe)

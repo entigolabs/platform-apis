@@ -179,10 +179,12 @@ spec:
                         description: |-
                           The provider configuration kind's group and version, such as
                           aws.database.entigo.com/v1alpha1.
+                        maxLength: 253
                       kind:
                         type: string
                         description: |-
                           The provider configuration kind, such as PostgreSQLRDSConfig.
+                        maxLength: 63
                       spec:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
@@ -217,10 +219,12 @@ spec:
                         description: |-
                           The provider configuration kind's group and version, such as
                           aws.database.entigo.com/v1alpha1.
+                        maxLength: 253
                       kind:
                         type: string
                         description: |-
                           The provider configuration kind, such as PostgreSQLRDSConfig.
+                        maxLength: 63
                       spec:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true

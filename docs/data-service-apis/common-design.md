@@ -106,9 +106,12 @@ inline, in `spec`, or in a separate object of that kind, through `ref`. The list
 `apiVersion` and `kind`, so Helm, Argo CD and server-side apply merge it entry by entry, and one
 manifest can carry settings for several implementations and be applied on any of them.
 
-A deployment applies only the entry whose kind its class names and ignores the others; the status
-names the applied entry and the ignored ones, so a misspelled kind shows as no entry applied. An
-object with no matching entry takes the class's provider configuration as it is.
+A deployment applies only the entry whose group and kind its class names, whatever the entry's
+version, and ignores the others. An entry of an older version is converted to the version the class
+uses, so a class that moves to a newer version still applies the entries written for the older one,
+and an object holds one entry per group and kind; the status names the applied entry and the ignored
+ones, so a misspelled kind shows as no entry applied. An object with no matching entry takes the
+class's provider configuration as it is.
 
 Each provider configuration kind marks the settings its implementation cannot run without, such as a
 machine size. An object for which neither its entry nor its class sets one is refused when applied,

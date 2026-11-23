@@ -169,6 +169,11 @@ create("unknown parameterApplyMethod rejected", "PostgreSQLCluster",
        w(PG, parameterApplyMethod="Later"), False, "Unsupported value")
 create("secretName accepted", "PostgreSQLCluster", w(PG, secretName="orders-db-admin"))
 
+create("two versions of one kind rejected", "PostgreSQLCluster",
+       w(PG, providerConfigs=[{**RDS, "spec": {}},
+                              {**RDS, "apiVersion": "aws.database.entigo.com/v1beta1", "spec": {}}]),
+       False, "one entry per group and kind")
+
 print("\n# PostgreSQLClass")
 CLS = {"template": {"version": "17", "storage": {"sizeGB": 50}, "backup": {"retentionDays": 14},
                     "providerConfig": RDS},

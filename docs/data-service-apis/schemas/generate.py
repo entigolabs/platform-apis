@@ -398,8 +398,9 @@ def crd(kind, plural, group, scope, spec, status=None, required_spec=None):
 def entry_fields(text):
     return {
         "apiVersion": field("string", "The provider configuration kind's group and version, such as "
-                            "aws.database.entigo.com/v1alpha1."),
-        "kind": field("string", "The provider configuration kind, such as PostgreSQLRDSConfig."),
+                            "aws.database.entigo.com/v1alpha1.", maxLength=253),
+        "kind": field("string", "The provider configuration kind, such as PostgreSQLRDSConfig.",
+                      maxLength=63),
         "spec": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
                  "description": desc(text)},
         "ref": obj({"name": field("string", "An object of this kind in the same namespace.")},
@@ -415,8 +416,14 @@ def provider_configs():
                          "(principle 10)."), required=["apiVersion", "kind"],
             rules=[("has(self.spec) != has(self.ref)", "an entry holds either spec or ref")]),
         "Settings of single implementations, one entry per kind (principle 2). The deployment applies "
-        "the entry whose kind its class names and ignores the others.",
-        **{"x-kubernetes-list-type": "map", "x-kubernetes-list-map-keys": ["apiVersion", "kind"]})
+        "the entry whose group and kind its class names, whatever its version, and ignores the "
+        "others.",
+        maxItems=16,
+        **{"x-kubernetes-list-type": "map", "x-kubernetes-list-map-keys": ["apiVersion", "kind"],
+           "x-kubernetes-validations": [{
+               "rule": "self.all(a, self.exists_one(b, b.kind == a.kind && "
+                       "b.apiVersion.split('/')[0] == a.apiVersion.split('/')[0]))",
+               "message": "one entry per group and kind, whatever its version"}]})
 
 
 def provider_config(text):
