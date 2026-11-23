@@ -162,7 +162,9 @@ optional `secretName` to override that name. The platform never overwrites a Sec
 object or person owns: joined names can collide, as a user named `dbadmin` with the admin's secret,
 or instance `a-b` with user `c` and instance `a` with user `b-c`, so the second object reports which
 object holds the name, and `secretName` resolves it. `secretName` also lets a user keep a Secret
-name their application already uses.
+name their application already uses. An object that takes ownership of a resource today's API
+created takes over the Secret of the same name that today's object owns, instead of reporting it, so
+a migration needs no `secretName`.
 
 ## Observed Resources
 
