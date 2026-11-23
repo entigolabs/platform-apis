@@ -47,8 +47,9 @@ An object of a kind that keeps its name keeps today's behaviour until its parent
 reference names today's kind in `kind`, such as `kind: PostgreSQLInstance`, which the conversion
 writes from today's reference, and the object keeps today's Secret name, keys and defaults. Once the
 parent has moved to the design's kind, the team removes `kind`, which can be removed once and never
-added, and the object takes the design's behaviour. `RabbitMQBroker` has no parent, so it writes
-today's `<broker>-connection` Secret beside the design's until the migration period ends.
+added, and the object takes the design's behaviour. A kind whose Secret changes, `KafkaUser` or
+`RabbitMQBroker`, keeps writing today's Secret beside the design's until the migration period ends,
+so an application moves to the new Secret at any time within it.
 
 A renamed kind, such as `PostgreSQLCluster`, is a new kind beside today's `PostgreSQLInstance`,
 since a conversion only translates between versions of one kind. Today's kind stays served, with its
