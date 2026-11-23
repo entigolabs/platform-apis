@@ -194,9 +194,10 @@ reads that status and refuses with a condition instead of creating anything.
 
 To take ownership of the resource, the user removes `observe` and sets the common fields in the same
 edit; `id` stays in the entry. `observe` can be removed once and never set again after creation, and
-only when the resource's Zone tag names the object's Zone. From then on the platform changes the
-resource to match the object, and deleting the object deletes the resource, as for a resource the
-platform created.
+only when the resource's Zone tag names the object's Zone. A field the user leaves unset at takeover
+gets no class default and is not sent, so the resource keeps its value, which the status shows with
+the source `cloud`. From then on the platform changes the resource to match the object, and deleting
+the object deletes the resource, as for a resource the platform created.
 
 The check holds only where users can create the platform's kinds and nothing else, so it has a
 prerequisite: kcp serves no Crossplane provider kinds, and a Zone's Argo CD project and roles allow
