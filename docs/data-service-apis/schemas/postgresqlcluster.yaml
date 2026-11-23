@@ -83,7 +83,8 @@ spec:
                     !has(self.maxSizeGB)
                     || !has(self.sizeGB)
                     || self.maxSizeGB >= self.sizeGB
-                  message: maxSizeGB must be at least sizeGB
+                  message: maxSizeGB must be at least sizeGB; a value the object does not set comes from
+                    its class's template
               highAvailability:
                 type: boolean
                 description: |-
@@ -155,7 +156,8 @@ spec:
                     !has(self.pointInTimeDays)
                     || !has(self.retentionDays)
                     || self.retentionDays > 0
-                  message: pointInTimeDays needs backups, which retentionDays 0 disables
+                  message: pointInTimeDays needs backups, which retentionDays 0 disables; a value the
+                    object does not set comes from its class's template
               parametersRef:
                 type: object
                 description: |-
@@ -268,7 +270,8 @@ spec:
             - rule: |-
                 !has(self.version)
                 || self.version.contains('.') == (has(self.autoMinorVersionUpgrade) && !self.autoMinorVersionUpgrade)
-              message: version takes a minor exactly when autoMinorVersionUpgrade is false
+              message: version takes a minor exactly when autoMinorVersionUpgrade is false; a value the
+                object does not set comes from its class's template
           status:
             type: object
             properties:

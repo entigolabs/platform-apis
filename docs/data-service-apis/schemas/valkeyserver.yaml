@@ -188,7 +188,8 @@ spec:
                 !has(self.highAvailability)
                 || !self.highAvailability
                 || (has(self.readReplicas) && self.readReplicas >= 1)
-              message: highAvailability needs readReplicas of at least 1
+              message: highAvailability needs readReplicas of at least 1; a value the object does not
+                set comes from its class's template
             - rule: |-
                 !has(self.version)
                 || !has(oldSelf.version)

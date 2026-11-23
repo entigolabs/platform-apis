@@ -85,10 +85,13 @@ object.
 
 The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
 version 1.36. It copies the class's `template` into the object when it is created and keeps the
-values on updates. The way defaults reach clusters older than 1.36 is still to be decided.
-`enforced` applies all the time: it is policy, and an object that no longer complies after a class
-tightens it reports that in a condition. The effect of a class change on the objects that already
-use the class is still to be decided. Observed resources receive no defaults.
+values on updates. A default is written field by field, so it can break a rule that ties fields
+together, such as a `maxSizeGB` below the user's `sizeGB`; the refusal message then ends with a note
+that a value the object does not set comes from its class's template. The way defaults reach
+clusters older than 1.36 is still to be decided. `enforced` applies all the time: it is policy, and
+an object that no longer complies after a class tightens it reports that in a condition. The effect
+of a class change on the objects that already use the class is still to be decided. Observed
+resources receive no defaults.
 
 Each class reports in its status which portable features its implementation supports, such as
 `HighAvailability` and `ReadReplicas`. An object that requests a feature its class does not report

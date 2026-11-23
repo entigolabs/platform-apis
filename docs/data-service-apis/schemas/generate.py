@@ -428,6 +428,10 @@ def provider_config(text):
     return obj(props, text, required=["apiVersion", "kind"])
 
 
+# Appended to a rule that ties fields together: the class's template may have written one of them.
+FROM_CLASS = "; a value the object does not set comes from its class's template"
+
+
 def without_transition_rules(x):
     """A copy without the rules that compare a value with the previous one, such as a disk that
     only grows: they protect a running resource, and a class only holds starting values."""
@@ -436,7 +440,8 @@ def without_transition_rules(x):
     if not isinstance(x, dict):
         return x
     out = {k: without_transition_rules(v) for k, v in x.items()}
-    rules = [r for r in out.get("x-kubernetes-validations", []) if "oldSelf" not in r["rule"]]
+    rules = [{**r, "message": r["message"].removesuffix(FROM_CLASS)}
+             for r in out.get("x-kubernetes-validations", []) if "oldSelf" not in r["rule"]]
     if "x-kubernetes-validations" in out:
         if rules:
             out["x-kubernetes-validations"] = rules
@@ -524,7 +529,7 @@ def db_common(engine, version_text, version_pattern):
             "iops": field("integer", "Provisioned IOPS.", minimum=1),
             "throughputMBps": field("integer", "Provisioned throughput in MB/s.", minimum=1),
         }, rules=[("!has(self.maxSizeGB) || !has(self.sizeGB) || self.maxSizeGB >= self.sizeGB",
-                   "maxSizeGB must be at least sizeGB")]),
+                   "maxSizeGB must be at least sizeGB" + FROM_CLASS)]),
         "highAvailability": field("boolean", "A standby in another zone, with automatic "
                                   "failover. Refused where the class does not support "
                                   "HighAvailability (principle 1).", default=DEFAULT),
@@ -549,7 +554,7 @@ def db_common(engine, version_text, version_pattern):
                                   minimum=0, maximum=23),
         }, rules=[("!has(self.pointInTimeDays) || !has(self.retentionDays) || "
                    "self.retentionDays > 0",
-                   "pointInTimeDays needs backups, which retentionDays 0 disables")]),
+                   "pointInTimeDays needs backups, which retentionDays 0 disables" + FROM_CLASS)]),
         "parametersRef": obj({"name": field("string", f"A {engine}Parameters in this "
                                             "namespace.")},
                              f"Reusable {engine} settings, merged after the class's.",
@@ -606,7 +611,7 @@ def db_spec(kind, class_kind, common, same_major, has_minor):
          "a major version change needs allowMajorVersionUpgrade"),
         ("!has(self.version) || " + has_minor + " == "
          "(has(self.autoMinorVersionUpgrade) && !self.autoMinorVersionUpgrade)",
-         "version takes a minor exactly when autoMinorVersionUpgrade is false"),
+         "version takes a minor exactly when autoMinorVersionUpgrade is false" + FROM_CLASS),
     ])
 
 
@@ -783,7 +788,7 @@ write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com"
                               "secretName": secret_name("<instance>-credentials")}, [], [
                               ("!has(self.highAvailability) || !self.highAvailability || "
                                "(has(self.readReplicas) && self.readReplicas >= 1)",
-                               "highAvailability needs readReplicas of at least 1"),
+                               "highAvailability needs readReplicas of at least 1" + FROM_CLASS),
                               ("!has(self.version) || !has(oldSelf.version) || "
                                "int(self.version.split('.')[0]) > int(oldSelf.version.split('.')[0]) || "
                                "(int(self.version.split('.')[0]) == int(oldSelf.version.split('.')[0]) && "
