@@ -48,9 +48,6 @@ spec:
     - PUT
     maxAgeSeconds: 3600
   softDeleteDays: 7                    # ignored on AWS and OCI
-  access:                              # applications that may use the bucket
-  - serviceAccount: orders-app         # a service account in this namespace, by name
-    mode: ReadWrite                    # Read or ReadWrite
 ```
 
 *`Bucket` with common fields.*
@@ -58,22 +55,8 @@ spec:
 `lifecycleRules`, `retention` and `cors` have no default. `tier` names the two cold tiers every
 cloud has.
 
-A `Bucket` creates no service account or access key: an application uses its own service account,
-with no credentials to copy (principle 15). `access` lists the service accounts that may use the
-bucket, by name, so a service account may be created before or after the bucket. The platform gives
-each one a workload identity and grants it on this bucket; an application that uses two buckets is
-listed in both, and its identity holds both grants. On Azure the service account carries the
-`azure.workload.identity/client-id` annotation, whose value `status.provider.clientIds` shows, and
-its pods the label `azure.workload.identity/use: "true"`; on the other clouds it needs neither.
-
-| Cloud | Identity of a service account in `access`                                             |
-| ----- | ------------------------------------------------------------------------------------- |
-| AWS   | An IAM role, bound to the service account by an EKS Pod Identity association          |
-| GCP   | The service account itself, as a Workload Identity Federation principal               |
-| OCI   | The service account itself, named in an OKE workload identity policy                  |
-| Azure | A user-assigned managed identity, with a federated credential for the service account |
-
-*Workload identity of a service account in `access`.*
+A `Bucket` creates no service account, role or access key: an application reaches it with its own
+identity (principle 15). How an application gets that identity and its grant is still to be decided.
 
 A `Bucket` has no connection secret, since it holds no credentials. The status shows `url`,
 `bucketName` and `region`, the three values an application needs to reach the bucket, with which

@@ -1034,18 +1034,8 @@ def bucket_common():
     }
 
 
-BUCKET_ACCESS = array(obj({
-    "serviceAccount": field("string", "A service account in this namespace, matched by name: it "
-                            "may be created before or after the bucket."),
-    "mode": field("string", "Read lists and reads objects; ReadWrite also writes and deletes them.",
-                  enum=["Read", "ReadWrite"]),
-}, required=["serviceAccount", "mode"]), "Applications that may use the bucket. The platform gives "
-    "each service account a workload identity and grants it on this bucket (principle 15).",
-    **{"x-kubernetes-list-type": "map", "x-kubernetes-list-map-keys": ["serviceAccount"]})
-
 write("bucket", xrd("Bucket", "buckets", "storage.entigo.com",
-                    class_spec("BucketClass", bucket_common(), {"access": BUCKET_ACCESS},
-                               [], [
+                    class_spec("BucketClass", bucket_common(), {}, [], [
                         ("!has(oldSelf.retention) || !has(oldSelf.retention.locked) || "
                          "!oldSelf.retention.locked || (has(self.retention) && "
                          "has(self.retention.locked) && self.retention.locked)",
@@ -1083,9 +1073,7 @@ write("bucketobjectstorageconfig", provider_config_crd(
         "string", "The time a locked retention takes effect.", format="date-time")}))
 write("bucketblobstorageconfig", provider_config_crd(
     "BucketBlobStorageConfig", "bucketblobstorageconfigs", "azure.storage.entigo.com",
-    "Azure Blob Storage", {}, {"accountId": S(), "containerId": S(), "clientIds": string_map(
-        "The client ID of each service account in access, by name, for the account's "
-        "azure.workload.identity/client-id annotation.")}))
+    "Azure Blob Storage", {}, {"accountId": S(), "containerId": S()}))
 
 # --- ArtifactRepository ----------------------------------------------------------------------
 

@@ -41,13 +41,6 @@ spec:
                 type: string
               containerId:
                 type: string
-              clientIds:
-                type: object
-                description: |-
-                  The client ID of each service account in access, by name, for the account's
-                  azure.workload.identity/client-id annotation.
-                additionalProperties:
-                  type: string
         required:
         - spec
     subresources:

@@ -440,17 +440,6 @@ B = {"versioning": True, "retention": {"days": 30, "locked": False},
      "lifecycleRules": [{"prefix": "logs/", "transitions": [{"afterDays": 90, "tier": "Archive"}]}],
      "providerConfigs": [S3]}
 create("Bucket valid spec", "Bucket", B)
-create("Bucket observe with access accepted", "Bucket",
-       {"observe": True, "access": [{"serviceAccount": "orders-app", "mode": "Read"}],
-        "providerConfigs": [{"apiVersion": "aws.storage.entigo.com/v1alpha1", "kind": "BucketS3Config",
-                             "spec": {"id": "orders-files"}}]})
-create("Bucket access accepted", "Bucket",
-       w(B, access=[{"serviceAccount": "orders-app", "mode": "ReadWrite"}]))
-create("Bucket access with an unknown mode rejected", "Bucket",
-       w(B, access=[{"serviceAccount": "orders-app", "mode": "Admin"}]), False, "Unsupported value")
-create("Bucket access listing a service account twice rejected", "Bucket",
-       w(B, access=[{"serviceAccount": "a", "mode": "Read"}, {"serviceAccount": "a", "mode": "ReadWrite"}]),
-       False, "Duplicate value")
 create("Bucket unknown tier rejected", "Bucket",
        w(B, lifecycleRules=[{"transitions": [{"afterDays": 90, "tier": "Glacier"}]}]), False, "Unsupported value")
 update("Bucket locking retention accepted", "Bucket", B, w(B, retention={"days": 30, "locked": True}))
