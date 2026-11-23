@@ -1,1 +1,7 @@
 targetRevision: '*.*.*-0'
+prefix: ""
+domain: biz-net-route53.infralib.entigo.io
+gateway:
+  name: service
+  namespace: aws-alb-biz
+serviceIngressClass: service

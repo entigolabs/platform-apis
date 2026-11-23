@@ -176,7 +176,7 @@ metadata:
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   rules:
-    - host: {{ .Release.Name }}.biz-net-route53.infralib.entigo.io
+    - host: {{ .Release.Name }}.{{ .Values.domain }}
       http:
         paths:
           - path: /

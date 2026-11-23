@@ -1,7 +1,7 @@
 apiVersion: tenancy.entigo.com/v1alpha1
 kind: Zone
 metadata:
-  name: b
+  name: {{ .Values.prefix }}b
 spec:
   granularNamespaceNetworkPolicy: true
   namespaces:

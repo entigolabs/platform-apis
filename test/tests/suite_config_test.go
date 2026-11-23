@@ -2,6 +2,7 @@ package test
 
 import (
 	"os"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 )
@@ -29,10 +30,18 @@ func loadSuiteConfig() SuiteConfig {
 }
 
 func (c SuiteConfig) Has(suite string) bool {
-	for _, s := range c.Suites {
-		if s == suite {
-			return true
+	return slices.Contains(c.Suites, suite)
+}
+
+func (c SuiteConfig) Only(suites []string) SuiteConfig {
+	if suites == nil {
+		return c
+	}
+	var kept []string
+	for _, s := range suites {
+		if c.Has(s) {
+			kept = append(kept, s)
 		}
 	}
-	return false
+	return SuiteConfig{Suites: kept}
 }

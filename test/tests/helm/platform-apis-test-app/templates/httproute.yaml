@@ -8,7 +8,7 @@ spec:
     - name: {{ .Values.gateway.name }}
       namespace: {{ .Values.gateway.namespace }}
   hostnames:
-    - {{ .Release.Name }}-route.biz-net-route53.infralib.entigo.io
+    - {{ .Release.Name }}-route.{{ .Values.domain }}
   rules:
     - backendRefs:
         - name: {{ .Release.Name }}

@@ -2,12 +2,12 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: a1
-  namespace: a-apps
+  namespace: {{ .Values.prefix }}a-apps
 spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: a1
-  project: a
+  project: {{ .Values.prefix }}a
   source:
     chart: platform-apis-test-app
     repoURL: ghcr.io/entigolabs
@@ -15,6 +15,10 @@ spec:
     helm:
       values: |
         targetRevision: '{{ .Values.targetRevision }}'
+        domain: '{{ .Values.domain }}'
+        gateway:
+          name: '{{ .Values.gateway.name }}'
+          namespace: '{{ .Values.gateway.namespace }}'
         ingressClassName: internal
       releaseName: a1
   syncPolicy:

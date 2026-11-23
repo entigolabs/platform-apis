@@ -13,7 +13,7 @@ type secretStoreData struct {
 	Name, Namespace, Store, Source, RemoteKey, Zone, Value string
 }
 
-func testZoneSecretStore(t *testing.T, cluster *terrak8s.KubectlOptions) {
+func testZoneSecretStore(t *testing.T, cluster *terrak8s.KubectlOptions, z testZones) {
 	t.Run("secret-store", func(t *testing.T) {
 		a1 := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, "a1")
 		b1 := terrak8s.NewKubectlOptions(cluster.ContextName, cluster.ConfigPath, "b1")
@@ -23,7 +23,7 @@ func testZoneSecretStore(t *testing.T, cluster *terrak8s.KubectlOptions) {
 		require.NotEmpty(t, legacy, "cluster-wide ClusterSecretStore name not found")
 
 		// Ready means ESO got credentials for the Zone role through the Zone's ServiceAccount
-		waitReady(t, cluster, ClusterSecretStoreKind, ZoneSecretStoreA, 30, 10*time.Second)
+		waitReady(t, cluster, ClusterSecretStoreKind, z.SecretStoreA(), 30, 10*time.Second)
 		if t.Failed() {
 			return
 		}
@@ -32,30 +32,30 @@ func testZoneSecretStore(t *testing.T, cluster *terrak8s.KubectlOptions) {
 		applySecretStoreTemplate(t, a1, "secretstore_source_secret.yaml", secretStoreData{
 			Name: SecretStoreSourceName, Namespace: "a1", Value: SecretStoreValue,
 		})
-		pushSecretFixture(t, a1, SecretStorePushA, legacy, SecretStoreRemoteKeyA, ZoneAName)
-		pushSecretFixture(t, a1, SecretStorePushB, legacy, SecretStoreRemoteKeyB, ZoneBName)
-		pushSecretFixture(t, a1, SecretStorePushUntagged, legacy, SecretStoreRemoteKeyUntagged, "")
+		pushSecretFixture(t, a1, SecretStorePushA, legacy, z.RemoteKeyA(), z.A())
+		pushSecretFixture(t, a1, SecretStorePushB, legacy, z.RemoteKeyB(), z.B())
+		pushSecretFixture(t, a1, SecretStorePushUntagged, legacy, z.RemoteKeyUntagged(), "")
 		if t.Failed() {
 			return
 		}
 
 		t.Run("cluster-store-still-syncs", func(t *testing.T) {
-			testExternalSecretSyncs(t, a1, SecretStoreLegacyESName, legacy, SecretStoreRemoteKeyUntagged)
+			testExternalSecretSyncs(t, a1, SecretStoreLegacyESName, legacy, z.RemoteKeyUntagged())
 		})
 		t.Run("zone-store-reads-own-tag", func(t *testing.T) {
-			testExternalSecretSyncs(t, a1, SecretStoreZoneESName, ZoneSecretStoreA, SecretStoreRemoteKeyA)
+			testExternalSecretSyncs(t, a1, SecretStoreZoneESName, z.SecretStoreA(), z.RemoteKeyA())
 		})
 		t.Run("zone-store-denies-untagged", func(t *testing.T) {
-			testExternalSecretDenied(t, a1, SecretStoreUntaggedESName, ZoneSecretStoreA, SecretStoreRemoteKeyUntagged)
+			testExternalSecretDenied(t, a1, SecretStoreUntaggedESName, z.SecretStoreA(), z.RemoteKeyUntagged())
 		})
 		t.Run("zone-store-denies-other-zone-tag", func(t *testing.T) {
-			testExternalSecretDenied(t, a1, SecretStoreOtherZoneESName, ZoneSecretStoreA, SecretStoreRemoteKeyB)
+			testExternalSecretDenied(t, a1, SecretStoreOtherZoneESName, z.SecretStoreA(), z.RemoteKeyB())
 		})
 		t.Run("zone-store-denies-other-zone-namespace", func(t *testing.T) {
-			testExternalSecretDenied(t, b1, SecretStoreForeignESName, ZoneSecretStoreA, SecretStoreRemoteKeyA)
+			testExternalSecretDenied(t, b1, SecretStoreForeignESName, z.SecretStoreA(), z.RemoteKeyA())
 		})
 		t.Run("switch-store-keeps-secret", func(t *testing.T) {
-			testSwitchStore(t, a1, legacy)
+			testSwitchStore(t, a1, legacy, z)
 		})
 	})
 }
@@ -100,14 +100,14 @@ func testExternalSecretDenied(t *testing.T, opts *terrak8s.KubectlOptions, name,
 }
 
 // testSwitchStore is the step a team takes to adopt the Zone store.
-func testSwitchStore(t *testing.T, opts *terrak8s.KubectlOptions, legacy string) {
+func testSwitchStore(t *testing.T, opts *terrak8s.KubectlOptions, legacy string, z testZones) {
 	t.Helper()
-	testExternalSecretSyncs(t, opts, SecretStoreSwitchESName, legacy, SecretStoreRemoteKeyA)
+	testExternalSecretSyncs(t, opts, SecretStoreSwitchESName, legacy, z.RemoteKeyA())
 	uid := getField(t, opts, "secret", SecretStoreSwitchESName, ".metadata.uid")
 	refreshed := getField(t, opts, ExternalSecretKind, SecretStoreSwitchESName, ".status.refreshTime")
 
 	patchResource(t, opts, ExternalSecretKind, SecretStoreSwitchESName,
-		fmt.Sprintf(`{"spec":{"secretStoreRef":{"name":"%s"}}}`, ZoneSecretStoreA))
+		fmt.Sprintf(`{"spec":{"secretStoreRef":{"name":"%s"}}}`, z.SecretStoreA()))
 	waitFieldChanged(t, opts, ExternalSecretKind, SecretStoreSwitchESName, ".status.refreshTime", refreshed, 30, 10*time.Second)
 	waitReady(t, opts, ExternalSecretKind, SecretStoreSwitchESName, 30, 10*time.Second)
 	require.Equal(t, uid, getField(t, opts, "secret", SecretStoreSwitchESName, ".metadata.uid"), "Secret was recreated when the store changed")
