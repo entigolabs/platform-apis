@@ -170,6 +170,11 @@ workspace, and only from a namespace of the Zone its Zone tag names, or from any
 Zone tag. Its owner sets the tags in the cloud. The platform reads them before it uses the resource,
 and a resource that fails the check is refused with `CloudAccepted: False`.
 
+To take ownership of the resource, the user removes `observe` and sets the common fields in the same
+edit; `id` stays in the entry. `observe` can be removed once and never set again after creation.
+From then on the platform changes the resource to match the object, and deleting the object deletes
+the resource, as for a resource the platform created.
+
 The check holds only where users can create the platform's kinds and nothing else, so it has a
 prerequisite: kcp serves no Crossplane provider kinds, and a Zone's Argo CD project and roles allow
 only the platform's and Kubernetes' own groups. Today's Argo CD project does not yet limit itself to

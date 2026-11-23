@@ -25,8 +25,9 @@ spec:
               id:
                 type: string
                 description: |-
-                  The ElastiCache ID of an existing resource to observe (principle 9). Only with
-                  observe.
+                  The ElastiCache ID of an existing resource to observe (principle 9). Set with
+                  observe; it stays when observe is removed, and the object then owns the
+                  resource.
                 x-kubernetes-validations:
                 - rule: self == oldSelf
                   message: id is immutable

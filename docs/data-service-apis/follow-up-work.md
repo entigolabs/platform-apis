@@ -46,9 +46,11 @@ The differences are listed in [API Changes](changes.md). The teams get four aids
   needed and moving fields into the provider configuration entry; teams run it on their
   repositories.
 - Move path. For each kind, a documented sequence moves an object without touching its cloud
-  resource: the new object observes the resource by its ID and adopts it, then the old object is
-  deleted without deleting the resource. A parent moves first, then the team removes `kind` from its
-  users' parent reference ([Versions](common-design.md#versions)).
+  resource: the new object observes the resource by its ID and takes ownership of it by removing
+  `observe`, then the old object is deleted without deleting the resource. Before the migration
+  starts, today's functions add the workspace and Zone tags to the resources they manage, so the new
+  object passes the tag check. A parent moves first, then the team removes `kind` from its users'
+  parent reference ([Versions](common-design.md#versions)).
 - Deprecation signal. Every object of a renamed kind reports a status condition that names the new
   kind and links to the steps, also shown in Argo CD and the portal.
 - Migration guide. One page per kind, built from API Changes, states what changes, what to check

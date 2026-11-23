@@ -457,7 +457,8 @@ def provider_config_crd(kind, plural, group, product, settings, status, rules=()
     """A provider configuration kind: one implementation's settings, and its status.provider shape."""
     return crd(kind, plural, group, "Namespaced", obj({
         "id": field("string", f"The {product} ID of an existing resource to observe (principle 9). "
-                    "Only with observe.", **{"x-kubernetes-validations": [
+                    "Set with observe; it stays when observe is removed, and the object then owns "
+                    "the resource.", **{"x-kubernetes-validations": [
                         {"rule": "self == oldSelf", "message": "id is immutable"}]}),
         **settings}, f"Settings for {product} (principle 2).", rules=list(rules)),
         obj(status, f"The shape of status.provider for {product} (principle 4)."))
@@ -541,13 +542,14 @@ def class_spec(class_kind, common, tail, observed, rules):
                                {"rule": "self == oldSelf", "message": "className is immutable"}]}),
         "observe": field("boolean", "true observes an existing resource, named by the id in its "
                          "provider configuration entry, and never changes or deletes it. Every other "
-                         "common field is then rejected (principle 9). Set at creation only."),
+                         "common field is then rejected (principle 9). Set at creation only; removing "
+                         "it, once, takes ownership of the resource."),
         **common,
         **tail,
         "providerConfigs": provider_configs(),
     }, rules=[
-        ("(has(self.observe) && self.observe) == (has(oldSelf.observe) && oldSelf.observe)",
-         "observe is immutable"),
+        ("!(has(self.observe) && self.observe) || (has(oldSelf.observe) && oldSelf.observe)",
+         "observe can be removed but never set after creation"),
         ("!(has(self.observe) && self.observe) || (" + " && ".join(
             f"!has(self.{k})" for k in [*common, *observed]) + ")",
          "an observed resource takes no other common field"),

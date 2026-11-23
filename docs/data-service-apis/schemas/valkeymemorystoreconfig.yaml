@@ -26,7 +26,8 @@ spec:
                 type: string
                 description: |-
                   The Memorystore for Valkey ID of an existing resource to observe (principle 9).
-                  Only with observe.
+                  Set with observe; it stays when observe is removed, and the object then owns the
+                  resource.
                 x-kubernetes-validations:
                 - rule: self == oldSelf
                   message: id is immutable

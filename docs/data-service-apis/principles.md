@@ -123,7 +123,9 @@ A kind either creates its resource or, with `observe: true`, only reads one that
 
 This applies to every kind that represents a cloud resource, such as a database or a bucket. An
 observed resource is never changed or deleted by the platform, so a resource created outside it is
-used without transferring its ownership to the platform.
+used without transferring its ownership to the platform. An observed object takes ownership of its
+resource when the user removes `observe`, once: the platform then manages the resource as one it
+created.
 
 #### 10 The core schema checks only the API's own rules
 

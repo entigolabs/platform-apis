@@ -135,8 +135,10 @@ create("observe with an entry accepted", "PostgreSQLCluster",
 create("observe with a common field rejected", "PostgreSQLCluster",
        {"observe": True, "version": "17", "providerConfigs": [RDS]}, False, "no other common field")
 ob = {"observe": True, "providerConfigs": [{**RDS, "spec": {"id": "db-ABC"}}]}
-update("removing observe rejected", "PostgreSQLCluster", ob, {"providerConfigs": ob["providerConfigs"]},
-       False, "observe is immutable")
+update("removing observe with common fields accepted", "PostgreSQLCluster", ob,
+       w(PG, providerConfigs=ob["providerConfigs"]))
+update("setting observe after creation rejected", "PostgreSQLCluster", w(PG, providerConfigs=ob["providerConfigs"]),
+       ob, False, "observe can be removed but never set after creation")
 create("maxSizeGB below sizeGB rejected", "PostgreSQLCluster",
        w(PG, storage={"sizeGB": 100, "maxSizeGB": 50}), False, "maxSizeGB must be at least sizeGB")
 create("pointInTimeDays with retentionDays 0 rejected", "PostgreSQLCluster",
