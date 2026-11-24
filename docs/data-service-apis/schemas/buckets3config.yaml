@@ -28,6 +28,33 @@ spec:
                   The Amazon S3 ID of an existing resource to observe (principle 9). Set with
                   observe; it stays when observe is removed, and the object then owns the
                   resource.
+              cors:
+                type: array
+                description: |-
+                  Cross-origin requests browsers may make.
+                items:
+                  type: object
+                  properties:
+                    origins:
+                      type: array
+                      items:
+                        type: string
+                    methods:
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                        - GET
+                        - PUT
+                        - POST
+                        - DELETE
+                        - HEAD
+                    maxAgeSeconds:
+                      type: integer
+                      minimum: 0
+                  required:
+                  - origins
+                  - methods
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)

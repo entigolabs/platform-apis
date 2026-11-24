@@ -568,17 +568,17 @@ spec:
 
 `S3Bucket` becomes `Bucket`:
 
-| Today                                                        | Design                                                                        | Reason                                                                         |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| kind `S3Bucket`                                              | kind `Bucket`                                                                 | Named after the concept (principle 8)                                          |
-| `enableVersioning`                                           | `versioning`                                                                  | The same word on every cloud                                                   |
-| `createServiceAccount`, `serviceAccountName`                 | removed                                                                       | An application's identity is not part of the bucket                            |
-| (none)                                                       | `deletionProtection`, `lifecycleRules`, `retention`, `cors`, `softDeleteDays` | New settings                                                                   |
-| an IAM role, service account and IAM user with an access key | not created                                                                   | A bucket holds no credentials                                                  |
-| a secret with `AWS_*` and `credentials.json` keys            | removed                                                                       | A bucket holds no credentials                                                  |
-| `status.s3Url`, `status.s3Uri`                               | `status.url`, with `status.bucketName` and `status.region`                    | The same words on every cloud                                                  |
-| encryption, public access and ACL status fields              | removed                                                                       | Settings the platform makes (principle 4)                                      |
-| (none)                                                       | `className`, and `id` in a provider configuration entry to observe            | The kind's class (principle 5), and observing an existing bucket (principle 9) |
+| Today                                                        | Design                                                                                                                         | Reason                                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| kind `S3Bucket`                                              | kind `Bucket`                                                                                                                  | Named after the concept (principle 8)                                          |
+| `enableVersioning`                                           | `versioning`                                                                                                                   | The same word on every cloud                                                   |
+| `createServiceAccount`, `serviceAccountName`                 | removed                                                                                                                        | An application's identity is not part of the bucket                            |
+| (none)                                                       | `deletionProtection`, `lifecycleRules`, `retention`; `cors` and `softDeleteDays` in the entries of the backends that have them | New settings                                                                   |
+| an IAM role, service account and IAM user with an access key | not created                                                                                                                    | A bucket holds no credentials                                                  |
+| a secret with `AWS_*` and `credentials.json` keys            | removed                                                                                                                        | A bucket holds no credentials                                                  |
+| `status.s3Url`, `status.s3Uri`                               | `status.url`, with `status.bucketName` and `status.region`                                                                     | The same words on every cloud                                                  |
+| encryption, public access and ACL status fields              | removed                                                                                                                        | Settings the platform makes (principle 4)                                      |
+| (none)                                                       | `className`, and `id` in a provider configuration entry to observe                                                             | The kind's class (principle 5), and observing an existing bucket (principle 9) |
 
 *`Bucket` changes from `S3Bucket`, with reasons.*
 

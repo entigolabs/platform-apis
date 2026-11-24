@@ -100,39 +100,6 @@ spec:
                       message: a locked retention cannot be unlocked
                 required:
                 - days
-              cors:
-                type: array
-                description: |-
-                  Cross-origin requests browsers may make.
-                items:
-                  type: object
-                  properties:
-                    origins:
-                      type: array
-                      items:
-                        type: string
-                    methods:
-                      type: array
-                      items:
-                        type: string
-                        enum:
-                        - GET
-                        - PUT
-                        - POST
-                        - DELETE
-                        - HEAD
-                    maxAgeSeconds:
-                      type: integer
-                      minimum: 0
-                  required:
-                  - origins
-                  - methods
-              softDeleteDays:
-                type: integer
-                description: |-
-                  Days deleted objects can be recovered.
-                  Default: the class's template.
-                minimum: 0
               providerConfigs:
                 type: array
                 description: |-
@@ -195,7 +162,7 @@ spec:
               message: observe can be removed but never set after creation
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.versioning) && !has(self.deletionProtection) && !has(self.lifecycleRules) && !has(self.retention) && !has(self.cors) && !has(self.softDeleteDays))
+                || (!has(self.versioning) && !has(self.deletionProtection) && !has(self.lifecycleRules) && !has(self.retention))
               message: an observed resource takes no other common field
             - rule: |-
                 !has(oldSelf.retention)

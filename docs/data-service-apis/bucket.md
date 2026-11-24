@@ -29,7 +29,6 @@ metadata:
 spec:
   template:
     deletionProtection: true
-    softDeleteDays: 7
     providerConfig:
       apiVersion: aws.storage.entigo.com/v1alpha1
       kind: BucketS3Config
@@ -42,9 +41,9 @@ spec:
 
 ### Bucket
 
-A user creates a `Bucket` with a manifest like the one below. A bucket has no setting specific to
-one backend, so its manifest carries a provider configuration entry only to observe an existing
-bucket, and that entry holds only the bucket's `id` (principle 9):
+A user creates a `Bucket` with a manifest like the one below. Settings that only some backends have
+are in its provider configuration entries: `cors` on S3, Cloud Storage and Blob Storage, and
+`softDeleteDays` on Cloud Storage and Blob Storage (principle 1):
 
 ```yaml
 ---
@@ -67,19 +66,33 @@ spec:
   retention:                           # objects cannot be changed or deleted for this long
     days: 30
     locked: false                      # true cannot be undone on any cloud
-  cors:
-  - origins:
-    - https://shop.example.com
-    methods:
-    - GET
-    - PUT
-    maxAgeSeconds: 3600
-  softDeleteDays: 7                    # ignored on AWS and OCI
+  providerConfigs:                     # settings only some backends have (principle 1)
+  - apiVersion: aws.storage.entigo.com/v1alpha1
+    kind: BucketS3Config
+    spec:
+      cors:
+      - origins:
+        - https://shop.example.com
+        methods:
+        - GET
+        - PUT
+        maxAgeSeconds: 3600
+  - apiVersion: gcp.storage.entigo.com/v1alpha1
+    kind: BucketCloudStorageConfig
+    spec:
+      cors:
+      - origins:
+        - https://shop.example.com
+        methods:
+        - GET
+        - PUT
+        maxAgeSeconds: 3600
+      softDeleteDays: 7                # Cloud Storage and Blob Storage only
 ```
 
-*`Bucket` with common fields.*
+*`Bucket` with common fields and the entries of two backends.*
 
-`lifecycleRules`, `retention` and `cors` have no default. `tier` names the two cold tiers every
+`lifecycleRules` and `retention` have no default. `tier` names the two cold tiers every
 cloud has.
 
 A `Bucket` creates no service account, role or access key: an application reaches it with its own
@@ -121,17 +134,17 @@ as ignored, with the reason (principle 1):
 | `tier: Infrequent`   | `STANDARD_IA`                                                                                                                                       | `NEARLINE`                                                | `INFREQUENT_ACCESS`                                                                                                                                 | `Cool`                                               |
 | `tier: Archive`      | `GLACIER`                                                                                                                                           | `ARCHIVE`                                                 | `ARCHIVE`                                                                                                                                           | `Archive`                                            |
 | `retention`          | Object Lock default retention, mode `COMPLIANCE` when `locked` and `GOVERNANCE` when not; needs `versioning`, and Object Lock stays on once enabled | `retentionPolicy.retentionPeriod`, in seconds; `isLocked` | `retentionRules[]`; `locked: true` sets `timeRuleLocked` 15 days ahead, since OCI rejects 14 days or less (tested in OC19), and the rule locks then | `ContainerImmutabilityPolicy`, `locked`              |
-| `cors`               | `BucketCorsConfiguration`                                                                                                                           | `cors[]`                                                  | ignored; OCI allows every origin, though requests still need authorization                                                                          | `Account.blobProperties.corsRule[]`                  |
-| `softDeleteDays`     | ignored; deleted objects cannot be recovered, though versioning keeps replaced ones                                                                 | `softDeletePolicy.retentionDurationSeconds`, in seconds   | ignored; deleted objects cannot be recovered, though versioning keeps replaced ones                                                                 | `Account.blobProperties.deleteRetentionPolicy.days`  |
 
 *`Bucket` common fields and their provider fields.*
 
 The second names the backend's provider configuration kind and what its fields map to:
 
-| Field | AWS              | GCP                        | OCI                                                   | Azure                                                                                     |
-| ----- | ---------------- | -------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| kind  | `BucketS3Config` | `BucketCloudStorageConfig` | `BucketObjectStorageConfig`                           | `BucketBlobStorageConfig`                                                                 |
-| `id`  | the bucket name  | the bucket name            | the bucket name; the function adds `n/<namespace>/b/` | the container's resource ID; the function takes the account, container and resource group |
+| Field            | AWS                       | GCP                                                     | OCI                                                   | Azure                                                                                     |
+| ---------------- | ------------------------- | ------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| kind             | `BucketS3Config`          | `BucketCloudStorageConfig`                              | `BucketObjectStorageConfig`                           | `BucketBlobStorageConfig`                                                                 |
+| `id`             | the bucket name           | the bucket name                                         | the bucket name; the function adds `n/<namespace>/b/` | the container's resource ID; the function takes the account, container and resource group |
+| `cors`           | `BucketCorsConfiguration` | `cors[]`                                                |                                                       | `Account.blobProperties.corsRule[]`                                                       |
+| `softDeleteDays` |                           | `softDeletePolicy.retentionDurationSeconds`, in seconds |                                                       | `Account.blobProperties.deleteRetentionPolicy.days`                                       |
 
 *Bucket provider configuration fields.*
 
@@ -152,9 +165,10 @@ Storage account names are globally unique.
 
 ## Provider Configurations
 
-Each backend's provider configuration kind for a bucket holds only `id`, the existing bucket an
-observed object names (principle 9); every other setting is a common field or a decision the
-platform makes. An entry for an object the platform creates is empty, so it can be left out.
+Each backend's provider configuration kind for a bucket holds `id`, the existing bucket an observed
+object names (principle 9), and the settings only some backends have: `cors` on S3, Cloud Storage
+and Blob Storage, and `softDeleteDays` on Cloud Storage and Blob Storage, as the `Bucket` in
+[Kinds](#kinds) shows. OCI's kind holds `id` alone. An entry without settings can be left out.
 
 ## Composed Resources
 
@@ -184,14 +198,17 @@ spec:
   retention:
     days: 30
     locked: false
-  cors:
-  - origins:
-    - https://shop.example.com
-    methods:
-    - GET
-    - PUT
-    maxAgeSeconds: 3600
-  softDeleteDays: 7
+  providerConfigs:
+  - apiVersion: aws.storage.entigo.com/v1alpha1
+    kind: BucketS3Config
+    spec:
+      cors:
+      - origins:
+        - https://shop.example.com
+        methods:
+        - GET
+        - PUT
+        maxAgeSeconds: 3600
 ```
 
 ```yaml AWS resources
@@ -300,14 +317,18 @@ spec:
   retention:
     days: 30
     locked: false
-  cors:
-  - origins:
-    - https://shop.example.com
-    methods:
-    - GET
-    - PUT
-    maxAgeSeconds: 3600
-  softDeleteDays: 7
+  providerConfigs:
+  - apiVersion: gcp.storage.entigo.com/v1alpha1
+    kind: BucketCloudStorageConfig
+    spec:
+      cors:
+      - origins:
+        - https://shop.example.com
+        methods:
+        - GET
+        - PUT
+        maxAgeSeconds: 3600
+      softDeleteDays: 7
 ```
 
 ```yaml GCP resource
@@ -383,14 +404,6 @@ spec:
   retention:
     days: 30
     locked: false
-  cors:
-  - origins:
-    - https://shop.example.com
-    methods:
-    - GET
-    - PUT
-    maxAgeSeconds: 3600
-  softDeleteDays: 7
 ```
 
 ```yaml OCI resources
@@ -476,14 +489,18 @@ spec:
   retention:
     days: 30
     locked: false
-  cors:
-  - origins:
-    - https://shop.example.com
-    methods:
-    - GET
-    - PUT
-    maxAgeSeconds: 3600
-  softDeleteDays: 7
+  providerConfigs:
+  - apiVersion: azure.storage.entigo.com/v1alpha1
+    kind: BucketBlobStorageConfig
+    spec:
+      cors:
+      - origins:
+        - https://shop.example.com
+        methods:
+        - GET
+        - PUT
+        maxAgeSeconds: 3600
+      softDeleteDays: 7
 ```
 
 ```yaml Azure resources

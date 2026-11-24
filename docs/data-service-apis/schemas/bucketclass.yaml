@@ -88,39 +88,6 @@ spec:
                           true cannot be undone in any backend.
                     required:
                     - days
-                  cors: &id005
-                    type: array
-                    description: |-
-                      Cross-origin requests browsers may make.
-                    items:
-                      type: object
-                      properties:
-                        origins:
-                          type: array
-                          items:
-                            type: string
-                        methods:
-                          type: array
-                          items:
-                            type: string
-                            enum:
-                            - GET
-                            - PUT
-                            - POST
-                            - DELETE
-                            - HEAD
-                        maxAgeSeconds:
-                          type: integer
-                          minimum: 0
-                      required:
-                      - origins
-                      - methods
-                  softDeleteDays: &id006
-                    type: integer
-                    description: |-
-                      Days deleted objects can be recovered.
-                      Default: the class's template.
-                    minimum: 0
                   providerConfig:
                     type: object
                     description: |-
@@ -155,8 +122,6 @@ spec:
                   deletionProtection: *id002
                   lifecycleRules: *id003
                   retention: *id004
-                  cors: *id005
-                  softDeleteDays: *id006
                   providerConfig:
                     type: object
                     description: |-

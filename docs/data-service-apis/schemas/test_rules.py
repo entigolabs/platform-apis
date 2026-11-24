@@ -460,6 +460,14 @@ B = {"versioning": True, "retention": {"days": 30, "locked": False},
      "lifecycleRules": [{"prefix": "logs/", "transitions": [{"afterDays": 90, "tier": "Archive"}]}],
      "providerConfigs": [S3]}
 create("Bucket valid spec", "Bucket", B)
+create("Bucket cors, a backend's setting, rejected in the common spec", "Bucket",
+       w(B, cors=[{"origins": ["*"], "methods": ["GET"]}]), False, "unknown field")
+create("BucketS3Config cors accepted", "BucketS3Config",
+       {"cors": [{"origins": ["https://shop.example.com"], "methods": ["GET", "PUT"]}]})
+create("BucketCloudStorageConfig softDeleteDays accepted", "BucketCloudStorageConfig",
+       {"softDeleteDays": 7})
+create("BucketObjectStorageConfig cors rejected, OCI has none", "BucketObjectStorageConfig",
+       {"cors": []}, False, "unknown field")
 create("Bucket unknown tier rejected", "Bucket",
        w(B, lifecycleRules=[{"transitions": [{"afterDays": 90, "tier": "Glacier"}]}]), False, "Unsupported value")
 update("Bucket locking retention accepted", "Bucket", B, w(B, retention={"days": 30, "locked": True}))

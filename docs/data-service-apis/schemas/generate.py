@@ -1109,14 +1109,16 @@ def bucket_common():
                                 "rule": "!oldSelf || self",
                                 "message": "a locked retention cannot be unlocked"}]}),
         }, "Objects cannot be changed or deleted for this many days.", required=["days"]),
-        "cors": array(obj({
-            "origins": array(field("string")),
-            "methods": array(field("string", enum=["GET", "PUT", "POST", "DELETE", "HEAD"])),
-            "maxAgeSeconds": field("integer", minimum=0),
-        }, required=["origins", "methods"]), "Cross-origin requests browsers may make."),
-        "softDeleteDays": field("integer", "Days deleted objects can be recovered.",
-                                default=DEFAULT, minimum=0),
     }
+
+
+BUCKET_CORS = lambda: array(obj({
+    "origins": array(field("string")),
+    "methods": array(field("string", enum=["GET", "PUT", "POST", "DELETE", "HEAD"])),
+    "maxAgeSeconds": field("integer", minimum=0),
+}, required=["origins", "methods"]), "Cross-origin requests browsers may make.")
+BUCKET_SOFT_DELETE = lambda: field("integer", "Days deleted objects can be recovered. 0 turns "
+                                   "soft delete off.", default="fixed, 7", minimum=0)
 
 
 write("bucket", xrd("Bucket", "buckets", "storage.entigo.com",
@@ -1147,18 +1149,21 @@ write("bucket", xrd("Bucket", "buckets", "storage.entigo.com",
 write("bucketclass", class_crd("BucketClass", "bucketclasses", "storage.entigo.com",
                                bucket_common()))
 write("buckets3config", provider_config_crd(
-    "BucketS3Config", "buckets3configs", "aws.storage.entigo.com", "Amazon S3", {},
+    "BucketS3Config", "buckets3configs", "aws.storage.entigo.com", "Amazon S3",
+    {"cors": BUCKET_CORS()},
     {"arn": S()}))
 write("bucketcloudstorageconfig", provider_config_crd(
     "BucketCloudStorageConfig", "bucketcloudstorageconfigs", "gcp.storage.entigo.com",
-    "Cloud Storage", {}, {"selfLink": S()}))
+    "Cloud Storage", {"cors": BUCKET_CORS(), "softDeleteDays": BUCKET_SOFT_DELETE()},
+    {"selfLink": S()}))
 write("bucketobjectstorageconfig", provider_config_crd(
     "BucketObjectStorageConfig", "bucketobjectstorageconfigs", "oci.storage.entigo.com",
     "OCI Object Storage", {}, {"namespace": S(), "retentionLockedFrom": field(
         "string", "The time a locked retention takes effect.", format="date-time")}))
 write("bucketblobstorageconfig", provider_config_crd(
     "BucketBlobStorageConfig", "bucketblobstorageconfigs", "azure.storage.entigo.com",
-    "Azure Blob Storage", {}, {"accountId": S(), "containerId": S()}))
+    "Azure Blob Storage", {"cors": BUCKET_CORS(), "softDeleteDays": BUCKET_SOFT_DELETE()},
+    {"accountId": S(), "containerId": S()}))
 
 # --- ArtifactRepository ----------------------------------------------------------------------
 
