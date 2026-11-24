@@ -93,7 +93,7 @@ spec:
     day: Sun
     hourUTC: 3
   parametersRefs:
-    - name: orders-mq-tuning           # RabbitMQParameters objects in this namespace, in order
+  - name: orders-mq-tuning             # RabbitMQParameters objects in this namespace, in order
   parameters:                          # this broker's own rabbitmq.conf settings, merged last
     consumer_timeout: "1800000"
   secretName: orders-mq-login          # unset, orders-mq-credentials (principle 6)

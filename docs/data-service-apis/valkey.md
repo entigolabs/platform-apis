@@ -102,7 +102,7 @@ spec:
     retentionDays: 7                   # 0 disables backups
     startHourUTC: 3
   parametersRefs:
-    - name: orders-cache-tuning        # ValkeyParameters objects in this namespace, in order
+  - name: orders-cache-tuning          # ValkeyParameters objects in this namespace, in order
   parameters:                          # this server's own settings, merged last
     maxmemory-policy: allkeys-lru
   secretName: orders-cache-login       # unset, orders-cache-credentials (principle 6)

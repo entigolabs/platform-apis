@@ -103,7 +103,7 @@ spec:
   highAvailability: true               # survive the loss of one zone
   deletionProtection: true
   parametersRefs:
-    - name: orders-brokers             # KafkaParameters objects in this namespace, in order
+  - name: orders-brokers               # KafkaParameters objects in this namespace, in order
   parameters:                          # this cluster's own broker settings, merged last
     auto.create.topics.enable: "false"
   providerConfigs:                     # one entry per kind; the class's kind applies

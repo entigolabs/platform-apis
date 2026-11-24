@@ -55,8 +55,8 @@ spec:
           day: Sun
           hourUTC: 3
   parametersRefs:                      # beneath every cluster's own settings
-    - name: pg-baseline
-      namespace: platform-apis
+  - name: pg-baseline
+    namespace: platform-apis
 ```
 
 *`PostgreSQLClass` for RDS.*
@@ -112,8 +112,8 @@ spec:
   backup:
     retentionDays: 7                   # backups kept; 0 disables them
   parametersRefs:                      # PostgreSQLParameters in this namespace, in order
-    - name: shop-common
-    - name: orders-tuning              # wins over shop-common
+  - name: shop-common
+  - name: orders-tuning                # wins over shop-common
   parameters:                          # this cluster's own settings, merged last
     max_connections: "200"
   secretName: orders-db-admin          # unset, orders-db-dbadmin (principle 6)
@@ -686,7 +686,7 @@ spec:
   backup:
     retentionDays: 7
   parametersRefs:
-    - name: orders-tuning
+  - name: orders-tuning
   parameters:
     max_connections: "200"
   secretName: orders-db-admin
@@ -788,7 +788,7 @@ spec:
   backup:
     retentionDays: 7
   parametersRefs:
-    - name: orders-tuning
+  - name: orders-tuning
   parameters:
     max_connections: "200"
   secretName: orders-db-admin
@@ -895,7 +895,7 @@ spec:
   backup:
     retentionDays: 7
   parametersRefs:
-    - name: orders-tuning
+  - name: orders-tuning
   parameters:
     max_connections: "200"
   secretName: orders-db-admin
@@ -1000,7 +1000,7 @@ spec:
   backup:
     retentionDays: 7
   parametersRefs:
-    - name: orders-tuning
+  - name: orders-tuning
   parameters:
     max_connections: "200"
   secretName: orders-db-admin
@@ -1097,7 +1097,7 @@ spec:
   backup:
     retentionDays: 7
   parametersRefs:
-    - name: orders-tuning
+  - name: orders-tuning
   parameters:
     max_connections: "200"
   secretName: orders-db-admin

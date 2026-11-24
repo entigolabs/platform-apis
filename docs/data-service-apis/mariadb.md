@@ -106,7 +106,7 @@ spec:
     retentionDays: 7                   # backups kept; 0 disables them
     startHourUTC: 2
   parametersRefs:
-    - name: orders-tuning              # MariaDBParameters objects in this namespace, in order
+  - name: orders-tuning                # MariaDBParameters objects in this namespace, in order
   parameters:                          # this server's own settings, merged last
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
@@ -388,7 +388,7 @@ spec:
     retentionDays: 7
     startHourUTC: 2
   parametersRefs:
-    - name: orders-tuning
+  - name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
