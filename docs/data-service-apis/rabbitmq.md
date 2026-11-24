@@ -39,9 +39,13 @@ spec:
       spec:
         instanceType: mq.m7g.medium
   enforced:                            # teams cannot change these
-    maintenanceWindow:
-      day: Sun
-      hourUTC: 3
+    providerConfig:
+      apiVersion: aws.mq.entigo.com/v1alpha1
+      kind: RabbitMQAmazonMQConfig
+      spec:
+        maintenanceWindow:
+          day: Sun
+          hourUTC: 3
 ```
 
 *`RabbitMQClass` for Amazon MQ.*
@@ -89,9 +93,6 @@ spec:
   version: "4.2"                       # the release line; the backend manages the patch
   highAvailability: false              # true: a three-node cluster across zones
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
   parametersRefs:
   - name: orders-mq-tuning             # RabbitMQParameters objects in this namespace, in order
   parameters:                          # this broker's own rabbitmq.conf settings, merged last
@@ -103,6 +104,9 @@ spec:
     spec:
       instanceType: mq.m7g.medium      # the Amazon MQ host instance type
       publiclyAccessible: false        # set at creation only
+      maintenanceWindow:               # a backend's own setting (principle 1)
+        day: Sun
+        hourUTC: 3
 ```
 
 *`RabbitMQBroker` with common fields and an Amazon MQ entry.*
@@ -212,26 +216,26 @@ spec:
 
 The first table maps each common field to Amazon MQ:
 
-| Field                | AWS                                                                      |
-| -------------------- | ------------------------------------------------------------------------ |
-| `observe`            | `managementPolicies: [Observe]` on every managed resource                |
-| `version`            | `engineVersion`                                                          |
-| `highAvailability`   | `deploymentMode`: `CLUSTER_MULTI_AZ` or `SINGLE_INSTANCE`                |
-| `deletionProtection` | platform blocks deletion                                                 |
-| `maintenanceWindow`  | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |
-| `parameters`         | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
-| `parametersRefs`     | merged into `parameters`                                                 |
+| Field                | AWS                                                       |
+| -------------------- | --------------------------------------------------------- |
+| `observe`            | `managementPolicies: [Observe]` on every managed resource |
+| `version`            | `engineVersion`                                           |
+| `highAvailability`   | `deploymentMode`: `CLUSTER_MULTI_AZ` or `SINGLE_INSTANCE` |
+| `deletionProtection` | platform blocks deletion                                  |
+| `parameters`         | an Amazon MQ `Configuration` holding `rabbitmq.conf`      |
+| `parametersRefs`     | merged into `parameters`                                  |
 
 *`RabbitMQBroker` common fields and their provider fields.*
 
 The second names the provider configuration kind and what its fields map to:
 
-| Field                | AWS                                                   |
-| -------------------- | ----------------------------------------------------- |
-| kind                 | `RabbitMQAmazonMQConfig`                              |
-| `id`                 | the broker ID                                         |
-| `instanceType`       | `hostInstanceType`                                    |
-| `publiclyAccessible` | `publiclyAccessible`; `true` omits the security group |
+| Field                | AWS                                                                      |
+| -------------------- | ------------------------------------------------------------------------ |
+| kind                 | `RabbitMQAmazonMQConfig`                                                 |
+| `id`                 | the broker ID                                                            |
+| `instanceType`       | `hostInstanceType`                                                       |
+| `publiclyAccessible` | `publiclyAccessible`; `true` omits the security group                    |
+| `maintenanceWindow`  | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |
 
 *`RabbitMQAmazonMQConfig` fields.*
 
@@ -258,6 +262,9 @@ metadata:
 spec:
   instanceType: mq.m7g.medium      # the Amazon MQ host instance type
   publiclyAccessible: false        # set at creation only
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
   # id: b-1234abcd-56ef-78ab-90cd-ef1234567890  # an existing broker's ID, with observe
 ```
 
@@ -275,6 +282,9 @@ spec:
     spec:
       instanceType: mq.m7g.medium      # the Amazon MQ host instance type
       publiclyAccessible: false        # set at creation only
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
       # id: b-1234abcd-56ef-78ab-90cd-ef1234567890  # an existing broker's ID, with observe
 ```
 
@@ -299,9 +309,6 @@ spec:
   version: "4.2"
   highAvailability: false
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
   parameters:
     consumer_timeout: "1800000"
   secretName: orders-mq-login
@@ -311,6 +318,9 @@ spec:
     spec:
       instanceType: mq.m7g.medium
       publiclyAccessible: false
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
 ```
 
 ```yaml AWS resource

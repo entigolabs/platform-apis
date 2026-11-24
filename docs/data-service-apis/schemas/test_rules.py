@@ -432,10 +432,12 @@ update("fewer partitions accepted, the function ignores it", "KafkaTopic", KT, w
 print("\n# RabbitMQBroker")
 AMQ = {"apiVersion": "aws.mq.entigo.com/v1alpha1", "kind": "RabbitMQAmazonMQConfig",
        "spec": {"instanceType": "mq.m7g.medium"}}
-RB = {"version": "4.2", "maintenanceWindow": {"day": "Sun", "hourUTC": 3}, "providerConfigs": [AMQ]}
+RB = {"version": "4.2", "providerConfigs": [AMQ]}
 create("RabbitMQ valid spec", "RabbitMQBroker", RB)
-create("RabbitMQ window without hourUTC rejected", "RabbitMQBroker",
-       w(RB, maintenanceWindow={"day": "Sun"}), False, "Required value")
+create("RabbitMQ maintenanceWindow, a backend's setting, rejected in the common spec",
+       "RabbitMQBroker", w(RB, maintenanceWindow={"day": "Sun", "hourUTC": 3}), False, "unknown field")
+create("RabbitMQAmazonMQConfig window without hourUTC rejected", "RabbitMQAmazonMQConfig",
+       {"maintenanceWindow": {"day": "Sun"}}, False, "Required value")
 create("RabbitMQ maintenance.window, the former form, rejected", "RabbitMQBroker",
        w(RB, maintenance={"window": {"day": "Sun", "hourUTC": 3}}), False, "unknown field")
 create("RabbitMQ a full version rejected", "RabbitMQBroker", w(RB, version="4.2.1"), False,

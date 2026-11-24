@@ -51,28 +51,6 @@ spec:
                 description: |-
                   Deleting the object is denied while true.
                   Default: fixed, true.
-              maintenanceWindow:
-                type: object
-                description: |-
-                  The weekly hour, in UTC, in which the cloud applies updates.
-                properties:
-                  day:
-                    type: string
-                    enum:
-                    - Mon
-                    - Tue
-                    - Wed
-                    - Thu
-                    - Fri
-                    - Sat
-                    - Sun
-                  hourUTC:
-                    type: integer
-                    minimum: 0
-                    maximum: 23
-                required:
-                - day
-                - hourUTC
               parametersRefs:
                 type: array
                 description: |-
@@ -165,7 +143,7 @@ spec:
               message: observe can be removed but never set after creation
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.version) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.parametersRefs) && !has(self.parameters))
+                || (!has(self.version) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.parametersRefs) && !has(self.parameters))
               message: an observed resource takes no other common field
           status:
             type: object
@@ -174,13 +152,6 @@ spec:
                 type: string
               highAvailability:
                 type: boolean
-              maintenanceWindow:
-                type: object
-                properties:
-                  day:
-                    type: string
-                  hourUTC:
-                    type: integer
               endpoint:
                 type: object
                 description: |-

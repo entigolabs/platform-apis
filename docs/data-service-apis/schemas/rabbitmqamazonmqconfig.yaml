@@ -39,6 +39,28 @@ spec:
                   Reachable from the internet, without the platform's security group. Amazon MQ
                   replaces the broker to change it, so it is set at creation only.
                   Default: fixed, false.
+              maintenanceWindow:
+                type: object
+                description: |-
+                  The weekly hour, in UTC, in which the cloud applies updates.
+                properties:
+                  day:
+                    type: string
+                    enum:
+                    - Mon
+                    - Tue
+                    - Wed
+                    - Thu
+                    - Fri
+                    - Sat
+                    - Sun
+                  hourUTC:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                required:
+                - day
+                - hourUTC
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)

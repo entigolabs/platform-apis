@@ -1032,7 +1032,6 @@ def rabbitmq_common():
                                   default=DEFAULT),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
-        "maintenanceWindow": window(),
         "parametersRefs": parameters_refs("RabbitMQParameters", "Reusable rabbitmq.conf settings"),
         "parameters": string_map("rabbitmq.conf settings for this object only, merged after "
                                  "parametersRefs."),
@@ -1045,7 +1044,6 @@ write("rabbitmqbroker", xrd("RabbitMQBroker", "rabbitmqbrokers", "mq.entigo.com"
                             obj({
                                 "version": S(),
                                 "highAvailability": field("boolean"),
-                                "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
                                 "endpoint": endpoint("The AMQPS address."),
                                 "managementEndpoint": field("string", "The management console URL."),
                                 "connectionSecret": field("string", "The Secret "
@@ -1079,6 +1077,7 @@ write("rabbitmqamazonmqconfig", provider_config_crd(
                                     "platform's security group. Amazon MQ replaces the broker to "
                                     "change it, so it is set at creation only.",
                                     default="fixed, false"),
+        "maintenanceWindow": window(),
     }, {"instanceType": S(), "id": S(), "engineVersion": S()}))
 
 # --- Bucket ----------------------------------------------------------------------------------

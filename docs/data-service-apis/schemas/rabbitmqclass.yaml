@@ -42,29 +42,7 @@ spec:
                     description: |-
                       Deleting the object is denied while true.
                       Default: fixed, true.
-                  maintenanceWindow: &id004
-                    type: object
-                    description: |-
-                      The weekly hour, in UTC, in which the cloud applies updates.
-                    properties:
-                      day:
-                        type: string
-                        enum:
-                        - Mon
-                        - Tue
-                        - Wed
-                        - Thu
-                        - Fri
-                        - Sat
-                        - Sun
-                      hourUTC:
-                        type: integer
-                        minimum: 0
-                        maximum: 23
-                    required:
-                    - day
-                    - hourUTC
-                  parameters: &id005
+                  parameters: &id004
                     type: object
                     description: |-
                       rabbitmq.conf settings for this object only, merged after parametersRefs.
@@ -103,8 +81,7 @@ spec:
                   version: *id001
                   highAvailability: *id002
                   deletionProtection: *id003
-                  maintenanceWindow: *id004
-                  parameters: *id005
+                  parameters: *id004
                   providerConfig:
                     type: object
                     description: |-

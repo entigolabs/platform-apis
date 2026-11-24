@@ -479,7 +479,7 @@ spec:
 | `engineVersion`                                                                   | `version`                                                                                                                                          | The release line; Amazon MQ manages the patch                                                |
 | `instanceType`                                                                    | `instanceType` in the `RabbitMQAmazonMQConfig` entry                                                                                               | A size named by its product is a setting of one backend (principle 2)                        |
 | `deploymentMode`                                                                  | `highAvailability`                                                                                                                                 | Named after the need                                                                         |
-| `maintenanceWindowStartTime`                                                      | `maintenanceWindow` (`day`, `hourUTC`)                                                                                                             | One form everywhere                                                                          |
+| `maintenanceWindowStartTime`                                                      | `maintenanceWindow` (`day`, `hourUTC`) in the `RabbitMQAmazonMQConfig` entry                                                                       | A backend's own setting (principle 1)                                                        |
 | `configuration.data`                                                              | `parameters`                                                                                                                                       | A map the platform renders into `rabbitmq.conf`                                              |
 | (none)                                                                            | `parametersRefs`                                                                                                                                   | Settings shared through a `RabbitMQParameters`                                               |
 | `configuration.description`                                                       | removed                                                                                                                                            | Internal to the platform                                                                     |
@@ -526,9 +526,6 @@ metadata:
 spec:
   version: "4.2"                       # was engineVersion
   highAvailability: false              # was deploymentMode
-  maintenanceWindow:                   # was maintenanceWindowStartTime
-    day: Sun
-    hourUTC: 3
   parameters:                          # was configuration.data
     consumer_timeout: "1800000"
   providerConfigs:                     # new
@@ -537,6 +534,9 @@ spec:
     spec:
       instanceType: mq.m7g.medium      # was instanceType
       publiclyAccessible: false        # was publiclyAccessible
+      maintenanceWindow:               # was maintenanceWindowStartTime
+        day: Sun
+        hourUTC: 3
 # removed: brokerName, engineType, autoMinorVersionUpgrade
 ```
 
