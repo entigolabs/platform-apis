@@ -1,0 +1,250 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: postgresqlclusters.database.entigo.com
+spec:
+  defaultCompositeDeletePolicy: Foreground
+  defaultCompositionRef:
+    name: postgresqlclusters.database.entigo.com
+  group: database.entigo.com
+  scope: Namespaced
+  names:
+    kind: PostgreSQLCluster
+    plural: postgresqlclusters
+  versions:
+  - name: v1alpha2
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              className:
+                type: string
+                description: |-
+                  The PostgreSQLClass: the deployment's defaults, enforced values and backend
+                  (principle 5). Unset, the default class, written at creation; without one, the
+                  object is standalone. A standalone object may add it once; it is never changed
+                  or removed.
+              observe:
+                type: boolean
+                description: |-
+                  true observes an existing resource, named by the id in its provider
+                  configuration entry, and never changes or deletes it. Every other common field
+                  is then rejected (principle 9). Set at creation only; removing it, once, takes
+                  ownership of the resource.
+              version:
+                type: string
+                description: |-
+                  The major version, such as "17". Raising it upgrades the cluster where the
+                  backend can; the backend applies minor versions itself.
+                  Default: the class's template, else the implementation's.
+                pattern: ^[0-9]+$
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      Disk size in GB at creation, and its floor after: raising it grows the disk, and
+                      a value below the real size is ignored. The disk can be larger: it is rounded up
+                      to a size the backend accepts, and may grow further where the backend grows it.
+                      The status shows the real size.
+                      Default: the class's template, else the implementation's.
+                    minimum: 1
+              highAvailability:
+                type: boolean
+                description: |-
+                  A standby in another zone, with automatic failover. Refused where the backend
+                  does not support HighAvailability (principle 1).
+                  Default: the class's template, else false.
+              deletionProtection:
+                type: boolean
+                description: |-
+                  Deleting the object is denied while true.
+                  Default: fixed, true.
+              backup:
+                type: object
+                properties:
+                  retentionDays:
+                    type: integer
+                    description: |-
+                      Days automated backups are kept, within the backend's own range (principle 10).
+                      0 turns automated backups and point-in-time restore off.
+                      Default: the class's template, else 7.
+                    minimum: 0
+              parametersRefs:
+                type: array
+                description: |-
+                  Reusable PostgreSQL settings: PostgreSQLParameters objects in this namespace,
+                  merged after the class's. The list merges in order, key by key, a later entry
+                  winning; a referenced object names no other.
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      maxLength: 253
+                  required:
+                  - name
+                maxItems: 8
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - name
+              parameters:
+                type: object
+                description: |-
+                  PostgreSQL settings for this object only, merged after parametersRefs.
+                additionalProperties:
+                  type: string
+              restore:
+                type: object
+                description: |-
+                  Create the cluster from another cluster's backups. Set at creation only.
+                properties:
+                  fromInstance:
+                    type: string
+                    description: |-
+                      A PostgreSQLCluster in this namespace.
+                  pointInTime:
+                    type: string
+                    description: |-
+                      The time to restore fromInstance to. Unset, the latest restorable time.
+                    format: date-time
+                required:
+                - fromInstance
+              secretName:
+                type: string
+                description: |-
+                  The name of the connection Secret (principle 6). The platform never overwrites a
+                  Secret that another object or person owns; set this to avoid one.
+                  Default: fixed, <instance>-dbadmin.
+              providerConfigs:
+                type: array
+                description: |-
+                  Settings of single backends, one entry per kind (principle 2). The deployment
+                  applies the entry whose group and kind its class names, whatever its version,
+                  and ignores the others.
+                items:
+                  type: object
+                  properties:
+                    apiVersion:
+                      type: string
+                      description: |-
+                        The provider configuration kind's group and version, such as
+                        aws.database.entigo.com/v1alpha1.
+                      maxLength: 253
+                    kind:
+                      type: string
+                      description: |-
+                        The provider configuration kind, such as PostgreSQLRDSConfig.
+                      maxLength: 63
+                    spec:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      description: |-
+                        The settings, checked by the implementation that applies them (principle 10).
+                    ref:
+                      type: object
+                      description: |-
+                        The settings in a separate object of this kind, instead of spec.
+                      properties:
+                        name:
+                          type: string
+                          description: |-
+                            An object of this kind in the same namespace.
+                      required:
+                      - name
+                  required:
+                  - apiVersion
+                  - kind
+                  x-kubernetes-validations:
+                  - rule: has(self.spec) != has(self.ref)
+                    message: an entry holds either spec or ref
+                maxItems: 16
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - apiVersion
+                - kind
+                x-kubernetes-validations:
+                - rule: self.all(a, self.exists_one(b, b.kind == a.kind && b.apiVersion.split('/')[0]
+                    == a.apiVersion.split('/')[0]))
+                  message: one entry per group and kind, whatever its version
+            x-kubernetes-validations:
+            - rule: |-
+                !has(oldSelf.className)
+                || (has(self.className) && self.className == oldSelf.className)
+              message: className can be added once, never changed or removed
+            - rule: |-
+                !(has(self.observe) && self.observe)
+                || (has(oldSelf.observe) && oldSelf.observe)
+              message: observe can be removed but never set after creation
+            - rule: |-
+                !(has(self.observe) && self.observe)
+                || (!has(self.version) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.backup) && !has(self.parametersRefs) && !has(self.parameters) && !has(self.restore))
+              message: an observed resource takes no other common field
+            - rule: |-
+                has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || self.restore == oldSelf.restore)
+              message: restore is set at creation only
+          status:
+            type: object
+            properties:
+              version:
+                type: string
+              storage:
+                type: object
+                properties:
+                  sizeGB:
+                    type: integer
+                    description: |-
+                      The actual disk size.
+              highAvailability:
+                type: boolean
+              backup:
+                type: object
+                properties:
+                  retentionDays:
+                    type: integer
+              endpoint:
+                type: object
+                description: |-
+                  The address applications connect to.
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: integer
+              connectionSecret:
+                type: string
+                description: |-
+                  The admin Secret, <instance>-dbadmin (principle 6).
+              providerConfig:
+                type: object
+                description: |-
+                  The provider configuration entries applied and ignored, as <apiVersion>, <kind>
+                  (principle 4).
+                properties:
+                  applied:
+                    type: string
+                  ignored:
+                    type: array
+                    items:
+                      type: string
+              effective:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Each effective value and its source: the implementation's default, the class's
+                  template, the object, or the class's enforced (principle 4).
+              provider:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  Values of the applied backend, in the shape its provider configuration kind's
+                  status defines (principle 4).
+        required:
+        - spec

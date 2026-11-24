@@ -1,9 +1,13 @@
-{{- if .Values.postgresql.install }}
+{{- if or .Values.postgresql.install .Values.postgresqlcluster.install }}
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
   name: platform-apis-database
 data:
+{{- if .Values.postgresqlcluster.install }}
+  postgresqlBackends: {{- toYaml .Values.postgresqlcluster.backends | nindent 4 }}
+{{- end }}
+{{- if .Values.postgresql.install }}
   awsProvider: {{ .Values.database.environmentConfig.awsProvider }}
 {{- if .Values.global.kms.dataKeyArn }}
   dataKMSKey: {{ .Values.database.environmentConfig.dataKMSKey }}
@@ -23,6 +27,7 @@ data:
   {{- else }}
   tags: {}
   {{- end }}
+{{- end }}
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: DeploymentRuntimeConfig
@@ -91,6 +96,8 @@ spec:
   package: {{ .Values.database.function.image }}:{{ .Values.database.function.tag }}
   runtimeConfigRef:
     name: platform-apis-database-fn
+{{- end }}
+{{- if .Values.postgresql.install }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy

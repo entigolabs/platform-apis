@@ -1,0 +1,14 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: postgresqlclusters.database.entigo.com
+spec:
+  compositeTypeRef:
+    apiVersion: database.entigo.com/v1alpha2
+    kind: PostgreSQLCluster
+  mode: Pipeline
+  pipeline:
+  - step: postgresql-cluster
+    functionRef:
+      name: platform-apis-database-fn

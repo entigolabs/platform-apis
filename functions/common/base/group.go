@@ -69,6 +69,13 @@ type GroupService interface {
 	GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error)
 }
 
+// CompositeStatusProvider is an optional interface that GroupService implementations can implement
+// to add status derived from the composite resource itself and its required resources, such as
+// which of its settings were applied, rather than from a composed resource.
+type CompositeStatusProvider interface {
+	GetCompositeStatus(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]interface{}, error)
+}
+
 // PostStatusProcessor is an optional interface that GroupService implementations can implement
 // to perform custom status aggregation (e.g., collecting arrays from multiple resources)
 type PostStatusProcessor interface {

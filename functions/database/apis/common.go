@@ -8,4 +8,5 @@ const (
 	XRKindMariaDBUser        = "MariaDBUser"
 	XRKindPostgreSQLDatabase = "PostgreSQLDatabase"
 	XRKindMariaDBDatabase    = "MariaDBDatabase"
+	XRKindPostgreSQLCluster  = "PostgreSQLCluster"
 )

@@ -1,0 +1,89 @@
+{{- if .Values.postgresqlcluster.install }}
+{{- if semverCompare "<1.36.0-0" .Capabilities.KubeVersion.Version }}
+{{- fail "postgresqlcluster needs Kubernetes 1.36 or later" }}
+{{- end }}
+{{- if ne (len .Values.postgresqlcluster.backends) 1 }}
+{{- fail "postgresqlcluster.backends names exactly one PostgreSQL backend in the first iteration" }}
+{{- end }}
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: platform-apis-postgresqlcluster
+spec:
+  package: {{ .Values.postgresqlcluster.package.image }}:{{ .Values.postgresqlcluster.package.tag }}
+  skipDependencyResolution: true
+---
+# Fields outside the first iteration are refused, each with its name, until they are implemented.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: platform-apis-postgresqlcluster-fields
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["database.entigo.com"]
+      apiVersions: ["v1alpha2"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["postgresqlclusters"]
+  validations:
+  - expression: "!has(object.spec.className)"
+    message: "className is not available yet: PostgreSQLCluster runs without a class"
+    reason: Forbidden
+  - expression: "!has(object.spec.observe)"
+    message: "observe is not available yet"
+    reason: Forbidden
+  - expression: "!has(object.spec.parametersRefs)"
+    message: "parametersRefs is not available yet"
+    reason: Forbidden
+  - expression: "!has(object.spec.parameters)"
+    message: "parameters is not available yet"
+    reason: Forbidden
+  - expression: "!has(object.spec.restore)"
+    message: "restore is not available yet"
+    reason: Forbidden
+  - expression: "has(object.spec.version)"
+    message: "version is required: a cluster without a class sets it"
+    reason: Invalid
+  - expression: "has(object.spec.storage) && has(object.spec.storage.sizeGB)"
+    message: "storage.sizeGB is required: a cluster without a class sets it"
+    reason: Invalid
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: platform-apis-postgresqlcluster-fields
+spec:
+  policyName: platform-apis-postgresqlcluster-fields
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector: {}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: platform-apis-postgresqlcluster-deletion
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["database.entigo.com"]
+      apiVersions: ["v1alpha2"]
+      operations: ["DELETE"]
+      resources: ["postgresqlclusters"]
+  validations:
+  # Unset, deletionProtection takes the implementation's default, true.
+  - expression: "has(oldObject.spec.deletionProtection) && oldObject.spec.deletionProtection == false"
+    message: "PostgreSQLCluster is protected from deletion. Set spec.deletionProtection to false before deleting."
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: platform-apis-postgresqlcluster-deletion
+spec:
+  policyName: platform-apis-postgresqlcluster-deletion
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector: {}
+{{- end }}

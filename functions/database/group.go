@@ -12,7 +12,9 @@ import (
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis"
 	"github.com/entigolabs/platform-apis/apis/v1alpha1"
+	"github.com/entigolabs/platform-apis/apis/v1alpha2"
 	"github.com/entigolabs/platform-apis/service"
+	"github.com/entigolabs/platform-apis/service/pgcluster"
 	ec2mv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/ec2/v1beta1"
 	elasticachemv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/elasticache/v1beta1"
 	rdsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/rds/v1beta1"
@@ -33,6 +35,7 @@ type GroupImpl struct {
 }
 
 var _ base.GroupService = &GroupImpl{}
+var _ base.CompositeStatusProvider = &GroupImpl{}
 
 func (g *GroupImpl) SetLogger(log logging.Logger) {
 	g.log = log
@@ -72,7 +75,35 @@ func (g *GroupImpl) GetResourceHandlers() map[string]base.ResourceHandler {
 			Instantiate: func() client.Object { return &v1alpha1.MariaDBDatabase{} },
 			Generate:    g.generateMariaDBDatabase,
 		},
+		apis.XRKindPostgreSQLCluster: {
+			Instantiate: func() client.Object { return &v1alpha2.PostgreSQLCluster{} },
+			Generate:    g.generatePostgreSQLCluster,
+		},
 	}
+}
+
+func (g *GroupImpl) generatePostgreSQLCluster(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
+	return pgcluster.Generate(obj.(*v1alpha2.PostgreSQLCluster), required, observed)
+}
+
+func toPostgreSQLCluster(compositeResource *composite.Unstructured) (*v1alpha2.PostgreSQLCluster, error) {
+	c := &v1alpha2.PostgreSQLCluster{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(compositeResource.Object, c); err != nil {
+		return nil, fmt.Errorf("cannot read PostgreSQLCluster %s: %w", compositeResource.GetName(), err)
+	}
+	return c, nil
+}
+
+// GetCompositeStatus adds the status a PostgreSQLCluster takes from itself and its deployment.
+func (g *GroupImpl) GetCompositeStatus(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]interface{}, error) {
+	if compositeResource.GetKind() != apis.XRKindPostgreSQLCluster {
+		return nil, nil
+	}
+	c, err := toPostgreSQLCluster(compositeResource)
+	if err != nil {
+		return nil, err
+	}
+	return pgcluster.CompositeStatus(c, required)
 }
 
 func (g *GroupImpl) generatePostgreSQL(obj client.Object, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
@@ -173,6 +204,13 @@ func (g *GroupImpl) GetReadyStatus(observed *composed.Unstructured) resource.Rea
 }
 
 func (g *GroupImpl) GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error) {
+	if compositeResource.GetKind() == apis.XRKindPostgreSQLCluster {
+		c, err := toPostgreSQLCluster(compositeResource)
+		if err != nil {
+			return nil, err
+		}
+		return pgcluster.Required(c, required)
+	}
 	if compositeResource.GetKind() == apis.XRKindPostgreSQLUser {
 		return g.getPostgreSQLUserRequiredResources(compositeResource)
 	}
@@ -341,7 +379,8 @@ func (g *GroupImpl) GetObservedStatus(observed *composed.Unstructured) (map[stri
 	case observed.GetKind() == "SecurityGroup" && strings.HasPrefix(observed.GetAPIVersion(), "ec2.aws.m.upbound.io"):
 		return getSecurityGroupStatus(observed)
 	default:
-		return nil, nil
+		// A resource a PostgreSQLCluster backend composed reports through that backend.
+		return pgcluster.ObservedStatus(observed)
 	}
 }
 

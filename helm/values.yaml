@@ -53,6 +53,17 @@ postgresql:
     image: ghcr.io/entigolabs/platform-apis-postgresql
     tag: v0.0.0
 
+# PostgreSQLCluster, the Portable Data Service API for PostgreSQL. Needs Kubernetes 1.36 or later.
+postgresqlcluster:
+  install: false
+  package:
+    image: ghcr.io/entigolabs/platform-apis-postgresqlcluster
+    tag: v0.0.0
+  # The PostgreSQL backends this deployment installs, each as <Kind>.<group> of its provider
+  # configuration kind; one in the first iteration.
+  backends: []
+  # - PostgreSQLOCIConfig.oci.database.entigo.com
+
 mariadb:
   install: false
   package:

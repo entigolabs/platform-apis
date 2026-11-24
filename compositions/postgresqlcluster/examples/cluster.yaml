@@ -1,0 +1,17 @@
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:
+  version: "17"
+  storage:
+    sizeGB: 20
+  providerConfigs:
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: PostgreSQLOCIConfig
+    spec:
+      instanceType: PostgreSQL.VM.Standard.E5.Flex
+      ocpus: 2
+      memoryGB: 32

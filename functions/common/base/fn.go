@@ -91,7 +91,7 @@ func (f *Function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 		return rsp, nil
 	}
 
-	err = f.addStatus(rsp, compositeResource, observed)
+	err = f.addStatus(rsp, compositeResource, requiredResources, observed)
 	if err != nil {
 		response.Fatal(rsp, errors.Wrapf(err, "cannot add status to composite resource in %T", rsp))
 		return rsp, nil
@@ -361,10 +361,17 @@ func (f *Function) getReadyStatus(observed *composed.Unstructured) resource.Read
 	return GetCrossplaneReadyStatus(observed)
 }
 
-func (f *Function) addStatus(rsp *fnv1.RunFunctionResponse, compositeResource *resource.Composite, observed map[resource.Name]resource.ObservedComposed) error {
+func (f *Function) addStatus(rsp *fnv1.RunFunctionResponse, compositeResource *resource.Composite, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) error {
 	extraStatus, err := f.getCompositeResourceStatus(observed)
 	if err != nil {
 		return fmt.Errorf("cannot get composite resource status: %w", err)
+	}
+	if provider, ok := f.groupService.(CompositeStatusProvider); ok {
+		compositeStatus, err := provider.GetCompositeStatus(compositeResource.Resource, required)
+		if err != nil {
+			return fmt.Errorf("cannot get status from composite resource: %w", err)
+		}
+		maps.Copy(extraStatus, compositeStatus)
 	}
 
 	if len(extraStatus) == 0 {

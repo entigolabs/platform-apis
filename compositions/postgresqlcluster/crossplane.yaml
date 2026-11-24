@@ -1,0 +1,15 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: entigo-postgresqlcluster
+  annotations:
+    meta.crossplane.io/source: github.com/entigolabs/platform-apis
+    meta.crossplane.io/license: AGPL
+    meta.crossplane.io/description: |
+      PostgreSQL clusters through the Portable Data Service APIs, on the backend each deployment installs.
+spec:
+  packagePullPolicy: IfNotPresent
+  skipDependencyResolution: true
+  crossplane:
+    version: ">=2.0.0"
