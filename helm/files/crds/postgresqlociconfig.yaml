@@ -1,0 +1,120 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: postgresqlociconfigs.oci.database.entigo.com
+spec:
+  group: oci.database.entigo.com
+  scope: Namespaced
+  names:
+    kind: PostgreSQLOCIConfig
+    plural: postgresqlociconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for OCI Database with PostgreSQL (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The OCI Database with PostgreSQL ID of an existing resource to observe
+                  (principle 9). Set with observe; it stays when observe is removed, and the
+                  object then owns the resource.
+              instanceType:
+                type: string
+                description: |-
+                  The DB system shape. A .Flex shape needs ocpus and memoryGB.
+                  Default: the class's template, else the implementation's.
+              ocpus:
+                type: number
+                description: |-
+                  Required with a .Flex shape.
+                  Default: the class's template, else the implementation's.
+                minimum: 1
+              memoryGB:
+                type: integer
+                description: |-
+                  Required with a .Flex shape.
+                  Default: the class's template, else the implementation's.
+                minimum: 1
+              fromBackup:
+                type: string
+                description: |-
+                  A DB system backup OCID to create the cluster from. Set at creation only; not
+                  with restore.
+              iops:
+                type: integer
+                description: |-
+                  Provisioned IOPS. In steps of 75,000.
+                minimum: 1
+              maintenanceWindow:
+                type: object
+                description: |-
+                  The weekly hour, in UTC, in which the cloud applies updates.
+                properties:
+                  day:
+                    type: string
+                    enum:
+                    - Mon
+                    - Tue
+                    - Wed
+                    - Thu
+                    - Fri
+                    - Sat
+                    - Sun
+                  hourUTC:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                required:
+                - day
+                - hourUTC
+              pointInTimeDays:
+                type: integer
+                description: |-
+                  Days back restore.pointInTime can reach, at most the cluster's
+                  backup.retentionDays. Unset, the cluster's backup.retentionDays.
+                minimum: 1
+              backupStartHourUTC:
+                type: integer
+                description: |-
+                  The hour, in UTC, the daily backup starts. Unset, the backend picks it.
+                minimum: 0
+                maximum: 23
+            x-kubernetes-validations:
+            - rule: |-
+                has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
+              message: id is immutable
+            - rule: |-
+                has(self.fromBackup) == has(oldSelf.fromBackup) && (!has(self.fromBackup) || self.fromBackup == oldSelf.fromBackup)
+              message: fromBackup is set at creation only
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for OCI Database with PostgreSQL (principle 4).
+            properties:
+              instanceType:
+                type: string
+              finalBackup:
+                type: string
+                description: |-
+                  The ID the final backup receives when the cluster is deleted, for fromBackup.
+              state:
+                type: string
+              id:
+                type: string
+              instanceOcpuCount:
+                type: number
+              instanceMemorySizeInGbs:
+                type: integer
+        required:
+        - spec
+    subresources:
+      status: {}

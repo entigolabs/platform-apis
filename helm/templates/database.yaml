@@ -6,6 +6,9 @@ metadata:
 data:
 {{- if .Values.postgresqlcluster.install }}
   postgresqlBackends: {{- toYaml .Values.postgresqlcluster.backends | nindent 4 }}
+{{- if has "PostgreSQLOCIConfig.oci.database.entigo.com" .Values.postgresqlcluster.backends }}
+  oci: {{- toYaml .Values.database.environmentConfig.oci | nindent 4 }}
+{{- end }}
 {{- end }}
 {{- if .Values.postgresql.install }}
   awsProvider: {{ .Values.database.environmentConfig.awsProvider }}

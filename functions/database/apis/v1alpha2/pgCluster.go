@@ -5,8 +5,8 @@
 package v1alpha2
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // PostgreSQLCluster is one PostgreSQL database cluster. Its schema is the composite resource
@@ -22,17 +22,17 @@ type PostgreSQLCluster struct {
 // PostgreSQLClusterSpec holds the common fields every backend runs the same way, and the
 // provider configuration entries of the backends the cluster may run on.
 type PostgreSQLClusterSpec struct {
-	ClassName          *string             `json:"className,omitempty"`
-	Observe            *bool               `json:"observe,omitempty"`
-	Version            *string             `json:"version,omitempty"`
-	Storage            *Storage            `json:"storage,omitempty"`
-	HighAvailability   *bool               `json:"highAvailability,omitempty"`
-	DeletionProtection *bool               `json:"deletionProtection,omitempty"`
-	Backup             *Backup             `json:"backup,omitempty"`
-	ParametersRefs     []LocalReference    `json:"parametersRefs,omitempty"`
-	Parameters         map[string]string   `json:"parameters,omitempty"`
-	Restore            *Restore            `json:"restore,omitempty"`
-	SecretName         *string             `json:"secretName,omitempty"`
+	ClassName          *string               `json:"className,omitempty"`
+	Observe            *bool                 `json:"observe,omitempty"`
+	Version            *string               `json:"version,omitempty"`
+	Storage            *Storage              `json:"storage,omitempty"`
+	HighAvailability   *bool                 `json:"highAvailability,omitempty"`
+	DeletionProtection *bool                 `json:"deletionProtection,omitempty"`
+	Backup             *Backup               `json:"backup,omitempty"`
+	ParametersRefs     []LocalReference      `json:"parametersRefs,omitempty"`
+	Parameters         map[string]string     `json:"parameters,omitempty"`
+	Restore            *Restore              `json:"restore,omitempty"`
+	SecretName         *string               `json:"secretName,omitempty"`
 	ProviderConfigs    []ProviderConfigEntry `json:"providerConfigs,omitempty"`
 }
 

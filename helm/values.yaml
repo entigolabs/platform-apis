@@ -46,6 +46,17 @@ database:
     backupRetentionPeriod: 14
     # Cloud tags added to every database resource.
     tags: {}
+    # OCI settings of the PostgreSQLCluster backend: the cluster-wide provider config, and the names
+    # of the infralib observers (crossplane-oracle module) the DB system's compartment and network
+    # come from. The DB system admits PostgreSQL from the client security groups.
+    oci:
+      providerConfig: crossplane-oracle
+      cluster: oke
+      vcn: vcn
+      databaseSubnetType: database
+      clientSecurityGroups:
+      - node
+      - pod
 
 postgresql:
   install: true

@@ -12,6 +12,34 @@ metadata:
 spec:
   package: {{ .Values.postgresqlcluster.package.image }}:{{ .Values.postgresqlcluster.package.tag }}
   skipDependencyResolution: true
+{{- if has "PostgreSQLOCIConfig.oci.database.entigo.com" .Values.postgresqlcluster.backends }}
+---
+{{ .Files.Get "files/crds/postgresqlociconfig.yaml" }}
+---
+# Crossplane reads the PostgreSQLOCIConfig an entry names by ref.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+  name: platform-apis-postgresqlcluster-oci
+rules:
+- apiGroups: ["oci.database.entigo.com"]
+  resources: ["postgresqlociconfigs"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: platform-apis-postgresqlcluster-oci
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  activate:
+  - psqldbsystems.psql.oci.m.upbound.io
+  - networksecuritygroups.networking.oci.m.upbound.io
+  - networksecuritygroupsecurityrules.networking.oci.m.upbound.io
+{{- end }}
 ---
 # Fields outside the first iteration are refused, each with its name, until they are implemented.
 apiVersion: admissionregistration.k8s.io/v1

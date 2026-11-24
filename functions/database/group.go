@@ -15,6 +15,8 @@ import (
 	"github.com/entigolabs/platform-apis/apis/v1alpha2"
 	"github.com/entigolabs/platform-apis/service"
 	"github.com/entigolabs/platform-apis/service/pgcluster"
+	// The PostgreSQLCluster backends this function implements register themselves.
+	_ "github.com/entigolabs/platform-apis/service/pgcluster/oci"
 	ec2mv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/ec2/v1beta1"
 	elasticachemv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/elasticache/v1beta1"
 	rdsmv1beta1 "github.com/upbound/provider-aws/v2/apis/namespaced/rds/v1beta1"
