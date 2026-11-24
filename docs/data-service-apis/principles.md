@@ -15,9 +15,10 @@ Each data service is built from four parts:
 
 *Data service parts and their owners.*
 
-A user writes a core kind that names a class, and may add a provider configuration for each
-implementation it can run on. Each deployment applies the provider configuration of its class's
-implementation, and the implementation turns the result into running resources.
+A user writes a core kind that names a class or stands alone, and may add a provider configuration
+for each implementation it can run on. Each deployment applies the provider configuration of the
+object's implementation, which its class or, for a standalone object, its own entry chooses, and the
+implementation turns the result into running resources.
 
 Two terms sound alike. A Crossplane provider, such as provider-upjet-aws, is the controller that
 creates an implementation's cloud resources. A provider configuration kind, such as
@@ -89,7 +90,10 @@ object names its class; defaults are written into the object when it is created.
 A deployment's choices, such as its implementation, default sizes and the values no user may change,
 are written once per deployment instead of in every manifest. Defaults written at creation stay in
 the object, and an object keeps its class's values until its user asks for a sync, so a later change
-to a class never resizes or upgrades a running resource on its own.
+to a class never resizes or upgrades a running resource on its own. An object may also stand alone,
+without a class: its own entry then chooses the implementation and sets every setting the
+implementation needs, the implementation's own defaults fill the rest, and the object can join a
+class later.
 
 #### 6 Applications connect the same way on every cloud
 

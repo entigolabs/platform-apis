@@ -29,7 +29,7 @@ metadata:
   name: orders-db
   namespace: shop
 spec:
-  className: standard                  # unset, the deployment's default class (principle 5)
+  className: standard                  # unset, the default class; without one, standalone
   version: "11.4"                      # the full "11.4.10" with minor upgrades off
   storage:
     sizeGB: 20

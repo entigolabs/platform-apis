@@ -75,7 +75,8 @@ does, so a class has no separate field for it. A class whose provider configurat
 deployment does not install is refused when applied. A class name is the portable contract: every
 deployment defines its own `standard`, and a chart that sets `className: standard` works wherever a
 class of that name exists. Without `className`, the object takes the deployment's default class, the
-one annotated `<group>/is-default-class: "true"`, as a default StorageClass is.
+one annotated `<group>/is-default-class: "true"`, as a default StorageClass is; where none exists,
+the object is standalone.
 
 The effective spec is built in three layers, the last winning: the class's `template`, then the
 object with its matching provider configuration entry, then the class's `enforced`. Engine
@@ -91,14 +92,14 @@ that a value the object does not set comes from its class's template. The way de
 clusters older than 1.36 is still to be decided. Observed resources receive no defaults.
 
 An object keeps the class it was created with, and the class's values as they were then. Its
-`className` is written at creation when the user leaves it out, so moving the default-class
-annotation later moves no object, and it cannot be changed, added or removed afterwards. The
-function records what it applied from the class in the annotation `<group>/class-record`, which only
-the platform may write: the class's name and generation, the `class-sync` value last applied, and
-the class's `enforced`, `parametersRefs` and provider configuration. It keeps applying the recorded
-values when the class changes, and the condition `ClassSynced: False` shows that the class has
-changed since. The record is an annotation, not status, so it returns with the object from any
-backup or copy:
+`className` is written at creation when the user leaves it out and a default class exists, so moving
+the default-class annotation later moves no object, and it cannot be changed or removed afterwards;
+a standalone object may add it once, as described below. The function records what it applied from
+the class in the annotation `<group>/class-record`, which only the platform may write: the class's
+name and generation, the `class-sync` value last applied, and the class's `enforced`,
+`parametersRefs` and provider configuration. It keeps applying the recorded values when the class
+changes, and the condition `ClassSynced: False` shows that the class has changed since. The record
+is an annotation, not status, so it returns with the object from any backup or copy:
 
 ```yaml
 ---
@@ -142,6 +143,17 @@ keeps applying its recorded values, reports `ClassSynced: False` with the class 
 waits until a class of that name exists again. The `template` is neither applied again nor
 recorded, since its values are the object's own after creation.
 
+An object without a class is standalone. Its implementation is the one whose provider
+configuration kind the deployment installs and one of its entries names; an object with no such
+entry, or with entries for two installed implementations, is refused when applied, with a message
+naming the kinds. Its entry sets every setting the implementation cannot run without, the
+implementation's own defaults fill the rest, and it has no `template`, enforced values or class
+record. A standalone object joins a class once, by adding `className`. Admission refuses a class
+whose provider configuration names another implementation than the one the object runs on, since
+moving a running resource to another implementation would replace it. Adding the class applies
+nothing: the object reports `ClassSynced: False`, and its first sync applies and records the class's
+values, refusing any that conflict with the class's `enforced`.
+
 An object that requests a portable feature, such as `HighAvailability` or `ReadReplicas`, that its
 implementation does not support is refused when applied, by the implementation's own validation
 policy, with a message naming the implementation and the feature (principle 1).
@@ -154,12 +166,13 @@ inline, in `spec`, or in a separate object of that kind, through `ref`. The list
 `apiVersion` and `kind`, so Helm, Argo CD and server-side apply merge it entry by entry, and one
 manifest can carry settings for several implementations and be applied on any of them.
 
-A deployment applies only the entry whose group and kind its class names, whatever the entry's
-version, and ignores the others. An entry of an older version is converted to the version the class
-uses, so a class that moves to a newer version still applies the entries written for the older one,
-and an object holds one entry per group and kind; the status names the applied entry and the ignored
-ones, so a misspelled kind shows as no entry applied. An object with no matching entry takes the
-class's provider configuration as it is.
+A deployment applies only the entry whose group and kind its class names, or, for a standalone
+object, the entry of an installed implementation, whatever the entry's version, and ignores the
+others. An entry of an older version is converted to the version the class uses, so a class that
+moves to a newer version still applies the entries written for the older one, and an object holds
+one entry per group and kind; the status names the applied entry and the ignored ones, so a
+misspelled kind shows as no entry applied. An object with no matching entry takes the class's
+provider configuration as it is.
 
 Each provider configuration kind marks the settings its implementation cannot run without, such as a
 machine size. An object for which neither its entry nor its class sets one is refused when applied,

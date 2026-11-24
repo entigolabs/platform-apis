@@ -24,8 +24,9 @@ spec:
                 type: string
                 description: |-
                   The ValkeyClass: the deployment's defaults, enforced values and implementation
-                  (principle 5). Unset, the default class. Written at creation when unset, and
-                  immutable after.
+                  (principle 5). Unset, the default class, written at creation; without one, the
+                  object is standalone. A standalone object may add it once; it is never changed
+                  or removed.
               observe:
                 type: boolean
                 description: |-
@@ -190,8 +191,9 @@ spec:
                   message: one entry per group and kind, whatever its version
             x-kubernetes-validations:
             - rule: |-
-                has(self.className) == has(oldSelf.className) && (!has(self.className) || self.className == oldSelf.className)
-              message: className is immutable
+                !has(oldSelf.className)
+                || (has(self.className) && self.className == oldSelf.className)
+              message: className can be added once, never changed or removed
             - rule: |-
                 !(has(self.observe) && self.observe)
                 || (has(oldSelf.observe) && oldSelf.observe)

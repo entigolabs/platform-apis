@@ -29,7 +29,7 @@ metadata:
   name: orders-mq
   namespace: shop
 spec:
-  className: standard                  # unset, the deployment's default class (principle 5)
+  className: standard                  # unset, the default class; without one, standalone
   version: "4.2"                       # the release line; the implementation manages the patch
   highAvailability: false              # true: a three-node cluster across zones
   deletionProtection: true

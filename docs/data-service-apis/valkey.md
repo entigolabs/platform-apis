@@ -32,7 +32,7 @@ metadata:
   name: orders-cache
   namespace: shop
 spec:
-  className: standard                  # unset, the deployment's default class (principle 5)
+  className: standard                  # unset, the default class; without one, standalone
   version: "8.1"                       # the least version; raising it upgrades
   highAvailability: true               # a replica in another zone, with automatic failover
   readReplicas: 1

@@ -110,10 +110,12 @@ def w(base, **kw):
 print("\n# PostgreSQLCluster")
 create("valid spec", "PostgreSQLCluster", PG)
 create("className accepted", "PostgreSQLCluster", w(PG, className="standard"))
+update("adding className to a standalone cluster accepted", "PostgreSQLCluster", PG,
+       w(PG, className="standard"))
 update("changing className rejected", "PostgreSQLCluster", w(PG, className="standard"),
-       w(PG, className="in-cluster"), False, "className is immutable")
+       w(PG, className="in-cluster"), False, "never changed or removed")
 update("removing className rejected", "PostgreSQLCluster", w(PG, className="standard"), PG, False,
-       "className is immutable")
+       "never changed or removed")
 create("two entries of one kind rejected", "PostgreSQLCluster", w(PG, providerConfigs=[RDS, RDS]),
        False, "Duplicate value")
 create("an entry with ref accepted", "PostgreSQLCluster",

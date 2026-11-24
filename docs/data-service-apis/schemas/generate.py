@@ -582,8 +582,9 @@ def class_spec(class_kind, common, tail, observed, rules):
     kind's own fields in tail, and the provider configurations (principle 2)."""
     return obj({
         "className": field("string", f"The {class_kind}: the deployment's defaults, enforced "
-                           "values and implementation (principle 5). Unset, the default class. "
-                           "Written at creation when unset, and immutable after."),
+                           "values and implementation (principle 5). Unset, the default class, written "
+                           "at creation; without one, the object is standalone. A standalone object "
+                           "may add it once; it is never changed or removed."),
         "observe": field("boolean", "true observes an existing resource, named by the id in its "
                          "provider configuration entry, and never changes or deletes it. Every other "
                          "common field is then rejected (principle 9). Set at creation only; removing "
@@ -592,7 +593,9 @@ def class_spec(class_kind, common, tail, observed, rules):
         **tail,
         "providerConfigs": provider_configs(),
     }, rules=[
-        fixed("className"),
+        ("!has(oldSelf.className) || "
+         "(has(self.className) && self.className == oldSelf.className)",
+         "className can be added once, never changed or removed"),
         ("!(has(self.observe) && self.observe) || (has(oldSelf.observe) && oldSelf.observe)",
          "observe can be removed but never set after creation"),
         ("!(has(self.observe) && self.observe) || (" + " && ".join(

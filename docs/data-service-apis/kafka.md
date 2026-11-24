@@ -32,7 +32,7 @@ metadata:
   name: orders-kafka
   namespace: shop
 spec:
-  className: standard                  # unset, the deployment's default class (principle 5)
+  className: standard                  # unset, the default class; without one, standalone
   version: "4.0"                       # each implementation accepts the versions it offers
   brokers: 3
   storage:

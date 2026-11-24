@@ -36,7 +36,7 @@ metadata:
   name: orders-api
   namespace: shop
 spec:
-  className: standard                  # unset, the deployment's default class (principle 5)
+  className: standard                  # unset, the default class; without one, standalone
   name: orders-api                     # immutable; defaults to the object name
   path: backend                        # immutable; the image path is shop/backend/orders-api
   deletionProtection: true

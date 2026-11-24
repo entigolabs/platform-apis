@@ -27,7 +27,7 @@ metadata:
   name: orders-files
   namespace: shop
 spec:
-  className: standard                  # unset, the deployment's default class (principle 5)
+  className: standard                  # unset, the default class; without one, standalone
   versioning: true
   deletionProtection: true
   lifecycleRules:
