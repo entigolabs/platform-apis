@@ -29,7 +29,7 @@ forms. infralib also deploys to GCP, OCI and Azure, and OCI is the next cloud to
 services.
 
 Status: a draft awaiting the agreement of the `platform-apis` maintainers, tracked in
-[RMIT-44](https://entigo.atlassian.net/browse/RMIT-44); its first implementation iteration is in
+[RMIT-44](https://entigo.atlassian.net/browse/RMIT-44); its first implementation is described in
 [Follow-Up Work](follow-up-work.md).
 
 ## In Scope

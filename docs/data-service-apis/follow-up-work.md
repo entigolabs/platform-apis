@@ -45,45 +45,10 @@ The following points are known so far:
   selector with that label, and Crossplane picks the Composition by it: a composite resource without
   a Composition reference takes one whose labels match its selector (checked in Crossplane v2.4.3).
 
-**First iteration.** The first implementation delivers a small part of the design, so client teams
-can start on it while the rest is built. Each later part adds to the API and changes nothing in it,
-so every manifest the first iteration accepts stays valid:
-
-| Part     | First iteration                                       | Later                                                                              |
-| -------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Kinds    | `PostgreSQLCluster`, standalone, with no class        | Classes, `PostgreSQLParameters`, `PostgreSQLUser`, `PostgreSQLDatabase`            |
-| Features | Creating, changing and deleting a cluster             | `observe`, migration of today's `PostgreSQLInstance` (item 2)                      |
-| Backends | One per deployment, picked by the default Composition | Two per deployment, with the composition selector written from the cluster's entry |
-
-*First iteration and later parts.*
-
-| Field                  | First iteration                   |
-| ---------------------- | --------------------------------- |
-| `version`              | Required                          |
-| `storage.sizeGB`       | Required                          |
-| `highAvailability`     | Default `false`                   |
-| `deletionProtection`   | Default `true`                    |
-| `backup.retentionDays` | Default 7                         |
-| `secretName`           | Default `<cluster>-dbadmin`       |
-| `providerConfigs`      | Required, with the backend's size |
-| Every other field      | Refused, with the field named     |
-
-*`PostgreSQLCluster` common fields in the first iteration.*
-
-| Backend    | Kind                             | Required                                                     | Fixed                                    |
-| ---------- | -------------------------------- | ------------------------------------------------------------ | ---------------------------------------- |
-| AWS        | `PostgreSQLRDSConfig`            | `instanceType`                                               |                                          |
-| GCP        | `PostgreSQLCloudSQLConfig`       | `instanceType`, `edition`                                    | `diskType: PD_SSD`                       |
-| OCI        | `PostgreSQLOCIConfig`            | `instanceType`; `ocpus` and `memoryGB` with a flexible shape |                                          |
-| Azure      | `PostgreSQLFlexibleServerConfig` | `instanceType`                                               | the `storageTier` matching the disk size |
-| Kubernetes | `PostgreSQLCNPGConfig`           | `cpu`, `memory`                                              | the cluster's default StorageClass       |
-
-*Provider configuration fields in the first iteration.*
-
-A required value can gain a default later without breaking a manifest, while a default, once given,
-never changes, so only values with an obvious answer have one. When classes arrive, a cluster
-created in the first iteration stays standalone and may join a class once (Common Design), and a
-default class reaches only clusters created after it.
+**First iteration.** The first implementation delivers a standalone `PostgreSQLCluster` on OCI: its
+backend-independent API in [RMIT-51](https://entigo.atlassian.net/browse/RMIT-51) and its OCI
+backend in [RMIT-52](https://entigo.atlassian.net/browse/RMIT-52). Later parts are tracked as work
+items of their own.
 
 #### 2 Migrate today's objects to the design
 
