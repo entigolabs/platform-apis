@@ -80,9 +80,9 @@ The status reports the values the resource actually has, such as its version, di
 not the values the manifest requested.
 
 The two can differ: a class adds its defaults and enforced values, a backend applies minor versions
-in its maintenance window, and a disk grows with `autoGrow`. A user can rely only on the actual
-values. Values that exist in only one backend, such as its resource IDs, are kept apart from the
-common fields, as that backend's settings are (principle 2).
+in its maintenance window, and a disk grows where the backend grows it. A user can rely only on the
+actual values. Values that exist in only one backend, such as its resource IDs, are kept apart from
+the common fields, as that backend's settings are (principle 2).
 
 #### 5 A class sets the defaults and limits of a deployment
 
@@ -171,7 +171,7 @@ A unit is a set of values without meaning on their own, such as
 `maintenanceWindow: { day, hourUTC }`, `restore: { fromInstance, pointInTime }` or one lifecycle
 rule. A subsystem is an area that classes treat as a whole, such as `storage` and `backup`, as
 CloudNativePG, Crunchy and Zalando group them. Any other field stays at the top level, such as
-`autoMinorVersionUpgrade`.
+`deletionProtection`.
 
 #### 14 Deleting an object never deletes what it contains
 

@@ -91,9 +91,9 @@ every reconcile instead of copying it into the object.
 The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
 version 1.36. It copies the class's `template` into the object when it is created and keeps the
 values on updates. A default is written field by field, so it can break a rule that ties fields
-together, such as a `maxSizeGB` below the user's `sizeGB`; the refusal message then ends with a note
-that a value the object does not set comes from its class's template. Observed resources receive no
-defaults.
+together, such as a Valkey server's `highAvailability: true` with `readReplicas: 0`; the refusal
+message then ends with a note that a value the object does not set comes from its class's template.
+Observed resources receive no defaults.
 
 An object keeps the class it was created with, and the class's values as they were then. Its
 `className` is written at creation when the user leaves it out and a default class exists, so moving
