@@ -85,7 +85,7 @@ spec:
               backupStartHourUTC:
                 type: integer
                 description: |-
-                  The hour, in UTC, the daily backup starts. Unset, the backend picks it.
+                  The hour, in UTC, the daily backup starts. Unset, 2.
                 minimum: 0
                 maximum: 23
             x-kubernetes-validations:

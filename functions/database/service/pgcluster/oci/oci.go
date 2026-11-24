@@ -47,6 +47,9 @@ const (
 	port          = int64(5432)
 	passwordKey   = "password"
 	passwordType  = "PLAIN_TEXT"
+
+	// defaultBackupStartHourUTC is when daily backups start when the config does not say.
+	defaultBackupStartHourUTC = 2
 )
 
 // Environment is the OCI part of the deployment's database settings: the provider configuration and
@@ -294,11 +297,15 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	if cfg.IOPS != nil {
 		storage["iops"] = fmt.Sprint(*cfg.IOPS)
 	}
-	backup := map[string]interface{}{"kind": "DAILY", "retentionDays": in.Spec.RetentionDays}
+	// OCI requires a start time for daily backups.
+	backupStartHour := int64(defaultBackupStartHourUTC)
+	if cfg.BackupStartHourUTC != nil {
+		backupStartHour = *cfg.BackupStartHourUTC
+	}
+	backup := map[string]interface{}{"kind": "DAILY", "retentionDays": in.Spec.RetentionDays,
+		"backupStart": fmt.Sprintf("%02d:00", backupStartHour)}
 	if in.Spec.RetentionDays == 0 {
 		backup = map[string]interface{}{"kind": "NONE"}
-	} else if cfg.BackupStartHourUTC != nil {
-		backup["backupStart"] = fmt.Sprintf("%02d:00", *cfg.BackupStartHourUTC)
 	}
 	policy := map[string]interface{}{"backupPolicy": []interface{}{backup}}
 	if cfg.MaintenanceWindow != nil {

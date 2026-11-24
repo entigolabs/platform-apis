@@ -135,8 +135,8 @@ func TestComposeTheDBSystem(t *testing.T) {
 			t.Errorf("want the first database subnet by name and the cluster's security group, got %v", net)
 		}
 		backup := first(t, db, "spec", "forProvider", "managementPolicy")["backupPolicy"].([]interface{})[0].(map[string]interface{})
-		if backup["kind"] != "DAILY" || backup["retentionDays"] != int64(7) {
-			t.Errorf("want daily backups kept 7 days, the implementation's default, got %v", backup)
+		if backup["kind"] != "DAILY" || backup["retentionDays"] != int64(7) || backup["backupStart"] != "02:00" {
+			t.Errorf("want daily backups from 02:00 kept 7 days, the implementation's defaults, got %v", backup)
 		}
 		pw := first(t, db, "spec", "forProvider", "credentials")["passwordDetails"].([]interface{})[0].(map[string]interface{})
 		if pw["passwordSecretRef"].(map[string]interface{})["name"] != objs[namePassword].GetName() {
