@@ -160,6 +160,25 @@ func TestComposeTheDBSystem(t *testing.T) {
 		}
 	})
 
+	t.Run("storage is regional unless the deployment names an availability domain", func(t *testing.T) {
+		storage := func(req map[string][]resource.Required) map[string]interface{} {
+			objs, err := pgcluster.Generate(cluster(flexEntry), req, observedComposed(nameNSG, nsg))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return first(t, objs[nameDBSystem], "spec", "forProvider", "storageDetails")
+		}
+		if s := storage(required()); s["isRegionallyDurable"] != true || s["availabilityDomain"] != nil {
+			t.Errorf("want regional storage, got %v", s)
+		}
+		req := required()
+		env := req[base.EnvironmentKey][0].Resource.Object["data"].(map[string]interface{})["oci"].(map[string]interface{})
+		env["availabilityDomain"] = "wAtM:eu-frankfurt-2-ad-1"
+		if s := storage(req); s["isRegionallyDurable"] != false || s["availabilityDomain"] != "wAtM:eu-frankfurt-2-ad-1" {
+			t.Errorf("want storage in the named availability domain, got %v", s)
+		}
+	})
+
 	t.Run("a flexible shape without OCPUs and memory is refused", func(t *testing.T) {
 		_, err := pgcluster.Generate(cluster(`{"instanceType":"PostgreSQL.VM.Standard.E5.Flex"}`), required(), nil)
 		if err == nil || !strings.Contains(err.Error(), "needs ocpus and memoryGB") {

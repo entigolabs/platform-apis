@@ -52,8 +52,9 @@ const (
 	defaultBackupStartHourUTC = 2
 )
 
-// Environment is the OCI part of the deployment's database settings: the provider configuration and
-// the names of the infralib observers the cluster's network comes from.
+// Environment is the OCI part of the deployment's database settings: the provider configuration,
+// the names of the infralib observers the cluster's network comes from, and the availability domain
+// storage stays in where the region cannot keep it regionally.
 type Environment struct {
 	OCI struct {
 		ProviderConfig       string   `json:"providerConfig"`
@@ -61,6 +62,7 @@ type Environment struct {
 		VCN                  string   `json:"vcn"`
 		DatabaseSubnetType   string   `json:"databaseSubnetType"`
 		ClientSecurityGroups []string `json:"clientSecurityGroups"`
+		AvailabilityDomain   string   `json:"availabilityDomain,omitempty"`
 	} `json:"oci"`
 }
 
@@ -290,9 +292,13 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	}
 	storage := map[string]interface{}{
 		"systemType": "OCI_OPTIMIZED_STORAGE",
-		// Regional storage needs no availability domain, so a single instance keeps its data
-		// across availability domains too.
+		// Regional storage keeps a single instance's data across availability domains too. OCI
+		// offers it only in regions with three, so elsewhere the deployment names the one to use.
 		"isRegionallyDurable": true,
+	}
+	if env.OCI.AvailabilityDomain != "" {
+		storage["isRegionallyDurable"] = false
+		storage["availabilityDomain"] = env.OCI.AvailabilityDomain
 	}
 	if cfg.IOPS != nil {
 		storage["iops"] = fmt.Sprint(*cfg.IOPS)
