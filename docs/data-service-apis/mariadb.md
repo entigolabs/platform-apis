@@ -457,9 +457,9 @@ value outside them is rejected by the implementation and shown as `CloudAccepted
 listed for reference, should validating them be decided later. Each limit holds as of its source:
 the provider release named, or the cloud's documentation as read in November 2026.
 
-| Field                            | Runs on | Limit                     | Source                                                                     |
-| -------------------------------- | ------- | ------------------------- | -------------------------------------------------------------------------- |
-| `backup.retentionDays`           | AWS     | 0 to 35                   | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0     |
-| `storage.iops`, `throughputMBps` | AWS     | only from 400 GiB of disk | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0 |
+| Field                            | Implementation | Limit                     | Source                                                                     |
+| -------------------------------- | -------------- | ------------------------- | -------------------------------------------------------------------------- |
+| `backup.retentionDays`           | AWS            | 0 to 35                   | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0     |
+| `storage.iops`, `throughputMBps` | AWS            | only from 400 GiB of disk | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0 |
 
 *MariaDB field limits and their sources.*

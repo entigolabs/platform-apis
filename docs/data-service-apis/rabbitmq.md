@@ -372,9 +372,9 @@ value outside them is rejected by the implementation and shown as `CloudAccepted
 listed for reference, should validating them be decided later. Each limit holds as of its source:
 the provider release named, or the cloud's documentation as read in November 2026.
 
-| Field                    | Runs on | Limit                | Source                                                  |
-| ------------------------ | ------- | -------------------- | ------------------------------------------------------- |
-| `highAvailability: true` | AWS     | not on `mq.t3.micro` | Amazon MQ documentation, RabbitMQ broker instance types |
+| Field                    | Implementation | Limit                | Source                                                  |
+| ------------------------ | -------------- | -------------------- | ------------------------------------------------------- |
+| `highAvailability: true` | AWS            | not on `mq.t3.micro` | Amazon MQ documentation, RabbitMQ broker instance types |
 
 *RabbitMQ field limits and their sources.*
 

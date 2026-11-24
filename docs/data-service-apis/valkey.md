@@ -582,14 +582,14 @@ value outside them is rejected by the implementation and shown as `CloudAccepted
 listed for reference, should validating them be decided later. Each limit holds as of its source:
 the provider release named, or the cloud's documentation as read in November 2026.
 
-| Field                  | Runs on | Limit    | Source                                                                                   |
-| ---------------------- | ------- | -------- | ---------------------------------------------------------------------------------------- |
-| `readReplicas`         | AWS     | up to 5  | `numCacheClusters` up to 6, ElastiCache `ReplicationGroup`                               |
-| `readReplicas`         | GCP     | up to 5  | `replicaCount`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0                    |
-| `readReplicas`         | OCI     | up to 4  | `nodeCount` up to 5, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                  |
-| `memoryGB`             | OCI     | 2 to 500 | `nodeMemoryInGbs`, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                    |
-| `backup.retentionDays` | AWS     | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0  |
-| `backup.retentionDays` | GCP     | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0 |
+| Field                  | Implementation | Limit    | Source                                                                                   |
+| ---------------------- | -------------- | -------- | ---------------------------------------------------------------------------------------- |
+| `readReplicas`         | AWS            | up to 5  | `numCacheClusters` up to 6, ElastiCache `ReplicationGroup`                               |
+| `readReplicas`         | GCP            | up to 5  | `replicaCount`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0                    |
+| `readReplicas`         | OCI            | up to 4  | `nodeCount` up to 5, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                  |
+| `memoryGB`             | OCI            | 2 to 500 | `nodeMemoryInGbs`, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                    |
+| `backup.retentionDays` | AWS            | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0  |
+| `backup.retentionDays` | GCP            | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0 |
 
 *Valkey field limits and their sources.*
 

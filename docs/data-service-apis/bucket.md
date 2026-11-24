@@ -593,10 +593,10 @@ value outside them is rejected by the implementation and shown as `CloudAccepted
 listed for reference, should validating them be decided later. Each limit holds as of its source:
 the provider release named, or the cloud's documentation as read in November 2026.
 
-| Field            | Runs on | Limit         | Source                                                                               |
-| ---------------- | ------- | ------------- | ------------------------------------------------------------------------------------ |
-| `softDeleteDays` | GCP     | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
-| `softDeleteDays` | Azure   | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
+| Field            | Implementation | Limit         | Source                                                                               |
+| ---------------- | -------------- | ------------- | ------------------------------------------------------------------------------------ |
+| `softDeleteDays` | GCP            | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
+| `softDeleteDays` | Azure          | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
 
 *Bucket field limits and their sources.*
 

@@ -563,15 +563,15 @@ value outside them is rejected by the implementation and shown as `CloudAccepted
 listed for reference, should validating them be decided later. Each limit holds as of its source:
 the provider release named, or the cloud's documentation as read in November 2026.
 
-| Field            | Runs on | Limit                         | Source                                                                             |
-| ---------------- | ------- | ----------------------------- | ---------------------------------------------------------------------------------- |
-| `version`        | all     | the versions the cloud offers | the cloud's documentation                                                          |
-| `brokers`        | AWS     | a multiple of the zone count  | `numberOfBrokerNodes`, MSK `Cluster` CRD, provider-upjet-aws v2.4.0                |
-| `brokers`        | OCI     | 1 to 30                       | `brokerShape.nodeCount`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0        |
-| `storage.sizeGB` | GCP     | at least 100                  | `disk_size_gib`, `google_managed_kafka_cluster` documentation                      |
-| `storage.sizeGB` | OCI     | at least 50                   | `brokerShape.storageSizeInGbs`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0 |
-| `vcpus`          | GCP     | at least 3                    | `vcpu_count`, `google_managed_kafka_cluster` documentation                         |
-| `memoryGB`       | GCP     | 1 to 8 per vCPU               | `memory_bytes`, `google_managed_kafka_cluster` documentation                       |
+| Field            | Implementation | Limit                         | Source                                                                             |
+| ---------------- | -------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| `version`        | all            | the versions the cloud offers | the cloud's documentation                                                          |
+| `brokers`        | AWS            | a multiple of the zone count  | `numberOfBrokerNodes`, MSK `Cluster` CRD, provider-upjet-aws v2.4.0                |
+| `brokers`        | OCI            | 1 to 30                       | `brokerShape.nodeCount`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0        |
+| `storage.sizeGB` | GCP            | at least 100                  | `disk_size_gib`, `google_managed_kafka_cluster` documentation                      |
+| `storage.sizeGB` | OCI            | at least 50                   | `brokerShape.storageSizeInGbs`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0 |
+| `vcpus`          | GCP            | at least 3                    | `vcpu_count`, `google_managed_kafka_cluster` documentation                         |
+| `memoryGB`       | GCP            | 1 to 8 per vCPU               | `memory_bytes`, `google_managed_kafka_cluster` documentation                       |
 
 *Kafka field limits and their sources.*
 
