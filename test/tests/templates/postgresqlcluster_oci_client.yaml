@@ -15,7 +15,7 @@ spec:
       type: RuntimeDefault
   containers:
   - name: psql
-    image: postgres:17
+    image: docker.io/library/postgres:17
     command: ["sh", "-c", "PGPASSWORD=\"$PASSWORD\" psql \"host=$ENDPOINT port=$PORT user=$USERNAME dbname=postgres sslmode=require\" -tAc 'select 1'"]
     securityContext:
       allowPrivilegeEscalation: false
