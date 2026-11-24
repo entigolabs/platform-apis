@@ -84,6 +84,8 @@ settings, and the others are rejected by the cloud and reported as `CloudAccepte
 
 ### KafkaCluster
 
+#### Manifest
+
 A user creates a `KafkaCluster` with a manifest like the one below. It names its class and carries
 one provider configuration entry per backend it may run on (principle 2):
 
@@ -126,6 +128,8 @@ spec:
 
 *`KafkaCluster` with common fields and one entry per backend.*
 
+#### Field Behaviour
+
 A cluster's size is its brokers times each broker's size, except on GCP, which sizes the whole
 cluster and chooses its brokers itself. The backends size clusters differently, so the size and the
 number of brokers are in each provider configuration (principle 2). No backend offers a maintenance
@@ -133,6 +137,8 @@ window.
 
 `highAvailability` is a portable feature: an object that requests it where its backend does not
 support it is refused when applied (principle 1).
+
+#### Status
 
 The status shows the common fields, `bootstrapServers`, the listener applications use, which entry
 applied, where each effective value came from, and the applied backend's own values (principle 4):

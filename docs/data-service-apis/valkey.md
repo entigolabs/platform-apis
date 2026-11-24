@@ -80,6 +80,8 @@ are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 A server has no sharding: its data is held on the primary and copied to each replica.
 
+#### Manifest
+
 A user creates a `ValkeyServer` with a manifest like the one below. It names its class and carries
 one provider configuration entry per backend it may run on (principle 2):
 
@@ -130,6 +132,8 @@ spec:
 
 *`ValkeyServer` with common fields and one entry per backend.*
 
+#### Field Behaviour
+
 `version` is Valkey's major and minor, such as `"8.1"`, the only form all three backends take. The
 backend can move the server to a newer minor, so `version` is a floor: raising it upgrades the
 server, a version below the running one is ignored, the status shows the running version, and the
@@ -142,8 +146,12 @@ The maintenance window, minor upgrades and automated backups differ by backend: 
 own schedule and takes manual backups only, and Memorystore cannot opt out of minor upgrades. They
 are therefore in the provider configurations of the backends that have them (principle 1).
 
+#### Restore
+
 A deleted server is restored with its provider configuration's `fromBackup` and the final backup's
 ID. The status loses that ID with the server, so it is taken from the cloud console.
+
+#### Status
 
 The status shows the common fields, which entry applied, where each effective value came from, and
 the applied backend's own values (principle 4):

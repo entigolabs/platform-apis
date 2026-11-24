@@ -84,6 +84,8 @@ rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### MariaDBServer
 
+#### Manifest
+
 A user creates a `MariaDBServer` with a manifest like the one below. It names its class and carries
 a provider configuration entry for RDS (principle 2):
 
@@ -124,6 +126,8 @@ spec:
 
 *`MariaDBServer` with common fields and an RDS entry.*
 
+#### Restore
+
 `restore` creates a server from another server's backups, at a point in time. A deleted server is
 restored instead with its provider configuration's `fromBackup` and the final snapshot's ID. The
 status loses that ID with the server, so it is taken from the AWS console. `restore` and
@@ -145,6 +149,8 @@ spec:
 
 *`MariaDBServer` restored from another server's backups.*
 
+#### Field Behaviour
+
 `version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`. Raising it
 upgrades the server, and RDS applies minor versions in the maintenance window its provider
 configuration sets. A major change is a change in the first two numbers.
@@ -160,6 +166,8 @@ the platform never shrinks the disk back to `sizeGB`.
 
 `highAvailability` is a portable feature: an object that requests it where its backend does not
 support it is refused when applied (principle 1).
+
+#### Status
 
 The status shows the common fields, which entry applied, where each effective value came from, and
 the RDS values of `MariaDBRDSConfig` (principle 4):

@@ -91,6 +91,8 @@ allow are rejected by the cloud and reported as `CloudAccepted: False` (principl
 
 ### PostgreSQLCluster
 
+#### Manifest
+
 A user creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
 carries one provider configuration entry per backend it may run on (principle 2); each deployment
 applies the entry of its own class's kind and ignores the others:
@@ -154,6 +156,8 @@ spec:
 
 *`PostgreSQLCluster` with common fields and one entry per backend.*
 
+#### Entry by Reference
+
 An entry holds its settings inline, in `spec`, or names a separate object of its kind, through
 `ref`, as the Azure entry does:
 
@@ -174,6 +178,8 @@ spec:
 
 *`PostgreSQLFlexibleServerConfig` referenced by a cluster entry.*
 
+#### Class Defaults
+
 Most clusters name nothing backend-specific and take the class's provider configuration as it is:
 
 ```yaml
@@ -190,6 +196,8 @@ spec:
 ```
 
 *`PostgreSQLCluster` using its class defaults.*
+
+#### Standalone Cluster
 
 In a deployment without a default class, a cluster that names no class is standalone (Common
 Design). It sets the values a class would otherwise supply, `version`, `storage.sizeGB` and each
@@ -224,6 +232,8 @@ Every field it leaves out takes the implementation's default, `highAvailability:
 `deletionProtection: true` and `backup.retentionDays: 7`, and its status shows each with the source
 `implementation`.
 
+#### Restore
+
 `restore` creates a cluster from another cluster's backups, at a point in time. A deleted cluster is
 restored instead with its provider configuration's `fromBackup` and the final backup's ID, such as
 an RDS snapshot ID. The status loses that ID with the cluster, so it is taken from the cloud
@@ -247,6 +257,8 @@ spec:
 
 *`PostgreSQLCluster` restored from another cluster's backups.*
 
+#### Field Behaviour
+
 `version` is the major version, such as `"17"`. Raising it upgrades the cluster where the backend
 can, and the backend applies minor versions itself, in the maintenance window its provider
 configuration sets.
@@ -262,6 +274,8 @@ size, and the platform never shrinks the disk back to `sizeGB`.
 
 `highAvailability` is a portable feature: an object that requests it where its backend does not
 support it is refused when applied (principle 1).
+
+#### Status
 
 The status shows the common fields, which entry applied, where each effective value came from, and
 the applied backend's own values (principle 4):

@@ -78,6 +78,8 @@ accept are rejected by the cloud and reported as `CloudAccepted: False` (princip
 
 ### RabbitMQBroker
 
+#### Manifest
+
 A user creates a `RabbitMQBroker` with a manifest like the one below. It names its class and
 carries a provider configuration entry for Amazon MQ (principle 2):
 
@@ -111,11 +113,15 @@ spec:
 
 *`RabbitMQBroker` with common fields and an Amazon MQ entry.*
 
+#### Field Behaviour
+
 The platform names the broker, the engine is always RabbitMQ, and Amazon MQ requires minor version
 upgrades, so none of these is a field. `parameters`, a map, is rendered into `rabbitmq.conf`.
 
 `highAvailability` chooses the deployment mode. It is a portable feature: an object that requests it
 where its backend does not support it is refused when applied (principle 1).
+
+#### Status
 
 The status shows the common fields, `managementEndpoint`, the management console URL, which entry
 applied, where each effective value came from, and Amazon MQ's own values (principle 4):

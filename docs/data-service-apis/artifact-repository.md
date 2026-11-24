@@ -52,6 +52,8 @@ Artifact Registry repository holds many images, and an Azure registry holds repo
 on the first push, with no resource of their own. The API's unit is the image path, because an
 application owns its image path.
 
+#### Manifest
+
 A user creates an `ArtifactRepository` with a manifest like the one below. Tag immutability and
 lifecycle rules are in the entries of the backends that have them: both on ECR and Artifact
 Registry, immutability alone on OCIR, and neither on Azure (principle 1). Observing fails on Azure,
@@ -98,6 +100,8 @@ spec:
 
 *`ArtifactRepository` with common fields and the entries of three backends.*
 
+#### Image Path
+
 The image path always starts with the namespace: `<namespace>/<path>/<name>`, or
 `<namespace>/<name>` without `path`. A registry holds each path once, and the provider finds a
 repository by its path alone (`aws_ecr_repository: config.NameAsIdentifier` in [provider-upjet-aws
@@ -107,11 +111,15 @@ images (the platform sets `forceDelete`). Namespace names are unique in a cluste
 rules that out within one cluster. Clusters that push to one registry are not checked against each
 other: their operator gives each its own registry, or keeps their namespace names distinct.
 
+#### Field Behaviour
+
 A lifecycle rule has one selector (`tagPrefixes`, `tagPatterns`, `untagged`, or none for every
 image) and one bound (`keepCount` newest, or `expireAfterDays` since the push). In an entry,
 `lifecycleRules` and `immutableTags` take the defaults of the class's provider configuration, so a
 repository with no entry is still cleaned up where its backend cleans up; `lifecycleRules` set in an
 entry replace the class's rules.
+
+#### Status
 
 An `ArtifactRepository` has no connection secret. The status shows `uri`, the image URI, with which
 entry applied, where each effective value came from, and the applied backend's own values (principle

@@ -41,6 +41,8 @@ spec:
 
 ### Bucket
 
+#### Manifest
+
 A user creates a `Bucket` with a manifest like the one below. Settings that only some backends have
 are in its provider configuration entries: `cors` on S3, Cloud Storage and Blob Storage, and
 `softDeleteDays` on Cloud Storage and Blob Storage (principle 1):
@@ -92,11 +94,15 @@ spec:
 
 *`Bucket` with common fields and the entries of two backends.*
 
+#### Field Behaviour
+
 `lifecycleRules` and `retention` have no default. `tier` names the two cold tiers every
 cloud has.
 
 A `Bucket` creates no service account, role or access key: an application reaches it with its own
 identity (principle 15). How an application gets that identity and its grant is still to be decided.
+
+#### Status
 
 A `Bucket` has no connection secret, since it holds no credentials. The status shows `url`,
 `bucketName` and `region`, the three values an application needs to reach the bucket, with which
