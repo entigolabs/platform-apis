@@ -53,7 +53,7 @@ their last object has moved, and the kinds that keep their names convert between
 ([Versions](common-design.md#versions)).
 
 Application identity, and whether it joins this migration or a later one, is still to be decided
-([Open Point 2](open-points.md)). Until then, an application that reads a bucket's keys keeps
+([Open Point 1](open-points.md)). Until then, an application that reads a bucket's keys keeps
 today's `S3Bucket`, and database, cache and broker users keep passwords in connection Secrets.
 
 The differences are listed in [API Changes](changes.md). The teams get four aids:
@@ -92,7 +92,7 @@ known so far:
   sets no service account, so their pods run as `default`. `WebApp` needs a service account of its
   own before these applications move.
 - The way the identity and its grants are created is still to be decided
-  ([Open Point 2](open-points.md)).
+  ([Open Point 1](open-points.md)).
 - For pushing to an artifact repository, CI currently uses credentials configured outside the API.
   OCIR accepts a user's auth token or an instance principal through Oracle's
   docker-credential-ocir.

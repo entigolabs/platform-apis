@@ -2,27 +2,7 @@
 
 Questions to decide before implementation.
 
-#### 1 How are class defaults written on clusters older than Kubernetes 1.36?
-
-**Context.** A `MutatingAdmissionPolicy` writes a class's `template` into each object when it is
-created ([Classes](common-design.md#classes)). It is stable and on by default from Kubernetes 1.36;
-in 1.34 and 1.35 it is a beta API that is off unless the cluster enables it.
-
-**Problem.** A deployment whose cluster runs an older version gets no defaults from its classes, so
-an object that relies on its class for a required setting is refused. Some clients may still run
-such versions when the design rolls out.
-
-**Options:**
-
-| Option                   | Effect                                                                | Trade-offs                                                                                    |
-| ------------------------ | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Kubernetes 1.36 required | The chart installs only on 1.36 or later                              | A client on an older version cannot use the design until it upgrades                          |
-| Mutating webhook         | A webhook served by the platform writes the defaults on every version | The platform runs, secures and keeps available one more webhook, which every create waits for |
-| Both, by version         | The policy on 1.36 or later, the webhook below it                     | Two ways to write the same defaults, which must give the same result                          |
-
-*Ways to write class defaults on older clusters.*
-
-#### 2 How does an application get its identity and its grants?
+#### 1 How does an application get its identity and its grants?
 
 **Context.** An application reaches a service with its workload identity where the implementation
 supports it (principle 15). A `Bucket` creates no service account or key

@@ -34,8 +34,10 @@ passes its cloud, and the chart installs each service's core kinds, its provider
 and its classes where the service is implemented. A deployment may also add an implementation that
 runs in the Kubernetes cluster, such as CloudNativePG, beside its cloud's; a class then chooses
 between the two, and a standalone object with entries for both is refused. A per-service switch
-leaves a service out, never adds one the deployment lacks. A manifest of a kind that is not
-installed is rejected by the Kubernetes API server when it is applied, before any function runs.
+leaves a service out, never adds one the deployment lacks. The chart installs only on Kubernetes
+1.36 or later, the first version with the `MutatingAdmissionPolicy` built in that writes class
+defaults. A manifest of a kind that is not installed is rejected by the Kubernetes API server when
+it is applied, before any function runs.
 
 ## Versions
 
@@ -90,8 +92,8 @@ The defaults are written into the object by a `MutatingAdmissionPolicy`, built i
 version 1.36. It copies the class's `template` into the object when it is created and keeps the
 values on updates. A default is written field by field, so it can break a rule that ties fields
 together, such as a `maxSizeGB` below the user's `sizeGB`; the refusal message then ends with a note
-that a value the object does not set comes from its class's template. The way defaults reach
-clusters older than 1.36 is still to be decided. Observed resources receive no defaults.
+that a value the object does not set comes from its class's template. Observed resources receive no
+defaults.
 
 An object keeps the class it was created with, and the class's values as they were then. Its
 `className` is written at creation when the user leaves it out and a default class exists, so moving
