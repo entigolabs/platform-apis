@@ -20,17 +20,18 @@ const (
 
 	// ── Configuration names ───────────────────────────────────────────────────
 
-	CronjobConfigurationName    = "platform-apis-cronjob"
-	KafkaConfigurationName      = "platform-apis-kafka"
-	MariadbConfigurationName    = "platform-apis-mariadb"
-	PostgresqlConfigurationName = "platform-apis-postgresql"
-	RabbitMQConfigurationName   = "platform-apis-rabbitmq"
-	RepositoryConfigurationName = "platform-apis-repository"
-	S3BucketConfigurationName   = "platform-apis-s3bucket"
-	ValkeyConfigurationName     = "platform-apis-valkey"
-	WebaccessConfigurationName  = "platform-apis-webaccess"
-	WebappConfigurationName     = "platform-apis-webapp"
-	ZoneConfigurationName       = "platform-apis-zone"
+	CronjobConfigurationName           = "platform-apis-cronjob"
+	KafkaConfigurationName             = "platform-apis-kafka"
+	MariadbConfigurationName           = "platform-apis-mariadb"
+	PostgresqlConfigurationName        = "platform-apis-postgresql"
+	PostgreSQLClusterConfigurationName = "platform-apis-postgresqlcluster"
+	RabbitMQConfigurationName          = "platform-apis-rabbitmq"
+	RepositoryConfigurationName        = "platform-apis-repository"
+	S3BucketConfigurationName          = "platform-apis-s3bucket"
+	ValkeyConfigurationName            = "platform-apis-valkey"
+	WebaccessConfigurationName         = "platform-apis-webaccess"
+	WebappConfigurationName            = "platform-apis-webapp"
+	ZoneConfigurationName              = "platform-apis-zone"
 
 	// ── Function names ────────────────────────────────────────────────────────
 
@@ -101,6 +102,15 @@ const (
 	OCIZonePool      = "default"
 	OCIZoneNamespace = "oci1"
 	OCIZonePodName   = "oci1-pause"
+
+	// ── PostgreSQLCluster on OCI ─────────────────────────────────────────────
+
+	PostgreSQLClusterKind      = "postgresqlclusters.database.entigo.com"
+	PostgreSQLClusterNamespace = "test-postgresqlcluster"
+	PostgreSQLClusterName      = "pgc-oci"
+	PostgreSQLClusterSecret    = "pgc-oci-dbadmin"
+	PostgreSQLClusterClient    = "pgc-oci-client"
+	OCIDBSystemKind            = "psqldbsystems.psql.oci.m.upbound.io"
 
 	// ── CronJob ───────────────────────────────────────────────────────────────
 

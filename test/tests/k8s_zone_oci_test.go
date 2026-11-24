@@ -16,13 +16,21 @@ func testPlatformApisOCI(t *testing.T, e *env.Environment) {
 	c := k8s.Connect(t, e)
 	cluster, _ := setupKubectlClients(c.Context, e.Prefix)
 
+	cfg := loadSuiteConfig()
+	if cfg.Has("postgresqlcluster") {
+		t.Run("postgresqlcluster", func(t *testing.T) {
+			t.Parallel()
+			testPostgreSQLClusterOCI(t, cluster)
+		})
+	}
+
 	t.Run("packages", func(t *testing.T) {
 		checkPlatformApisHaveRequiredPackages(t, cluster, ZoneConfigurationName, TenancyFunctionName)
 	})
 	if t.Failed() {
 		return
 	}
-	if !loadSuiteConfig().Has("zone") {
+	if !cfg.Has("zone") {
 		t.Skip("the zone suite is not among the affected suites")
 	}
 

@@ -71,7 +71,7 @@ jobs:
 
           echo "helm_changed=true" >> $GITHUB_OUTPUT
           echo "any_changes=true" >> $GITHUB_OUTPUT
-          echo 'affected_suites=["zone","postgresql","cronjob","kafka","rabbitmq","repository","s3bucket","valkey","mariadb","webaccess","webapp"]' >> $GITHUB_OUTPUT
+          echo 'affected_suites=["zone","postgresql","postgresqlcluster","cronjob","kafka","rabbitmq","repository","s3bucket","valkey","mariadb","webaccess","webapp"]' >> $GITHUB_OUTPUT
 
       - name: Get changed files
         if: github.event_name != 'workflow_dispatch'
@@ -116,6 +116,15 @@ jobs:
               - 'helm/templates/database.yaml'
               - 'test/tests/helm/platform-apis-test-postgresql/**'
               - 'test/tests/k8s_postgresql_test.go'
+            postgresqlcluster:
+              - 'compositions/postgresqlcluster/**'
+              - 'functions/database/**'
+              - 'functions/common/**'
+              - 'helm/templates/postgresqlcluster.yaml'
+              - 'helm/templates/database.yaml'
+              - 'helm/files/crds/postgresqlociconfig.yaml'
+              - 'test/tests/k8s_postgresqlcluster_oci_test.go'
+              - 'test/tests/templates/postgresqlcluster_oci*.yaml'
             rabbitmq:
               - 'compositions/rabbitmq/**'
               - 'functions/mq/**'
@@ -189,6 +198,7 @@ jobs:
           CRONJOB_CHANGED: ${{ steps.changed-files.outputs.cronjob_any_changed || 'false' }}
           KAFKA_CHANGED: ${{ steps.changed-files.outputs.kafka_any_changed || 'false' }}
           PG_CHANGED: ${{ steps.changed-files.outputs.postgresql_any_changed || 'false' }}
+          PGC_CHANGED: ${{ steps.changed-files.outputs.postgresqlcluster_any_changed || 'false' }}
           RABBITMQ_CHANGED: ${{ steps.changed-files.outputs.rabbitmq_any_changed || 'false' }}
           REPO_CHANGED: ${{ steps.changed-files.outputs.repository_any_changed || 'false' }}
           S3BUCKET_CHANGED: ${{ steps.changed-files.outputs.s3bucket_any_changed || 'false' }}
@@ -215,7 +225,7 @@ jobs:
 
           echo "helm_changed=$HELM_ANY_CHANGED" >> $GITHUB_OUTPUT
 
-          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$KAFKA_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$RABBITMQ_CHANGED" == "true" ] || [ "$REPO_CHANGED" == "true" ] || [ "$S3BUCKET_CHANGED" == "true" ] || [ "$VALKEY_CHANGED" == "true" ] || [ "$MARIADB_CHANGED" == "true" ] || [ "$WEBACCESS_CHANGED" == "true" ] || [ "$WEBAPP_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
+          if [ "$FUNCS_ANY_CHANGED" == "true" ] || [ "$COMPS_ANY_CHANGED" == "true" ] || [ "$HELM_ANY_CHANGED" == "true" ] || [ "$CRONJOB_CHANGED" == "true" ] || [ "$KAFKA_CHANGED" == "true" ] || [ "$PG_CHANGED" == "true" ] || [ "$PGC_CHANGED" == "true" ] || [ "$RABBITMQ_CHANGED" == "true" ] || [ "$REPO_CHANGED" == "true" ] || [ "$S3BUCKET_CHANGED" == "true" ] || [ "$VALKEY_CHANGED" == "true" ] || [ "$MARIADB_CHANGED" == "true" ] || [ "$WEBACCESS_CHANGED" == "true" ] || [ "$WEBAPP_CHANGED" == "true" ] || [ "$ZONE_CHANGED" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ]; then
             ANY_CHANGES=true
           else
             ANY_CHANGES=false
@@ -225,7 +235,7 @@ jobs:
           # affected_suites: which Go test suites run in infralib.
           # On main push: always run all suites (merges must be fully validated).
           # On PR: zone is always included; other suites added when their code changed.
-          ALL_SUITES='["cronjob","kafka","postgresql","repository","rabbitmq","s3bucket","valkey","mariadb","webaccess","webapp","zone"]'
+          ALL_SUITES='["cronjob","kafka","postgresql","postgresqlcluster","repository","rabbitmq","s3bucket","valkey","mariadb","webaccess","webapp","zone"]'
           if [ "$ANY_CHANGES" == "true" ] && ([ "$IS_MAIN_PUSH" == "true" ] || [ "$COMMON_LIB_CHANGED" == "true" ] || [ "$HELM_GLOBAL_CHANGED" == "true" ]); then
             echo "affected_suites=${ALL_SUITES}" >> $GITHUB_OUTPUT
           else
@@ -233,6 +243,7 @@ jobs:
             [ "$CRONJOB_CHANGED" == "true" ]    && AFFECTED_LIST="${AFFECTED_LIST}\"cronjob\","
             [ "$KAFKA_CHANGED" == "true" ]      && AFFECTED_LIST="${AFFECTED_LIST}\"kafka\","
             [ "$PG_CHANGED" == "true" ]         && AFFECTED_LIST="${AFFECTED_LIST}\"postgresql\","
+            [ "$PGC_CHANGED" == "true" ]        && AFFECTED_LIST="${AFFECTED_LIST}\"postgresqlcluster\","
             [ "$RABBITMQ_CHANGED" == "true" ]   && AFFECTED_LIST="${AFFECTED_LIST}\"rabbitmq\","
             [ "$REPO_CHANGED" == "true" ]       && AFFECTED_LIST="${AFFECTED_LIST}\"repository\","
             [ "$S3BUCKET_CHANGED" == "true" ]   && AFFECTED_LIST="${AFFECTED_LIST}\"s3bucket\","

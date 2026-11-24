@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-postgresqlcluster
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: baseline
+---
+# A standalone cluster with only what the first iteration requires; every other common field takes
+# the implementation's default.
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: pgc-oci
+  namespace: test-postgresqlcluster
+spec:
+  version: "17"
+  storage:
+    sizeGB: 50
+  providerConfigs:
+  - apiVersion: oci.database.entigo.com/v1alpha1
+    kind: PostgreSQLOCIConfig
+    spec:
+      instanceType: PostgreSQL.VM.Standard.E5.Flex
+      ocpus: 2
+      memoryGB: 32

@@ -1,0 +1,32 @@
+---
+# Connects with the admin Secret the platform wrote, from a workload pod the cluster's security
+# group admits, and exits 0 once a query succeeds.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pgc-oci-client
+  namespace: test-postgresqlcluster
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: psql
+    image: postgres:17
+    command: ["sh", "-c", "PGPASSWORD=\"$PASSWORD\" psql \"host=$ENDPOINT port=$PORT user=$USERNAME dbname=postgres sslmode=require\" -tAc 'select 1'"]
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    env:
+    - name: ENDPOINT
+      valueFrom: {secretKeyRef: {name: pgc-oci-dbadmin, key: endpoint}}
+    - name: PORT
+      valueFrom: {secretKeyRef: {name: pgc-oci-dbadmin, key: port}}
+    - name: USERNAME
+      valueFrom: {secretKeyRef: {name: pgc-oci-dbadmin, key: username}}
+    - name: PASSWORD
+      valueFrom: {secretKeyRef: {name: pgc-oci-dbadmin, key: password}}
