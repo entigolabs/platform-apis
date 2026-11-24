@@ -39,17 +39,18 @@ The product or software that meets the requirements is the kind's backend: a clo
 service, such as RDS, or software in the cluster, such as CloudNativePG. Each deployment chooses its
 backend in a class (principle 5).
 
-A requirement belongs in the common spec when two or more backends can meet it, and a user can set
-it without knowledge of the backend, such as a version, a disk size, high availability or backups. A
-setting that only one backend has belongs in its provider configuration (principle 2). This rule
-prevents the common spec from becoming a thin wrapper around provider configurations: a manifest is
-only as portable as its common fields.
+A requirement belongs in the common spec when every backend of the kind meets it in the same way,
+and a user can set it without knowledge of the backend, such as a version, a disk size, high
+availability or backup retention. A setting that some backends lack or run differently, such as a
+maintenance window or disk growth, belongs in the provider configuration of each backend that has it
+(principle 2). This rule prevents the common spec from becoming a thin wrapper around provider
+configurations: a manifest is only as portable as its common fields.
 
 A portable feature that a backend cannot provide, such as a standby or a read replica, is refused,
 never dropped silently, because the user's applications rely on that capacity. A minor field that a
 backend cannot honour is ignored there. An operation a backend cannot perform fails, with the reason
-shown on the object. A need becomes a portable feature by the same rule as a common field: once two
-or more backends support it, in a revision of the design.
+shown on the object. A need becomes a portable feature once two or more backends support it, in a
+revision of the design, and is refused on the others.
 
 #### 2 A setting of one backend belongs in its provider configuration
 

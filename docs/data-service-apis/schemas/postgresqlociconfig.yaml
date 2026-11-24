@@ -50,6 +50,45 @@ spec:
                 description: |-
                   A DB system backup OCID to create the cluster from. Set at creation only; not
                   with restore.
+              iops:
+                type: integer
+                description: |-
+                  Provisioned IOPS. In steps of 75,000.
+                minimum: 1
+              maintenanceWindow:
+                type: object
+                description: |-
+                  The weekly hour, in UTC, in which the cloud applies updates.
+                properties:
+                  day:
+                    type: string
+                    enum:
+                    - Mon
+                    - Tue
+                    - Wed
+                    - Thu
+                    - Fri
+                    - Sat
+                    - Sun
+                  hourUTC:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                required:
+                - day
+                - hourUTC
+              pointInTimeDays:
+                type: integer
+                description: |-
+                  Days back restore.pointInTime can reach, at most the cluster's
+                  backup.retentionDays. Unset, the cluster's backup.retentionDays.
+                minimum: 1
+              backupStartHourUTC:
+                type: integer
+                description: |-
+                  The hour, in UTC, the daily backup starts. Unset, the backend picks it.
+                minimum: 0
+                maximum: 23
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)

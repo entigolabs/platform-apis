@@ -53,6 +53,12 @@ spec:
                 description: |-
                   A CloudNativePG Backup in this namespace to create the cluster from. Set at
                   creation only; not with restore.
+              backupStartHourUTC:
+                type: integer
+                description: |-
+                  The hour, in UTC, the daily backup starts. Unset, the backend picks it.
+                minimum: 0
+                maximum: 23
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)

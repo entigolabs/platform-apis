@@ -91,10 +91,8 @@ RDS = {"apiVersion": "aws.database.entigo.com/v1alpha1", "kind": "PostgreSQLRDSC
        "spec": {"instanceType": "db.t4g.small"}}
 SQL = {"apiVersion": "gcp.database.entigo.com/v1alpha1", "kind": "PostgreSQLCloudSQLConfig",
        "spec": {"instanceType": "db-custom-2-7680", "edition": "ENTERPRISE"}}
-PG = {"version": "17", "storage": {"sizeGB": 20, "autoGrow": True, "maxSizeGB": 100},
-      "highAvailability": False, "deletionProtection": True,
-      "maintenanceWindow": {"day": "Sun", "hourUTC": 3}, "autoMinorVersionUpgrade": True,
-      "allowMajorVersionUpgrade": False, "backup": {"retentionDays": 7, "startHourUTC": 2},
+PG = {"version": "17", "storage": {"sizeGB": 20}, "highAvailability": False,
+      "deletionProtection": True, "backup": {"retentionDays": 7},
       "parameters": {"max_connections": "200"}, "providerConfigs": [RDS, SQL]}
 
 def w(base, **kw):
@@ -143,25 +141,23 @@ update("removing observe with common fields accepted", "PostgreSQLCluster", ob,
        w(PG, providerConfigs=ob["providerConfigs"]))
 update("setting observe after creation rejected", "PostgreSQLCluster", w(PG, providerConfigs=ob["providerConfigs"]),
        ob, False, "observe can be removed but never set after creation")
-create("maxSizeGB below sizeGB rejected", "PostgreSQLCluster",
-       w(PG, storage={"sizeGB": 100, "maxSizeGB": 50}), False, "maxSizeGB must be at least sizeGB")
-create("pointInTimeDays with retentionDays 0 rejected", "PostgreSQLCluster",
-       w(PG, backup={"retentionDays": 0, "pointInTimeDays": 3}), False, "needs backups")
+for field_name, value in {"maintenanceWindow": {"day": "Sun", "hourUTC": 3},
+                          "autoMinorVersionUpgrade": True, "allowMajorVersionUpgrade": True,
+                          "parameterApplyMethod": "Immediate"}.items():
+    create(f"{field_name}, a backend's setting, rejected in the common spec", "PostgreSQLCluster",
+           w(PG, **{field_name: value}), False, "unknown field")
+create("storage.autoGrow, a backend's setting, rejected in the common spec", "PostgreSQLCluster",
+       w(PG, storage={"sizeGB": 20, "autoGrow": True}), False, "unknown field")
+create("backup.startHourUTC, a backend's setting, rejected in the common spec", "PostgreSQLCluster",
+       w(PG, backup={"retentionDays": 7, "startHourUTC": 2}), False, "unknown field")
 create("retentionDays -1 rejected", "PostgreSQLCluster", w(PG, backup={"retentionDays": -1}), False,
        "greater than or equal to 0")
-create("minor version with minor upgrades on rejected", "PostgreSQLCluster", w(PG, version="17.2"),
-       False, "takes a minor exactly")
-pin = w(PG, version="17.7", autoMinorVersionUpgrade=False)
-create("full version with minor upgrades off accepted", "PostgreSQLCluster", pin)
-update("minor change of a pinned version accepted", "PostgreSQLCluster", pin, w(pin, version="17.8"))
-update("major version change rejected", "PostgreSQLCluster", PG, w(PG, version="18"), False,
-       "needs allowMajorVersionUpgrade")
-update("major version change with allowMajorVersionUpgrade accepted", "PostgreSQLCluster",
-       w(PG, allowMajorVersionUpgrade=True), w(PG, version="18", allowMajorVersionUpgrade=True))
-update("raising storage.sizeGB accepted", "PostgreSQLCluster", PG,
-       w(PG, storage={"sizeGB": 40, "autoGrow": True, "maxSizeGB": 100}))
+create("a full version rejected, the major only", "PostgreSQLCluster", w(PG, version="17.7"),
+       False, "should match")
+update("raising the major version accepted", "PostgreSQLCluster", PG, w(PG, version="18"))
+update("raising storage.sizeGB accepted", "PostgreSQLCluster", PG, w(PG, storage={"sizeGB": 40}))
 update("lowering storage.sizeGB accepted, the function ignores it", "PostgreSQLCluster", PG,
-       w(PG, storage={"sizeGB": 10, "autoGrow": True, "maxSizeGB": 100}))
+       w(PG, storage={"sizeGB": 10}))
 create("restore without fromInstance rejected", "PostgreSQLCluster",
        w(PG, restore={"pointInTime": "2026-11-01T10:00:00Z"}), False, "Required value")
 rs = w(PG, restore={"fromInstance": "orders-db-old"})
@@ -174,8 +170,16 @@ create("one Parameters referenced twice rejected", "PostgreSQLCluster",
        w(PG, parametersRefs=[{"name": "a"}, {"name": "a"}]), False, "Duplicate value")
 create("nine parametersRefs rejected", "PostgreSQLCluster",
        w(PG, parametersRefs=[{"name": f"p{i}"} for i in range(9)]), False, "Too many")
-create("unknown parameterApplyMethod rejected", "PostgreSQLCluster",
-       w(PG, parameterApplyMethod="Later"), False, "Unsupported value")
+create("unknown parameterApplyMethod rejected", "PostgreSQLRDSConfig",
+       {"parameterApplyMethod": "Later"}, False, "Unsupported value")
+create("PostgreSQLRDSConfig minorVersion accepted", "PostgreSQLRDSConfig", {"minorVersion": "17.7"})
+create("PostgreSQLRDSConfig minorVersion without a minor rejected", "PostgreSQLRDSConfig",
+       {"minorVersion": "17"}, False, "should match")
+create("PostgreSQLCloudSQLConfig storage and backup settings accepted", "PostgreSQLCloudSQLConfig",
+       {"autoGrow": True, "maxSizeGB": 100, "pointInTimeDays": 7, "backupStartHourUTC": 2,
+        "maintenanceWindow": {"day": "Sun", "hourUTC": 3}})
+create("PostgreSQLOCIConfig backupStartHourUTC 24 rejected", "PostgreSQLOCIConfig",
+       {"backupStartHourUTC": 24}, False, "less than or equal to 23")
 create("secretName accepted", "PostgreSQLCluster", w(PG, secretName="orders-db-admin"))
 
 create("two versions of one kind rejected", "PostgreSQLCluster",

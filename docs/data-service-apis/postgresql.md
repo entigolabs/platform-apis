@@ -38,16 +38,22 @@ spec:
     version: "17"
     storage:
       sizeGB: 50
-      maxSizeGB: 500
     providerConfig:
       apiVersion: aws.database.entigo.com/v1alpha1
       kind: PostgreSQLRDSConfig
       spec:
         instanceType: db.t4g.medium
+        maxSizeGB: 500
   enforced:                            # teams cannot change these
-    autoMinorVersionUpgrade: true
     backup:
       retentionDays: 7
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: PostgreSQLRDSConfig
+      spec:
+        maintenanceWindow:
+          day: Sun
+          hourUTC: 3
   parametersRefs:                      # beneath every cluster's own settings
     - name: pg-baseline
       namespace: platform-apis
@@ -98,34 +104,29 @@ metadata:
   namespace: shop
 spec:
   className: standard                  # unset, the default class; without one, standalone
-  version: "17"                        # the full "17.7" with minor upgrades off
+  version: "17"                        # the major version
   storage:
     sizeGB: 20
-    autoGrow: true
-    maxSizeGB: 100                     # autoGrow ceiling
   highAvailability: false              # a standby in another zone
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
-  autoMinorVersionUpgrade: true
-  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7                   # backups kept; 0 disables them
-    pointInTimeDays: 7                 # how far back restore.pointInTime reaches
-    startHourUTC: 2
   parametersRefs:                      # PostgreSQLParameters in this namespace, in order
     - name: shop-common
     - name: orders-tuning              # wins over shop-common
   parameters:                          # this cluster's own settings, merged last
     max_connections: "200"
-  parameterApplyMethod: Immediate      # or NextRestart
   secretName: orders-db-admin          # unset, orders-db-dbadmin (principle 6)
   providerConfigs:                     # one entry per kind; the class's kind applies
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: PostgreSQLRDSConfig
     spec:
       instanceType: db.t4g.small       # the RDS instance class
+      maxSizeGB: 100                   # the storage autoscaling ceiling
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      # minorVersion: "17.7"           # stay on this minor
       # parameterGroupName: orders-pg17  # an existing group, instead of parameters
       # fromBackup: orders-final       # an RDS snapshot ID, instead of restore
   - apiVersion: gcp.database.entigo.com/v1alpha1
@@ -166,6 +167,9 @@ metadata:
 spec:
   instanceType: GP_Standard_D2ds_v5    # the flexible server SKU
   storageTier: P10                     # P4 to P80; sets the disk's IOPS
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
 ```
 
 *`PostgreSQLFlexibleServerConfig` referenced by a cluster entry.*
@@ -210,13 +214,18 @@ spec:
 
 *`PostgreSQLCluster` restored from another cluster's backups.*
 
-`version` is the major version, such as `"17"`, and the backend applies minor versions in the
-maintenance window.
+`version` is the major version, such as `"17"`. Raising it upgrades the cluster where the backend
+can, and the backend applies minor versions itself, in the maintenance window its provider
+configuration sets.
+
+Settings that backends run differently, such as disk growth, provisioned IOPS, the maintenance
+window, the point-in-time window and the backup hour, are in each backend's provider configuration,
+where the backend has them (principle 1).
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and a
 value below the real size is ignored, so a rejected increase can still be corrected. The backend may
-round it up and `autoGrow` can take the disk further, so the status reports the actual size, and the
-platform never shrinks the disk back to `sizeGB`.
+round it up and a backend that grows the disk can take it further, so the status reports the actual
+size, and the platform never shrinks the disk back to `sizeGB`.
 
 `highAvailability` is a portable feature: an object that requests it where its backend does not
 support it is refused when applied (principle 1).
@@ -333,59 +342,57 @@ spec:
 The first table maps each common field to the backend's provider. A setting the backend lacks shows
 as ignored, with the reason (principle 1):
 
-| Field                      | AWS                                                                         | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                | Kubernetes                                                                         |
-| -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `observe`                  | `managementPolicies: [Observe]`                                             | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                                      | `managementPolicies: [Observe]`                                                      | the named `Cluster` read as a required resource; nothing composed                  |
-| `version`                  | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`; a full version ignored                                                                                   | `dbVersion: "17"`; a full version ignored                                            | `version: "17"`; a full version ignored                                              | `imageCatalogRef.major: 17`; a full version sets `imageName` with that tag         |
-| `storage.sizeGB`           | `allocatedStorage`; below 20 rounded up to 20                               | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                                 | `storageMb`, rounded up to the next of its 12 sizes                                  | `storage.size: 20Gi`; growing needs a StorageClass that allows expansion           |
-| `storage.autoGrow`         | on with `maxAllocatedStorage`                                               | `settings.diskAutoresize`                                                                                                                | always on; `false` ignored                                                           | `autoGrowEnabled`                                                                    | ignored; the disk grows only when `sizeGB` is raised                               |
-| `storage.maxSizeGB`        | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      | `settings.diskAutoresizeLimit`                                                                                                           | ignored; storage grows without a ceiling                                             | ignored; growth has no ceiling                                                       | ignored; the disk never grows on its own                                           |
-| `storage.iops`             | `iops`                                                                      | `settings.dataDiskProvisionedIops`; ignored without Hyperdisk                                                                            | `storageDetails.iops`                                                                | ignored; `storageTier` sets IOPS                                                     | ignored; the StorageClass sets IOPS                                                |
-| `storage.throughputMBps`   | `storageThroughput`                                                         | `settings.dataDiskProvisionedThroughput`; ignored without Hyperdisk                                                                      | ignored; the disk keeps its default throughput                                       | ignored; the disk keeps its default throughput                                       | ignored; the StorageClass sets throughput                                          |
-| `highAvailability`         | `multiAz`                                                                   | `settings.availabilityType: REGIONAL`; with `backup.retentionDays: 0` rejected, as a regional instance needs backups                     | `instanceCount: 2`, regional storage                                                 | `highAvailability.mode: ZoneRedundant`                                               | `instances: 2` on separate zones; `false` sets `instances: 1`                      |
-| `deletionProtection`       | `deletionProtection`                                                        | `settings.deletionProtectionEnabled`                                                                                                     | platform blocks deletion                                                             | platform blocks deletion                                                             | platform blocks deletion                                                           |
-| `maintenanceWindow`        | `maintenanceWindow: sun:03:00-sun:03:30`                                    | `settings.maintenanceWindow` (`day: 7`, `hour: 3`)                                                                                       | `managementPolicy.maintenanceWindowStart: "SUN 03:00"`                               | `maintenanceWindow` (`dayOfWeek: 0`, `startHour: 3`)                                 | ignored; a change rolls out when applied, replicas first                           |
-| `autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                   | always on; `false` ignored, and minor versions are applied in the maintenance window                                                     | always on; `false` ignored, and minor versions are applied in the maintenance window | always on; `false` ignored, and minor versions are applied in the maintenance window | follows the catalog's image for the major; `false` needs a full version, as on AWS |
-| `allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                  | `databaseVersion` change allowed                                                                                                         | a major upgrade fails until the provider supports it                                 | `version` change allowed                                                             | `imageCatalogRef.major` change allowed, an offline in-place upgrade                |
-| `backup.retentionDays`     | `backupRetentionPeriod`                                                     | `settings.backupConfiguration.backupRetentionSettings.retainedBackups`, with `pointInTimeRecoveryEnabled: true`; 0 sets `enabled: false` | `managementPolicy.backupPolicy.retentionDays`, DAILY; 0 sets `kind: NONE`            | `backupRetentionDays`; 0 ignored, backups are always on                              | `ObjectStore` `retentionPolicy: 7d`; 0 sets no backup plugin or `ScheduledBackup`  |
-| `backup.pointInTimeDays`   | the same setting; above `retentionDays` rejected                            | `settings.backupConfiguration.transactionLogRetentionDays`                                                                               | `managementPolicy.pitrPolicy.restoreDays`, STANDARD                                  | the same setting; above `retentionDays` rejected                                     | the same setting; above `retentionDays` rejected                                   |
-| `backup.startHourUTC`      | `backupWindow`, 30 minutes                                                  | `settings.backupConfiguration.startTime`                                                                                                 | `managementPolicy.backupPolicy.backupStart`                                          | ignored; Azure picks the hour                                                        | `ScheduledBackup` `schedule: "0 0 2 * * *"`                                        |
-| `parameters`               | a `ParameterGroup`                                                          | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                                 | one `FlexibleServerConfiguration` each                                               | `postgresql.parameters`; the operator's fixed settings, such as `port`, rejected   |
-| `parametersRefs`           | merged into `parameters`                                                    | merged into `parameters`                                                                                                                 | merged into `parameters`                                                             | merged into `parameters`                                                             | merged into `parameters`                                                           |
-| `parameterApplyMethod`     | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` | restarts when a flag needs it; `NextRestart` ignored                                                                                     | `NextRestart` ignored; a change that needs a restart restarts at once                | restarts when a setting needs it; `NextRestart` ignored                              | restarts when a setting needs it, replicas first; `NextRestart` ignored            |
-| `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`                    | `createMode: PointInTimeRestore`, `sourceServerId`                                   | `bootstrap.recovery.source`, an `externalClusters` entry for the source's backups  |
-| `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                               | `pointInTimeRestoreTimeInUtc`                                                        | `bootstrap.recovery.recoveryTarget.targetTime`                                     |
+| Field                  | AWS                                                                                                                       | GCP                                                                                                                                      | OCI                                                                            | Azure                                                   | Kubernetes                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `observe`              | `managementPolicies: [Observe]`                                                                                           | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                                | `managementPolicies: [Observe]`                         | the named `Cluster` read as a required resource; nothing composed                 |
+| `version`              | `engineVersion`; with `minorVersion`, that full version; raising the major sets `allowMajorVersionUpgrade` for the change | `databaseVersion: POSTGRES_17`; raising it upgrades                                                                                      | `dbVersion: "17"`; raising it fails until the provider supports major upgrades | `version: "17"`; raising it upgrades                    | `imageCatalogRef.major: 17`; raising it is an offline in-place upgrade            |
+| `storage.sizeGB`       | `allocatedStorage`; below 20 rounded up to 20                                                                             | `settings.diskSize`                                                                                                                      | ignored; storage grows automatically                                           | `storageMb`, rounded up to the next of its 12 sizes     | `storage.size: 20Gi`; growing needs a StorageClass that allows expansion          |
+| `highAvailability`     | `multiAz`                                                                                                                 | `settings.availabilityType: REGIONAL`; with `backup.retentionDays: 0` rejected, as a regional instance needs backups                     | `instanceCount: 2`, regional storage                                           | `highAvailability.mode: ZoneRedundant`                  | `instances: 2` on separate zones; `false` sets `instances: 1`                     |
+| `deletionProtection`   | `deletionProtection`                                                                                                      | `settings.deletionProtectionEnabled`                                                                                                     | platform blocks deletion                                                       | platform blocks deletion                                | platform blocks deletion                                                          |
+| `backup.retentionDays` | `backupRetentionPeriod`                                                                                                   | `settings.backupConfiguration.backupRetentionSettings.retainedBackups`, with `pointInTimeRecoveryEnabled: true`; 0 sets `enabled: false` | `managementPolicy.backupPolicy.retentionDays`, DAILY; 0 sets `kind: NONE`      | `backupRetentionDays`; 0 ignored, backups are always on | `ObjectStore` `retentionPolicy: 7d`; 0 sets no backup plugin or `ScheduledBackup` |
+| `parameters`           | a `ParameterGroup`                                                                                                        | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                           | one `FlexibleServerConfiguration` each                  | `postgresql.parameters`; the operator's fixed settings, such as `port`, rejected  |
+| `parametersRefs`       | merged into `parameters`                                                                                                  | merged into `parameters`                                                                                                                 | merged into `parameters`                                                       | merged into `parameters`                                | merged into `parameters`                                                          |
+| `restore.fromInstance` | `restoreToPointInTime.sourceDbInstanceIdentifier`                                                                         | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`              | `createMode: PointInTimeRestore`, `sourceServerId`      | `bootstrap.recovery.source`, an `externalClusters` entry for the source's backups |
+| `restore.pointInTime`  | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`                                                      | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                         | `pointInTimeRestoreTimeInUtc`                           | `bootstrap.recovery.recoveryTarget.targetTime`                                    |
 
 *`PostgreSQLCluster` common fields and their provider fields.*
 
 The second names the backend's provider configuration kind and what its fields map to:
 
-| Field                | AWS                                  | GCP                                                  | OCI                                                              | Azure                                                                    | Kubernetes                                             |
-| -------------------- | ------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ |
-| kind                 | `PostgreSQLRDSConfig`                | `PostgreSQLCloudSQLConfig`                           | `PostgreSQLOCIConfig`                                            | `PostgreSQLFlexibleServerConfig`                                         | `PostgreSQLCNPGConfig`                                 |
-| `id`                 | the console's Resource ID (`db-...`) | the instance name                                    | the DB system's OCID                                             | the server's resource ID; the function takes the name and resource group | the `Cluster`'s name in the object's namespace         |
-| `instanceType`       | `instanceClass`                      | `settings.tier`                                      | `shape`; a `.Flex` shape without `ocpus` and `memoryGB` rejected | `skuName`                                                                |                                                        |
-| `fromBackup`         | `snapshotIdentifier`                 | `restoreBackupContext` (`instanceId`, `backupRunId`) | `source.sourceType: BACKUP`, `source.backupId`                   |                                                                          | `bootstrap.recovery.backup.name`                       |
-| `parameterGroupName` | `parameterGroupName`                 |                                                      |                                                                  |                                                                          |                                                        |
-| `edition`            |                                      | `settings.edition`                                   |                                                                  |                                                                          |                                                        |
-| `diskType`           |                                      | `settings.diskType`                                  |                                                                  |                                                                          |                                                        |
-| `ocpus`              |                                      |                                                      | `instanceOcpuCount`                                              |                                                                          |                                                        |
-| `memoryGB`           |                                      |                                                      | `instanceMemorySizeInGbs`                                        |                                                                          |                                                        |
-| `storageTier`        |                                      |                                                      |                                                                  | `storageTier`                                                            |                                                        |
-| `cpu`                |                                      |                                                      |                                                                  |                                                                          | `resources.requests.cpu`, `resources.limits.cpu`       |
-| `memory`             |                                      |                                                      |                                                                  |                                                                          | `resources.requests.memory`, `resources.limits.memory` |
-| `storageClass`       |                                      |                                                      |                                                                  |                                                                          | `storage.storageClass`                                 |
+| Field                  | AWS                                                                         | GCP                                                        | OCI                                                              | Azure                                                                    | Kubernetes                                             |
+| ---------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ |
+| kind                   | `PostgreSQLRDSConfig`                                                       | `PostgreSQLCloudSQLConfig`                                 | `PostgreSQLOCIConfig`                                            | `PostgreSQLFlexibleServerConfig`                                         | `PostgreSQLCNPGConfig`                                 |
+| `id`                   | the console's Resource ID (`db-...`)                                        | the instance name                                          | the DB system's OCID                                             | the server's resource ID; the function takes the name and resource group | the `Cluster`'s name in the object's namespace         |
+| `instanceType`         | `instanceClass`                                                             | `settings.tier`                                            | `shape`; a `.Flex` shape without `ocpus` and `memoryGB` rejected | `skuName`                                                                |                                                        |
+| `fromBackup`           | `snapshotIdentifier`                                                        | `restoreBackupContext` (`instanceId`, `backupRunId`)       | `source.sourceType: BACKUP`, `source.backupId`                   |                                                                          | `bootstrap.recovery.backup.name`                       |
+| `parameterGroupName`   | `parameterGroupName`                                                        |                                                            |                                                                  |                                                                          |                                                        |
+| `edition`              |                                                                             | `settings.edition`                                         |                                                                  |                                                                          |                                                        |
+| `diskType`             |                                                                             | `settings.diskType`                                        |                                                                  |                                                                          |                                                        |
+| `ocpus`                |                                                                             |                                                            | `instanceOcpuCount`                                              |                                                                          |                                                        |
+| `memoryGB`             |                                                                             |                                                            | `instanceMemorySizeInGbs`                                        |                                                                          |                                                        |
+| `storageTier`          |                                                                             |                                                            |                                                                  | `storageTier`                                                            |                                                        |
+| `cpu`                  |                                                                             |                                                            |                                                                  |                                                                          | `resources.requests.cpu`, `resources.limits.cpu`       |
+| `memory`               |                                                                             |                                                            |                                                                  |                                                                          | `resources.requests.memory`, `resources.limits.memory` |
+| `storageClass`         |                                                                             |                                                            |                                                                  |                                                                          | `storage.storageClass`                                 |
+| `minorVersion`         | `engineVersion` with that full version, `autoMinorVersionUpgrade: false`    |                                                            |                                                                  |                                                                          |                                                        |
+| `maxSizeGB`            | `maxAllocatedStorage`                                                       | `settings.diskAutoresizeLimit`                             |                                                                  |                                                                          |                                                        |
+| `autoGrow`             |                                                                             | `settings.diskAutoresize`                                  |                                                                  | `autoGrowEnabled`                                                        |                                                        |
+| `iops`                 | `iops`                                                                      | `settings.dataDiskProvisionedIops`, with Hyperdisk         | `storageDetails.iops`                                            |                                                                          |                                                        |
+| `throughputMBps`       | `storageThroughput`                                                         | `settings.dataDiskProvisionedThroughput`, with Hyperdisk   |                                                                  |                                                                          |                                                        |
+| `maintenanceWindow`    | `maintenanceWindow: sun:03:00-sun:03:30`                                    | `settings.maintenanceWindow` (`day: 7`, `hour: 3`)         | `managementPolicy.maintenanceWindowStart: "SUN 03:00"`           | `maintenanceWindow` (`dayOfWeek: 0`, `startHour: 3`)                     |                                                        |
+| `pointInTimeDays`      |                                                                             | `settings.backupConfiguration.transactionLogRetentionDays` | `managementPolicy.pitrPolicy.restoreDays`, STANDARD              |                                                                          |                                                        |
+| `backupStartHourUTC`   | `backupWindow`, 30 minutes                                                  | `settings.backupConfiguration.startTime`                   | `managementPolicy.backupPolicy.backupStart`                      |                                                                          | `ScheduledBackup` `schedule`                           |
+| `parameterApplyMethod` | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |                                                            |                                                                  |                                                                          |                                                        |
 
 *PostgreSQL provider configuration fields.*
 
-**AWS:** provider keys are from the CRDs of [provider-upjet-aws
-v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). Only RDS can
-turn minor upgrades off, and it then needs a full version (`engineVersion` in
-`rds.aws.m.upbound.io_instances`), so a user who sets `autoMinorVersionUpgrade: false` writes the
-full version, such as `"17.7"`, and changes it to upgrade. A parameter group applies to one major
-version, so a major change is rejected unless `parameterGroupName` changes or is removed in the same
-edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an increase under 10% up to
-10%. `status.provider.finalBackup` is the ID the final snapshot will receive. Storage is gp3.
+**AWS:** provider keys are from the CRDs of
+[provider-upjet-aws v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
+Only RDS can turn minor upgrades off: `minorVersion` sets the full version in `engineVersion`, such
+as `"17.7"`, and the user changes it to upgrade. A parameter group applies to one major version, so
+a major change is rejected unless `parameterGroupName` changes or is removed in the same edit.
+`storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an increase under 10% up to 10%.
+`status.provider.finalBackup` is the ID the final snapshot will receive. Storage is gp3.
 
 **GCP:** provider keys are from the CRDs of [provider-upjet-gcp
 v3.1.0](https://github.com/crossplane-contrib/provider-upjet-gcp/releases/tag/v3.1.0). `updateTrack`
@@ -419,9 +426,9 @@ cluster can be restored with `restore.fromInstance` until the store's own lifecy
 ## Provider Configurations
 
 Each backend's provider configuration kind holds the settings of that backend, with every field it
-takes; commented fields are alternatives or apply only with `observe`. The settings sit either in a
-separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair shows, and
-they override the class's settings for the same kind field by field (principle 2):
+takes; commented fields are optional, alternatives, or apply only with `observe`. The settings sit
+either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair
+shows, and they override the class's settings for the same kind field by field (principle 2):
 
 ```yaml Separate object
 ---
@@ -432,6 +439,15 @@ metadata:
   namespace: shop
 spec:
   instanceType: db.t4g.small       # the RDS instance class
+  maxSizeGB: 100                   # the storage autoscaling ceiling
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  backupStartHourUTC: 2            # unset, RDS picks the hour
+  # minorVersion: "17.7"           # stay on this minor; unset, minor upgrades apply
+  # iops: 12000                    # from 400 GiB of disk
+  # throughputMBps: 500            # from 400 GiB of disk
+  # parameterApplyMethod: NextRestart  # unset, Immediate
   # parameterGroupName: orders-pg17  # an existing group, instead of parameters
   # fromBackup: orders-final       # an RDS snapshot ID, at creation only, instead of restore
   # id: orders-db                  # an existing instance's ID, with observe
@@ -450,6 +466,15 @@ spec:
     kind: PostgreSQLRDSConfig
     spec:
       instanceType: db.t4g.small       # the RDS instance class
+      maxSizeGB: 100                   # the storage autoscaling ceiling
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      backupStartHourUTC: 2            # unset, RDS picks the hour
+      # minorVersion: "17.7"           # stay on this minor; unset, minor upgrades apply
+      # iops: 12000                    # from 400 GiB of disk
+      # throughputMBps: 500            # from 400 GiB of disk
+      # parameterApplyMethod: NextRestart  # unset, Immediate
       # parameterGroupName: orders-pg17  # an existing group, instead of parameters
       # fromBackup: orders-final       # an RDS snapshot ID, at creation only, instead of restore
       # id: orders-db                  # an existing instance's ID, with observe
@@ -468,6 +493,15 @@ spec:
   instanceType: db-custom-2-7680   # the Cloud SQL tier, which belongs to edition
   edition: ENTERPRISE              # or ENTERPRISE_PLUS
   diskType: PD_SSD                 # PD_HDD, HYPERDISK_BALANCED
+  maxSizeGB: 100                   # the autoGrow ceiling; unset, none
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  pointInTimeDays: 7               # unset, 7
+  backupStartHourUTC: 2
+  # autoGrow: false                # unset, true
+  # iops: 10000                    # with Hyperdisk
+  # throughputMBps: 400            # with Hyperdisk
   # fromBackup: orders-db/1700000000000  # <instance>/<backup run ID>, at creation only
   # id: shop-project:orders-db     # an existing instance's ID, with observe
 ```
@@ -487,6 +521,15 @@ spec:
       instanceType: db-custom-2-7680   # the Cloud SQL tier, which belongs to edition
       edition: ENTERPRISE              # or ENTERPRISE_PLUS
       diskType: PD_SSD                 # PD_HDD, HYPERDISK_BALANCED
+      maxSizeGB: 100                   # the autoGrow ceiling; unset, none
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7               # unset, 7
+      backupStartHourUTC: 2
+      # autoGrow: false                # unset, true
+      # iops: 10000                    # with Hyperdisk
+      # throughputMBps: 400            # with Hyperdisk
       # fromBackup: orders-db/1700000000000  # <instance>/<backup run ID>, at creation only
       # id: shop-project:orders-db     # an existing instance's ID, with observe
 ```
@@ -504,6 +547,12 @@ spec:
   instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
   ocpus: 2                         # required with a .Flex shape
   memoryGB: 32                     # required with a .Flex shape
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  pointInTimeDays: 7               # unset, backup.retentionDays
+  backupStartHourUTC: 2
+  # iops: 75000                    # in steps of 75,000
   # fromBackup: ocid1.postgresqlbackup.oc1..example  # a backup OCID, at creation only
   # id: ocid1.postgresqldbsystem.oc1..example  # an existing DB system's OCID, with observe
 ```
@@ -523,6 +572,12 @@ spec:
       instanceType: PostgreSQL.VM.Standard.E5.Flex  # the DB system shape
       ocpus: 2                         # required with a .Flex shape
       memoryGB: 32                     # required with a .Flex shape
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7               # unset, backup.retentionDays
+      backupStartHourUTC: 2
+      # iops: 75000                    # in steps of 75,000
       # fromBackup: ocid1.postgresqlbackup.oc1..example  # a backup OCID, at creation only
       # id: ocid1.postgresqldbsystem.oc1..example  # an existing DB system's OCID, with observe
 ```
@@ -539,6 +594,10 @@ metadata:
 spec:
   instanceType: GP_Standard_D2ds_v5  # the flexible server SKU
   storageTier: P10                 # P4 to P80; sets the disk's IOPS
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  # autoGrow: false                # unset, true
   # id: /subscriptions/.../flexibleServers/orders-db  # an existing server's ID, with observe
 ```
 
@@ -556,6 +615,10 @@ spec:
     spec:
       instanceType: GP_Standard_D2ds_v5  # the flexible server SKU
       storageTier: P10                 # P4 to P80; sets the disk's IOPS
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      # autoGrow: false                # unset, true
       # id: /subscriptions/.../flexibleServers/orders-db  # an existing server's ID, with observe
 ```
 
@@ -572,6 +635,7 @@ spec:
   cpu: "2"                         # per instance, requested and limited alike
   memory: 8Gi
   storageClass: fast-ssd           # unset, the cluster's default StorageClass
+  backupStartHourUTC: 2            # the ScheduledBackup hour
   # fromBackup: orders-db-20261120  # a CloudNativePG Backup, at creation only
   # id: orders-db                  # an existing Cluster's name, with observe
 ```
@@ -591,6 +655,7 @@ spec:
       cpu: "2"                         # per instance, requested and limited alike
       memory: 8Gi
       storageClass: fast-ssd           # unset, the cluster's default StorageClass
+      backupStartHourUTC: 2            # the ScheduledBackup hour
       # fromBackup: orders-db-20261120  # a CloudNativePG Backup, at creation only
       # id: orders-db                  # an existing Cluster's name, with observe
 ```
@@ -616,42 +681,48 @@ spec:
   version: "17"
   storage:
     sizeGB: 20
-    autoGrow: true
-    maxSizeGB: 100
   highAvailability: false
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
-  autoMinorVersionUpgrade: true
-  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
-    pointInTimeDays: 7
-    startHourUTC: 2
   parametersRefs:
     - name: orders-tuning
   parameters:
     max_connections: "200"
-  parameterApplyMethod: Immediate
   secretName: orders-db-admin
   providerConfigs:
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: PostgreSQLRDSConfig
     spec:
       instanceType: db.t4g.small
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      backupStartHourUTC: 2
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: PostgreSQLCloudSQLConfig
     spec:
       instanceType: db-custom-2-7680
       edition: ENTERPRISE
       diskType: PD_SSD
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: PostgreSQLOCIConfig
     spec:
       instanceType: PostgreSQL.VM.Standard.E5.Flex
       ocpus: 2
       memoryGB: 32
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: azure.database.entigo.com/v1alpha1
     kind: PostgreSQLFlexibleServerConfig
     ref:
@@ -661,6 +732,7 @@ spec:
     spec:
       cpu: "2"
       memory: 8Gi
+      backupStartHourUTC: 2
 ```
 
 ```yaml AWS resource
@@ -682,8 +754,8 @@ spec:
     multiAz: false
     deletionProtection: true
     maintenanceWindow: sun:03:00-sun:03:30
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+    autoMinorVersionUpgrade: true  # platform; no minorVersion
+    allowMajorVersionUpgrade: false  # platform; true for a major change
     backupRetentionPeriod: 7
     backupWindow: 02:00-02:30
     parameterGroupName: orders-db-7f3a2c  # composed from parameters
@@ -711,42 +783,48 @@ spec:
   version: "17"
   storage:
     sizeGB: 20
-    autoGrow: true
-    maxSizeGB: 100
   highAvailability: false
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
-  autoMinorVersionUpgrade: true
-  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
-    pointInTimeDays: 7
-    startHourUTC: 2
   parametersRefs:
     - name: orders-tuning
   parameters:
     max_connections: "200"
-  parameterApplyMethod: Immediate
   secretName: orders-db-admin
   providerConfigs:
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: PostgreSQLRDSConfig
     spec:
       instanceType: db.t4g.small
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      backupStartHourUTC: 2
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: PostgreSQLCloudSQLConfig
     spec:
       instanceType: db-custom-2-7680
       edition: ENTERPRISE
       diskType: PD_SSD
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: PostgreSQLOCIConfig
     spec:
       instanceType: PostgreSQL.VM.Standard.E5.Flex
       ocpus: 2
       memoryGB: 32
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: azure.database.entigo.com/v1alpha1
     kind: PostgreSQLFlexibleServerConfig
     ref:
@@ -756,6 +834,7 @@ spec:
     spec:
       cpu: "2"
       memory: 8Gi
+      backupStartHourUTC: 2
 ```
 
 ```yaml GCP resource
@@ -775,7 +854,7 @@ spec:
       edition: ENTERPRISE
       diskType: PD_SSD
       diskSize: 20
-      diskAutoresize: true
+      diskAutoresize: true     # platform
       diskAutoresizeLimit: 100
       availabilityType: ZONAL
       deletionProtectionEnabled: true
@@ -811,42 +890,48 @@ spec:
   version: "17"
   storage:
     sizeGB: 20
-    autoGrow: true
-    maxSizeGB: 100
   highAvailability: false
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
-  autoMinorVersionUpgrade: true
-  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
-    pointInTimeDays: 7
-    startHourUTC: 2
   parametersRefs:
     - name: orders-tuning
   parameters:
     max_connections: "200"
-  parameterApplyMethod: Immediate
   secretName: orders-db-admin
   providerConfigs:
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: PostgreSQLRDSConfig
     spec:
       instanceType: db.t4g.small
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      backupStartHourUTC: 2
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: PostgreSQLCloudSQLConfig
     spec:
       instanceType: db-custom-2-7680
       edition: ENTERPRISE
       diskType: PD_SSD
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: PostgreSQLOCIConfig
     spec:
       instanceType: PostgreSQL.VM.Standard.E5.Flex
       ocpus: 2
       memoryGB: 32
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: azure.database.entigo.com/v1alpha1
     kind: PostgreSQLFlexibleServerConfig
     ref:
@@ -856,6 +941,7 @@ spec:
     spec:
       cpu: "2"
       memory: 8Gi
+      backupStartHourUTC: 2
 ```
 
 ```yaml OCI resource
@@ -909,42 +995,48 @@ spec:
   version: "17"
   storage:
     sizeGB: 20
-    autoGrow: true
-    maxSizeGB: 100
   highAvailability: false
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
-  autoMinorVersionUpgrade: true
-  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
-    pointInTimeDays: 7
-    startHourUTC: 2
   parametersRefs:
     - name: orders-tuning
   parameters:
     max_connections: "200"
-  parameterApplyMethod: Immediate
   secretName: orders-db-admin
   providerConfigs:
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: PostgreSQLRDSConfig
     spec:
       instanceType: db.t4g.small
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      backupStartHourUTC: 2
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: PostgreSQLCloudSQLConfig
     spec:
       instanceType: db-custom-2-7680
       edition: ENTERPRISE
       diskType: PD_SSD
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: PostgreSQLOCIConfig
     spec:
       instanceType: PostgreSQL.VM.Standard.E5.Flex
       ocpus: 2
       memoryGB: 32
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: azure.database.entigo.com/v1alpha1
     kind: PostgreSQLFlexibleServerConfig
     ref:
@@ -954,6 +1046,7 @@ spec:
     spec:
       cpu: "2"
       memory: 8Gi
+      backupStartHourUTC: 2
 ```
 
 ```yaml Azure resource
@@ -971,7 +1064,7 @@ spec:
     skuName: GP_Standard_D2ds_v5
     storageMb: 32768           # 20 GB, rounded up
     storageTier: P10
-    autoGrowEnabled: true
+    autoGrowEnabled: true      # platform
     maintenanceWindow:
       dayOfWeek: 0
       startHour: 3
@@ -999,42 +1092,48 @@ spec:
   version: "17"
   storage:
     sizeGB: 20
-    autoGrow: true
-    maxSizeGB: 100
   highAvailability: false
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
-  autoMinorVersionUpgrade: true
-  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
-    pointInTimeDays: 7
-    startHourUTC: 2
   parametersRefs:
     - name: orders-tuning
   parameters:
     max_connections: "200"
-  parameterApplyMethod: Immediate
   secretName: orders-db-admin
   providerConfigs:
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: PostgreSQLRDSConfig
     spec:
       instanceType: db.t4g.small
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      backupStartHourUTC: 2
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: PostgreSQLCloudSQLConfig
     spec:
       instanceType: db-custom-2-7680
       edition: ENTERPRISE
       diskType: PD_SSD
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: PostgreSQLOCIConfig
     spec:
       instanceType: PostgreSQL.VM.Standard.E5.Flex
       ocpus: 2
       memoryGB: 32
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      pointInTimeDays: 7
+      backupStartHourUTC: 2
   - apiVersion: azure.database.entigo.com/v1alpha1
     kind: PostgreSQLFlexibleServerConfig
     ref:
@@ -1044,6 +1143,7 @@ spec:
     spec:
       cpu: "2"
       memory: 8Gi
+      backupStartHourUTC: 2
 ```
 
 ```yaml Kubernetes resources
@@ -1138,10 +1238,10 @@ release named, or the cloud's documentation as read in November 2026.
 | `backup.retentionDays`                    | AWS        | 0 to 35                                                                         | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                     |
 | `backup.retentionDays`                    | Azure      | 7 to 35                                                                         | `backupRetentionDays`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                   |
 | `backup.retentionDays`, `pointInTimeDays` | OCI        | up to 35                                                                        | OCI Database with PostgreSQL documentation, backups and point-in-time recovery             |
-| `backup.pointInTimeDays`                  | GCP        | 1 to 7; 1 to 35 on `ENTERPRISE_PLUS`                                            | `transactionLogRetentionDays`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
+| `pointInTimeDays`                         | GCP        | 1 to 7; 1 to 35 on `ENTERPRISE_PLUS`                                            | `transactionLogRetentionDays`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
 | `storage.sizeGB`                          | GCP        | at least 10; 20 on `HYPERDISK_BALANCED`                                         | `settings.diskSize`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
-| `storage.iops`, `throughputMBps`          | AWS        | only from 400 GiB of disk                                                       | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                 |
-| `storage.iops`                            | OCI        | steps of 75,000                                                                 | `storageDetails.iops`, `PsqlDbSystem` CRD, crossplane-provider-oci v2.0.0                  |
+| `iops`, `throughputMBps`                  | AWS        | only from 400 GiB of disk                                                       | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                 |
+| `iops`                                    | OCI        | steps of 75,000                                                                 | `storageDetails.iops`, `PsqlDbSystem` CRD, crossplane-provider-oci v2.0.0                  |
 | `edition`                                 | GCP        | `ENTERPRISE`, `ENTERPRISE_PLUS`                                                 | `settings.edition`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                      |
 | `diskType`                                | GCP        | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED`                                        | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
 | `storageTier`                             | Azure      | `P4` to `P80`                                                                   | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                           |

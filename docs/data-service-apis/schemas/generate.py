@@ -525,9 +525,10 @@ def from_backup(text):
 DEFAULT = "the class's template"
 
 
-def db_common(engine, version_text, version_pattern):
-    """A database's common fields (principle 1), grouped as principle 13 says."""
-    return {
+def db_common(engine, version_text, version_pattern, thin=False):
+    """A database's common fields (principle 1), grouped as principle 13 says. thin keeps only the
+    fields every backend runs the same way; the rest are each backend's provider configuration."""
+    full = {
         "version": field("string", version_text, default=DEFAULT, pattern=version_pattern),
         "storage": obj({
             "sizeGB": field("integer", "Disk size in GB at creation, and its floor after: raising "
@@ -575,6 +576,22 @@ def db_common(engine, version_text, version_pattern):
                                       default="fixed, Immediate",
                                       enum=["Immediate", "NextRestart"]),
     }
+    if not thin:
+        return full
+    return {
+        "version": full["version"],
+        "storage": obj({"sizeGB": field("integer", "Disk size in GB at creation, and its floor "
+                                        "after: raising it grows the disk, and a value below the "
+                                        "real size is ignored. The disk can be larger: it is "
+                                        "rounded up to a size the backend accepts, and may grow "
+                                        "further where the backend grows it. The status shows "
+                                        "the real size.", default=DEFAULT, minimum=1)}),
+        "highAvailability": full["highAvailability"],
+        "deletionProtection": full["deletionProtection"],
+        "backup": obj({"retentionDays": full["backup"]["properties"]["retentionDays"]}),
+        "parametersRefs": full["parametersRefs"],
+        "parameters": full["parameters"],
+    }
 
 
 def class_spec(class_kind, common, tail, observed, rules):
@@ -605,7 +622,7 @@ def class_spec(class_kind, common, tail, observed, rules):
     ])
 
 
-def db_spec(kind, class_kind, common, same_major, has_minor):
+def db_spec(kind, class_kind, common, same_major=None, has_minor=None):
     """A database's spec: its class, observe, the common fields, restore and provider configurations."""
     return class_spec(class_kind, common, {
         "restore": obj({
@@ -618,23 +635,27 @@ def db_spec(kind, class_kind, common, same_major, has_minor):
     }, ["restore"], [
         ("has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || "
          "self.restore == oldSelf.restore)", "restore is set at creation only"),
+    ] + ([] if same_major is None else [
         ("!has(self.version) || !has(oldSelf.version) || " + same_major + " || "
          "(has(self.allowMajorVersionUpgrade) && self.allowMajorVersionUpgrade)",
          "a major version change needs allowMajorVersionUpgrade"),
         ("!has(self.version) || " + has_minor + " == "
          "(has(self.autoMinorVersionUpgrade) && !self.autoMinorVersionUpgrade)",
          "version takes a minor exactly when autoMinorVersionUpgrade is false" + FROM_CLASS),
-    ])
+    ]))
 
 
 def kind_noun(kind):
     return "cluster" if kind.endswith("Cluster") else "server"
 
 
-def db_status(engine):
+def db_status(engine, thin=False):
     """A database's status: the common fields as they run, the address and the provider's values."""
     return obj({
         "version": S(),
+        **({"storage": obj({"sizeGB": field("integer", "The actual disk size.")}),
+            "highAvailability": field("boolean"),
+            "backup": obj({"retentionDays": field("integer")})} if thin else {
         "storage": obj({"sizeGB": field("integer", "The actual disk size."),
                         "autoGrow": field("boolean"), "maxSizeGB": field("integer"),
                         "iops": field("integer"), "throughputMBps": field("integer")}),
@@ -642,7 +663,7 @@ def db_status(engine):
         "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
         "autoMinorVersionUpgrade": field("boolean"),
         "backup": obj({"retentionDays": field("integer"), "pointInTimeDays": field("integer"),
-                       "startHourUTC": field("integer")}),
+                       "startHourUTC": field("integer")})}),
         "endpoint": endpoint(),
         "connectionSecret": field("string", "The admin Secret, <instance>-dbadmin (principle 6)."),
         "providerConfig": obj({"applied": S(), "ignored": array(S())},
@@ -659,16 +680,14 @@ def db_status(engine):
 
 
 def pg_common():
-    return db_common("PostgreSQL", "The major version, such as \"17\". With "
-                     "autoMinorVersionUpgrade false, the full version, such as \"17.7\".",
-                     "^[0-9]+(\\.[0-9]+)?$")
+    return db_common("PostgreSQL", "The major version, such as \"17\". Raising it upgrades the "
+                     "cluster where the backend can; the backend applies minor versions itself.",
+                     "^[0-9]+$", thin=True)
 
 
-pg_spec = db_spec("PostgreSQLCluster", "PostgreSQLClass", pg_common(),
-                  "self.version.split('.')[0] == oldSelf.version.split('.')[0]",
-                  "self.version.contains('.')")
+pg_spec = db_spec("PostgreSQLCluster", "PostgreSQLClass", pg_common())
 S = lambda: field("string")
-pg_status = db_status("PostgreSQL")
+pg_status = db_status("PostgreSQL", thin=True)
 write("postgresqlcluster", xrd("PostgreSQLCluster", "postgresqlclusters", "database.entigo.com",
                                pg_spec, pg_status))
 
@@ -677,6 +696,20 @@ write("postgresqlclass", class_crd("PostgreSQLClass", "postgresqlclasses", "data
                                    pg_class_common, parameters="PostgreSQLParameters"))
 write("postgresqlparameters", parameters_crd("PostgreSQLParameters", "postgresqlparameters",
                                              "database.entigo.com", "PostgreSQL"))
+
+PG_MOVED = {
+    "autoGrow": lambda: field("boolean", "Grow the disk as it fills.", default="fixed, true"),
+    "maxSizeGB": lambda text: field("integer", text, minimum=1),
+    "iops": lambda text: field("integer", "Provisioned IOPS. " + text, minimum=1),
+    "throughputMBps": lambda text: field("integer", "Provisioned throughput in MB/s. " + text,
+                                         minimum=1),
+    "maintenanceWindow": lambda: window(),
+    "pointInTimeDays": lambda text: field("integer", "Days back restore.pointInTime can reach, at "
+                                          "most the cluster's backup.retentionDays. " + text,
+                                          minimum=1),
+    "backupStartHourUTC": lambda: field("integer", "The hour, in UTC, the daily backup starts. "
+                                        "Unset, the backend picks it.", minimum=0, maximum=23),
+}
 
 PG_STATUS = {"instanceType": S(), "finalBackup": field(
     "string", "The ID the final backup receives when the cluster is deleted, for fromBackup."),
@@ -690,6 +723,20 @@ write("postgresqlrdsconfig", provider_config_crd(
                                     "new one, since a group fits one major version."),
         "fromBackup": from_backup("An RDS snapshot ID to create the cluster from, such as "
                                   "status.provider.finalBackup of a deleted cluster."),
+        "minorVersion": field("string", "The full version to stay on, such as \"17.7\", which "
+                              "turns automatic minor upgrades off; its major must be the "
+                              "cluster's version. Unset, RDS applies minor versions in the "
+                              "maintenance window.", pattern="^[0-9]+\\.[0-9]+$"),
+        "maxSizeGB": PG_MOVED["maxSizeGB"]("The size storage autoscaling stops at. Unset, the "
+                                           "implementation's ceiling."),
+        "iops": PG_MOVED["iops"]("Only from 400 GiB of disk."),
+        "throughputMBps": PG_MOVED["throughputMBps"]("Only from 400 GiB of disk."),
+        "maintenanceWindow": PG_MOVED["maintenanceWindow"](),
+        "backupStartHourUTC": PG_MOVED["backupStartHourUTC"](),
+        "parameterApplyMethod": field("string", "The moment changed parameters take effect. "
+                                      "Immediate restarts the instance where a setting needs it.",
+                                      default="fixed, Immediate",
+                                      enum=["Immediate", "NextRestart"]),
     }, {**PG_STATUS, "identifier": S(), "resourceId": S(), "engineVersionActual": S(),
         "latestRestorableTime": field("string", format="date-time")}))
 write("postgresqlcloudsqlconfig", provider_config_crd(
@@ -701,6 +748,13 @@ write("postgresqlcloudsqlconfig", provider_config_crd(
         "diskType": field("string", "The Cloud SQL disk type, such as PD_SSD.", default=DEFAULT),
         "fromBackup": from_backup("A Cloud SQL backup to create the cluster from, as "
                                   "<instance>/<backup run ID>."),
+        "autoGrow": PG_MOVED["autoGrow"](),
+        "maxSizeGB": PG_MOVED["maxSizeGB"]("The size autoGrow stops at. Unset, no ceiling."),
+        "iops": PG_MOVED["iops"]("Only with Hyperdisk."),
+        "throughputMBps": PG_MOVED["throughputMBps"]("Only with Hyperdisk."),
+        "maintenanceWindow": PG_MOVED["maintenanceWindow"](),
+        "pointInTimeDays": PG_MOVED["pointInTimeDays"]("Unset, 7."),
+        "backupStartHourUTC": PG_MOVED["backupStartHourUTC"](),
     }, {**PG_STATUS, "id": S(), "connectionName": S(), "maintenanceVersion": S()}))
 write("postgresqlociconfig", provider_config_crd(
     "PostgreSQLOCIConfig", "postgresqlociconfigs", "oci.database.entigo.com",
@@ -710,6 +764,10 @@ write("postgresqlociconfig", provider_config_crd(
         "ocpus": field("number", "Required with a .Flex shape.", default=DEFAULT, minimum=1),
         "memoryGB": field("integer", "Required with a .Flex shape.", default=DEFAULT, minimum=1),
         "fromBackup": from_backup("A DB system backup OCID to create the cluster from."),
+        "iops": PG_MOVED["iops"]("In steps of 75,000."),
+        "maintenanceWindow": PG_MOVED["maintenanceWindow"](),
+        "pointInTimeDays": PG_MOVED["pointInTimeDays"]("Unset, the cluster's backup.retentionDays."),
+        "backupStartHourUTC": PG_MOVED["backupStartHourUTC"](),
     }, {**PG_STATUS, "id": S(), "instanceOcpuCount": field("number"),
         "instanceMemorySizeInGbs": field("integer")}))
 write("postgresqlflexibleserverconfig", provider_config_crd(
@@ -719,6 +777,8 @@ write("postgresqlflexibleserverconfig", provider_config_crd(
                               default=DEFAULT),
         "storageTier": field("string", "The disk tier, such as P10, which sets its IOPS.",
                              default=DEFAULT),
+        "autoGrow": PG_MOVED["autoGrow"](),
+        "maintenanceWindow": PG_MOVED["maintenanceWindow"](),
     }, {"id": S(), "instanceType": S(), "state": S()}))
 
 write("postgresqlcnpgconfig", provider_config_crd(
@@ -733,6 +793,7 @@ write("postgresqlcnpgconfig", provider_config_crd(
                               "allows volume expansion.", maxLength=253),
         "fromBackup": from_backup("A CloudNativePG Backup in this namespace to create the "
                                   "cluster from."),
+        "backupStartHourUTC": PG_MOVED["backupStartHourUTC"](),
     }, {"id": S(), "state": S(), "image": S(), "currentPrimary": S(),
         "readyInstances": field("integer")}))
 

@@ -28,10 +28,10 @@ spec:
                   version: &id001
                     type: string
                     description: |-
-                      The major version, such as "17". With autoMinorVersionUpgrade false, the full
-                      version, such as "17.7".
+                      The major version, such as "17". Raising it upgrades the cluster where the
+                      backend can; the backend applies minor versions itself.
                       Default: the class's template.
-                    pattern: ^[0-9]+(\.[0-9]+)?$
+                    pattern: ^[0-9]+$
                   storage: &id002
                     type: object
                     properties:
@@ -40,37 +40,10 @@ spec:
                         description: |-
                           Disk size in GB at creation, and its floor after: raising it grows the disk, and
                           a value below the real size is ignored. The disk can be larger: it is rounded up
-                          to a size the backend accepts, and autoGrow can take it further. The status
-                          shows the real size.
+                          to a size the backend accepts, and may grow further where the backend grows it.
+                          The status shows the real size.
                           Default: the class's template.
                         minimum: 1
-                      autoGrow:
-                        type: boolean
-                        description: |-
-                          Grow the disk as it fills.
-                          Default: fixed, true.
-                      maxSizeGB:
-                        type: integer
-                        description: |-
-                          The size autoGrow stops at.
-                          Default: the class's template.
-                        minimum: 1
-                      iops:
-                        type: integer
-                        description: |-
-                          Provisioned IOPS.
-                        minimum: 1
-                      throughputMBps:
-                        type: integer
-                        description: |-
-                          Provisioned throughput in MB/s.
-                        minimum: 1
-                    x-kubernetes-validations:
-                    - rule: |-
-                        !has(self.maxSizeGB)
-                        || !has(self.sizeGB)
-                        || self.maxSizeGB >= self.sizeGB
-                      message: maxSizeGB must be at least sizeGB
                   highAvailability: &id003
                     type: boolean
                     description: |-
@@ -82,40 +55,7 @@ spec:
                     description: |-
                       Deleting the object is denied while true.
                       Default: fixed, true.
-                  maintenanceWindow: &id005
-                    type: object
-                    description: |-
-                      The weekly hour, in UTC, in which the cloud applies updates.
-                    properties:
-                      day:
-                        type: string
-                        enum:
-                        - Mon
-                        - Tue
-                        - Wed
-                        - Thu
-                        - Fri
-                        - Sat
-                        - Sun
-                      hourUTC:
-                        type: integer
-                        minimum: 0
-                        maximum: 23
-                    required:
-                    - day
-                    - hourUTC
-                  autoMinorVersionUpgrade: &id006
-                    type: boolean
-                    description: |-
-                      Apply new minor versions in the maintenance window. false keeps the minor
-                      written in version.
-                      Default: the class's template.
-                  allowMajorVersionUpgrade: &id007
-                    type: boolean
-                    description: |-
-                      Allow version to change to a later major.
-                      Default: fixed, false.
-                  backup: &id008
+                  backup: &id005
                     type: object
                     properties:
                       retentionDays:
@@ -125,39 +65,12 @@ spec:
                           0 turns automated backups and point-in-time restore off.
                           Default: the class's template.
                         minimum: 0
-                      pointInTimeDays:
-                        type: integer
-                        description: |-
-                          Days back restore.pointInTime can reach.
-                          Default: fixed, the lower of retentionDays and the backend's maximum; none with retentionDays 0.
-                        minimum: 1
-                      startHourUTC:
-                        type: integer
-                        description: |-
-                          The hour, in UTC, the daily backup starts.
-                        minimum: 0
-                        maximum: 23
-                    x-kubernetes-validations:
-                    - rule: |-
-                        !has(self.pointInTimeDays)
-                        || !has(self.retentionDays)
-                        || self.retentionDays > 0
-                      message: pointInTimeDays needs backups, which retentionDays 0 disables
-                  parameters: &id009
+                  parameters: &id006
                     type: object
                     description: |-
                       PostgreSQL settings for this object only, merged after parametersRefs.
                     additionalProperties:
                       type: string
-                  parameterApplyMethod: &id010
-                    type: string
-                    description: |-
-                      The moment changed parameters take effect. Immediate restarts the instance where
-                      a setting needs it.
-                      Default: fixed, Immediate.
-                    enum:
-                    - Immediate
-                    - NextRestart
                   providerConfig:
                     type: object
                     description: |-
@@ -192,12 +105,8 @@ spec:
                   storage: *id002
                   highAvailability: *id003
                   deletionProtection: *id004
-                  maintenanceWindow: *id005
-                  autoMinorVersionUpgrade: *id006
-                  allowMajorVersionUpgrade: *id007
-                  backup: *id008
-                  parameters: *id009
-                  parameterApplyMethod: *id010
+                  backup: *id005
+                  parameters: *id006
                   providerConfig:
                     type: object
                     description: |-

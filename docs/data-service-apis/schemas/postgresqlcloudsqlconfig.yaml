@@ -48,6 +48,60 @@ spec:
                 description: |-
                   A Cloud SQL backup to create the cluster from, as <instance>/<backup run ID>.
                   Set at creation only; not with restore.
+              autoGrow:
+                type: boolean
+                description: |-
+                  Grow the disk as it fills.
+                  Default: fixed, true.
+              maxSizeGB:
+                type: integer
+                description: |-
+                  The size autoGrow stops at. Unset, no ceiling.
+                minimum: 1
+              iops:
+                type: integer
+                description: |-
+                  Provisioned IOPS. Only with Hyperdisk.
+                minimum: 1
+              throughputMBps:
+                type: integer
+                description: |-
+                  Provisioned throughput in MB/s. Only with Hyperdisk.
+                minimum: 1
+              maintenanceWindow:
+                type: object
+                description: |-
+                  The weekly hour, in UTC, in which the cloud applies updates.
+                properties:
+                  day:
+                    type: string
+                    enum:
+                    - Mon
+                    - Tue
+                    - Wed
+                    - Thu
+                    - Fri
+                    - Sat
+                    - Sun
+                  hourUTC:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                required:
+                - day
+                - hourUTC
+              pointInTimeDays:
+                type: integer
+                description: |-
+                  Days back restore.pointInTime can reach, at most the cluster's
+                  backup.retentionDays. Unset, 7.
+                minimum: 1
+              backupStartHourUTC:
+                type: integer
+                description: |-
+                  The hour, in UTC, the daily backup starts. Unset, the backend picks it.
+                minimum: 0
+                maximum: 23
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
