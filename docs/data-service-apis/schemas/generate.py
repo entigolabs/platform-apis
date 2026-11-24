@@ -849,9 +849,9 @@ def valkey_common():
     """ValkeyServer's common fields (principle 1): one primary and its read replicas, unsharded."""
     return {
         "version": field("string", "Valkey's major and minor, such as \"8.1\", and the floor "
-                         "after: raising it upgrades the server, lowering it is rejected. With "
-                         "autoMinorVersionUpgrade, the backend can move the server past it; "
-                         "the status shows the running version.", default=DEFAULT,
+                         "after: raising it upgrades the server, lowering it is rejected. The "
+                         "backend can move the server to a newer minor; the status shows the "
+                         "running version.", default=DEFAULT,
                          pattern="^[0-9]+\\.[0-9]+$"),
         "highAvailability": field("boolean", "A read replica in another zone, with automatic "
                                   "failover. Needs readReplicas of at least 1. Refused where the "
@@ -862,17 +862,6 @@ def valkey_common():
                               "(principle 1).", default=DEFAULT, minimum=0),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
-        "maintenanceWindow": window(),
-        "autoMinorVersionUpgrade": field("boolean", "Allow the backend to upgrade to newer "
-                                         "minor versions on its schedule. false keeps the server "
-                                         "at version.", default=DEFAULT),
-        "backup": obj({
-            "retentionDays": field("integer", "Days automated backups are kept, within the "
-                                   "backend's own range (principle 10). 0 turns automated "
-                                   "backups off.", default=DEFAULT, minimum=0),
-            "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
-                                  minimum=0, maximum=23),
-        }, "Automated daily backups."),
         "parametersRefs": parameters_refs("ValkeyParameters", "Reusable Valkey settings"),
         "parameters": string_map("Valkey settings for this object only, merged after "
                                  "parametersRefs."),
@@ -890,10 +879,6 @@ write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com"
                               "version": S(),
                               "highAvailability": field("boolean"),
                               "readReplicas": field("integer"),
-                              "maintenanceWindow": obj({"day": S(), "hourUTC": field("integer")}),
-                              "autoMinorVersionUpgrade": field("boolean"),
-                              "backup": obj({"retentionDays": field("integer"),
-                                             "startHourUTC": field("integer")}),
                               "endpoint": endpoint("The primary's address."),
                               "readerEndpoint": endpoint("The address that spreads reads over the "
                                                          "replicas."),
@@ -919,6 +904,12 @@ write("valkeyclass", class_crd("ValkeyClass", "valkeyclasses", "database.entigo.
                                valkey_common(), parameters="ValkeyParameters"))
 write("valkeyparameters", parameters_crd("ValkeyParameters", "valkeyparameters",
                                          "database.entigo.com", "Valkey"))
+VALKEY_BACKUP = {
+    "backupRetentionDays": lambda: field("integer", "Days automated backups are kept, within the "
+                                         "backend's own range (principle 10). 0 turns automated "
+                                         "backups off.", default="fixed, 7", minimum=0),
+    "backupStartHourUTC": lambda: PG_MOVED["backupStartHourUTC"](),
+}
 write("valkeyelasticacheconfig", provider_config_crd(
     "ValkeyElastiCacheConfig", "valkeyelasticacheconfigs", "aws.database.entigo.com",
     "ElastiCache", {
@@ -929,6 +920,11 @@ write("valkeyelasticacheconfig", provider_config_crd(
                                     "needs a new one, since a group fits one major version."),
         "fromBackup": from_backup("An ElastiCache snapshot name to create the server from, such "
                                   "as status.provider.finalBackup of a deleted server."),
+        "maintenanceWindow": window(),
+        "autoMinorVersionUpgrade": field("boolean", "Let ElastiCache upgrade to newer minor "
+                                         "versions in the maintenance window. false keeps the "
+                                         "server at version.", default="fixed, true"),
+        **{k: v() for k, v in VALKEY_BACKUP.items()},
     }, {"instanceType": S(), "finalBackup": field(
         "string", "The ID the final snapshot receives when the server is deleted, for fromBackup."),
         "engineVersionActual": S()}))
@@ -937,6 +933,8 @@ write("valkeymemorystoreconfig", provider_config_crd(
     "Memorystore for Valkey", {
         "instanceType": field("string", "The Memorystore node type, such as HIGHMEM_MEDIUM.",
                               default=DEFAULT),
+        "maintenanceWindow": window(),
+        **{k: v() for k, v in VALKEY_BACKUP.items()},
     }, {"id": S(), "instanceType": S()}))
 write("valkeyocicacheconfig", provider_config_crd(
     "ValkeyOCICacheConfig", "valkeyocicacheconfigs", "oci.database.entigo.com", "OCI Cache", {

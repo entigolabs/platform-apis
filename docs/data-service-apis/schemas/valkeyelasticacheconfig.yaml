@@ -45,6 +45,47 @@ spec:
                   An ElastiCache snapshot name to create the server from, such as
                   status.provider.finalBackup of a deleted server. Set at creation only; not with
                   restore.
+              maintenanceWindow:
+                type: object
+                description: |-
+                  The weekly hour, in UTC, in which the cloud applies updates.
+                properties:
+                  day:
+                    type: string
+                    enum:
+                    - Mon
+                    - Tue
+                    - Wed
+                    - Thu
+                    - Fri
+                    - Sat
+                    - Sun
+                  hourUTC:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                required:
+                - day
+                - hourUTC
+              autoMinorVersionUpgrade:
+                type: boolean
+                description: |-
+                  Let ElastiCache upgrade to newer minor versions in the maintenance window. false
+                  keeps the server at version.
+                  Default: fixed, true.
+              backupRetentionDays:
+                type: integer
+                description: |-
+                  Days automated backups are kept, within the backend's own range (principle 10).
+                  0 turns automated backups off.
+                  Default: fixed, 7.
+                minimum: 0
+              backupStartHourUTC:
+                type: integer
+                description: |-
+                  The hour, in UTC, the daily backup starts. Unset, the backend picks it.
+                minimum: 0
+                maximum: 23
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)

@@ -282,8 +282,12 @@ VA = {"version": "8.1", "highAvailability": True, "readReplicas": 1, "providerCo
 create("Valkey valid spec", "ValkeyServer", VA)
 create("Valkey 8 readReplicas accepted, left to the implementation", "ValkeyServer",
        w(VA, readReplicas=8))
-create("Valkey retentionDays 0 accepted, backups off", "ValkeyServer",
-       w(VA, backup={"retentionDays": 0}))
+create("Valkey backup, a backend's setting, rejected in the common spec", "ValkeyServer",
+       w(VA, backup={"retentionDays": 0}), False, "unknown field")
+create("ValkeyElastiCacheConfig backupRetentionDays 0 accepted, backups off",
+       "ValkeyElastiCacheConfig", {"backupRetentionDays": 0, "autoMinorVersionUpgrade": False})
+create("ValkeyMemorystoreConfig maintenanceWindow accepted", "ValkeyMemorystoreConfig",
+       {"maintenanceWindow": {"day": "Sun", "hourUTC": 5}, "backupStartHourUTC": 3})
 create("Valkey highAvailability with 0 readReplicas rejected", "ValkeyServer",
        w(VA, readReplicas=0), False, "highAvailability needs")
 create("Valkey highAvailability without readReplicas rejected", "ValkeyServer",

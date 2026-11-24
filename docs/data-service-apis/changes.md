@@ -289,29 +289,29 @@ spec:
 
 `ValkeyInstance` becomes `ValkeyServer`:
 
-| Today                                                           | Design                                                         | Reason                                                                                                                                  |
-| --------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| kind `ValkeyInstance`                                           | kind `ValkeyServer`                                            | One primary with its replicas, named as Valkey names it; a new kind, served beside today's, so objects move one at a time (principle 8) |
-| `engineVersion`                                                 | `version`                                                      | Major and minor, a floor; lower is ignored                                                                                              |
-| `instanceType`                                                  | `instanceType` in the `ValkeyElastiCacheConfig` entry          | A size named by its product is a setting of one backend (principle 2)                                                                   |
-| `numCacheClusters`                                              | `readReplicas`                                                 | Counts replicas only: `numCacheClusters` minus one                                                                                      |
-| (none)                                                          | `highAvailability`                                             | New portable feature; needs at least one replica (principle 1)                                                                          |
-| `maintenanceWindow` (ElastiCache string)                        | `maintenanceWindow` (`day`, `hourUTC`)                         | One form everywhere                                                                                                                     |
-| `snapshotRetentionLimit`                                        | `backup.retentionDays`                                         | Grouped under backup (principle 13)                                                                                                     |
-| `snapshotWindow`                                                | `backup.startHourUTC`                                          | One form everywhere                                                                                                                     |
-| `parameterGroupName`                                            | `parameterGroupName` in the `ValkeyElastiCacheConfig` entry    | An ElastiCache concept (principle 2)                                                                                                    |
-| `parameterGroupParameters`                                      | `parameters`                                                   | One map everywhere                                                                                                                      |
-| (none)                                                          | `parametersRefs`                                               | Settings shared through a `ValkeyParameters`                                                                                            |
-| (none)                                                          | `fromBackup` in the `ValkeyElastiCacheConfig` entry            | Creating a server from a snapshot, such as the final one                                                                                |
-| (none)                                                          | `className`                                                    | The deployment's defaults and limits come from a class (principle 5)                                                                    |
-| (none)                                                          | `providerConfigs` entries of other kinds                       | Sizes and settings of other backends (principle 2)                                                                                      |
-| `status.endpoint.address`                                       | `status.endpoint.host`                                         | The same word everywhere                                                                                                                |
-| `status.multiAZenabled`                                         | `status.highAvailability`                                      | Named after the need                                                                                                                    |
-| (none)                                                          | `status.readerEndpoint`, `status.readReplicas`                 | The read address, and the number of replicas                                                                                            |
-| (none)                                                          | `status.providerConfig`, `status.effective`, `status.provider` | The applied entry, each value's source, and the backend's own values (principle 4)                                                      |
-| `status.kmsKeyAlias`, `status.kmsKeyId`, `status.securityGroup` | removed                                                        | Settings the platform makes (principle 4)                                                                                               |
-| `status.parameterGroupName`                                     | removed                                                        | An echo of the spec                                                                                                                     |
-| secret keys `AUTH_TOKEN`, `PORT`, `credentials.json`            | `endpoint`, `port`, `username`, `password`, `readerEndpoint`   | The keys of principle 6                                                                                                                 |
+| Today                                                           | Design                                                                        | Reason                                                                                                                                  |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| kind `ValkeyInstance`                                           | kind `ValkeyServer`                                                           | One primary with its replicas, named as Valkey names it; a new kind, served beside today's, so objects move one at a time (principle 8) |
+| `engineVersion`                                                 | `version`                                                                     | Major and minor, a floor; lower is ignored                                                                                              |
+| `instanceType`                                                  | `instanceType` in the `ValkeyElastiCacheConfig` entry                         | A size named by its product is a setting of one backend (principle 2)                                                                   |
+| `numCacheClusters`                                              | `readReplicas`                                                                | Counts replicas only: `numCacheClusters` minus one                                                                                      |
+| (none)                                                          | `highAvailability`                                                            | New portable feature; needs at least one replica (principle 1)                                                                          |
+| `maintenanceWindow` (ElastiCache string)                        | `maintenanceWindow` (`day`, `hourUTC`) in the `ValkeyElastiCacheConfig` entry | OCI patches on its own schedule (principle 1)                                                                                           |
+| `snapshotRetentionLimit`                                        | `backupRetentionDays` in the `ValkeyElastiCacheConfig` entry                  | OCI Cache has manual backups only (principle 1)                                                                                         |
+| `snapshotWindow`                                                | `backupStartHourUTC` in the `ValkeyElastiCacheConfig` entry                   | OCI Cache has manual backups only (principle 1)                                                                                         |
+| `parameterGroupName`                                            | `parameterGroupName` in the `ValkeyElastiCacheConfig` entry                   | An ElastiCache concept (principle 2)                                                                                                    |
+| `parameterGroupParameters`                                      | `parameters`                                                                  | One map everywhere                                                                                                                      |
+| (none)                                                          | `parametersRefs`                                                              | Settings shared through a `ValkeyParameters`                                                                                            |
+| (none)                                                          | `fromBackup` in the `ValkeyElastiCacheConfig` entry                           | Creating a server from a snapshot, such as the final one                                                                                |
+| (none)                                                          | `className`                                                                   | The deployment's defaults and limits come from a class (principle 5)                                                                    |
+| (none)                                                          | `providerConfigs` entries of other kinds                                      | Sizes and settings of other backends (principle 2)                                                                                      |
+| `status.endpoint.address`                                       | `status.endpoint.host`                                                        | The same word everywhere                                                                                                                |
+| `status.multiAZenabled`                                         | `status.highAvailability`                                                     | Named after the need                                                                                                                    |
+| (none)                                                          | `status.readerEndpoint`, `status.readReplicas`                                | The read address, and the number of replicas                                                                                            |
+| (none)                                                          | `status.providerConfig`, `status.effective`, `status.provider`                | The applied entry, each value's source, and the backend's own values (principle 4)                                                      |
+| `status.kmsKeyAlias`, `status.kmsKeyId`, `status.securityGroup` | removed                                                                       | Settings the platform makes (principle 4)                                                                                               |
+| `status.parameterGroupName`                                     | removed                                                                       | An echo of the spec                                                                                                                     |
+| secret keys `AUTH_TOKEN`, `PORT`, `credentials.json`            | `endpoint`, `port`, `username`, `password`, `readerEndpoint`                  | The keys of principle 6                                                                                                                 |
 
 *`ValkeyServer` changes from `ValkeyInstance`, with reasons.*
 
@@ -342,17 +342,16 @@ spec:
   version: "8.1"                       # was engineVersion
   readReplicas: 1                      # was numCacheClusters: 2
   highAvailability: true               # new
-  maintenanceWindow:                   # now day and hourUTC
-    day: Sun
-    hourUTC: 5
-  backup:
-    retentionDays: 7                   # was snapshotRetentionLimit
-    startHourUTC: 3                    # was snapshotWindow
   providerConfigs:                     # new
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: ValkeyElastiCacheConfig
     spec:
       instanceType: cache.t4g.small    # was instanceType
+      maintenanceWindow:               # now day and hourUTC
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7           # was snapshotRetentionLimit
+      backupStartHourUTC: 3            # was snapshotWindow
 ```
 
 *`ValkeyServer` compared with today's `ValkeyInstance`.*

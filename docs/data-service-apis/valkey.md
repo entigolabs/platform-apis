@@ -40,9 +40,11 @@ spec:
       spec:
         instanceType: cache.t4g.medium
   enforced:                            # teams cannot change these
-    autoMinorVersionUpgrade: true
-    backup:
-      retentionDays: 7
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: ValkeyElastiCacheConfig
+      spec:
+        backupRetentionDays: 7
 ```
 
 *`ValkeyClass` for ElastiCache.*
@@ -94,13 +96,6 @@ spec:
   highAvailability: true               # a replica in another zone, with automatic failover
   readReplicas: 1
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 5
-  autoMinorVersionUpgrade: true
-  backup:
-    retentionDays: 7                   # 0 disables backups
-    startHourUTC: 3
   parametersRefs:
   - name: orders-cache-tuning          # ValkeyParameters objects in this namespace, in order
   parameters:                          # this server's own settings, merged last
@@ -111,12 +106,22 @@ spec:
     kind: ValkeyElastiCacheConfig
     spec:
       instanceType: cache.t4g.small    # the ElastiCache node type
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7           # 0 disables backups
+      backupStartHourUTC: 3
       # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
       # fromBackup: orders-cache-final  # a snapshot name, at creation only
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: ValkeyMemorystoreConfig
     spec:
       instanceType: HIGHMEM_MEDIUM     # the Memorystore node type
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7
+      backupStartHourUTC: 3
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: ValkeyOCICacheConfig
     spec:
@@ -125,13 +130,17 @@ spec:
 
 *`ValkeyServer` with common fields and one entry per backend.*
 
-`version` is Valkey's major and minor, such as `"8.1"`, the only form all three backends take. With
-`autoMinorVersionUpgrade` on, the backend can move the server to a newer minor, so `version` is a
-floor: raising it upgrades the server, a version below the running one is ignored, the status shows
-the running version, and the platform never moves the server back to `version`.
+`version` is Valkey's major and minor, such as `"8.1"`, the only form all three backends take. The
+backend can move the server to a newer minor, so `version` is a floor: raising it upgrades the
+server, a version below the running one is ignored, the status shows the running version, and the
+platform never moves the server back to `version`.
 
 `highAvailability` and `readReplicas` are portable features: an object that requests one its class
 does not support is refused when applied (principle 1).
+
+The maintenance window, minor upgrades and automated backups differ by backend: OCI patches on its
+own schedule and takes manual backups only, and Memorystore cannot opt out of minor upgrades. They
+are therefore in the provider configurations of the backends that have them (principle 1).
 
 A deleted server is restored with its provider configuration's `fromBackup` and the final backup's
 ID. The status loses that ID with the server, so it is taken from the cloud console.
@@ -156,7 +165,7 @@ status:
     - gcp.database.entigo.com/v1alpha1, ValkeyMemorystoreConfig
     - oci.database.entigo.com/v1alpha1, ValkeyOCICacheConfig
   effective:
-    backup.retentionDays: { value: 7, source: enforced }
+    backupRetentionDays: { value: 7, source: enforced/ValkeyElastiCacheConfig }
     deletionProtection: { value: true, source: object }
     instanceType: { value: cache.t4g.small, source: object/ValkeyElastiCacheConfig }
   provider:                            # the shape ValkeyElastiCacheConfig's status defines
@@ -198,32 +207,32 @@ spec:
 The first table maps each common field to the backend's provider. A setting the backend lacks shows
 as ignored, with the reason (principle 1):
 
-| Field                     | AWS                                          | GCP                                                                                                               | OCI                                                                                                                  |
-| ------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `observe`                 | `managementPolicies: [Observe]`              | `managementPolicies: [Observe]`                                                                                   | `managementPolicies: [Observe]`                                                                                      |
-| `version`                 | `engineVersion`                              | `engineVersion: VALKEY_8_1`                                                                                       | `softwareVersion: VALKEY_8_1`                                                                                        |
-| `highAvailability`        | `multiAzEnabled`, automatic failover         | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                                         | at least one replica node; OCI Cache spreads nodes across availability or fault domains and fails over automatically |
-| `readReplicas`            | `numCacheClusters` = replicas + 1            | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends                | `nodeCount` = replicas + 1                                                                                           |
-| `deletionProtection`      | platform blocks deletion                     | `deletionProtectionEnabled`                                                                                       | platform blocks deletion                                                                                             |
-| `maintenanceWindow`       | `maintenanceWindow`                          | `maintenancePolicy.weeklyMaintenanceWindow` (`day`, `startTime.hours`)                                            | ignored; OCI patches on its own schedule                                                                             |
-| `autoMinorVersionUpgrade` | `autoMinorVersionUpgrade`                    | `false` ignored; Memorystore cannot opt out of maintenance                                                        | `false` ignored; OCI applies minor versions on its own schedule                                                      |
-| `backup.retentionDays`    | `snapshotRetentionLimit`; 0 disables backups | `automatedBackupConfig.retention`, in seconds (`"604800s"` for 7 days); 0 omits the block, which disables backups | ignored; OCI Cache has manual backups only                                                                           |
-| `backup.startHourUTC`     | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    | ignored                                                                                                              |
-| `parameters`              | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | a configuration set, allowlist of about 15 keys                                                                      |
-| `parametersRefs`          | merged into `parameters`                     | merged into `parameters`                                                                                          | merged into `parameters`                                                                                             |
+| Field                | AWS                                  | GCP                                                                                                | OCI                                                                                                                  |
+| -------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `observe`            | `managementPolicies: [Observe]`      | `managementPolicies: [Observe]`                                                                    | `managementPolicies: [Observe]`                                                                                      |
+| `version`            | `engineVersion`                      | `engineVersion: VALKEY_8_1`                                                                        | `softwareVersion: VALKEY_8_1`                                                                                        |
+| `highAvailability`   | `multiAzEnabled`, automatic failover | `zoneDistributionConfig.mode`: `MULTI_ZONE`, or `SINGLE_ZONE` for `false`                          | at least one replica node; OCI Cache spreads nodes across availability or fault domains and fails over automatically |
+| `readReplicas`       | `numCacheClusters` = replicas + 1    | `replicaCount`, with `mode: CLUSTER_DISABLED` and `shardCount: 1`, which the function always sends | `nodeCount` = replicas + 1                                                                                           |
+| `deletionProtection` | platform blocks deletion             | `deletionProtectionEnabled`                                                                        | platform blocks deletion                                                                                             |
+| `parameters`         | parameter group                      | `engineConfigs`, allowlist of 7                                                                    | a configuration set, allowlist of about 15 keys                                                                      |
+| `parametersRefs`     | merged into `parameters`             | merged into `parameters`                                                                           | merged into `parameters`                                                                                             |
 
 *`ValkeyServer` common fields and their provider fields.*
 
 The second names the backend's provider configuration kind and what its fields map to:
 
-| Field                | AWS                              | GCP                       | OCI                    |
-| -------------------- | -------------------------------- | ------------------------- | ---------------------- |
-| kind                 | `ValkeyElastiCacheConfig`        | `ValkeyMemorystoreConfig` | `ValkeyOCICacheConfig` |
-| `id`                 | the replication group ID         | the instance ID           | the cluster's OCID     |
-| `instanceType`       | `nodeType`                       | `nodeType`                |                        |
-| `memoryGB`           |                                  |                           | `nodeMemoryInGbs`      |
-| `parameterGroupName` | `parameterGroupName`             |                           |                        |
-| `fromBackup`         | `snapshotName`, at creation only |                           |                        |
+| Field                     | AWS                                          | GCP                                                                                                               | OCI                    |
+| ------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| kind                      | `ValkeyElastiCacheConfig`                    | `ValkeyMemorystoreConfig`                                                                                         | `ValkeyOCICacheConfig` |
+| `id`                      | the replication group ID                     | the instance ID                                                                                                   | the cluster's OCID     |
+| `instanceType`            | `nodeType`                                   | `nodeType`                                                                                                        |                        |
+| `memoryGB`                |                                              |                                                                                                                   | `nodeMemoryInGbs`      |
+| `parameterGroupName`      | `parameterGroupName`                         |                                                                                                                   |                        |
+| `fromBackup`              | `snapshotName`, at creation only             |                                                                                                                   |                        |
+| `maintenanceWindow`       | `maintenanceWindow`                          | `maintenancePolicy.weeklyMaintenanceWindow` (`day`, `startTime.hours`)                                            |                        |
+| `autoMinorVersionUpgrade` | `autoMinorVersionUpgrade`                    |                                                                                                                   |                        |
+| `backupRetentionDays`     | `snapshotRetentionLimit`; 0 disables backups | `automatedBackupConfig.retention`, in seconds (`"604800s"` for 7 days); 0 omits the block, which disables backups |                        |
+| `backupStartHourUTC`      | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    |                        |
 
 *Valkey provider configuration fields.*
 
@@ -244,9 +253,9 @@ taken.
 ## Provider Configurations
 
 Each backend's provider configuration kind holds the settings of that backend, with every field it
-takes; commented fields are alternatives or apply only with `observe`. The settings sit either in a
-separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair shows, and
-they override the class's settings for the same kind field by field (principle 2):
+takes; commented fields are optional, alternatives, or apply only with `observe`. The settings sit
+either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair
+shows, and they override the class's settings for the same kind field by field (principle 2):
 
 ```yaml Separate object
 ---
@@ -257,6 +266,12 @@ metadata:
   namespace: shop
 spec:
   instanceType: cache.t4g.small    # the ElastiCache node type
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 5
+  backupRetentionDays: 7           # 0 disables backups; unset, 7
+  backupStartHourUTC: 3            # unset, ElastiCache picks the hour
+  # autoMinorVersionUpgrade: false  # unset, true
   # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
   # fromBackup: orders-cache-final  # a snapshot name, at creation only
   # id: orders-cache               # an existing replication group's ID, with observe
@@ -275,6 +290,12 @@ spec:
     kind: ValkeyElastiCacheConfig
     spec:
       instanceType: cache.t4g.small    # the ElastiCache node type
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7           # 0 disables backups; unset, 7
+      backupStartHourUTC: 3            # unset, ElastiCache picks the hour
+      # autoMinorVersionUpgrade: false  # unset, true
       # parameterGroupName: orders-valkey8  # an existing group, instead of parameters
       # fromBackup: orders-cache-final  # a snapshot name, at creation only
       # id: orders-cache               # an existing replication group's ID, with observe
@@ -291,6 +312,11 @@ metadata:
   namespace: shop
 spec:
   instanceType: HIGHMEM_MEDIUM     # the Memorystore node type
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 5
+  backupRetentionDays: 7           # 0 disables backups; unset, 7
+  backupStartHourUTC: 3            # unset, Memorystore picks the hour
   # id: projects/shop-project/locations/europe-north1/instances/orders-cache  # with observe
 ```
 
@@ -307,6 +333,11 @@ spec:
     kind: ValkeyMemorystoreConfig
     spec:
       instanceType: HIGHMEM_MEDIUM     # the Memorystore node type
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7           # 0 disables backups; unset, 7
+      backupStartHourUTC: 3            # unset, Memorystore picks the hour
       # id: projects/shop-project/locations/europe-north1/instances/orders-cache  # with observe
 ```
 
@@ -362,13 +393,6 @@ spec:
   highAvailability: true
   readReplicas: 1
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 5
-  autoMinorVersionUpgrade: true
-  backup:
-    retentionDays: 7
-    startHourUTC: 3
   parameters:
     maxmemory-policy: allkeys-lru
   secretName: orders-cache-login
@@ -377,10 +401,20 @@ spec:
     kind: ValkeyElastiCacheConfig
     spec:
       instanceType: cache.t4g.small
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7
+      backupStartHourUTC: 3
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: ValkeyMemorystoreConfig
     spec:
       instanceType: HIGHMEM_MEDIUM
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7
+      backupStartHourUTC: 3
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: ValkeyOCICacheConfig
     spec:
@@ -435,13 +469,6 @@ spec:
   highAvailability: true
   readReplicas: 1
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 5
-  autoMinorVersionUpgrade: true
-  backup:
-    retentionDays: 7
-    startHourUTC: 3
   parameters:
     maxmemory-policy: allkeys-lru
   secretName: orders-cache-login
@@ -450,10 +477,20 @@ spec:
     kind: ValkeyElastiCacheConfig
     spec:
       instanceType: cache.t4g.small
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7
+      backupStartHourUTC: 3
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: ValkeyMemorystoreConfig
     spec:
       instanceType: HIGHMEM_MEDIUM
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7
+      backupStartHourUTC: 3
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: ValkeyOCICacheConfig
     spec:
@@ -513,13 +550,6 @@ spec:
   highAvailability: true
   readReplicas: 1
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 5
-  autoMinorVersionUpgrade: true
-  backup:
-    retentionDays: 7
-    startHourUTC: 3
   parameters:
     maxmemory-policy: allkeys-lru
   secretName: orders-cache-login
@@ -528,10 +558,20 @@ spec:
     kind: ValkeyElastiCacheConfig
     spec:
       instanceType: cache.t4g.small
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7
+      backupStartHourUTC: 3
   - apiVersion: gcp.database.entigo.com/v1alpha1
     kind: ValkeyMemorystoreConfig
     spec:
       instanceType: HIGHMEM_MEDIUM
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 5
+      backupRetentionDays: 7
+      backupStartHourUTC: 3
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: ValkeyOCICacheConfig
     spec:
@@ -582,14 +622,14 @@ outside them is rejected by the backend and shown as `CloudAccepted: False`. The
 reference, should validating them be decided later. Each limit holds as of its source: the provider
 release named, or the cloud's documentation as read in November 2026.
 
-| Field                  | Backend | Limit    | Source                                                                                   |
-| ---------------------- | ------- | -------- | ---------------------------------------------------------------------------------------- |
-| `readReplicas`         | AWS     | up to 5  | `numCacheClusters` up to 6, ElastiCache `ReplicationGroup`                               |
-| `readReplicas`         | GCP     | up to 5  | `replicaCount`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0                    |
-| `readReplicas`         | OCI     | up to 4  | `nodeCount` up to 5, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                  |
-| `memoryGB`             | OCI     | 2 to 500 | `nodeMemoryInGbs`, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                    |
-| `backup.retentionDays` | AWS     | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0  |
-| `backup.retentionDays` | GCP     | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0 |
+| Field                 | Backend | Limit    | Source                                                                                   |
+| --------------------- | ------- | -------- | ---------------------------------------------------------------------------------------- |
+| `readReplicas`        | AWS     | up to 5  | `numCacheClusters` up to 6, ElastiCache `ReplicationGroup`                               |
+| `readReplicas`        | GCP     | up to 5  | `replicaCount`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0                    |
+| `readReplicas`        | OCI     | up to 4  | `nodeCount` up to 5, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                  |
+| `memoryGB`            | OCI     | 2 to 500 | `nodeMemoryInGbs`, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                    |
+| `backupRetentionDays` | AWS     | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0  |
+| `backupRetentionDays` | GCP     | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0 |
 
 *Valkey field limits and their sources.*
 

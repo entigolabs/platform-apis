@@ -38,8 +38,8 @@ spec:
                 type: string
                 description: |-
                   Valkey's major and minor, such as "8.1", and the floor after: raising it
-                  upgrades the server, lowering it is rejected. With autoMinorVersionUpgrade, the
-                  backend can move the server past it; the status shows the running version.
+                  upgrades the server, lowering it is rejected. The backend can move the server to
+                  a newer minor; the status shows the running version.
                   Default: the class's template.
                 pattern: ^[0-9]+\.[0-9]+$
               highAvailability:
@@ -61,52 +61,6 @@ spec:
                 description: |-
                   Deleting the object is denied while true.
                   Default: fixed, true.
-              maintenanceWindow:
-                type: object
-                description: |-
-                  The weekly hour, in UTC, in which the cloud applies updates.
-                properties:
-                  day:
-                    type: string
-                    enum:
-                    - Mon
-                    - Tue
-                    - Wed
-                    - Thu
-                    - Fri
-                    - Sat
-                    - Sun
-                  hourUTC:
-                    type: integer
-                    minimum: 0
-                    maximum: 23
-                required:
-                - day
-                - hourUTC
-              autoMinorVersionUpgrade:
-                type: boolean
-                description: |-
-                  Allow the backend to upgrade to newer minor versions on its schedule. false
-                  keeps the server at version.
-                  Default: the class's template.
-              backup:
-                type: object
-                description: |-
-                  Automated daily backups.
-                properties:
-                  retentionDays:
-                    type: integer
-                    description: |-
-                      Days automated backups are kept, within the backend's own range (principle 10).
-                      0 turns automated backups off.
-                      Default: the class's template.
-                    minimum: 0
-                  startHourUTC:
-                    type: integer
-                    description: |-
-                      The hour, in UTC, the daily backup starts.
-                    minimum: 0
-                    maximum: 23
               parametersRefs:
                 type: array
                 description: |-
@@ -199,7 +153,7 @@ spec:
               message: observe can be removed but never set after creation
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.version) && !has(self.highAvailability) && !has(self.readReplicas) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.autoMinorVersionUpgrade) && !has(self.backup) && !has(self.parametersRefs) && !has(self.parameters))
+                || (!has(self.version) && !has(self.highAvailability) && !has(self.readReplicas) && !has(self.deletionProtection) && !has(self.parametersRefs) && !has(self.parameters))
               message: an observed resource takes no other common field
             - rule: |-
                 !has(self.highAvailability)
@@ -216,22 +170,6 @@ spec:
                 type: boolean
               readReplicas:
                 type: integer
-              maintenanceWindow:
-                type: object
-                properties:
-                  day:
-                    type: string
-                  hourUTC:
-                    type: integer
-              autoMinorVersionUpgrade:
-                type: boolean
-              backup:
-                type: object
-                properties:
-                  retentionDays:
-                    type: integer
-                  startHourUTC:
-                    type: integer
               endpoint:
                 type: object
                 description: |-

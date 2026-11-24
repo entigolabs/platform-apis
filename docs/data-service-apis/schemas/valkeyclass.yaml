@@ -29,8 +29,8 @@ spec:
                     type: string
                     description: |-
                       Valkey's major and minor, such as "8.1", and the floor after: raising it
-                      upgrades the server, lowering it is rejected. With autoMinorVersionUpgrade, the
-                      backend can move the server past it; the status shows the running version.
+                      upgrades the server, lowering it is rejected. The backend can move the server to
+                      a newer minor; the status shows the running version.
                       Default: the class's template.
                     pattern: ^[0-9]+\.[0-9]+$
                   highAvailability: &id002
@@ -52,53 +52,7 @@ spec:
                     description: |-
                       Deleting the object is denied while true.
                       Default: fixed, true.
-                  maintenanceWindow: &id005
-                    type: object
-                    description: |-
-                      The weekly hour, in UTC, in which the cloud applies updates.
-                    properties:
-                      day:
-                        type: string
-                        enum:
-                        - Mon
-                        - Tue
-                        - Wed
-                        - Thu
-                        - Fri
-                        - Sat
-                        - Sun
-                      hourUTC:
-                        type: integer
-                        minimum: 0
-                        maximum: 23
-                    required:
-                    - day
-                    - hourUTC
-                  autoMinorVersionUpgrade: &id006
-                    type: boolean
-                    description: |-
-                      Allow the backend to upgrade to newer minor versions on its schedule. false
-                      keeps the server at version.
-                      Default: the class's template.
-                  backup: &id007
-                    type: object
-                    description: |-
-                      Automated daily backups.
-                    properties:
-                      retentionDays:
-                        type: integer
-                        description: |-
-                          Days automated backups are kept, within the backend's own range (principle 10).
-                          0 turns automated backups off.
-                          Default: the class's template.
-                        minimum: 0
-                      startHourUTC:
-                        type: integer
-                        description: |-
-                          The hour, in UTC, the daily backup starts.
-                        minimum: 0
-                        maximum: 23
-                  parameters: &id008
+                  parameters: &id005
                     type: object
                     description: |-
                       Valkey settings for this object only, merged after parametersRefs.
@@ -138,10 +92,7 @@ spec:
                   highAvailability: *id002
                   readReplicas: *id003
                   deletionProtection: *id004
-                  maintenanceWindow: *id005
-                  autoMinorVersionUpgrade: *id006
-                  backup: *id007
-                  parameters: *id008
+                  parameters: *id005
                   providerConfig:
                     type: object
                     description: |-
