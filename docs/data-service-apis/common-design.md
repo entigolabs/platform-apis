@@ -93,17 +93,54 @@ clusters older than 1.36 is still to be decided. Observed resources receive no d
 An object keeps the class it was created with, and the class's values as they were then. Its
 `className` is written at creation when the user leaves it out, so moving the default-class
 annotation later moves no object, and it cannot be changed, added or removed afterwards. The
-function records the class's generation and the values it applied, its `enforced`, its
-`parametersRefs` and its provider configuration, and keeps applying them when the class changes; the
-condition `ClassSynced: False` shows that the class has changed since. A user applies the class's
-current values with the annotation `<group>/class-sync`: each new value of it, such as a date,
-starts one sync, and `status.classSync` records the value last applied. Admission compares an object
-with the class's `enforced` only when it is created and when its `class-sync` value changes, so a
-class change never blocks an unrelated edit; between syncs the object keeps the enforced values
-recorded at the last one. A deleted class stops nothing: the object keeps applying its recorded
-values, reports `ClassSynced: False` with the class missing, and a sync waits until a class of that
-name exists again. The `template` is not applied again, since its values are the object's own after
-creation.
+function records what it applied from the class in the annotation `<group>/class-record`, which only
+the platform may write: the class's name and generation, the `class-sync` value last applied, and
+the class's `enforced`, `parametersRefs` and provider configuration. It keeps applying the recorded
+values when the class changes, and the condition `ClassSynced: False` shows that the class has
+changed since. The record is an annotation, not status, so it returns with the object from any
+backup or copy:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+  annotations:
+    database.entigo.com/class-sync: "2026-11-20"   # written by the user: starts a sync
+    database.entigo.com/class-record: |            # written by the platform only
+      {
+        "class": "standard",
+        "generation": 4,
+        "sync": "2026-11-20",
+        "enforced": {
+          "highAvailability": true,
+          "backup": {"retentionDays": 14}
+        },
+        "parametersRefs": [{"name": "pg-baseline", "namespace": "platform-apis"}],
+        "providerConfig": {
+          "apiVersion": "aws.database.entigo.com/v1alpha1",
+          "kind": "PostgreSQLRDSConfig",
+          "spec": {"instanceType": "db.t4g.medium"}
+        }
+      }
+spec:
+  className: standard
+```
+
+*A `PostgreSQLCluster` with its class record after a sync.*
+
+A user applies the class's current values with the annotation `<group>/class-sync`: each new value
+of it, such as a date, starts one sync, which replaces the record. Admission compares every change to
+an object with its recorded `enforced` and refuses one that sets a locked field to a different
+value, naming the field; at creation and at a sync it compares with the class's current `enforced`
+instead, so a class change never blocks an unrelated edit. An object whose record is missing keeps
+its resources as they are, reports `ClassSynced: False` with the record missing, and waits for a
+sync; it never falls back to the class's current values. A deleted class stops nothing: the object
+keeps applying its recorded values, reports `ClassSynced: False` with the class missing, and a sync
+waits until a class of that name exists again. The `template` is neither applied again nor
+recorded, since its values are the object's own after creation.
 
 An object that requests a portable feature, such as `HighAvailability` or `ReadReplicas`, that its
 implementation does not support is refused when applied, by the implementation's own validation
