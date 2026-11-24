@@ -1,0 +1,81 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: postgresqlcnpgconfigs.kubernetes.database.entigo.com
+spec:
+  group: kubernetes.database.entigo.com
+  scope: Namespaced
+  names:
+    kind: PostgreSQLCNPGConfig
+    plural: postgresqlcnpgconfigs
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            description: |-
+              Settings for CloudNativePG (principle 2).
+            properties:
+              id:
+                type: string
+                description: |-
+                  The CloudNativePG ID of an existing resource to observe (principle 9). Set with
+                  observe; it stays when observe is removed, and the object then owns the
+                  resource.
+              cpu:
+                type: string
+                description: |-
+                  CPU per instance, as a Kubernetes quantity such as "2" or "500m"; requested and
+                  limited alike.
+                  Default: the class's template.
+                maxLength: 16
+              memory:
+                type: string
+                description: |-
+                  Memory per instance, as a Kubernetes quantity such as 8Gi; requested and limited
+                  alike.
+                  Default: the class's template.
+                maxLength: 16
+              storageClass:
+                type: string
+                description: |-
+                  The StorageClass of the instances' volumes. Unset, the cluster's default
+                  StorageClass. Growing the disk needs one that allows volume expansion.
+                maxLength: 253
+              fromBackup:
+                type: string
+                description: |-
+                  A CloudNativePG Backup in this namespace to create the cluster from. Set at
+                  creation only; not with restore.
+            x-kubernetes-validations:
+            - rule: |-
+                has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
+              message: id is immutable
+            - rule: |-
+                has(self.fromBackup) == has(oldSelf.fromBackup) && (!has(self.fromBackup) || self.fromBackup == oldSelf.fromBackup)
+              message: fromBackup is set at creation only
+          status:
+            type: object
+            description: |-
+              The shape of status.provider for CloudNativePG (principle 4).
+            properties:
+              id:
+                type: string
+              state:
+                type: string
+              image:
+                type: string
+              currentPrimary:
+                type: string
+              readyInstances:
+                type: integer
+        required:
+        - spec
+    subresources:
+      status: {}

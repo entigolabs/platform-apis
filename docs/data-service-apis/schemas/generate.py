@@ -721,6 +721,21 @@ write("postgresqlflexibleserverconfig", provider_config_crd(
                              default=DEFAULT),
     }, {"id": S(), "instanceType": S(), "state": S()}))
 
+write("postgresqlcnpgconfig", provider_config_crd(
+    "PostgreSQLCNPGConfig", "postgresqlcnpgconfigs", "kubernetes.database.entigo.com",
+    "CloudNativePG", {
+        "cpu": field("string", "CPU per instance, as a Kubernetes quantity such as \"2\" or "
+                     "\"500m\"; requested and limited alike.", default=DEFAULT, maxLength=16),
+        "memory": field("string", "Memory per instance, as a Kubernetes quantity such as 8Gi; "
+                        "requested and limited alike.", default=DEFAULT, maxLength=16),
+        "storageClass": field("string", "The StorageClass of the instances' volumes. Unset, the "
+                              "cluster's default StorageClass. Growing the disk needs one that "
+                              "allows volume expansion.", maxLength=253),
+        "fromBackup": from_backup("A CloudNativePG Backup in this namespace to create the "
+                                  "cluster from."),
+    }, {"id": S(), "state": S(), "image": S(), "currentPrimary": S(),
+        "readyInstances": field("integer")}))
+
 # --- MariaDB -------------------------------------------------------------------------------
 
 MARIADB_MAJOR = lambda v: f"({v}.split('.')[0] + '.' + {v}.split('.')[1])"

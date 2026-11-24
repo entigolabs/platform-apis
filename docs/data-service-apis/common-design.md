@@ -30,10 +30,12 @@ Each provider configuration kind is versioned independently.
 ## Installation
 
 The `platform-apis` chart determines which kinds a deployment installs (principle 7). A deployment
-passes only its cloud, and the chart installs each service's core kinds, its provider configuration
-kinds and its classes where the service is implemented. A per-service switch leaves a service out,
-never adds one that the deployment lacks. A manifest of a kind that is not installed is rejected by
-the Kubernetes API server when it is applied, before any function runs.
+passes its cloud, and the chart installs each service's core kinds, its provider configuration kinds
+and its classes where the service is implemented. A deployment may also add an implementation that
+runs in the Kubernetes cluster, such as CloudNativePG, beside its cloud's; a class then chooses
+between the two, and a standalone object with entries for both is refused. A per-service switch
+leaves a service out, never adds one the deployment lacks. A manifest of a kind that is not
+installed is rejected by the Kubernetes API server when it is applied, before any function runs.
 
 ## Versions
 

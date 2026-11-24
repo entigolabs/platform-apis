@@ -8,7 +8,7 @@ revisionTags:                                 # each agreed revision, frozen at 
   2: data-service-apis-rev-2
 rowHeaders: [Part, Kind, Setting, Field, Cloud, Project, Change]   # first columns that name each row's subject
 optionNames: [Option, Alternative]                        # first columns that name an option
-selectorChoices: [AWS, GCP, OCI, Azure]       # every cloud; one a service lacks is shown disabled
+selectorChoices: [AWS, GCP, OCI, Azure, Kubernetes]   # every platform; one a service lacks is shown disabled
 itemLinks:                                # "principle N" in the text links to principle N
 - {word: principle, file: principles.md}
 schemaTab: &schemas                       # shared by every service's Schemas tab
@@ -32,7 +32,7 @@ nav:
     label: Service Designs
     submenu: true
     statusColors: {Designed: ok, Mapping only: wip, No implementation: none}   # the coverage table's states
-    columnGroup: {label: Cloud, columns: [AWS, GCP, OCI, Azure]}               # the coverage table's header                      # each service is an entry of its own under Service Designs
+    columnGroup: {label: Platform, columns: [AWS, GCP, OCI, Azure, Kubernetes]}               # the coverage table's header                      # each service is an entry of its own under Service Designs
     aliases: {services: "", schemas: "*/schemas"}
     tabs:
     - label: PostgreSQL
@@ -50,6 +50,7 @@ nav:
         - {file: schemas/postgresqlcloudsqlconfig.yaml, label: PostgreSQLCloudSQLConfig}
         - {file: schemas/postgresqlociconfig.yaml, label: PostgreSQLOCIConfig}
         - {file: schemas/postgresqlflexibleserverconfig.yaml, label: PostgreSQLFlexibleServerConfig}
+        - {file: schemas/postgresqlcnpgconfig.yaml, label: PostgreSQLCNPGConfig}
     - label: MariaDB
       tabs:
       - {file: mariadb.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], tabSections: [Kinds]}
