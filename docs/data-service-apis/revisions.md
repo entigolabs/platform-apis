@@ -7,8 +7,9 @@ the last is agreed.
 
 #### 3 in progress
 
-Shared engine settings come in layers: an object and its class each reference a list of parameter
-objects, so a team puts settings all its services share beneath one service's own tuning.
+The common spec keeps only settings every backend runs the same way, an object can run without a
+class and join one later, and PostgreSQL gains CloudNativePG, which runs in the cluster, so a first
+implementation can start small without locking teams into settings only some backends have.
 
 | Change                                                                       | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
