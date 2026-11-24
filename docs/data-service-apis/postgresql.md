@@ -22,7 +22,7 @@ PostgreSQL is offered as five kinds, each with the manifest its owner writes.
 
 Entigo writes each deployment's classes: cluster-scoped objects that hold the defaults an object
 starts with (`template`) and the values it cannot change (`enforced`), each with common fields and
-one provider configuration, whose kind selects the implementation (principle 5):
+one provider configuration, whose kind selects the backend (principle 5):
 
 ```yaml
 ---
@@ -55,8 +55,8 @@ spec:
 
 *`PostgreSQLClass` for RDS.*
 
-A class with no provider configuration uses the one implementation its deployment installs, so it
-holds only common fields and can be copied to every deployment unchanged.
+A class with no provider configuration uses the one backend its deployment installs, so it holds
+only common fields and can be copied to every deployment unchanged.
 
 ### PostgreSQLParameters
 
@@ -80,14 +80,14 @@ spec:
 
 *`PostgreSQLParameters` shared between a user's clusters.*
 
-A `PostgreSQLParameters` names no other, so references never chain. Settings the implementation does
-not allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
+A `PostgreSQLParameters` names no other, so references never chain. Settings the backend does not
+allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### PostgreSQLCluster
 
 A user creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
-carries one provider configuration entry per implementation it may run on (principle 2); each
-deployment applies the entry of its own class's kind and ignores the others:
+carries one provider configuration entry per backend it may run on (principle 2); each deployment
+applies the entry of its own class's kind and ignores the others:
 
 ```yaml
 ---
@@ -151,7 +151,7 @@ spec:
       memory: 8Gi
 ```
 
-*`PostgreSQLCluster` with common fields and one entry per implementation.*
+*`PostgreSQLCluster` with common fields and one entry per backend.*
 
 An entry holds its settings inline, in `spec`, or names a separate object of its kind, through
 `ref`, as the Azure entry does:
@@ -170,8 +170,7 @@ spec:
 
 *`PostgreSQLFlexibleServerConfig` referenced by a cluster entry.*
 
-Most clusters name nothing implementation-specific and take the class's provider configuration as it
-is:
+Most clusters name nothing backend-specific and take the class's provider configuration as it is:
 
 ```yaml
 ---
@@ -211,19 +210,19 @@ spec:
 
 *`PostgreSQLCluster` restored from another cluster's backups.*
 
-`version` is the major version, such as `"17"`, and the implementation applies minor versions in the
+`version` is the major version, such as `"17"`, and the backend applies minor versions in the
 maintenance window.
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and a
-value below the real size is ignored, so a rejected increase can still be corrected. The
-implementation may round it up and `autoGrow` can take the disk further, so the status reports the
-actual size, and the platform never shrinks the disk back to `sizeGB`.
+value below the real size is ignored, so a rejected increase can still be corrected. The backend may
+round it up and `autoGrow` can take the disk further, so the status reports the actual size, and the
+platform never shrinks the disk back to `sizeGB`.
 
-`highAvailability` is a portable feature: an object that requests it where its implementation does
-not support it is refused when applied (principle 1).
+`highAvailability` is a portable feature: an object that requests it where its backend does not
+support it is refused when applied (principle 1).
 
 The status shows the common fields, which entry applied, where each effective value came from, and
-the applied implementation's own values (principle 4):
+the applied backend's own values (principle 4):
 
 ```yaml
 status:
@@ -257,9 +256,9 @@ The connection secret `<instance>-dbadmin` holds the admin login, with the keys 
 
 ### PostgreSQLUser
 
-`PostgreSQLUser` acts inside PostgreSQL, through provider-sql, so it is the same in every
-implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
-of the same Zone (principle 11), and it has no class or provider configurations.
+`PostgreSQLUser` acts inside PostgreSQL, through provider-sql, so it is the same in every backend.
+Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace of the same Zone
+(principle 11), and it has no class or provider configurations.
 
 A set of permissions shared by several users is a role: a `PostgreSQLUser` with `login: false`,
 which other users receive through `grant.roles`.
@@ -293,8 +292,8 @@ spec:
 ### PostgreSQLDatabase
 
 `PostgreSQLDatabase` acts inside PostgreSQL, through provider-sql, so it is the same in every
-implementation. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace
-of the same Zone (principle 11), and it has no class or provider configurations.
+backend. Its `name` and `clusterRef` are immutable, `clusterRef` may name another namespace of the
+same Zone (principle 11), and it has no class or provider configurations.
 
 `extensions` creates each listed extension in the database. Azure also requires the server to allow
 an extension, so every Azure cluster allows the whole allowlist, and any database can create any
@@ -331,8 +330,8 @@ spec:
 
 ## Fields
 
-The first table maps each common field to the implementation's provider. A setting the
-implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the backend's provider. A setting the backend lacks shows
+as ignored, with the reason (principle 1):
 
 | Field                      | AWS                                                                         | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                | Kubernetes                                                                         |
 | -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
@@ -359,7 +358,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 
 *`PostgreSQLCluster` common fields and their provider fields.*
 
-The second names the implementation's provider configuration kind and what its fields map to:
+The second names the backend's provider configuration kind and what its fields map to:
 
 | Field                | AWS                                  | GCP                                                  | OCI                                                              | Azure                                                                    | Kubernetes                                             |
 | -------------------- | ------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ |
@@ -419,10 +418,10 @@ cluster can be restored with `restore.fromInstance` until the store's own lifecy
 
 ## Provider Configurations
 
-Each implementation's provider configuration kind holds the settings of that implementation, with
-every field it takes; commented fields are alternatives or apply only with `observe`. The settings
-sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
-pair shows, and they override the class's settings for the same kind field by field (principle 2):
+Each backend's provider configuration kind holds the settings of that backend, with every field it
+takes; commented fields are alternatives or apply only with `observe`. The settings sit either in a
+separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair shows, and
+they override the class's settings for the same kind field by field (principle 2):
 
 ```yaml Separate object
 ---
@@ -1129,24 +1128,24 @@ Besides the settings it makes for every service
 
 ## Limits
 
-The implementation enforces these limits itself, and the API does not check them (principle 10); a
-value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
-listed for reference, should validating them be decided later. Each limit holds as of its source:
-the provider release named, or the cloud's documentation as read in November 2026.
+The backend enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the backend and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
-| Field                                     | Implementation | Limit                                                                           | Source                                                                                     |
-| ----------------------------------------- | -------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `backup.retentionDays`                    | AWS            | 0 to 35                                                                         | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                     |
-| `backup.retentionDays`                    | Azure          | 7 to 35                                                                         | `backupRetentionDays`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                   |
-| `backup.retentionDays`, `pointInTimeDays` | OCI            | up to 35                                                                        | OCI Database with PostgreSQL documentation, backups and point-in-time recovery             |
-| `backup.pointInTimeDays`                  | GCP            | 1 to 7; 1 to 35 on `ENTERPRISE_PLUS`                                            | `transactionLogRetentionDays`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
-| `storage.sizeGB`                          | GCP            | at least 10; 20 on `HYPERDISK_BALANCED`                                         | `settings.diskSize`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
-| `storage.iops`, `throughputMBps`          | AWS            | only from 400 GiB of disk                                                       | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                 |
-| `storage.iops`                            | OCI            | steps of 75,000                                                                 | `storageDetails.iops`, `PsqlDbSystem` CRD, crossplane-provider-oci v2.0.0                  |
-| `edition`                                 | GCP            | `ENTERPRISE`, `ENTERPRISE_PLUS`                                                 | `settings.edition`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                      |
-| `diskType`                                | GCP            | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED`                                        | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
-| `storageTier`                             | Azure          | `P4` to `P80`                                                                   | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                           |
-| `storage.sizeGB`                          | Kubernetes     | never lowered; growing needs a StorageClass with `allowVolumeExpansion`         | `storage.size`, `Cluster` CRD, CloudNativePG v1.30.2; CloudNativePG documentation, storage |
-| `parameters`                              | Kubernetes     | not `port`, `listen_addresses`, `ssl` and the other settings the operator fixes | CloudNativePG documentation, PostgreSQL configuration, fixed parameters                    |
+| Field                                     | Backend    | Limit                                                                           | Source                                                                                     |
+| ----------------------------------------- | ---------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `backup.retentionDays`                    | AWS        | 0 to 35                                                                         | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                     |
+| `backup.retentionDays`                    | Azure      | 7 to 35                                                                         | `backupRetentionDays`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                   |
+| `backup.retentionDays`, `pointInTimeDays` | OCI        | up to 35                                                                        | OCI Database with PostgreSQL documentation, backups and point-in-time recovery             |
+| `backup.pointInTimeDays`                  | GCP        | 1 to 7; 1 to 35 on `ENTERPRISE_PLUS`                                            | `transactionLogRetentionDays`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
+| `storage.sizeGB`                          | GCP        | at least 10; 20 on `HYPERDISK_BALANCED`                                         | `settings.diskSize`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
+| `storage.iops`, `throughputMBps`          | AWS        | only from 400 GiB of disk                                                       | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                 |
+| `storage.iops`                            | OCI        | steps of 75,000                                                                 | `storageDetails.iops`, `PsqlDbSystem` CRD, crossplane-provider-oci v2.0.0                  |
+| `edition`                                 | GCP        | `ENTERPRISE`, `ENTERPRISE_PLUS`                                                 | `settings.edition`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                      |
+| `diskType`                                | GCP        | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED`                                        | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
+| `storageTier`                             | Azure      | `P4` to `P80`                                                                   | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                           |
+| `storage.sizeGB`                          | Kubernetes | never lowered; growing needs a StorageClass with `allowVolumeExpansion`         | `storage.size`, `Cluster` CRD, CloudNativePG v1.30.2; CloudNativePG documentation, storage |
+| `parameters`                              | Kubernetes | not `port`, `listen_addresses`, `ssl` and the other settings the operator fixes | CloudNativePG documentation, PostgreSQL configuration, fixed parameters                    |
 
 *PostgreSQL field limits and their sources.*

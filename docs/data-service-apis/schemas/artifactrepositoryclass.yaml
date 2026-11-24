@@ -80,7 +80,7 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider configuration: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the backend this class uses.
                     properties:
                       apiVersion:
                         type: string
@@ -113,7 +113,7 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider configuration: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the backend this class uses.
                     properties:
                       apiVersion:
                         type: string

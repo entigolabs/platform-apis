@@ -47,14 +47,14 @@ spec:
 
 ### ArtifactRepository
 
-The implementations define a repository differently: ECR and OCIR have one repository per image
-path, an Artifact Registry repository holds many images, and an Azure registry holds repositories it
-creates on the first push, with no resource of their own. The API's unit is the image path, because
-an application owns its image path.
+The backends define a repository differently: ECR and OCIR have one repository per image path, an
+Artifact Registry repository holds many images, and an Azure registry holds repositories it creates
+on the first push, with no resource of their own. The API's unit is the image path, because an
+application owns its image path.
 
 A user creates an `ArtifactRepository` with a manifest like the one below. A repository has no
-setting specific to one implementation, so its manifest carries a provider configuration entry only
-to observe an existing repository, and that entry holds only the repository's `id` (principle 9).
+setting specific to one backend, so its manifest carries a provider configuration entry only to
+observe an existing repository, and that entry holds only the repository's `id` (principle 9).
 Observing fails on Azure, where a repository has no resource of its own:
 
 ```yaml
@@ -98,8 +98,8 @@ and `immutableTags` take the class's defaults, so a repository whose spec is emp
 up; `lifecycleRules` set on the object replace the class's rules.
 
 An `ArtifactRepository` has no connection secret. The status shows `uri`, the image URI, with which
-entry applied, where each effective value came from, and the applied implementation's own values
-(principle 4):
+entry applied, where each effective value came from, and the applied backend's own values (principle
+4):
 
 ```yaml
 status:
@@ -117,20 +117,20 @@ status:
 
 ## Fields
 
-The first table maps each common field to the implementation's provider. A setting the
-implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the backend's provider. A setting the backend lacks shows
+as ignored, with the reason (principle 1):
 
-| Field                | AWS                                 | GCP                                                                                                                                                                                                                                                    | OCI                                                                                                      | Azure                                                                                     |
-| -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| the repository       | `Repository`                        | one `RegistryRepository` (`format: DOCKER`) per repository                                                                                                                                                                                             | `ContainerRepository`                                                                                    | a path in a platform-owned `Registry`; no resource of its own                             |
-| `observe`            | `managementPolicies: [Observe]`     | `managementPolicies: [Observe]`                                                                                                                                                                                                                        | `managementPolicies: [Observe]`                                                                          | fails; an Azure repository has no resource of its own                                     |
-| `deletionProtection` | platform blocks deletion            | platform blocks deletion                                                                                                                                                                                                                               | platform blocks deletion                                                                                 | platform blocks deletion                                                                  |
-| `immutableTags`      | `imageTagMutability: IMMUTABLE`     | `dockerConfig.immutableTags`                                                                                                                                                                                                                           | `isImmutable`                                                                                            | ignored, so tags can be overwritten; tag locks are set per tag through the Azure CLI only |
-| `lifecycleRules`     | `LifecyclePolicy`                   | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped, and the images it covers are kept | ignored, so old images are not cleaned up; retention is console-only and counts days since the last pull | ignored, so old images are not cleaned up; only registry-wide untagged retention exists   |
+| Field                | AWS                             | GCP                                                                                                                                                                                                                                                    | OCI                                                                                                      | Azure                                                                                     |
+| -------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| the repository       | `Repository`                    | one `RegistryRepository` (`format: DOCKER`) per repository                                                                                                                                                                                             | `ContainerRepository`                                                                                    | a path in a platform-owned `Registry`; no resource of its own                             |
+| `observe`            | `managementPolicies: [Observe]` | `managementPolicies: [Observe]`                                                                                                                                                                                                                        | `managementPolicies: [Observe]`                                                                          | fails; an Azure repository has no resource of its own                                     |
+| `deletionProtection` | platform blocks deletion        | platform blocks deletion                                                                                                                                                                                                                               | platform blocks deletion                                                                                 | platform blocks deletion                                                                  |
+| `immutableTags`      | `imageTagMutability: IMMUTABLE` | `dockerConfig.immutableTags`                                                                                                                                                                                                                           | `isImmutable`                                                                                            | ignored, so tags can be overwritten; tag locks are set per tag through the Azure CLI only |
+| `lifecycleRules`     | `LifecyclePolicy`               | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped, and the images it covers are kept | ignored, so old images are not cleaned up; retention is console-only and counts days since the last pull | ignored, so old images are not cleaned up; only registry-wide untagged retention exists   |
 
 *`ArtifactRepository` common fields and their provider fields.*
 
-The second names the implementation's provider configuration kind and what its fields map to:
+The second names the backend's provider configuration kind and what its fields map to:
 
 | Field | AWS                                 | GCP                                        | OCI                            | Azure                                                                         |
 | ----- | ----------------------------------- | ------------------------------------------ | ------------------------------ | ----------------------------------------------------------------------------- |
@@ -155,10 +155,9 @@ Images are scanned by Defender for Containers.
 
 ## Provider Configurations
 
-Each implementation's provider configuration kind for a repository holds only `id`, the existing
-repository an observed object names (principle 9); every other setting is a common field or a
-decision the platform makes. An entry for an object the platform creates is empty, so it can be left
-out.
+Each backend's provider configuration kind for a repository holds only `id`, the existing repository
+an observed object names (principle 9); every other setting is a common field or a decision the
+platform makes. An entry for an object the platform creates is empty, so it can be left out.
 
 ## Composed Resources
 

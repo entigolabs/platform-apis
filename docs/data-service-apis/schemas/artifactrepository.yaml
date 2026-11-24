@@ -24,9 +24,9 @@ spec:
                 type: string
                 description: |-
                   The ArtifactRepositoryClass: the deployment's defaults, enforced values and
-                  implementation (principle 5). Unset, the default class, written at creation;
-                  without one, the object is standalone. A standalone object may add it once; it
-                  is never changed or removed.
+                  backend (principle 5). Unset, the default class, written at creation; without
+                  one, the object is standalone. A standalone object may add it once; it is never
+                  changed or removed.
               observe:
                 type: boolean
                 description: |-
@@ -98,9 +98,9 @@ spec:
               providerConfigs:
                 type: array
                 description: |-
-                  Settings of single implementations, one entry per kind (principle 2). The
-                  deployment applies the entry whose group and kind its class names, whatever its
-                  version, and ignores the others.
+                  Settings of single backends, one entry per kind (principle 2). The deployment
+                  applies the entry whose group and kind its class names, whatever its version,
+                  and ignores the others.
                 items:
                   type: object
                   properties:
@@ -195,7 +195,7 @@ spec:
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
                 description: |-
-                  Values of the applied implementation, in the shape its provider configuration
-                  kind's status defines (principle 4).
+                  Values of the applied backend, in the shape its provider configuration kind's
+                  status defines (principle 4).
         required:
         - spec

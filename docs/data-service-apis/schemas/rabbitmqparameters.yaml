@@ -23,7 +23,7 @@ spec:
               parameters:
                 type: object
                 description: |-
-                  rabbitmq.conf settings, by name. Keys outside the implementation's allowlist are
+                  rabbitmq.conf settings, by name. Keys outside the backend's allowlist are
                   rejected by the cloud (principle 10).
                 additionalProperties:
                   type: string

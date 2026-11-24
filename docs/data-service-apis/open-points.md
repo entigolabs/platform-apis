@@ -4,8 +4,7 @@ Questions to decide before implementation.
 
 #### 1 How does an application get its identity and its grants?
 
-**Context.** An application reaches a service with its workload identity where the implementation
-supports it (principle 15). A `Bucket` creates no service account or key
+**Context.** An application reaches a service with its workload identity where the backend supports it (principle 15). A `Bucket` creates no service account or key
 ([Bucket](bucket.md)), and a user object, such as `PostgreSQLUser` or `KafkaUser`, creates a login
 with a password in a connection Secret ([Connection Secrets](common-design.md#connection-secrets)).
 Today's `S3Bucket` creates an IAM role, keys and optionally a service account per bucket.

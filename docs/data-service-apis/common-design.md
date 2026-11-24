@@ -20,24 +20,24 @@ The kinds keep today's category groups: `database.`, `queue.`, `mq.`, `storage.`
 `artifact.entigo.com`. A group exists only where it serves a purpose, so no umbrella group gathers
 them.
 
-The engine comes first, so the kinds sort together. The product is the implementation's own short
-name, such as RDS, Cloud SQL or MSK; where it has none, the platform's name stands in for it, as in
-`PostgreSQLOCIConfig` for OCI Database with PostgreSQL. An on-premises implementation is grouped by
-the platform it runs on, `kubernetes`, with the product in the kind, as `PostgreSQLCNPGConfig` for
-CloudNativePG. An implementation built outside Entigo uses its own domain, so names never collide.
-Each provider configuration kind is versioned independently.
+The engine comes first, so the kinds sort together. The product is the backend's own short name,
+such as RDS, Cloud SQL or MSK; where it has none, the platform's name stands in for it, as in
+`PostgreSQLOCIConfig` for OCI Database with PostgreSQL. A backend that runs in the cluster is
+grouped by the platform it runs on, `kubernetes`, with the product in the kind, as
+`PostgreSQLCNPGConfig` for CloudNativePG. An implementation built outside Entigo uses its own
+domain, so names never collide. Each provider configuration kind is versioned independently.
 
 ## Installation
 
 The `platform-apis` chart determines which kinds a deployment installs (principle 7). A deployment
 passes its cloud, and the chart installs each service's core kinds, its provider configuration kinds
-and its classes where the service is implemented. A deployment may also add an implementation that
-runs in the Kubernetes cluster, such as CloudNativePG, beside its cloud's; a class then chooses
-between the two, and a standalone object with entries for both is refused. A per-service switch
-leaves a service out, never adds one the deployment lacks. The chart installs only on Kubernetes
-1.36 or later, the first version with the `MutatingAdmissionPolicy` built in that writes class
-defaults. A manifest of a kind that is not installed is rejected by the Kubernetes API server when
-it is applied, before any function runs.
+and its classes where the service is implemented. A deployment may also add a backend that runs in
+the Kubernetes cluster, such as CloudNativePG, beside its cloud's; a class then chooses between the
+two, and a standalone object with entries for both is refused. A per-service switch leaves a service
+out, never adds one the deployment lacks. The chart installs only on Kubernetes 1.36 or later, the
+first version with the `MutatingAdmissionPolicy` built in that writes class defaults. A manifest of
+a kind that is not installed is rejected by the Kubernetes API server when it is applied, before any
+function runs.
 
 ## Versions
 
@@ -74,8 +74,8 @@ one provider configuration:
 
 *Class parts and their effects.*
 
-The class's provider configuration kind selects the implementation, as `StorageClass.provisioner`
-does, so a class has no separate field for it. A class whose provider configuration names a kind the
+The class's provider configuration kind selects the backend, as `StorageClass.provisioner` does, so
+a class has no separate field for it. A class whose provider configuration names a kind the
 deployment does not install is refused when applied. A class name is the portable contract: every
 deployment defines its own `standard`, and a chart that sets `className: standard` works wherever a
 class of that name exists. Without `className`, the object takes the deployment's default class, the
@@ -147,20 +147,19 @@ keeps applying its recorded values, reports `ClassSynced: False` with the class 
 waits until a class of that name exists again. The `template` is neither applied again nor
 recorded, since its values are the object's own after creation.
 
-An object without a class is standalone. Its implementation is the one whose provider
-configuration kind the deployment installs and one of its entries names; an object with no such
-entry, or with entries for two installed implementations, is refused when applied, with a message
-naming the kinds. Its entry sets every setting the implementation cannot run without, the
-implementation's own defaults fill the rest, and it has no `template`, enforced values or class
-record. A standalone object joins a class once, by adding `className`. Admission refuses a class
-whose provider configuration names another implementation than the one the object runs on, since
-moving a running resource to another implementation would replace it. Adding the class applies
-nothing: the object reports `ClassSynced: False`, and its first sync applies and records the class's
-values, refusing any that conflict with the class's `enforced`.
+An object without a class is standalone. Its backend is the one whose provider configuration kind
+the deployment installs and one of its entries names; an object with no such entry, or with entries
+for two installed backends, is refused when applied, with a message naming the kinds. Its entry sets
+every setting the backend cannot run without, the implementation's own defaults fill the rest, and
+it has no `template`, enforced values or class record. A standalone object joins a class once, by
+adding `className`. Admission refuses a class whose provider configuration names another backend
+than the one the object runs on, since moving a running resource to another backend would replace
+it. Adding the class applies nothing: the object reports `ClassSynced: False`, and its first sync
+applies and records the class's values, refusing any that conflict with the class's `enforced`.
 
 An object that requests a portable feature, such as `HighAvailability` or `ReadReplicas`, that its
-implementation does not support is refused when applied, by the implementation's own validation
-policy, with a message naming the implementation and the feature (principle 1).
+backend does not support is refused when applied, by its implementation's own validation policy,
+with a message naming the backend and the feature (principle 1).
 
 ## Provider Configurations
 
@@ -168,17 +167,17 @@ An object carries its provider configurations (principle 2) in `providerConfigs`
 entry per kind. Each entry names its own `apiVersion` and `kind`, and holds the settings either
 inline, in `spec`, or in a separate object of that kind, through `ref`. The list is keyed by
 `apiVersion` and `kind`, so Helm, Argo CD and server-side apply merge it entry by entry, and one
-manifest can carry settings for several implementations and be applied on any of them.
+manifest can carry settings for several backends and be applied on any of them.
 
 A deployment applies only the entry whose group and kind its class names, or, for a standalone
-object, the entry of an installed implementation, whatever the entry's version, and ignores the
-others. An entry of an older version is converted to the version the class uses, so a class that
-moves to a newer version still applies the entries written for the older one, and an object holds
-one entry per group and kind; the status names the applied entry and the ignored ones, so a
-misspelled kind shows as no entry applied. An object with no matching entry takes the class's
-provider configuration as it is.
+object, the entry of an installed backend, whatever the entry's version, and ignores the others. An
+entry of an older version is converted to the version the class uses, so a class that moves to a
+newer version still applies the entries written for the older one, and an object holds one entry per
+group and kind; the status names the applied entry and the ignored ones, so a misspelled kind shows
+as no entry applied. An object with no matching entry takes the class's provider configuration as it
+is.
 
-Each provider configuration kind marks the settings its implementation cannot run without, such as a
+Each provider configuration kind marks the settings its backend cannot run without, such as a
 machine size. An object for which neither its entry nor its class sets one is refused when applied,
 with a message naming the setting. A deployment that wants every application to choose a setting,
 such as its size, leaves it out of its class.
@@ -191,16 +190,16 @@ knowing the names.
 
 ## Status
 
-The status (principle 4) shows the common fields as the implementation actually runs them, the usual
+The status (principle 4) shows the common fields as the backend actually runs them, the usual
 `conditions`, the address applications connect to, and the name of the connection secret. The
 address is `endpoint: { host, port }` where the service has one host, or the service's own form
 where it has several.
 
-Values that exist in only one implementation, such as its resource IDs, go into `status.provider`,
-whose shape the applied provider configuration kind defines. `status.providerConfig` names the
-applied entry and the ignored ones, and `status.effective` shows each effective value and where it
-came from: the class's `template`, the object, or the class's `enforced`. If an implementation does
-not report a common field, that field stays empty there.
+Values that exist in only one backend, such as its resource IDs, go into `status.provider`, whose
+shape the applied provider configuration kind defines. `status.providerConfig` names the applied
+entry and the ignored ones, and `status.effective` shows each effective value and where it came
+from: the class's `template`, the object, or the class's `enforced`. If a backend does not report a
+common field, that field stays empty there.
 
 ## Connection Secrets
 
@@ -223,7 +222,7 @@ a migration needs no `secretName`.
 ## Observed Resources
 
 To observe an existing resource (principle 9), the user sets `observe: true` and gives the
-resource's ID in the provider configuration entry of the implementation that holds it:
+resource's ID in the provider configuration entry of the backend that holds it:
 
 ```yaml
 spec:
@@ -274,12 +273,12 @@ name instead, and the platform rejects a second object that requests a name alre
 The platform makes the settings below itself, for every service that has them, so no field sets them
 (principle 2):
 
-| Setting            | Platform's Choice                                                 |
-| ------------------ | ----------------------------------------------------------------- |
-| Network placement  | The deployment's private network                                  |
-| Public access      | None, unless an implementation's provider configuration allows it |
-| Encryption at rest | The platform's data key, where the implementation takes one       |
-| Tags               | Workspace and Zone tags, on every resource the platform creates   |
+| Setting            | Platform's Choice                                               |
+| ------------------ | --------------------------------------------------------------- |
+| Network placement  | The deployment's private network                                |
+| Public access      | None, unless a backend's provider configuration allows it       |
+| Encryption at rest | The platform's data key, where the backend takes one            |
+| Tags               | Workspace and Zone tags, on every resource the platform creates |
 
 *Service-wide settings chosen by the platform.*
 
@@ -289,7 +288,7 @@ A kind that exists inside another, such as a database user or a Kafka topic, nam
 reference, such as `clusterRef`, `serverRef` or `brokerRef`, as `{ name, namespace }`. Without
 `namespace`, the parent is in the same namespace. Such a kind has no class and no provider
 configurations: it acts inside the engine, which is the same everywhere, and follows its parent's
-implementation. Its defaults come from its parent's class, where that class defines them, such as a
+backend. Its defaults come from its parent's class, where that class defines them, such as a
 `KafkaClass`'s `topicTemplate` (principle 5). Admission cannot look up the parent, so the function
 applies them when it first reconciles the object and keeps them, and the object's status shows the
 values applied.
@@ -308,9 +307,8 @@ deployments, before it is applied anywhere.
 
 When the cloud rejects a value, the error appears only on the Crossplane provider's own object, not
 on the user's. The platform therefore also shows it on the user's object, as the condition
-`CloudAccepted: False` and as a warning event. An operation that the running implementation cannot
-perform, such as an upgrade its service does not offer, is reported the same way, without reaching
-the cloud.
+`CloudAccepted: False` and as a warning event. An operation that the running backend cannot perform,
+such as an upgrade its service does not offer, is reported the same way, without reaching the cloud.
 
 ## Deletion
 

@@ -43,8 +43,8 @@ spec:
 ### Bucket
 
 A user creates a `Bucket` with a manifest like the one below. A bucket has no setting specific to
-one implementation, so its manifest carries a provider configuration entry only to observe an
-existing bucket, and that entry holds only the bucket's `id` (principle 9):
+one backend, so its manifest carries a provider configuration entry only to observe an existing
+bucket, and that entry holds only the bucket's `id` (principle 9):
 
 ```yaml
 ---
@@ -87,8 +87,8 @@ identity (principle 15). How an application gets that identity and its grant is 
 
 A `Bucket` has no connection secret, since it holds no credentials. The status shows `url`,
 `bucketName` and `region`, the three values an application needs to reach the bucket, with which
-entry applied, where each effective value came from, and the applied implementation's own values
-(principle 4):
+entry applied, where each effective value came from, and the applied backend's own values (principle
+4):
 
 ```yaml
 status:
@@ -108,8 +108,8 @@ status:
 
 ## Fields
 
-The first table maps each common field to the implementation's provider. A setting the
-implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the backend's provider. A setting the backend lacks shows
+as ignored, with the reason (principle 1):
 
 | Field                | AWS                                                                                                                                                 | GCP                                                       | OCI                                                                                                                                                 | Azure                                                |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -126,7 +126,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 
 *`Bucket` common fields and their provider fields.*
 
-The second names the implementation's provider configuration kind and what its fields map to:
+The second names the backend's provider configuration kind and what its fields map to:
 
 | Field | AWS              | GCP                        | OCI                                                   | Azure                                                                                     |
 | ----- | ---------------- | -------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -152,8 +152,8 @@ Storage account names are globally unique.
 
 ## Provider Configurations
 
-Each implementation's provider configuration kind for a bucket holds only `id`, the existing bucket
-an observed object names (principle 9); every other setting is a common field or a decision the
+Each backend's provider configuration kind for a bucket holds only `id`, the existing bucket an
+observed object names (principle 9); every other setting is a common field or a decision the
 platform makes. An entry for an object the platform creates is empty, so it can be left out.
 
 ## Composed Resources
@@ -582,21 +582,21 @@ for a `Bucket` itself:
 *`Bucket` settings chosen by the platform.*
 
 The platform never deletes a bucket's objects (principle 14). Deleting a `Bucket` that still holds
-objects fails on every implementation: the `Bucket` stays in deletion, with the cloud's error on its
+objects fails on every backend: the `Bucket` stays in deletion, with the cloud's error on its
 composed bucket, and the user empties the bucket; `deletionProtection: false` only allows the object
 to be deleted.
 
 ## Limits
 
-The implementation enforces these limits itself, and the API does not check them (principle 10); a
-value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
-listed for reference, should validating them be decided later. Each limit holds as of its source:
-the provider release named, or the cloud's documentation as read in November 2026.
+The backend enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the backend and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
-| Field            | Implementation | Limit         | Source                                                                               |
-| ---------------- | -------------- | ------------- | ------------------------------------------------------------------------------------ |
-| `softDeleteDays` | GCP            | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
-| `softDeleteDays` | Azure          | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
+| Field            | Backend | Limit         | Source                                                                               |
+| ---------------- | ------- | ------------- | ------------------------------------------------------------------------------------ |
+| `softDeleteDays` | GCP     | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
+| `softDeleteDays` | Azure   | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
 
 *Bucket field limits and their sources.*
 

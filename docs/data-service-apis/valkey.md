@@ -47,7 +47,7 @@ spec:
 
 *`ValkeyClass` for ElastiCache.*
 
-Every implementation supports `HighAvailability` and `ReadReplicas`.
+Every backend supports `HighAvailability` and `ReadReplicas`.
 
 ### ValkeyParameters
 
@@ -71,15 +71,15 @@ spec:
 
 *`ValkeyParameters` shared between a user's servers.*
 
-A `ValkeyParameters` names no other, so references never chain. Settings the implementation does not
-allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
+A `ValkeyParameters` names no other, so references never chain. Settings the backend does not allow
+are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### ValkeyServer
 
 A server has no sharding: its data is held on the primary and copied to each replica.
 
 A user creates a `ValkeyServer` with a manifest like the one below. It names its class and carries
-one provider configuration entry per implementation it may run on (principle 2):
+one provider configuration entry per backend it may run on (principle 2):
 
 ```yaml
 ---
@@ -123,12 +123,12 @@ spec:
       memoryGB: 16                     # per node
 ```
 
-*`ValkeyServer` with common fields and one entry per implementation.*
+*`ValkeyServer` with common fields and one entry per backend.*
 
-`version` is Valkey's major and minor, such as `"8.1"`, the only form all three implementations
-take. With `autoMinorVersionUpgrade` on, the implementation can move the server to a newer minor, so
-`version` is a floor: raising it upgrades the server, a version below the running one is ignored,
-the status shows the running version, and the platform never moves the server back to `version`.
+`version` is Valkey's major and minor, such as `"8.1"`, the only form all three backends take. With
+`autoMinorVersionUpgrade` on, the backend can move the server to a newer minor, so `version` is a
+floor: raising it upgrades the server, a version below the running one is ignored, the status shows
+the running version, and the platform never moves the server back to `version`.
 
 `highAvailability` and `readReplicas` are portable features: an object that requests one its class
 does not support is refused when applied (principle 1).
@@ -137,7 +137,7 @@ A deleted server is restored with its provider configuration's `fromBackup` and 
 ID. The status loses that ID with the server, so it is taken from the cloud console.
 
 The status shows the common fields, which entry applied, where each effective value came from, and
-the applied implementation's own values (principle 4):
+the applied backend's own values (principle 4):
 
 ```yaml
 status:
@@ -175,8 +175,8 @@ client that always sends a username and password works unchanged.
 `readReplicas: N` requests N read-only copies of the primary. Each replica is a node of the server
 with the primary's node type, parameters and major version, since it copies the primary through
 Valkey's own replication. Applications send reads to them through the secret's `readerEndpoint` key,
-which holds the implementation's balanced read endpoint. `highAvailability` places one of them in
-another zone, so it needs `readReplicas` of at least 1:
+which holds the backend's balanced read endpoint. `highAvailability` places one of them in another
+zone, so it needs `readReplicas` of at least 1:
 
 ```yaml
 ---
@@ -195,8 +195,8 @@ spec:
 
 ## Fields
 
-The first table maps each common field to the implementation's provider. A setting the
-implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the backend's provider. A setting the backend lacks shows
+as ignored, with the reason (principle 1):
 
 | Field                     | AWS                                          | GCP                                                                                                               | OCI                                                                                                                  |
 | ------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -214,7 +214,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 
 *`ValkeyServer` common fields and their provider fields.*
 
-The second names the implementation's provider configuration kind and what its fields map to:
+The second names the backend's provider configuration kind and what its fields map to:
 
 | Field                | AWS                              | GCP                       | OCI                    |
 | -------------------- | -------------------------------- | ------------------------- | ---------------------- |
@@ -243,10 +243,10 @@ taken.
 
 ## Provider Configurations
 
-Each implementation's provider configuration kind holds the settings of that implementation, with
-every field it takes; commented fields are alternatives or apply only with `observe`. The settings
-sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
-pair shows, and they override the class's settings for the same kind field by field (principle 2):
+Each backend's provider configuration kind holds the settings of that backend, with every field it
+takes; commented fields are alternatives or apply only with `observe`. The settings sit either in a
+separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair shows, and
+they override the class's settings for the same kind field by field (principle 2):
 
 ```yaml Separate object
 ---
@@ -577,19 +577,19 @@ Besides the settings it makes for every service
 
 ## Limits
 
-The implementation enforces these limits itself, and the API does not check them (principle 10); a
-value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
-listed for reference, should validating them be decided later. Each limit holds as of its source:
-the provider release named, or the cloud's documentation as read in November 2026.
+The backend enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the backend and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
-| Field                  | Implementation | Limit    | Source                                                                                   |
-| ---------------------- | -------------- | -------- | ---------------------------------------------------------------------------------------- |
-| `readReplicas`         | AWS            | up to 5  | `numCacheClusters` up to 6, ElastiCache `ReplicationGroup`                               |
-| `readReplicas`         | GCP            | up to 5  | `replicaCount`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0                    |
-| `readReplicas`         | OCI            | up to 4  | `nodeCount` up to 5, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                  |
-| `memoryGB`             | OCI            | 2 to 500 | `nodeMemoryInGbs`, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                    |
-| `backup.retentionDays` | AWS            | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0  |
-| `backup.retentionDays` | GCP            | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0 |
+| Field                  | Backend | Limit    | Source                                                                                   |
+| ---------------------- | ------- | -------- | ---------------------------------------------------------------------------------------- |
+| `readReplicas`         | AWS     | up to 5  | `numCacheClusters` up to 6, ElastiCache `ReplicationGroup`                               |
+| `readReplicas`         | GCP     | up to 5  | `replicaCount`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0                    |
+| `readReplicas`         | OCI     | up to 4  | `nodeCount` up to 5, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                  |
+| `memoryGB`             | OCI     | 2 to 500 | `nodeMemoryInGbs`, `RedisCluster` CRD, crossplane-provider-oci v2.0.0                    |
+| `backup.retentionDays` | AWS     | up to 35 | `snapshotRetentionLimit`, ElastiCache `ReplicationGroup` CRD, provider-upjet-aws v2.4.0  |
+| `backup.retentionDays` | GCP     | 1 to 365 | `automatedBackupConfig.retention`, Memorystore `Instance` CRD, provider-upjet-gcp v3.1.0 |
 
 *Valkey field limits and their sources.*
 

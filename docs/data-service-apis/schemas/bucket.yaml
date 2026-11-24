@@ -23,7 +23,7 @@ spec:
               className:
                 type: string
                 description: |-
-                  The BucketClass: the deployment's defaults, enforced values and implementation
+                  The BucketClass: the deployment's defaults, enforced values and backend
                   (principle 5). Unset, the default class, written at creation; without one, the
                   object is standalone. A standalone object may add it once; it is never changed
                   or removed.
@@ -76,7 +76,7 @@ spec:
                           tier:
                             type: string
                             description: |-
-                              One of the two cold tiers every implementation has.
+                              One of the two cold tiers every backend has.
                             enum:
                             - Infrequent
                             - Archive
@@ -94,7 +94,7 @@ spec:
                   locked:
                     type: boolean
                     description: |-
-                      true cannot be undone in any implementation.
+                      true cannot be undone in any backend.
                     x-kubernetes-validations:
                     - rule: "!oldSelf || self"
                       message: a locked retention cannot be unlocked
@@ -136,9 +136,9 @@ spec:
               providerConfigs:
                 type: array
                 description: |-
-                  Settings of single implementations, one entry per kind (principle 2). The
-                  deployment applies the entry whose group and kind its class names, whatever its
-                  version, and ignores the others.
+                  Settings of single backends, one entry per kind (principle 2). The deployment
+                  applies the entry whose group and kind its class names, whatever its version,
+                  and ignores the others.
                 items:
                   type: object
                   properties:
@@ -234,7 +234,7 @@ spec:
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
                 description: |-
-                  Values of the applied implementation, in the shape its provider configuration
-                  kind's status defines (principle 4).
+                  Values of the applied backend, in the shape its provider configuration kind's
+                  status defines (principle 4).
         required:
         - spec

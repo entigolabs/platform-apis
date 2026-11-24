@@ -86,7 +86,7 @@ metadata:
   namespace: shop
 spec:
   className: standard                  # unset, the default class; without one, standalone
-  version: "4.2"                       # the release line; the implementation manages the patch
+  version: "4.2"                       # the release line; the backend manages the patch
   highAvailability: false              # true: a three-node cluster across zones
   deletionProtection: true
   maintenanceWindow:
@@ -111,7 +111,7 @@ The platform names the broker, the engine is always RabbitMQ, and Amazon MQ requ
 upgrades, so none of these is a field. `parameters`, a map, is rendered into `rabbitmq.conf`.
 
 `highAvailability` chooses the deployment mode. It is a portable feature: an object that requests it
-where its implementation does not support it is refused when applied (principle 1).
+where its backend does not support it is refused when applied (principle 1).
 
 The status shows the common fields, `managementEndpoint`, the management console URL, which entry
 applied, where each effective value came from, and Amazon MQ's own values (principle 4):
@@ -143,7 +143,7 @@ The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host
 ### RabbitMQUser
 
 `RabbitMQUser` acts inside RabbitMQ and gives each application its own login instead of the broker's
-admin login. It has no class or provider configurations: it follows its broker's implementation.
+admin login. It has no class or provider configurations: it follows its broker's backend.
 
 Amazon MQ does not manage RabbitMQ users through its own API; users, virtual hosts and permissions
 are created through RabbitMQ's management API, with the broker's admin login ([Amazon MQ for
@@ -243,10 +243,10 @@ only the release line.
 
 ## Provider Configurations
 
-Each implementation's provider configuration kind holds the settings of that implementation, with
-every field it takes; commented fields are alternatives or apply only with `observe`. The settings
-sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
-pair shows, and they override the class's settings for the same kind field by field (principle 2):
+Each backend's provider configuration kind holds the settings of that backend, with every field it
+takes; commented fields are alternatives or apply only with `observe`. The settings sit either in a
+separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair shows, and
+they override the class's settings for the same kind field by field (principle 2):
 
 ```yaml Separate object
 ---
@@ -367,14 +367,14 @@ for a `RabbitMQBroker` itself:
 
 ## Limits
 
-The implementation enforces these limits itself, and the API does not check them (principle 10); a
-value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
-listed for reference, should validating them be decided later. Each limit holds as of its source:
-the provider release named, or the cloud's documentation as read in November 2026.
+The backend enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the backend and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
-| Field                    | Implementation | Limit                | Source                                                  |
-| ------------------------ | -------------- | -------------------- | ------------------------------------------------------- |
-| `highAvailability: true` | AWS            | not on `mq.t3.micro` | Amazon MQ documentation, RabbitMQ broker instance types |
+| Field                    | Backend | Limit                | Source                                                  |
+| ------------------------ | ------- | -------------------- | ------------------------------------------------------- |
+| `highAvailability: true` | AWS     | not on `mq.t3.micro` | Amazon MQ documentation, RabbitMQ broker instance types |
 
 *RabbitMQ field limits and their sources.*
 

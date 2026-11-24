@@ -30,22 +30,21 @@ spec:
                     description: |-
                       Valkey's major and minor, such as "8.1", and the floor after: raising it
                       upgrades the server, lowering it is rejected. With autoMinorVersionUpgrade, the
-                      implementation can move the server past it; the status shows the running
-                      version.
+                      backend can move the server past it; the status shows the running version.
                       Default: the class's template.
                     pattern: ^[0-9]+\.[0-9]+$
                   highAvailability: &id002
                     type: boolean
                     description: |-
                       A read replica in another zone, with automatic failover. Needs readReplicas of
-                      at least 1. Refused where the implementation does not support HighAvailability
+                      at least 1. Refused where the backend does not support HighAvailability
                       (principle 1).
                       Default: the class's template.
                   readReplicas: &id003
                     type: integer
                     description: |-
-                      Read replicas besides the primary, each a copy of it. Refused where the
-                      implementation does not support ReadReplicas (principle 1).
+                      Read replicas besides the primary, each a copy of it. Refused where the backend
+                      does not support ReadReplicas (principle 1).
                       Default: the class's template.
                     minimum: 0
                   deletionProtection: &id004
@@ -78,8 +77,8 @@ spec:
                   autoMinorVersionUpgrade: &id006
                     type: boolean
                     description: |-
-                      Allow the implementation to upgrade to newer minor versions on its schedule.
-                      false keeps the server at version.
+                      Allow the backend to upgrade to newer minor versions on its schedule. false
+                      keeps the server at version.
                       Default: the class's template.
                   backup: &id007
                     type: object
@@ -89,8 +88,8 @@ spec:
                       retentionDays:
                         type: integer
                         description: |-
-                          Days automated backups are kept, within the implementation's own range
-                          (principle 10). 0 turns automated backups off.
+                          Days automated backups are kept, within the backend's own range (principle 10).
+                          0 turns automated backups off.
                           Default: the class's template.
                         minimum: 0
                       startHourUTC:
@@ -108,7 +107,7 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider configuration: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the backend this class uses.
                     properties:
                       apiVersion:
                         type: string
@@ -146,7 +145,7 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider configuration: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the backend this class uses.
                     properties:
                       apiVersion:
                         type: string

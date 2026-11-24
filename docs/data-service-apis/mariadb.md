@@ -9,8 +9,8 @@ server. Two kinds shape them: `MariaDBClass`, a deployment's defaults and limits
 and `MariaDBParameters`, reusable MariaDB settings.
 
 Built on Amazon RDS (AWS), with the provider configuration kind `MariaDBRDSConfig`. GCP, OCI and
-Azure have no implementation: their MySQL services are not MariaDB (principle 7), and Azure Database
-for MariaDB is retired.
+Azure have no backend: their MySQL services are not MariaDB (principle 7), and Azure Database for
+MariaDB is retired.
 
 ## Kinds
 
@@ -152,8 +152,8 @@ value below the real size is ignored, so a rejected increase can still be correc
 it up and `autoGrow` can take the disk further, so the status reports the actual size, and the
 platform never shrinks the disk back to `sizeGB`.
 
-`highAvailability` is a portable feature: an object that requests it where its implementation does
-not support it is refused when applied (principle 1).
+`highAvailability` is a portable feature: an object that requests it where its backend does not
+support it is refused when applied (principle 1).
 
 The status shows the common fields, which entry applied, where each effective value came from, and
 the RDS values of `MariaDBRDSConfig` (principle 4):
@@ -186,8 +186,8 @@ The connection secret `<instance>-dbadmin` holds the admin login, with the keys 
 
 ### MariaDBUser
 
-`MariaDBUser` acts inside MariaDB, through provider-sql, so it is the same in every implementation.
-Its `name` and `serverRef` are immutable, `serverRef` may name another namespace of the same Zone
+`MariaDBUser` acts inside MariaDB, through provider-sql, so it is the same in every backend. Its
+`name` and `serverRef` are immutable, `serverRef` may name another namespace of the same Zone
 (principle 11), and it has no class or provider configurations.
 
 A user's databases and privileges are a list, `databases`, with one entry per database, so an
@@ -239,9 +239,9 @@ spec:
 
 ### MariaDBDatabase
 
-`MariaDBDatabase` acts inside MariaDB, through provider-sql, so it is the same in every
-implementation. Its `name` and `serverRef` are immutable, `serverRef` may name another namespace of
-the same Zone (principle 11), and it has no class or provider configurations.
+`MariaDBDatabase` acts inside MariaDB, through provider-sql, so it is the same in every backend. Its
+`name` and `serverRef` are immutable, `serverRef` may name another namespace of the same Zone
+(principle 11), and it has no class or provider configurations.
 
 A user creates a `MariaDBDatabase` with a manifest like the one below:
 
@@ -317,10 +317,10 @@ edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an incre
 
 ## Provider Configurations
 
-Each implementation's provider configuration kind holds the settings of that implementation, with
-every field it takes; commented fields are alternatives or apply only with `observe`. The settings
-sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
-pair shows, and they override the class's settings for the same kind field by field (principle 2):
+Each backend's provider configuration kind holds the settings of that backend, with every field it
+takes; commented fields are alternatives or apply only with `observe`. The settings sit either in a
+separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair shows, and
+they override the class's settings for the same kind field by field (principle 2):
 
 ```yaml Separate object
 ---
@@ -452,14 +452,14 @@ Besides the settings it makes for every service
 
 ## Limits
 
-The implementation enforces these limits itself, and the API does not check them (principle 10); a
-value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
-listed for reference, should validating them be decided later. Each limit holds as of its source:
-the provider release named, or the cloud's documentation as read in November 2026.
+The backend enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the backend and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
-| Field                            | Implementation | Limit                     | Source                                                                     |
-| -------------------------------- | -------------- | ------------------------- | -------------------------------------------------------------------------- |
-| `backup.retentionDays`           | AWS            | 0 to 35                   | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0     |
-| `storage.iops`, `throughputMBps` | AWS            | only from 400 GiB of disk | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0 |
+| Field                            | Backend | Limit                     | Source                                                                     |
+| -------------------------------- | ------- | ------------------------- | -------------------------------------------------------------------------- |
+| `backup.retentionDays`           | AWS     | 0 to 35                   | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0     |
+| `storage.iops`, `throughputMBps` | AWS     | only from 400 GiB of disk | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0 |
 
 *MariaDB field limits and their sources.*

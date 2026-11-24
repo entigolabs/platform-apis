@@ -6,10 +6,10 @@ foldGroups: false                             # group headers are titles; every 
 revisionTags:                                 # each agreed revision, frozen at its git tag; the page opens on the newest
   1: {tag: data-service-apis-rev-1, site: site-rev-1.yaml}   # laid out as the current revision
   2: data-service-apis-rev-2
-rowHeaders: [Part, Kind, Setting, Field, Cloud, Implementation, Project, Change]   # first columns that name each row's subject
+rowHeaders: [Part, Kind, Setting, Field, Cloud, Backend, Project, Change]   # first columns that name each row's subject
 optionNames: [Option, Alternative]                        # first columns that name an option
-selectorLabel: Implementation                 # the selector's label
-selectorMissingNote: No implementation here   # hover note of a choice a service lacks
+selectorLabel: Backend                        # the selector's label
+selectorMissingNote: No backend here   # hover note of a choice a service lacks
 selectorChoices: [AWS, GCP, OCI, Azure, Kubernetes]   # every cloud, then in-cluster implementations; one a service lacks is shown disabled
 itemLinks:                                # "principle N" in the text links to principle N
 - {word: principle, file: principles.md}
@@ -19,7 +19,7 @@ schemaTab: &schemas                       # shared by every service's Schemas ta
   partIntro: "The schema of `{label}`:"
   partCaption: "Draft `{label}` schema from `{file}`."
   fileTabs: Kinds                         # each schema in a tab of its own
-  choiceTab: Provider configuration       # the provider configuration schemas share one tab, following the Implementation pick
+  choiceTab: Provider configuration       # the provider configuration schemas share one tab, following the Backend pick
 nav:
 - file: README.md
   label: Overview
@@ -36,13 +36,13 @@ nav:
     label: Service Designs
     submenu: true
     statusColors: {Designed: ok, Mapping only: wip, No implementation: none}   # the coverage table's states
-    columnGroup: {label: Implementation, columns: [AWS, GCP, OCI, Azure, Kubernetes]}               # the coverage table's header                      # each service is an entry of its own under Service Designs
+    columnGroup: {label: Backend, columns: [AWS, GCP, OCI, Azure, Kubernetes]}               # the coverage table's header                      # each service is an entry of its own under Service Designs
     aliases: {services: "", schemas: "*/schemas"}
     tabs:
     - label: PostgreSQL
       tabs:
       - {file: postgresql.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: postgresql.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
+      - {file: postgresql.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Backend}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the backend picked."}
       - <<: *schemas
         files:
         - {file: schemas/postgresqlclass.yaml, label: PostgreSQLClass}
@@ -58,7 +58,7 @@ nav:
     - label: MariaDB
       tabs:
       - {file: mariadb.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: mariadb.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
+      - {file: mariadb.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Backend}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the backend picked."}
       - <<: *schemas
         files:
         - {file: schemas/mariadbclass.yaml, label: MariaDBClass}
@@ -70,7 +70,7 @@ nav:
     - label: Valkey
       tabs:
       - {file: valkey.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: valkey.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
+      - {file: valkey.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Backend}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the backend picked."}
       - <<: *schemas
         files:
         - {file: schemas/valkeyclass.yaml, label: ValkeyClass}
@@ -82,7 +82,7 @@ nav:
     - label: Kafka
       tabs:
       - {file: kafka.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: kafka.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
+      - {file: kafka.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Backend}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the backend picked."}
       - <<: *schemas
         files:
         - {file: schemas/kafkaclass.yaml, label: KafkaClass}
@@ -96,7 +96,7 @@ nav:
     - label: RabbitMQ
       tabs:
       - {file: rabbitmq.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: rabbitmq.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
+      - {file: rabbitmq.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Backend}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the backend picked."}
       - <<: *schemas
         files:
         - {file: schemas/rabbitmqclass.yaml, label: RabbitMQClass}
@@ -108,7 +108,7 @@ nav:
     - label: Bucket
       tabs:
       - {file: bucket.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: bucket.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
+      - {file: bucket.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Backend}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the backend picked."}
       - <<: *schemas
         files:
         - {file: schemas/bucketclass.yaml, label: BucketClass}
@@ -120,7 +120,7 @@ nav:
     - label: ArtifactRepository
       tabs:
       - {file: artifact-repository.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: artifact-repository.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider and show the composed resources, for the implementation picked."}
+      - {file: artifact-repository.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Backend}, intro: "The sections below map each field to its provider and show the composed resources, for the backend picked."}
       - <<: *schemas
         files:
         - {file: schemas/artifactrepositoryclass.yaml, label: ArtifactRepositoryClass}

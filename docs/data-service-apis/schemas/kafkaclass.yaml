@@ -28,8 +28,8 @@ spec:
                   version: &id001
                     type: string
                     description: |-
-                      The Kafka version, such as "4.0". Each implementation accepts the versions it
-                      offers (principle 10).
+                      The Kafka version, such as "4.0". Each backend accepts the versions it offers
+                      (principle 10).
                       Default: the class's template.
                   brokers: &id002
                     type: integer
@@ -49,7 +49,7 @@ spec:
                   highAvailability: &id004
                     type: boolean
                     description: |-
-                      Survive the loss of one zone. Refused where the implementation does not support
+                      Survive the loss of one zone. Refused where the backend does not support
                       HighAvailability (principle 1).
                       Default: the class's template.
                   deletionProtection: &id005
@@ -66,7 +66,7 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider configuration: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the backend this class uses.
                     properties:
                       apiVersion:
                         type: string
@@ -102,7 +102,7 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider configuration: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the backend this class uses.
                     properties:
                       apiVersion:
                         type: string

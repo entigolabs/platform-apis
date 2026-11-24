@@ -54,7 +54,7 @@ spec:
 
 *`KafkaClass` for MSK.*
 
-Every implementation supports `HighAvailability`.
+Every backend supports `HighAvailability`.
 
 ### KafkaParameters
 
@@ -78,14 +78,14 @@ spec:
 
 *`KafkaParameters` shared between a user's clusters.*
 
-A `KafkaParameters` names no other, so references never chain. Each implementation allows only some
-settings, and the others are rejected by the cloud and reported as `CloudAccepted: False`
-(principle 10).
+A `KafkaParameters` names no other, so references never chain. Each backend allows only some
+settings, and the others are rejected by the cloud and reported as `CloudAccepted: False` (principle
+10).
 
 ### KafkaCluster
 
 A user creates a `KafkaCluster` with a manifest like the one below. It names its class and carries
-one provider configuration entry per implementation it may run on (principle 2):
+one provider configuration entry per backend it may run on (principle 2):
 
 ```yaml
 ---
@@ -96,7 +96,7 @@ metadata:
   namespace: shop
 spec:
   className: standard                  # unset, the default class; without one, standalone
-  version: "4.0"                       # each implementation accepts the versions it offers
+  version: "4.0"                       # each backend accepts the versions it offers
   brokers: 3
   storage:
     sizeGB: 100                        # per broker
@@ -123,18 +123,16 @@ spec:
       ocpus: 2                         # per broker, required with a .Flex shape
 ```
 
-*`KafkaCluster` with common fields and one entry per implementation.*
+*`KafkaCluster` with common fields and one entry per backend.*
 
-A cluster's size is its brokers times each broker's size. The implementations size them
-differently, so the size is in each provider configuration (principle 2). No implementation offers a
-maintenance window.
+A cluster's size is its brokers times each broker's size. The backends size them differently, so the
+size is in each provider configuration (principle 2). No backend offers a maintenance window.
 
-`highAvailability` is a portable feature: an object that requests it where its implementation does
-not support it is refused when applied (principle 1).
+`highAvailability` is a portable feature: an object that requests it where its backend does not
+support it is refused when applied (principle 1).
 
 The status shows the common fields, `bootstrapServers`, the listener applications use, which entry
-applied, where each effective value came from, and the applied implementation's own values
-(principle 4):
+applied, where each effective value came from, and the applied backend's own values (principle 4):
 
 ```yaml
 status:
@@ -163,7 +161,7 @@ A cluster has no secret of its own: applications log in with a `KafkaUser`'s sec
 
 A `KafkaUser` is an identity that applications use to log in to the cluster, with the ACLs it is
 granted. Its `clusterRef` is immutable, may name another namespace of the same Zone (principle 11),
-and it has no class or provider configurations: it follows its cluster's implementation.
+and it has no class or provider configurations: it follows its cluster's backend.
 
 A user creates a `KafkaUser` with a manifest like the one below:
 
@@ -222,10 +220,9 @@ A user receives the secret `<cluster>-<user>`, with `endpoint` (the bootstrap se
 
 ### KafkaTopic
 
-A `KafkaTopic` is one topic in a cluster, created through the Kafka admin API on every
-implementation. It has no class or provider configurations: it follows its cluster's
-implementation, and `partitions` and `replicationFactor` default to the `topicTemplate` of its
-cluster's `KafkaClass`.
+A `KafkaTopic` is one topic in a cluster, created through the Kafka admin API on every backend. It
+has no class or provider configurations: it follows its cluster's backend, and `partitions` and
+`replicationFactor` default to the `topicTemplate` of its cluster's `KafkaClass`.
 
 A user creates a `KafkaTopic` with a manifest like the one below:
 
@@ -256,8 +253,8 @@ manage it. The platform rejects the newer one instead, naming the object that ho
 
 ## Fields
 
-The first table maps each common field to the implementation's provider. A setting the
-implementation lacks shows as ignored, with the reason (principle 1):
+The first table maps each common field to the backend's provider. A setting the backend lacks shows
+as ignored, with the reason (principle 1):
 
 | Field              | AWS                                                         | GCP                                                                                                         | OCI                                                                                 |
 | ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -271,7 +268,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 
 *`KafkaCluster` common fields and their provider fields.*
 
-The second names the implementation's provider configuration kind and what its fields map to:
+The second names the backend's provider configuration kind and what its fields map to:
 
 | Field          | AWS                                | GCP                                                       | OCI                     |
 | -------------- | ---------------------------------- | --------------------------------------------------------- | ----------------------- |
@@ -301,10 +298,10 @@ no customer key. provider-kafka logs in with the superuser's Vault secret.
 
 ## Provider Configurations
 
-Each implementation's provider configuration kind holds the settings of that implementation, with
-every field it takes; commented fields are alternatives or apply only with `observe`. The settings
-sit either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each
-pair shows, and they override the class's settings for the same kind field by field (principle 2):
+Each backend's provider configuration kind holds the settings of that backend, with every field it
+takes; commented fields are alternatives or apply only with `observe`. The settings sit either in a
+separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair shows, and
+they override the class's settings for the same kind field by field (principle 2):
 
 ```yaml Separate object
 ---
@@ -558,20 +555,20 @@ for a `KafkaCluster` itself:
 
 ## Limits
 
-The implementation enforces these limits itself, and the API does not check them (principle 10); a
-value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
-listed for reference, should validating them be decided later. Each limit holds as of its source:
-the provider release named, or the cloud's documentation as read in November 2026.
+The backend enforces these limits itself, and the API does not check them (principle 10); a value
+outside them is rejected by the backend and shown as `CloudAccepted: False`. They are listed for
+reference, should validating them be decided later. Each limit holds as of its source: the provider
+release named, or the cloud's documentation as read in November 2026.
 
-| Field            | Implementation | Limit                         | Source                                                                             |
-| ---------------- | -------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
-| `version`        | all            | the versions the cloud offers | the cloud's documentation                                                          |
-| `brokers`        | AWS            | a multiple of the zone count  | `numberOfBrokerNodes`, MSK `Cluster` CRD, provider-upjet-aws v2.4.0                |
-| `brokers`        | OCI            | 1 to 30                       | `brokerShape.nodeCount`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0        |
-| `storage.sizeGB` | GCP            | at least 100                  | `disk_size_gib`, `google_managed_kafka_cluster` documentation                      |
-| `storage.sizeGB` | OCI            | at least 50                   | `brokerShape.storageSizeInGbs`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0 |
-| `vcpus`          | GCP            | at least 3                    | `vcpu_count`, `google_managed_kafka_cluster` documentation                         |
-| `memoryGB`       | GCP            | 1 to 8 per vCPU               | `memory_bytes`, `google_managed_kafka_cluster` documentation                       |
+| Field            | Backend | Limit                         | Source                                                                             |
+| ---------------- | ------- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| `version`        | all     | the versions the cloud offers | the cloud's documentation                                                          |
+| `brokers`        | AWS     | a multiple of the zone count  | `numberOfBrokerNodes`, MSK `Cluster` CRD, provider-upjet-aws v2.4.0                |
+| `brokers`        | OCI     | 1 to 30                       | `brokerShape.nodeCount`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0        |
+| `storage.sizeGB` | GCP     | at least 100                  | `disk_size_gib`, `google_managed_kafka_cluster` documentation                      |
+| `storage.sizeGB` | OCI     | at least 50                   | `brokerShape.storageSizeInGbs`, `KafkaCluster` CRD, crossplane-provider-oci v2.0.0 |
+| `vcpus`          | GCP     | at least 3                    | `vcpu_count`, `google_managed_kafka_cluster` documentation                         |
+| `memoryGB`       | GCP     | 1 to 8 per vCPU               | `memory_bytes`, `google_managed_kafka_cluster` documentation                       |
 
 *Kafka field limits and their sources.*
 

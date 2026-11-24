@@ -67,7 +67,7 @@ spec:
                               tier:
                                 type: string
                                 description: |-
-                                  One of the two cold tiers every implementation has.
+                                  One of the two cold tiers every backend has.
                                 enum:
                                 - Infrequent
                                 - Archive
@@ -85,7 +85,7 @@ spec:
                       locked:
                         type: boolean
                         description: |-
-                          true cannot be undone in any implementation.
+                          true cannot be undone in any backend.
                     required:
                     - days
                   cors: &id005
@@ -124,7 +124,7 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider configuration: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the backend this class uses.
                     properties:
                       apiVersion:
                         type: string
@@ -160,7 +160,7 @@ spec:
                   providerConfig:
                     type: object
                     description: |-
-                      The provider configuration: its kind names the implementation this class uses.
+                      The provider configuration: its kind names the backend this class uses.
                     properties:
                       apiVersion:
                         type: string

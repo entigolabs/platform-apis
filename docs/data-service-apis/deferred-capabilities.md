@@ -18,8 +18,8 @@ designed.
 #### 3 Read replicas for PostgreSQL and MariaDB
 
 A `PostgreSQLCluster` or `MariaDBServer` keeps read-only copies of itself, requested as a count,
-`readReplicas`, or, where the implementation allows it, as replicas of their own sizes in its
-provider configuration.
+`readReplicas`, or, where the backend allows it, as replicas of their own sizes in its provider
+configuration.
 
 Valkey keeps the read replicas it has today. The design as last written, with its rules, mappings,
 schemas and the open point on the reader endpoint in user secrets, is at commit

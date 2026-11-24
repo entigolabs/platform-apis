@@ -414,7 +414,7 @@ def provider_configs():
         obj(entry_fields("The settings, checked by the implementation that applies them "
                          "(principle 10)."), required=["apiVersion", "kind"],
             rules=[("has(self.spec) != has(self.ref)", "an entry holds either spec or ref")]),
-        "Settings of single implementations, one entry per kind (principle 2). The deployment applies "
+        "Settings of single backends, one entry per kind (principle 2). The deployment applies "
         "the entry whose group and kind its class names, whatever its version, and ignores the "
         "others.",
         maxItems=16,
@@ -426,7 +426,7 @@ def provider_configs():
 
 
 def provider_config(text):
-    """One provider configuration, as a class holds it: the kind names the implementation."""
+    """One provider configuration, as a class holds it: the kind names the backend."""
     props = entry_fields("The settings.")
     del props["ref"]
     return obj(props, text, required=["apiVersion", "kind"])
@@ -474,7 +474,7 @@ def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameter
     parameters, and in extra, defaults for the kinds inside an object of the class."""
     common = {k: v for k, v in without_transition_rules(common).items() if k != "parametersRefs"}
     part = lambda text: obj({**common, "providerConfig": provider_config(
-        "The provider configuration: its kind names the implementation this class uses.")}, text)
+        "The provider configuration: its kind names the backend this class uses.")}, text)
     if parameters:
         extra = {"parametersRefs": parameters_refs(parameters, "The deployment's base settings",
                                                    cls=True), **(extra or {})}
@@ -495,13 +495,13 @@ def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameter
 
 def parameters_crd(kind, plural, group, engine):
     return crd(kind, plural, group, "Namespaced", obj({
-        "parameters": string_map(f"{engine} settings, by name. Keys outside the implementation's "
+        "parameters": string_map(f"{engine} settings, by name. Keys outside the backend's "
                                  "allowlist are rejected by the cloud (principle 10).")},
         rules=[]), required_spec=["parameters"])
 
 
 def provider_config_crd(kind, plural, group, product, settings, status, rules=()):
-    """A provider configuration kind: one implementation's settings, and its status.provider shape."""
+    """A provider configuration kind: one backend's settings, and its status.provider shape."""
     return crd(kind, plural, group, "Namespaced", obj({
         "id": field("string", f"The {product} ID of an existing resource to observe (principle 9). "
                     "Set with observe; it stays when observe is removed, and the object then owns "
@@ -532,7 +532,7 @@ def db_common(engine, version_text, version_pattern):
         "storage": obj({
             "sizeGB": field("integer", "Disk size in GB at creation, and its floor after: raising "
                             "it grows the disk, and a value below the real size is ignored. The "
-                            "disk can be larger: it is rounded up to a size the implementation "
+                            "disk can be larger: it is rounded up to a size the backend "
                             "accepts, and autoGrow can take it further. The status shows the real "
                             "size.", default=DEFAULT, minimum=1),
             "autoGrow": field("boolean", "Grow the disk as it fills.", default="fixed, true"),
@@ -543,7 +543,7 @@ def db_common(engine, version_text, version_pattern):
         }, rules=[("!has(self.maxSizeGB) || !has(self.sizeGB) || self.maxSizeGB >= self.sizeGB",
                    "maxSizeGB must be at least sizeGB" + FROM_CLASS)]),
         "highAvailability": field("boolean", "A standby in another zone, with automatic "
-                                  "failover. Refused where the implementation does not support "
+                                  "failover. Refused where the backend does not support "
                                   "HighAvailability (principle 1).", default=DEFAULT),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
@@ -555,12 +555,12 @@ def db_common(engine, version_text, version_pattern):
                                           default="fixed, false"),
         "backup": obj({
             "retentionDays": field("integer", "Days automated backups are kept, within the "
-                                   "implementation's own range (principle 10). 0 turns automated "
+                                   "backend's own range (principle 10). 0 turns automated "
                                    "backups and point-in-time restore off.", default=DEFAULT,
                                    minimum=0),
             "pointInTimeDays": field("integer", "Days back restore.pointInTime can reach.",
                                      default="fixed, the lower of retentionDays and the "
-                                     "implementation's maximum; none with retentionDays 0",
+                                     "backend's maximum; none with retentionDays 0",
                                      minimum=1),
             "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
                                   minimum=0, maximum=23),
@@ -582,7 +582,7 @@ def class_spec(class_kind, common, tail, observed, rules):
     kind's own fields in tail, and the provider configurations (principle 2)."""
     return obj({
         "className": field("string", f"The {class_kind}: the deployment's defaults, enforced "
-                           "values and implementation (principle 5). Unset, the default class, written "
+                           "values and backend (principle 5). Unset, the default class, written "
                            "at creation; without one, the object is standalone. A standalone object "
                            "may add it once; it is never changed or removed."),
         "observe": field("boolean", "true observes an existing resource, named by the id in its "
@@ -653,7 +653,7 @@ def db_status(engine):
                                           "template, the object, or the class's enforced "
                                           "(principle 4).")},
         "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
-                     "description": desc("Values of the applied implementation, in the shape its "
+                     "description": desc("Values of the applied backend, in the shape its "
                                          "provider configuration kind's status defines (principle 4).")},
     })
 
@@ -779,25 +779,25 @@ def valkey_common():
     return {
         "version": field("string", "Valkey's major and minor, such as \"8.1\", and the floor "
                          "after: raising it upgrades the server, lowering it is rejected. With "
-                         "autoMinorVersionUpgrade, the implementation can move the server past it; "
+                         "autoMinorVersionUpgrade, the backend can move the server past it; "
                          "the status shows the running version.", default=DEFAULT,
                          pattern="^[0-9]+\\.[0-9]+$"),
         "highAvailability": field("boolean", "A read replica in another zone, with automatic "
                                   "failover. Needs readReplicas of at least 1. Refused where the "
-                                  "implementation does not support HighAvailability (principle 1).",
+                                  "backend does not support HighAvailability (principle 1).",
                                   default=DEFAULT),
         "readReplicas": field("integer", "Read replicas besides the primary, each a copy of it. "
-                              "Refused where the implementation does not support ReadReplicas "
+                              "Refused where the backend does not support ReadReplicas "
                               "(principle 1).", default=DEFAULT, minimum=0),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
         "maintenanceWindow": window(),
-        "autoMinorVersionUpgrade": field("boolean", "Allow the implementation to upgrade to newer "
+        "autoMinorVersionUpgrade": field("boolean", "Allow the backend to upgrade to newer "
                                          "minor versions on its schedule. false keeps the server "
                                          "at version.", default=DEFAULT),
         "backup": obj({
             "retentionDays": field("integer", "Days automated backups are kept, within the "
-                                   "implementation's own range (principle 10). 0 turns automated "
+                                   "backend's own range (principle 10). 0 turns automated "
                                    "backups off.", default=DEFAULT, minimum=0),
             "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
                                   minimum=0, maximum=23),
@@ -840,7 +840,7 @@ write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com"
                               "provider": {"type": "object",
                                            "x-kubernetes-preserve-unknown-fields": True,
                                            "description": desc("Values of the applied "
-                                                               "implementation, in the shape its "
+                                                               "backend, in the shape its "
                                                                "provider configuration kind's status "
                                                                "defines (principle 4).")},
                           })))
@@ -879,13 +879,13 @@ write("valkeyocicacheconfig", provider_config_crd(
 def kafka_common():
     """KafkaCluster's common fields (principle 1)."""
     return {
-        "version": field("string", "The Kafka version, such as \"4.0\". Each implementation "
+        "version": field("string", "The Kafka version, such as \"4.0\". Each backend "
                          "accepts the versions it offers (principle 10).", default=DEFAULT),
         "brokers": field("integer", "The number of brokers.", default=DEFAULT, minimum=1),
         "storage": obj({"sizeGB": field("integer", "Disk per broker, in GB.", default=DEFAULT,
                                         minimum=1)}),
         "highAvailability": field("boolean", "Survive the loss of one zone. Refused where the "
-                                  "implementation does not support HighAvailability (principle 1).",
+                                  "backend does not support HighAvailability (principle 1).",
                                   default=DEFAULT),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
@@ -916,7 +916,7 @@ write("kafkacluster", xrd("KafkaCluster", "kafkaclusters", "queue.entigo.com",
                               "provider": {"type": "object",
                                            "x-kubernetes-preserve-unknown-fields": True,
                                            "description": desc("Values of the applied "
-                                                               "implementation, in the shape its "
+                                                               "backend, in the shape its "
                                                                "provider configuration kind's status "
                                                                "defines (principle 4).")},
                           })))
@@ -955,10 +955,10 @@ write("kafkaociconfig", provider_config_crd(
 def rabbitmq_common():
     """RabbitMQBroker's common fields (principle 1)."""
     return {
-        "version": field("string", "RabbitMQ's release line, such as \"4.2\". The implementation "
+        "version": field("string", "RabbitMQ's release line, such as \"4.2\". The backend "
                          "manages the patch.", default=DEFAULT, pattern="^[0-9]+\\.[0-9]+$"),
         "highAvailability": field("boolean", "A three-node cluster across zones. Refused where the "
-                                  "implementation does not support HighAvailability (principle 1).",
+                                  "backend does not support HighAvailability (principle 1).",
                                   default=DEFAULT),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
@@ -993,7 +993,7 @@ write("rabbitmqbroker", xrd("RabbitMQBroker", "rabbitmqbrokers", "mq.entigo.com"
                                 "provider": {"type": "object",
                                              "x-kubernetes-preserve-unknown-fields": True,
                                              "description": desc("Values of the applied "
-                                                                 "implementation, in the shape its "
+                                                                 "backend, in the shape its "
                                                                  "provider configuration kind's "
                                                                  "status defines (principle 4).")},
                             })))
@@ -1029,13 +1029,13 @@ def bucket_common():
                                                minimum=1),
             "transitions": array(obj({
                 "afterDays": field("integer", minimum=1),
-                "tier": field("string", "One of the two cold tiers every implementation has.",
+                "tier": field("string", "One of the two cold tiers every backend has.",
                               enum=["Infrequent", "Archive"]),
             }, required=["afterDays", "tier"]), "Move objects to a colder tier."),
         })),
         "retention": obj({
             "days": field("integer", minimum=1),
-            "locked": field("boolean", "true cannot be undone in any implementation.",
+            "locked": field("boolean", "true cannot be undone in any backend.",
                             **{"x-kubernetes-validations": [{
                                 "rule": "!oldSelf || self",
                                 "message": "a locked retention cannot be unlocked"}]}),
@@ -1071,7 +1071,7 @@ write("bucket", xrd("Bucket", "buckets", "storage.entigo.com",
                                                           "the class's enforced (principle 4).")},
                         "provider": {"type": "object",
                                      "x-kubernetes-preserve-unknown-fields": True,
-                                     "description": desc("Values of the applied implementation, "
+                                     "description": desc("Values of the applied backend, "
                                                          "in the shape its provider configuration "
                                                          "kind's status defines (principle 4).")},
                     })))
@@ -1143,7 +1143,7 @@ write("artifactrepository", xrd(
                                           "template, the object, or the class's enforced "
                                           "(principle 4).")},
         "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
-                     "description": desc("Values of the applied implementation, in the shape its "
+                     "description": desc("Values of the applied backend, in the shape its "
                                          "provider configuration kind's status defines "
                                          "(principle 4).")},
     })))
