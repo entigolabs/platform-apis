@@ -65,21 +65,28 @@ spec:
                 description: |-
                   Deleting the object is denied while true.
                   Default: fixed, true.
-              parametersRef:
-                type: object
+              parametersRefs:
+                type: array
                 description: |-
-                  Reusable broker settings, merged after the class's.
-                properties:
-                  name:
-                    type: string
-                    description: |-
-                      A KafkaParameters in this namespace.
-                required:
+                  Reusable broker settings: KafkaParameters objects in this namespace, merged
+                  after the class's. The list merges in order, key by key, a later entry winning;
+                  a referenced object names no other.
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      maxLength: 253
+                  required:
+                  - name
+                maxItems: 8
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
                 - name
               parameters:
                 type: object
                 description: |-
-                  Broker settings for this object only, merged after parametersRef.
+                  Broker settings for this object only, merged after parametersRefs.
                 additionalProperties:
                   type: string
               providerConfigs:
@@ -143,7 +150,7 @@ spec:
               message: observe can be removed but never set after creation
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.version) && !has(self.brokers) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.parametersRef) && !has(self.parameters))
+                || (!has(self.version) && !has(self.brokers) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.parametersRefs) && !has(self.parameters))
               message: an observed resource takes no other common field
           status:
             type: object

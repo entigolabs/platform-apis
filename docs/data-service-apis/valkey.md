@@ -44,8 +44,8 @@ spec:
   backup:
     retentionDays: 7                   # 0 disables backups
     startHourUTC: 3
-  parametersRef:
-    name: orders-cache-tuning          # a ValkeyParameters in this namespace
+  parametersRefs:
+    - name: orders-cache-tuning        # ValkeyParameters objects in this namespace, in order
   parameters:                          # this server's own settings, merged last
     maxmemory-policy: allkeys-lru
   secretName: orders-cache-login       # unset, orders-cache-credentials (principle 6)
@@ -146,8 +146,9 @@ Every implementation supports `HighAvailability` and `ReadReplicas`.
 ### ValkeyParameters
 
 `ValkeyParameters` holds Valkey settings that several servers or a class share. A class and a server
-may each reference one, and their settings merge key by key in that order, followed by the server's
-own `parameters`:
+each list the ones they use in `parametersRefs`. The settings merge key by key, a later value
+winning: the class's list in order, then the server's, then the server's own `parameters`, so a team
+can put settings all its servers share beneath one server's own tuning:
 
 ```yaml
 ---
@@ -207,7 +208,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 | `backup.retentionDays`    | `snapshotRetentionLimit`; 0 disables backups | `automatedBackupConfig.retention`, in seconds (`"604800s"` for 7 days); 0 omits the block, which disables backups | ignored; OCI Cache has manual backups only                                                                           |
 | `backup.startHourUTC`     | `snapshotWindow`                             | `automatedBackupConfig.fixedFrequencySchedule.startTime.hours`                                                    | ignored                                                                                                              |
 | `parameters`              | parameter group                              | `engineConfigs`, allowlist of 7                                                                                   | a configuration set, allowlist of about 15 keys                                                                      |
-| `parametersRef`           | merged into `parameters`                     | merged into `parameters`                                                                                          | merged into `parameters`                                                                                             |
+| `parametersRefs`          | merged into `parameters`                     | merged into `parameters`                                                                                          | merged into `parameters`                                                                                             |
 
 *`ValkeyServer` common fields and their provider fields.*
 

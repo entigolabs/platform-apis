@@ -39,8 +39,8 @@ spec:
     sizeGB: 100                        # per broker
   highAvailability: true               # survive the loss of one zone
   deletionProtection: true
-  parametersRef:
-    name: orders-brokers               # a KafkaParameters in this namespace
+  parametersRefs:
+    - name: orders-brokers             # KafkaParameters objects in this namespace, in order
   parameters:                          # this cluster's own broker settings, merged last
     auto.create.topics.enable: "false"
   providerConfigs:                     # one entry per kind; the class's kind applies
@@ -134,8 +134,9 @@ Every implementation supports `HighAvailability`.
 ### KafkaParameters
 
 `KafkaParameters` holds broker settings that several clusters or a class share. A class and a
-cluster may each reference one, and their settings merge key by key in that order, followed by the
-cluster's own `parameters`:
+cluster each list the ones they use in `parametersRefs`. The settings merge key by key, a later
+value winning: the class's list in order, then the cluster's, then the cluster's own `parameters`,
+so a team can put settings all its clusters share beneath one cluster's own tuning:
 
 ```yaml
 ---
@@ -264,7 +265,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 | `storage.sizeGB`   | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                                      | `brokerShape.storageSizeInGbs`                                                      |
 | `highAvailability` | always; `false` ignored                                     | always three zones; `false` ignored                                                                         | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
 | `parameters`       | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones take effect after a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
-| `parametersRef`    | merged into `parameters`                                    | merged into `parameters`                                                                                    | merged into `parameters`                                                            |
+| `parametersRefs`   | merged into `parameters`                                    | merged into `parameters`                                                                                    | merged into `parameters`                                                            |
 
 *`KafkaCluster` common fields and their provider fields.*
 

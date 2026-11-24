@@ -79,9 +79,9 @@ one annotated `<group>/is-default-class: "true"`, as a default StorageClass is.
 
 The effective spec is built in three layers, the last winning: the class's `template`, then the
 object with its matching provider configuration entry, then the class's `enforced`. Engine
-parameters merge key by key in the same order, with the class's `parametersRef` beneath them all: it
-stays in the class, and the platform applies it at every reconcile instead of copying it into the
-object.
+parameters merge key by key in the same order, with the class's `parametersRefs` beneath them all,
+each list in its own order: the class's list stays in the class, and the platform applies it at
+every reconcile instead of copying it into the object.
 
 The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
 version 1.36. It copies the class's `template` into the object when it is created and keeps the
@@ -94,7 +94,7 @@ An object keeps the class it was created with, and the class's values as they we
 `className` is written at creation when the user leaves it out, so moving the default-class
 annotation later moves no object, and it cannot be changed, added or removed afterwards. The
 function records the class's generation and the values it applied, its `enforced`, its
-`parametersRef` and its provider configuration, and keeps applying them when the class changes; the
+`parametersRefs` and its provider configuration, and keeps applying them when the class changes; the
 condition `ClassSynced: False` shows that the class has changed since. A user applies the class's
 current values with the annotation `<group>/class-sync`: each new value of it, such as a date,
 starts one sync, and `status.classSync` records the value last applied. Admission compares an object

@@ -67,7 +67,7 @@ spec:
                   parameters: &id005
                     type: object
                     description: |-
-                      rabbitmq.conf settings for this object only, merged after parametersRef.
+                      rabbitmq.conf settings for this object only, merged after parametersRefs.
                     additionalProperties:
                       type: string
                   providerConfig:
@@ -129,18 +129,29 @@ spec:
                     required:
                     - apiVersion
                     - kind
-              parametersRef:
-                type: object
+              parametersRefs:
+                type: array
                 description: |-
-                  A RabbitMQParameters beneath every object of this class. It is never copied into
-                  the object: the platform merges the object's parametersRef and parameters over
-                  it, key by key, at every reconcile.
-                properties:
-                  name:
-                    type: string
-                  namespace:
-                    type: string
-                required:
+                  The deployment's base settings: RabbitMQParameters objects beneath every object
+                  of this class. They are never copied into the object: the platform merges the
+                  object's parametersRefs and parameters over them, key by key, at every
+                  reconcile. The list merges in order, key by key, a later entry winning; a
+                  referenced object names no other.
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      maxLength: 253
+                    namespace:
+                      type: string
+                      maxLength: 63
+                  required:
+                  - name
+                  - namespace
+                maxItems: 8
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
                 - name
                 - namespace
             x-kubernetes-validations:

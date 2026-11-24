@@ -5,6 +5,15 @@ default, a rule, a mapping, a platform decision or a cloud limit. Changes to wor
 not revisions. A change to the design adds its line to the open revision, or opens the next one once
 the last is agreed.
 
+#### 3 in progress
+
+Shared engine settings come in layers: an object and its class each reference a list of parameter
+objects, so a team puts settings all its services share beneath one service's own tuning.
+
+| Change                                       | Details                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Shared settings in layers<br>Changed, Common | `parametersRef` becomes `parametersRefs`, a list of at most eight, on PostgreSQL, MariaDB, Valkey, Kafka and RabbitMQ objects and their classes. Settings merge key by key, a later value winning: the class's list in order, then the object's, then the object's own `parameters`. Each parameters object is referenced once in a list and names no other. |
+
 #### 2 2026-11-23
 
 Settings of one implementation move out of fixed cloud blocks into classes and provider

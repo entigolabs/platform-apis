@@ -48,8 +48,9 @@ spec:
     retentionDays: 7                   # backups kept; 0 disables them
     pointInTimeDays: 7                 # how far back restore.pointInTime reaches
     startHourUTC: 2
-  parametersRef:
-    name: orders-tuning                # a PostgreSQLParameters in this namespace
+  parametersRefs:                      # PostgreSQLParameters in this namespace, in order
+    - name: shop-common
+    - name: orders-tuning              # wins over shop-common
   parameters:                          # this cluster's own settings, merged last
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
@@ -211,9 +212,9 @@ spec:
       kind: PostgreSQLRDSConfig
       spec:
         instanceType: db.t4g.medium
-  parametersRef:                       # beneath every cluster's own settings
-    name: pg-baseline
-    namespace: platform-apis
+  parametersRefs:                      # beneath every cluster's own settings
+    - name: pg-baseline
+      namespace: platform-apis
 ```
 
 *`PostgreSQLClass` for RDS.*
@@ -224,8 +225,9 @@ holds only common fields and can be copied to every deployment unchanged.
 ### PostgreSQLParameters
 
 `PostgreSQLParameters` holds PostgreSQL settings that several clusters or a class share. A class and
-a cluster may each reference one, and their settings merge key by key in that order, followed by the
-cluster's own `parameters`:
+a cluster each list the ones they use in `parametersRefs`. The settings merge key by key, a later
+value winning: the class's list in order, then the cluster's, then the cluster's own `parameters`,
+so a team can put settings all its clusters share beneath one cluster's own tuning:
 
 ```yaml
 ---
@@ -342,7 +344,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 | `backup.pointInTimeDays`   | the same setting; above `retentionDays` rejected                            | `settings.backupConfiguration.transactionLogRetentionDays`                                                                               | `managementPolicy.pitrPolicy.restoreDays`, STANDARD                                  | the same setting; above `retentionDays` rejected                                     |
 | `backup.startHourUTC`      | `backupWindow`, 30 minutes                                                  | `settings.backupConfiguration.startTime`                                                                                                 | `managementPolicy.backupPolicy.backupStart`                                          | ignored; Azure picks the hour                                                        |
 | `parameters`               | a `ParameterGroup`                                                          | `settings.databaseFlags`; keys outside its allowlist rejected                                                                            | a new `PsqlConfiguration` per change                                                 | one `FlexibleServerConfiguration` each                                               |
-| `parametersRef`            | merged into `parameters`                                                    | merged into `parameters`                                                                                                                 | merged into `parameters`                                                             | merged into `parameters`                                                             |
+| `parametersRefs`           | merged into `parameters`                                                    | merged into `parameters`                                                                                                                 | merged into `parameters`                                                             | merged into `parameters`                                                             |
 | `parameterApplyMethod`     | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` | restarts when a flag needs it; `NextRestart` ignored                                                                                     | `NextRestart` ignored; a change that needs a restart restarts at once                | restarts when a setting needs it; `NextRestart` ignored                              |
 | `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                           | `clone.sourceInstanceName`                                                                                                               | `source.sourceType: POINT_IN_TIME_DB_SYSTEM`, `source.dbSystemId`                    | `createMode: PointInTimeRestore`, `sourceServerId`                                   |
 | `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        | `clone.pointInTime`                                                                                                                      | `source.timeToRestore`                                                               | `pointInTimeRestoreTimeInUtc`                                                        |
@@ -572,8 +574,8 @@ spec:
     retentionDays: 7
     pointInTimeDays: 7
     startHourUTC: 2
-  parametersRef:
-    name: orders-tuning
+  parametersRefs:
+    - name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
@@ -662,8 +664,8 @@ spec:
     retentionDays: 7
     pointInTimeDays: 7
     startHourUTC: 2
-  parametersRef:
-    name: orders-tuning
+  parametersRefs:
+    - name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
@@ -757,8 +759,8 @@ spec:
     retentionDays: 7
     pointInTimeDays: 7
     startHourUTC: 2
-  parametersRef:
-    name: orders-tuning
+  parametersRefs:
+    - name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
@@ -850,8 +852,8 @@ spec:
     retentionDays: 7
     pointInTimeDays: 7
     startHourUTC: 2
-  parametersRef:
-    name: orders-tuning
+  parametersRefs:
+    - name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate

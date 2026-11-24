@@ -45,8 +45,8 @@ spec:
   backup:
     retentionDays: 7                   # backups kept; 0 disables them
     startHourUTC: 2
-  parametersRef:
-    name: orders-tuning                # a MariaDBParameters in this namespace
+  parametersRefs:
+    - name: orders-tuning              # MariaDBParameters objects in this namespace, in order
   parameters:                          # this server's own settings, merged last
     max_connections: "200"
   parameterApplyMethod: Immediate      # or NextRestart
@@ -160,8 +160,9 @@ RDS supports `HighAvailability`.
 ### MariaDBParameters
 
 `MariaDBParameters` holds MariaDB settings that several servers or a class share. A class and a
-server may each reference one, and their settings merge key by key in that order, followed by the
-server's own `parameters`:
+server each list the ones they use in `parametersRefs`. The settings merge key by key, a later value
+winning: the class's list in order, then the server's, then the server's own `parameters`, so a team
+can put settings all its servers share beneath one server's own tuning:
 
 ```yaml
 ---
@@ -284,7 +285,7 @@ The first table maps each common field to RDS. A setting RDS lacks shows as igno
 | `backup.pointInTimeDays`   | the same setting; above `retentionDays` rejected                            |
 | `backup.startHourUTC`      | `backupWindow`, 30 minutes                                                  |
 | `parameters`               | a `ParameterGroup` of family `mariadb<major>`                               |
-| `parametersRef`            | merged into `parameters`                                                    |
+| `parametersRefs`           | merged into `parameters`                                                    |
 | `parameterApplyMethod`     | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |
 | `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                           |
 | `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        |
@@ -384,8 +385,8 @@ spec:
   backup:
     retentionDays: 7
     startHourUTC: 2
-  parametersRef:
-    name: orders-tuning
+  parametersRefs:
+    - name: orders-tuning
   parameters:
     max_connections: "200"
   parameterApplyMethod: Immediate
@@ -420,7 +421,7 @@ spec:
     allowMajorVersionUpgrade: false
     backupRetentionPeriod: 7
     backupWindow: 02:00-02:30
-    parameterGroupName: orders-db-7f3a2c  # composed from parametersRef and parameters
+    parameterGroupName: orders-db-7f3a2c  # composed from parametersRefs and parameters
     username: dbadmin          # platform
     manageMasterUserPassword: true  # platform; the admin Secret is read from the RDS-managed secret
     dbSubnetGroupName: deployment-db  # platform

@@ -454,18 +454,30 @@ def without_transition_rules(x):
     return out
 
 
+def parameters_refs(kind, what, cls=False):
+    """An ordered list of references to shared engine settings, merged key by key, later winning."""
+    ref = {"name": field("string", maxLength=253)}
+    if cls:
+        ref["namespace"] = field("string", maxLength=63)
+    where = ("beneath every object of this class. They are never copied into the object: the "
+             "platform merges the object's parametersRefs and parameters over them, key by key, "
+             "at every reconcile.") if cls else ("in this namespace, merged after the class's.")
+    return array(obj(ref, required=list(ref)),
+                 f"{what}: {kind} objects {where} The list merges in order, key by key, a later "
+                 "entry winning; a referenced object names no other.",
+                 maxItems=8, **{"x-kubernetes-list-type": "map",
+                                "x-kubernetes-list-map-keys": list(ref)})
+
+
 def class_crd(kind, plural, group, common, extra_rules=(), extra=None, parameters=None):
     """A cluster-scoped class (principle 5): template defaults, enforced values, the engine's base
     parameters, and in extra, defaults for the kinds inside an object of the class."""
-    common = {k: v for k, v in without_transition_rules(common).items() if k != "parametersRef"}
+    common = {k: v for k, v in without_transition_rules(common).items() if k != "parametersRefs"}
     part = lambda text: obj({**common, "providerConfig": provider_config(
         "The provider configuration: its kind names the implementation this class uses.")}, text)
     if parameters:
-        extra = {"parametersRef": obj(
-            {"name": field("string"), "namespace": field("string")},
-            f"A {parameters} beneath every object of this class. It is never copied into the "
-            "object: the platform merges the object's parametersRef and parameters over it, key by "
-            "key, at every reconcile.", required=["name", "namespace"]), **(extra or {})}
+        extra = {"parametersRefs": parameters_refs(parameters, "The deployment's base settings",
+                                                   cls=True), **(extra or {})}
     same = ("!has(self.template) || !has(self.enforced) || !has(self.template.providerConfig) || "
             "!has(self.enforced.providerConfig) || "
             "(self.template.providerConfig.apiVersion == self.enforced.providerConfig.apiVersion "
@@ -555,12 +567,9 @@ def db_common(engine, version_text, version_pattern):
         }, rules=[("!has(self.pointInTimeDays) || !has(self.retentionDays) || "
                    "self.retentionDays > 0",
                    "pointInTimeDays needs backups, which retentionDays 0 disables" + FROM_CLASS)]),
-        "parametersRef": obj({"name": field("string", f"A {engine}Parameters in this "
-                                            "namespace.")},
-                             f"Reusable {engine} settings, merged after the class's.",
-                             required=["name"]),
+        "parametersRefs": parameters_refs(f"{engine}Parameters", f"Reusable {engine} settings"),
         "parameters": string_map(f"{engine} settings for this object only, merged after "
-                                 "parametersRef."),
+                                 "parametersRefs."),
         "parameterApplyMethod": field("string", "The moment changed parameters take effect. Immediate "
                                       "restarts the instance where a setting needs it.",
                                       default="fixed, Immediate",
@@ -775,11 +784,9 @@ def valkey_common():
             "startHourUTC": field("integer", "The hour, in UTC, the daily backup starts.",
                                   minimum=0, maximum=23),
         }, "Automated daily backups."),
-        "parametersRef": obj({"name": field("string", "A ValkeyParameters in this namespace.")},
-                             "Reusable Valkey settings, merged after the class's.",
-                             required=["name"]),
+        "parametersRefs": parameters_refs("ValkeyParameters", "Reusable Valkey settings"),
         "parameters": string_map("Valkey settings for this object only, merged after "
-                                 "parametersRef."),
+                                 "parametersRefs."),
     }
 
 
@@ -864,11 +871,9 @@ def kafka_common():
                                   default=DEFAULT),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
-        "parametersRef": obj({"name": field("string", "A KafkaParameters in this namespace.")},
-                             "Reusable broker settings, merged after the class's.",
-                             required=["name"]),
+        "parametersRefs": parameters_refs("KafkaParameters", "Reusable broker settings"),
         "parameters": string_map("Broker settings for this object only, merged after "
-                                 "parametersRef."),
+                                 "parametersRefs."),
     }
 
 
@@ -940,11 +945,9 @@ def rabbitmq_common():
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
         "maintenanceWindow": window(),
-        "parametersRef": obj({"name": field("string", "A RabbitMQParameters in this namespace.")},
-                             "Reusable rabbitmq.conf settings, merged after the class's.",
-                             required=["name"]),
+        "parametersRefs": parameters_refs("RabbitMQParameters", "Reusable rabbitmq.conf settings"),
         "parameters": string_map("rabbitmq.conf settings for this object only, merged after "
-                                 "parametersRef."),
+                                 "parametersRefs."),
     }
 
 

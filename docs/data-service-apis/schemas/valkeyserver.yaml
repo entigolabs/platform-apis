@@ -107,21 +107,28 @@ spec:
                       The hour, in UTC, the daily backup starts.
                     minimum: 0
                     maximum: 23
-              parametersRef:
-                type: object
+              parametersRefs:
+                type: array
                 description: |-
-                  Reusable Valkey settings, merged after the class's.
-                properties:
-                  name:
-                    type: string
-                    description: |-
-                      A ValkeyParameters in this namespace.
-                required:
+                  Reusable Valkey settings: ValkeyParameters objects in this namespace, merged
+                  after the class's. The list merges in order, key by key, a later entry winning;
+                  a referenced object names no other.
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      maxLength: 253
+                  required:
+                  - name
+                maxItems: 8
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
                 - name
               parameters:
                 type: object
                 description: |-
-                  Valkey settings for this object only, merged after parametersRef.
+                  Valkey settings for this object only, merged after parametersRefs.
                 additionalProperties:
                   type: string
               secretName:
@@ -191,7 +198,7 @@ spec:
               message: observe can be removed but never set after creation
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.version) && !has(self.highAvailability) && !has(self.readReplicas) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.autoMinorVersionUpgrade) && !has(self.backup) && !has(self.parametersRef) && !has(self.parameters))
+                || (!has(self.version) && !has(self.highAvailability) && !has(self.readReplicas) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.autoMinorVersionUpgrade) && !has(self.backup) && !has(self.parametersRefs) && !has(self.parameters))
               message: an observed resource takes no other common field
             - rule: |-
                 !has(self.highAvailability)

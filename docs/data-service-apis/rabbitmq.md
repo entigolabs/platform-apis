@@ -36,8 +36,8 @@ spec:
   maintenanceWindow:
     day: Sun
     hourUTC: 3
-  parametersRef:
-    name: orders-mq-tuning             # a RabbitMQParameters in this namespace
+  parametersRefs:
+    - name: orders-mq-tuning           # RabbitMQParameters objects in this namespace, in order
   parameters:                          # this broker's own rabbitmq.conf settings, merged last
     consumer_timeout: "1800000"
   secretName: orders-mq-login          # unset, orders-mq-credentials (principle 6)
@@ -115,8 +115,9 @@ Amazon MQ supports `HighAvailability`.
 ### RabbitMQParameters
 
 `RabbitMQParameters` holds `rabbitmq.conf` settings that several brokers or a class share. A class
-and a broker may each reference one, and their settings merge key by key in that order, followed by
-the broker's own `parameters`:
+and a broker each list the ones they use in `parametersRefs`. The settings merge key by key, a later
+value winning: the class's list in order, then the broker's, then the broker's own `parameters`, so
+a team can put settings all its brokers share beneath one broker's own tuning:
 
 ```yaml
 ---
@@ -215,7 +216,7 @@ The first table maps each common field to Amazon MQ:
 | `deletionProtection` | platform blocks deletion                                                 |
 | `maintenanceWindow`  | `maintenanceWindowStartTime` (`dayOfWeek`, `timeOfDay`, `timeZone: UTC`) |
 | `parameters`         | an Amazon MQ `Configuration` holding `rabbitmq.conf`                     |
-| `parametersRef`      | merged into `parameters`                                                 |
+| `parametersRefs`     | merged into `parameters`                                                 |
 
 *`RabbitMQBroker` common fields and their provider fields.*
 

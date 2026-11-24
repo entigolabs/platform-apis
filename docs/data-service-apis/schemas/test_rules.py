@@ -166,7 +166,12 @@ rs = w(PG, restore={"fromInstance": "orders-db-old"})
 update("adding restore rejected", "PostgreSQLCluster", PG, rs, False, "restore is set")
 update("changing restore rejected", "PostgreSQLCluster", rs, w(rs, restore={"fromInstance": "x"}),
        False, "restore is set")
-create("parametersRef accepted", "PostgreSQLCluster", w(PG, parametersRef={"name": "orders-tuning"}))
+create("layered parametersRefs accepted", "PostgreSQLCluster",
+       w(PG, parametersRefs=[{"name": "shop-common"}, {"name": "orders-tuning"}]))
+create("one Parameters referenced twice rejected", "PostgreSQLCluster",
+       w(PG, parametersRefs=[{"name": "a"}, {"name": "a"}]), False, "Duplicate value")
+create("nine parametersRefs rejected", "PostgreSQLCluster",
+       w(PG, parametersRefs=[{"name": f"p{i}"} for i in range(9)]), False, "Too many")
 create("unknown parameterApplyMethod rejected", "PostgreSQLCluster",
        w(PG, parameterApplyMethod="Later"), False, "Unsupported value")
 create("secretName accepted", "PostgreSQLCluster", w(PG, secretName="orders-db-admin"))
@@ -179,7 +184,7 @@ create("two versions of one kind rejected", "PostgreSQLCluster",
 print("\n# PostgreSQLClass")
 CLS = {"template": {"version": "17", "storage": {"sizeGB": 50}, "backup": {"retentionDays": 14},
                     "providerConfig": RDS},
-       "parametersRef": {"name": "pg-baseline", "namespace": "platform-apis"},
+       "parametersRefs": [{"name": "pg-baseline", "namespace": "platform-apis"}],
        "enforced": {"deletionProtection": True,
                     "providerConfig": {**RDS, "spec": {"instanceType": "db.t4g.medium"}}}}
 create("valid class", "PostgreSQLClass", CLS)
@@ -191,12 +196,12 @@ create("a class with only common fields accepted", "PostgreSQLClass",
        {"template": {"version": "17"}, "enforced": {"deletionProtection": True}})
 create("a standby, a deferred capability, rejected", "PostgreSQLClass",
        w(CLS, standby={"providerConfig": RDS}), False, "unknown field")
-create("a class without parametersRef namespace rejected", "PostgreSQLClass",
-       {"parametersRef": {"name": "x"}}, False, "Required value")
-create("parametersRef in a class template rejected", "PostgreSQLClass",
-       {"template": {"parametersRef": {"name": "x"}}}, False, "unknown field")
-create("parametersRef in a class's enforced rejected", "PostgreSQLClass",
-       {"enforced": {"parametersRef": {"name": "x"}}}, False, "unknown field")
+create("a class without parametersRefs namespace rejected", "PostgreSQLClass",
+       {"parametersRefs": [{"name": "x"}]}, False, "Required value")
+create("parametersRefs in a class template rejected", "PostgreSQLClass",
+       {"template": {"parametersRefs": [{"name": "x"}]}}, False, "unknown field")
+create("parametersRefs in a class's enforced rejected", "PostgreSQLClass",
+       {"enforced": {"parametersRefs": [{"name": "x"}]}}, False, "unknown field")
 create("disasterRecovery in a class rejected", "PostgreSQLClass",
        {"template": {"disasterRecovery": {"workspaces": ["a", "b"], "primary": "a"}}}, False,
        "unknown field")
