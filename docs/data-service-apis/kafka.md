@@ -122,6 +122,8 @@ spec:
       kind: KafkaMSKConfig
       spec:
         instanceType: kafka.m7g.large
+  enforced:                            # teams cannot change these
+    highAvailability: true
   topicTemplate:                       # defaults for the topics on clusters of this class
     partitions: 3
     replicationFactor: 3

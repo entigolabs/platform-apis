@@ -108,7 +108,7 @@ status:
   providerConfig:
     applied: aws.database.entigo.com/v1alpha1, MariaDBRDSConfig
   effective:
-    backup.retentionDays: { value: 7, source: object }
+    backup.retentionDays: { value: 7, source: enforced }
     deletionProtection: { value: true, source: object }
     instanceType: { value: db.t4g.small, source: object/MariaDBRDSConfig }
   provider:                            # the shape MariaDBRDSConfig's status defines
@@ -144,13 +144,15 @@ spec:
     storage:
       sizeGB: 50
       maxSizeGB: 500
-    backup:
-      retentionDays: 14
     providerConfig:
       apiVersion: aws.database.entigo.com/v1alpha1
       kind: MariaDBRDSConfig
       spec:
         instanceType: db.t4g.medium
+  enforced:                            # teams cannot change these
+    autoMinorVersionUpgrade: true
+    backup:
+      retentionDays: 7
 ```
 
 *`MariaDBClass` for RDS.*

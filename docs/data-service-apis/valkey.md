@@ -99,7 +99,7 @@ status:
     - gcp.database.entigo.com/v1alpha1, ValkeyMemorystoreConfig
     - oci.database.entigo.com/v1alpha1, ValkeyOCICacheConfig
   effective:
-    backup.retentionDays: { value: 7, source: object }
+    backup.retentionDays: { value: 7, source: enforced }
     deletionProtection: { value: true, source: object }
     instanceType: { value: cache.t4g.small, source: object/ValkeyElastiCacheConfig }
   provider:                            # the shape ValkeyElastiCacheConfig's status defines
@@ -130,13 +130,15 @@ spec:
   template:
     deletionProtection: true
     version: "8.1"
-    backup:
-      retentionDays: 7
     providerConfig:
       apiVersion: aws.database.entigo.com/v1alpha1
       kind: ValkeyElastiCacheConfig
       spec:
         instanceType: cache.t4g.medium
+  enforced:                            # teams cannot change these
+    autoMinorVersionUpgrade: true
+    backup:
+      retentionDays: 7
 ```
 
 *`ValkeyClass` for ElastiCache.*

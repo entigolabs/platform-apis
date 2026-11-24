@@ -106,6 +106,10 @@ spec:
       kind: RabbitMQAmazonMQConfig
       spec:
         instanceType: mq.m7g.medium
+  enforced:                            # teams cannot change these
+    maintenanceWindow:
+      day: Sun
+      hourUTC: 3
 ```
 
 *`RabbitMQClass` for Amazon MQ.*

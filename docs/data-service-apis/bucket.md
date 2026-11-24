@@ -71,7 +71,7 @@ status:
   providerConfig:
     applied: aws.storage.entigo.com/v1alpha1, BucketS3Config
   effective:
-    versioning: { value: true, source: object }
+    versioning: { value: true, source: enforced }
     deletionProtection: { value: true, source: object }
   provider:                            # the shape BucketS3Config's status defines
     arn: ...
@@ -95,12 +95,13 @@ metadata:
 spec:
   template:
     deletionProtection: true
-    versioning: true
     softDeleteDays: 7
     providerConfig:
       apiVersion: aws.storage.entigo.com/v1alpha1
       kind: BucketS3Config
       spec: {}
+  enforced:                            # teams cannot change these
+    versioning: true
 ```
 
 *`BucketClass` for S3.*

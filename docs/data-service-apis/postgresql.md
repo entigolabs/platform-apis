@@ -168,7 +168,7 @@ status:
     - oci.database.entigo.com/v1alpha1, PostgreSQLOCIConfig
     - azure.database.entigo.com/v1alpha1, PostgreSQLFlexibleServerConfig
   effective:
-    backup.retentionDays: { value: 7, source: object }
+    backup.retentionDays: { value: 7, source: enforced }
     deletionProtection: { value: true, source: object }
     instanceType: { value: db.t4g.small, source: object/PostgreSQLRDSConfig }
   provider:                            # the shape PostgreSQLRDSConfig's status defines
@@ -205,13 +205,15 @@ spec:
     storage:
       sizeGB: 50
       maxSizeGB: 500
-    backup:
-      retentionDays: 14
     providerConfig:
       apiVersion: aws.database.entigo.com/v1alpha1
       kind: PostgreSQLRDSConfig
       spec:
         instanceType: db.t4g.medium
+  enforced:                            # teams cannot change these
+    autoMinorVersionUpgrade: true
+    backup:
+      retentionDays: 7
   parametersRefs:                      # beneath every cluster's own settings
     - name: pg-baseline
       namespace: platform-apis
