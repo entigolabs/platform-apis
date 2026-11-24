@@ -45,6 +45,35 @@ The following points are known so far:
   selector with that label, and Crossplane picks the Composition by it: a composite resource without
   a Composition reference takes one whose labels match its selector (checked in Crossplane v2.4.3).
 
+**First iteration.** The first implementation delivers a small part of the design, so client teams
+can start on it while the rest is built. Every manifest it accepts stays valid as the rest arrives,
+since each later part adds to the API and changes nothing in it:
+
+- Kinds. `PostgreSQLCluster` only, standalone: no class is installed, so a cluster has no
+  `className`. Its five provider configuration kinds ship with it: `PostgreSQLRDSConfig`,
+  `PostgreSQLCloudSQLConfig`, `PostgreSQLOCIConfig`, `PostgreSQLFlexibleServerConfig` and
+  `PostgreSQLCNPGConfig`.
+- Later parts. Classes, `PostgreSQLParameters`, `PostgreSQLUser`, `PostgreSQLDatabase`, `observe`
+  and the migration of today's `PostgreSQLInstance` (item 2) follow, each an addition.
+- Common fields. `version`, `storage.sizeGB`, `highAvailability`, `deletionProtection`,
+  `backup.retentionDays`, `secretName` and `providerConfigs`. The implementation's validation policy
+  refuses every other common field, naming it, until the field is implemented.
+- Provider configuration fields. Only each backend's size: `instanceType` on RDS and Azure,
+  `instanceType` and `edition` on Cloud SQL, `instanceType` with `ocpus` and `memoryGB` for a
+  flexible shape on OCI, and `cpu` and `memory` on CloudNativePG. The other fields keep the
+  implementation's choice: `PD_SSD` disks on Cloud SQL, the `storageTier` matching the disk size on
+  Azure, and the cluster's default StorageClass on CloudNativePG.
+- Required values and defaults. Without a class, `version`, `storage.sizeGB` and the backend's size
+  are required, and a cluster without them is refused when applied. `highAvailability` defaults to
+  `false`, `deletionProtection` to `true` and `backup.retentionDays` to 7. A required value can gain
+  a default later without breaking a manifest, while a default, once given, never changes.
+- Composition. Each deployment installs one PostgreSQL backend, and the composite resource
+  definition's default Composition selects it, since no class writes a composition selector yet. A
+  deployment with two backends needs the selector written from the cluster's entry, which comes with
+  the later parts.
+- Compatibility. When classes arrive, a cluster created in the first iteration stays standalone and
+  may join a class once (Common Design); a default class reaches only clusters created after it.
+
 #### 2 Migrate today's objects to the design
 
 Client teams move their own objects from today's API to the design, without losing their cloud
