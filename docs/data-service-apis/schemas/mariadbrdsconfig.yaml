@@ -32,7 +32,7 @@ spec:
                 type: string
                 description: |-
                   The RDS instance class, such as db.t4g.small.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               parameterGroupName:
                 type: string
                 description: |-

@@ -32,18 +32,18 @@ spec:
                 type: string
                 description: |-
                   The broker shape. A .Flex shape needs ocpus.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               ocpus:
                 type: number
                 description: |-
                   OCPUs per broker. Required with a .Flex shape.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 minimum: 1
               brokers:
                 type: integer
                 description: |-
                   The number of brokers.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 minimum: 1
             x-kubernetes-validations:
             - rule: |-

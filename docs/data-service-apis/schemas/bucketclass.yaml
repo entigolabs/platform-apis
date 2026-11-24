@@ -29,7 +29,7 @@ spec:
                     type: boolean
                     description: |-
                       Keep replaced and deleted objects as versions.
-                      Default: the class's template.
+                      Default: the class's template, else the implementation's.
                   deletionProtection: &id002
                     type: boolean
                     description: |-

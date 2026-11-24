@@ -32,18 +32,18 @@ spec:
                 type: string
                 description: |-
                   The DB system shape. A .Flex shape needs ocpus and memoryGB.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               ocpus:
                 type: number
                 description: |-
                   Required with a .Flex shape.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 minimum: 1
               memoryGB:
                 type: integer
                 description: |-
                   Required with a .Flex shape.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 minimum: 1
               fromBackup:
                 type: string

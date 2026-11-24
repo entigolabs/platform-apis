@@ -32,17 +32,17 @@ spec:
                 type: string
                 description: |-
                   The Cloud SQL machine tier, such as db-custom-2-7680, which belongs to edition.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               edition:
                 type: string
                 description: |-
                   The Cloud SQL edition, such as ENTERPRISE.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               diskType:
                 type: string
                 description: |-
                   The Cloud SQL disk type, such as PD_SSD.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               fromBackup:
                 type: string
                 description: |-

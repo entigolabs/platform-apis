@@ -31,7 +31,7 @@ spec:
                       Valkey's major and minor, such as "8.1", and the floor after: raising it
                       upgrades the server, lowering it is rejected. The backend can move the server to
                       a newer minor; the status shows the running version.
-                      Default: the class's template.
+                      Default: the class's template, else the implementation's.
                     pattern: ^[0-9]+\.[0-9]+$
                   highAvailability: &id002
                     type: boolean
@@ -39,13 +39,13 @@ spec:
                       A read replica in another zone, with automatic failover. Needs readReplicas of
                       at least 1. Refused where the backend does not support HighAvailability
                       (principle 1).
-                      Default: the class's template.
+                      Default: the class's template, else the implementation's.
                   readReplicas: &id003
                     type: integer
                     description: |-
                       Read replicas besides the primary, each a copy of it. Refused where the backend
                       does not support ReadReplicas (principle 1).
-                      Default: the class's template.
+                      Default: the class's template, else the implementation's.
                     minimum: 0
                   deletionProtection: &id004
                     type: boolean

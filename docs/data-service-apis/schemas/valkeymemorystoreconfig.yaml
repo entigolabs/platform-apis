@@ -32,7 +32,7 @@ spec:
                 type: string
                 description: |-
                   The Memorystore node type, such as HIGHMEM_MEDIUM.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               maintenanceWindow:
                 type: object
                 description: |-

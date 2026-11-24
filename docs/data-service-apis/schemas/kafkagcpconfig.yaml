@@ -32,13 +32,13 @@ spec:
                 type: integer
                 description: |-
                   The whole cluster's vCPUs.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 minimum: 1
               memoryGB:
                 type: integer
                 description: |-
                   The whole cluster's memory, within GCP's range per vCPU (principle 10).
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 minimum: 1
             x-kubernetes-validations:
             - rule: |-

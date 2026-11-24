@@ -142,8 +142,8 @@ spec:
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
                 description: |-
-                  Each effective value and its source: the class's template, the object, or the
-                  class's enforced (principle 4).
+                  Each effective value and its source: the implementation's default, the class's
+                  template, the object, or the class's enforced (principle 4).
               provider:
                 type: object
                 x-kubernetes-preserve-unknown-fields: true

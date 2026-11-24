@@ -33,14 +33,14 @@ spec:
                 description: |-
                   CPU per instance, as a Kubernetes quantity such as "2" or "500m"; requested and
                   limited alike.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 maxLength: 16
               memory:
                 type: string
                 description: |-
                   Memory per instance, as a Kubernetes quantity such as 8Gi; requested and limited
                   alike.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 maxLength: 16
               storageClass:
                 type: string

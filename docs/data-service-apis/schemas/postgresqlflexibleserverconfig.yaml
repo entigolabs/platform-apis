@@ -32,12 +32,12 @@ spec:
                 type: string
                 description: |-
                   The flexible server SKU, such as GP_Standard_D2ds_v5.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               storageTier:
                 type: string
                 description: |-
                   The disk tier, such as P10, which sets its IOPS.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               autoGrow:
                 type: boolean
                 description: |-

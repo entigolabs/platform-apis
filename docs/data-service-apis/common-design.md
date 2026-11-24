@@ -82,11 +82,16 @@ class of that name exists. Without `className`, the object takes the deployment'
 one annotated `<group>/is-default-class: "true"`, as a default StorageClass is; where none exists,
 the object is standalone.
 
-The effective spec is built in three layers, the last winning: the class's `template`, then the
-object with its matching provider configuration entry, then the class's `enforced`. Engine
-parameters merge key by key in the same order, with the class's `parametersRefs` beneath them all,
-each list in its own order: the class's list stays in the class, and the platform applies it at
-every reconcile instead of copying it into the object.
+The effective spec is built in four layers, the last winning: the implementation's defaults, then
+the class's `template`, then the object with its matching provider configuration entry, then the
+class's `enforced`. The implementation's defaults are fixed values its schema lists for each field,
+such as `deletionProtection: true`; a setting without one, such as a disk size or a machine size,
+comes from the class or the object, or the object is refused
+([Provider Configurations](#provider-configurations)). A standalone object has only the
+implementation's defaults and its own values. Engine parameters merge key by key in the same order,
+with the class's `parametersRefs` beneath them all, each list in its own order: the class's list
+stays in the class, and the platform applies it at every reconcile instead of copying it into the
+object.
 
 The defaults are written into the object by a `MutatingAdmissionPolicy`, built into Kubernetes from
 version 1.36. It copies the class's `template` into the object when it is created and keeps the
@@ -150,8 +155,8 @@ recorded, since its values are the object's own after creation.
 An object without a class is standalone. Its backend is the one whose provider configuration kind
 the deployment installs and one of its entries names; an object with no such entry, or with entries
 for two installed backends, is refused when applied, with a message naming the kinds. Its entry sets
-every setting the backend cannot run without, the implementation's own defaults fill the rest, and
-it has no `template`, enforced values or class record. A standalone object joins a class once, by
+every setting the backend cannot run without, the implementation's defaults fill the rest, and it
+has no `template`, enforced values or class record. A standalone object joins a class once, by
 adding `className`. Admission refuses a class whose provider configuration names another backend
 than the one the object runs on, since moving a running resource to another backend would replace
 it. Adding the class applies nothing: the object reports `ClassSynced: False`, and its first sync
@@ -198,8 +203,8 @@ where it has several.
 Values that exist in only one backend, such as its resource IDs, go into `status.provider`, whose
 shape the applied provider configuration kind defines. `status.providerConfig` names the applied
 entry and the ignored ones, and `status.effective` shows each effective value and where it came
-from: the class's `template`, the object, or the class's `enforced`. If a backend does not report a
-common field, that field stays empty there.
+from: the implementation's default, the class's `template`, the object, or the class's `enforced`.
+If a backend does not report a common field, that field stays empty there.
 
 ## Connection Secrets
 

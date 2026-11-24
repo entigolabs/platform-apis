@@ -434,6 +434,8 @@ def provider_config(text):
 
 # Appended to a rule that ties fields together: the class's template may have written one of them.
 FROM_CLASS = "; a value the object does not set comes from its class's template"
+EFFECTIVE = ("Each effective value and its source: the implementation's default, the class's "
+             "template, the object, or the class's enforced (principle 4).")
 
 
 def without_transition_rules(x):
@@ -522,7 +524,7 @@ def from_backup(text):
 
 # --- PostgreSQL ------------------------------------------------------------------------------
 
-DEFAULT = "the class's template"
+DEFAULT = "the class's template, else the implementation's"
 
 
 def db_common(engine, version_text, version_pattern, thin=False):
@@ -670,9 +672,7 @@ def db_status(engine, thin=False):
                               "The provider configuration entries applied and ignored, as <apiVersion>, "
                               "<kind> (principle 4)."),
         "effective": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
-                      "description": desc("Each effective value and its source: the class's "
-                                          "template, the object, or the class's enforced "
-                                          "(principle 4).")},
+                      "description": desc(EFFECTIVE)},
         "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
                      "description": desc("Values of the applied backend, in the shape its "
                                          "provider configuration kind's status defines (principle 4).")},
@@ -889,10 +889,7 @@ write("valkeyserver", xrd("ValkeyServer", "valkeyservers", "database.entigo.com"
                                                     "ignored, as <apiVersion>, <kind> (principle 4)."),
                               "effective": {"type": "object",
                                             "x-kubernetes-preserve-unknown-fields": True,
-                                            "description": desc("Each effective value and its "
-                                                                "source: the class's template, the "
-                                                                "object, or the class's enforced "
-                                                                "(principle 4).")},
+                                            "description": desc(EFFECTIVE)},
                               "provider": {"type": "object",
                                            "x-kubernetes-preserve-unknown-fields": True,
                                            "description": desc("Values of the applied "
@@ -976,10 +973,7 @@ write("kafkacluster", xrd("KafkaCluster", "kafkaclusters", "queue.entigo.com",
                                                     "ignored, as <apiVersion>, <kind> (principle 4)."),
                               "effective": {"type": "object",
                                             "x-kubernetes-preserve-unknown-fields": True,
-                                            "description": desc("Each effective value and its "
-                                                                "source: the class's template, the "
-                                                                "object, or the class's enforced "
-                                                                "(principle 4).")},
+                                            "description": desc(EFFECTIVE)},
                               "provider": {"type": "object",
                                            "x-kubernetes-preserve-unknown-fields": True,
                                            "description": desc("Values of the applied "
@@ -1054,10 +1048,7 @@ write("rabbitmqbroker", xrd("RabbitMQBroker", "rabbitmqbrokers", "mq.entigo.com"
                                                       "(principle 4)."),
                                 "effective": {"type": "object",
                                               "x-kubernetes-preserve-unknown-fields": True,
-                                              "description": desc("Each effective value and its "
-                                                                  "source: the class's template, "
-                                                                  "the object, or the class's "
-                                                                  "enforced (principle 4).")},
+                                              "description": desc(EFFECTIVE)},
                                 "provider": {"type": "object",
                                              "x-kubernetes-preserve-unknown-fields": True,
                                              "description": desc("Values of the applied "
@@ -1137,9 +1128,7 @@ write("bucket", xrd("Bucket", "buckets", "storage.entigo.com",
                                               "ignored, as <apiVersion>, <kind> (principle 4)."),
                         "effective": {"type": "object",
                                       "x-kubernetes-preserve-unknown-fields": True,
-                                      "description": desc("Each effective value and its source: "
-                                                          "the class's template, the object, or "
-                                                          "the class's enforced (principle 4).")},
+                                      "description": desc(EFFECTIVE)},
                         "provider": {"type": "object",
                                      "x-kubernetes-preserve-unknown-fields": True,
                                      "description": desc("Values of the applied backend, "
@@ -1213,9 +1202,7 @@ write("artifactrepository", xrd(
                               "The provider configuration entries applied and ignored, as "
                               "<apiVersion>, <kind> (principle 4)."),
         "effective": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
-                      "description": desc("Each effective value and its source: the class's "
-                                          "template, the object, or the class's enforced "
-                                          "(principle 4).")},
+                      "description": desc(EFFECTIVE)},
         "provider": {"type": "object", "x-kubernetes-preserve-unknown-fields": True,
                      "description": desc("Values of the applied backend, in the shape its "
                                          "provider configuration kind's status defines "

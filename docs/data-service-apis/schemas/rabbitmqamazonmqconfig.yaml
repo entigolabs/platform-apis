@@ -32,7 +32,7 @@ spec:
                 type: string
                 description: |-
                   The Amazon MQ host instance type, such as mq.m7g.medium.
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
               publiclyAccessible:
                 type: boolean
                 description: |-

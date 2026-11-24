@@ -32,7 +32,7 @@ spec:
                 type: integer
                 description: |-
                   Memory per node, within OCI's own range (principle 10).
-                  Default: the class's template.
+                  Default: the class's template, else the implementation's.
                 minimum: 1
             x-kubernetes-validations:
             - rule: |-
