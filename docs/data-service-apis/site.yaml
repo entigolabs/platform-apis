@@ -18,6 +18,8 @@ schemaTab: &schemas                       # shared by every service's Schemas ta
   intro: "Each kind is defined by its schema: a Crossplane composite resource definition (XRD) for a kind the platform composes, and a CustomResourceDefinition for a class, parameters or a provider configuration. A schema holds the kind's fields, their descriptions and the rules the API checks."
   partIntro: "The schema of `{label}`:"
   partCaption: "Draft `{label}` schema from `{file}`."
+  fileTabs: Kinds                         # each schema in a tab of its own
+  choiceTab: Provider configuration       # the provider configuration schemas share one tab, following Runs on
 nav:
 - file: README.md
   label: Overview
@@ -48,11 +50,11 @@ nav:
         - {file: schemas/postgresqlcluster.yaml, label: PostgreSQLCluster}
         - {file: schemas/postgresqluser.yaml, label: PostgreSQLUser}
         - {file: schemas/postgresqldatabase.yaml, label: PostgreSQLDatabase}
-        - {file: schemas/postgresqlrdsconfig.yaml, label: PostgreSQLRDSConfig}
-        - {file: schemas/postgresqlcloudsqlconfig.yaml, label: PostgreSQLCloudSQLConfig}
-        - {file: schemas/postgresqlociconfig.yaml, label: PostgreSQLOCIConfig}
-        - {file: schemas/postgresqlflexibleserverconfig.yaml, label: PostgreSQLFlexibleServerConfig}
-        - {file: schemas/postgresqlcnpgconfig.yaml, label: PostgreSQLCNPGConfig}
+        - {file: schemas/postgresqlrdsconfig.yaml, label: PostgreSQLRDSConfig, choice: AWS}
+        - {file: schemas/postgresqlcloudsqlconfig.yaml, label: PostgreSQLCloudSQLConfig, choice: GCP}
+        - {file: schemas/postgresqlociconfig.yaml, label: PostgreSQLOCIConfig, choice: OCI}
+        - {file: schemas/postgresqlflexibleserverconfig.yaml, label: PostgreSQLFlexibleServerConfig, choice: Azure}
+        - {file: schemas/postgresqlcnpgconfig.yaml, label: PostgreSQLCNPGConfig, choice: Kubernetes}
     - label: MariaDB
       tabs:
       - {file: mariadb.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
@@ -64,7 +66,7 @@ nav:
         - {file: schemas/mariadbserver.yaml, label: MariaDBServer}
         - {file: schemas/mariadbuser.yaml, label: MariaDBUser}
         - {file: schemas/mariadbdatabase.yaml, label: MariaDBDatabase}
-        - {file: schemas/mariadbrdsconfig.yaml, label: MariaDBRDSConfig}
+        - {file: schemas/mariadbrdsconfig.yaml, label: MariaDBRDSConfig, choice: AWS}
     - label: Valkey
       tabs:
       - {file: valkey.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
@@ -74,9 +76,9 @@ nav:
         - {file: schemas/valkeyclass.yaml, label: ValkeyClass}
         - {file: schemas/valkeyparameters.yaml, label: ValkeyParameters}
         - {file: schemas/valkeyserver.yaml, label: ValkeyServer}
-        - {file: schemas/valkeyelasticacheconfig.yaml, label: ValkeyElastiCacheConfig}
-        - {file: schemas/valkeymemorystoreconfig.yaml, label: ValkeyMemorystoreConfig}
-        - {file: schemas/valkeyocicacheconfig.yaml, label: ValkeyOCICacheConfig}
+        - {file: schemas/valkeyelasticacheconfig.yaml, label: ValkeyElastiCacheConfig, choice: AWS}
+        - {file: schemas/valkeymemorystoreconfig.yaml, label: ValkeyMemorystoreConfig, choice: GCP}
+        - {file: schemas/valkeyocicacheconfig.yaml, label: ValkeyOCICacheConfig, choice: OCI}
     - label: Kafka
       tabs:
       - {file: kafka.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
@@ -88,9 +90,9 @@ nav:
         - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
         - {file: schemas/kafkauser.yaml, label: KafkaUser}
         - {file: schemas/kafkatopic.yaml, label: KafkaTopic}
-        - {file: schemas/kafkamskconfig.yaml, label: KafkaMSKConfig}
-        - {file: schemas/kafkagcpconfig.yaml, label: KafkaGCPConfig}
-        - {file: schemas/kafkaociconfig.yaml, label: KafkaOCIConfig}
+        - {file: schemas/kafkamskconfig.yaml, label: KafkaMSKConfig, choice: AWS}
+        - {file: schemas/kafkagcpconfig.yaml, label: KafkaGCPConfig, choice: GCP}
+        - {file: schemas/kafkaociconfig.yaml, label: KafkaOCIConfig, choice: OCI}
     - label: RabbitMQ
       tabs:
       - {file: rabbitmq.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
@@ -102,7 +104,7 @@ nav:
         - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
         - {file: schemas/rabbitmquser.yaml, label: RabbitMQUser}
         - {file: schemas/rabbitmqvirtualhost.yaml, label: RabbitMQVirtualHost}
-        - {file: schemas/rabbitmqamazonmqconfig.yaml, label: RabbitMQAmazonMQConfig}
+        - {file: schemas/rabbitmqamazonmqconfig.yaml, label: RabbitMQAmazonMQConfig, choice: AWS}
     - label: Bucket
       tabs:
       - {file: bucket.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
@@ -112,9 +114,9 @@ nav:
         - {file: schemas/bucketclass.yaml, label: BucketClass}
         - {file: schemas/bucket.yaml, label: Bucket}
         - {file: schemas/buckets3config.yaml, label: BucketS3Config}
-        - {file: schemas/bucketcloudstorageconfig.yaml, label: BucketCloudStorageConfig}
-        - {file: schemas/bucketobjectstorageconfig.yaml, label: BucketObjectStorageConfig}
-        - {file: schemas/bucketblobstorageconfig.yaml, label: BucketBlobStorageConfig}
+        - {file: schemas/bucketcloudstorageconfig.yaml, label: BucketCloudStorageConfig, choice: GCP}
+        - {file: schemas/bucketobjectstorageconfig.yaml, label: BucketObjectStorageConfig, choice: OCI}
+        - {file: schemas/bucketblobstorageconfig.yaml, label: BucketBlobStorageConfig, choice: Azure}
     - label: ArtifactRepository
       tabs:
       - {file: artifact-repository.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
@@ -123,10 +125,10 @@ nav:
         files:
         - {file: schemas/artifactrepositoryclass.yaml, label: ArtifactRepositoryClass}
         - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
-        - {file: schemas/artifactrepositoryecrconfig.yaml, label: ArtifactRepositoryECRConfig}
-        - {file: schemas/artifactrepositoryartifactregistryconfig.yaml, label: ArtifactRepositoryArtifactRegistryConfig}
-        - {file: schemas/artifactrepositoryocirconfig.yaml, label: ArtifactRepositoryOCIRConfig}
-        - {file: schemas/artifactrepositoryacrconfig.yaml, label: ArtifactRepositoryACRConfig}
+        - {file: schemas/artifactrepositoryecrconfig.yaml, label: ArtifactRepositoryECRConfig, choice: AWS}
+        - {file: schemas/artifactrepositoryartifactregistryconfig.yaml, label: ArtifactRepositoryArtifactRegistryConfig, choice: GCP}
+        - {file: schemas/artifactrepositoryocirconfig.yaml, label: ArtifactRepositoryOCIRConfig, choice: OCI}
+        - {file: schemas/artifactrepositoryacrconfig.yaml, label: ArtifactRepositoryACRConfig, choice: Azure}
   - {file: changes.md, label: API Changes, gap: true, compare: true, tabs: sections, subsectionTabs: true}
   - {file: related-work.md, label: Related Work}
 - {file: open-points.md, label: Open Points, divider: true, checklist: true, foldItems: true}
