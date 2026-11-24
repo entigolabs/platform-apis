@@ -2,7 +2,7 @@
 
 Each data service has a design of its own, built on the mechanisms of
 [Common Design](common-design.md) and limited to the service's own kinds and rules. A service's page
-has three tabs: Design holds its kinds and their behaviour, Implementations their mapping to each
+has three tabs: Design holds its kinds and their behaviour, Mapping their mapping to each
 implementation, and Schemas the draft schema of each kind.
 
 The design covers each service on the clouds and on Kubernetes below, in one of three states:

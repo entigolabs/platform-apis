@@ -41,8 +41,8 @@ nav:
     tabs:
     - label: PostgreSQL
       tabs:
-      - {file: postgresql.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: postgresql.md, label: Implementations, sections: [Mapping, Provider Configurations, Composed Resources, Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "For the implementation picked below, the sections map each field to its provider, show the composed resources and list the limits the implementation enforces."}
+      - {file: postgresql.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
+      - {file: postgresql.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
       - <<: *schemas
         files:
         - {file: schemas/postgresqlclass.yaml, label: PostgreSQLClass}
@@ -57,8 +57,8 @@ nav:
         - {file: schemas/postgresqlcnpgconfig.yaml, label: PostgreSQLCNPGConfig, choice: Kubernetes}
     - label: MariaDB
       tabs:
-      - {file: mariadb.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: mariadb.md, label: Implementations, sections: [Mapping, Provider Configurations, Composed Resources, Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "For the implementation picked below, the sections map each field to its provider, show the composed resources and list the limits the implementation enforces."}
+      - {file: mariadb.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
+      - {file: mariadb.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
       - <<: *schemas
         files:
         - {file: schemas/mariadbclass.yaml, label: MariaDBClass}
@@ -69,8 +69,8 @@ nav:
         - {file: schemas/mariadbrdsconfig.yaml, label: MariaDBRDSConfig, choice: AWS}
     - label: Valkey
       tabs:
-      - {file: valkey.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: valkey.md, label: Implementations, sections: [Mapping, Provider Configurations, Composed Resources, Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "For the implementation picked below, the sections map each field to its provider, show the composed resources and list the limits the implementation enforces."}
+      - {file: valkey.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
+      - {file: valkey.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
       - <<: *schemas
         files:
         - {file: schemas/valkeyclass.yaml, label: ValkeyClass}
@@ -81,8 +81,8 @@ nav:
         - {file: schemas/valkeyocicacheconfig.yaml, label: ValkeyOCICacheConfig, choice: OCI}
     - label: Kafka
       tabs:
-      - {file: kafka.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: kafka.md, label: Implementations, sections: [Mapping, Provider Configurations, Composed Resources, Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "For the implementation picked below, the sections map each field to its provider, show the composed resources and list the limits the implementation enforces."}
+      - {file: kafka.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
+      - {file: kafka.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
       - <<: *schemas
         files:
         - {file: schemas/kafkaclass.yaml, label: KafkaClass}
@@ -95,8 +95,8 @@ nav:
         - {file: schemas/kafkaociconfig.yaml, label: KafkaOCIConfig, choice: OCI}
     - label: RabbitMQ
       tabs:
-      - {file: rabbitmq.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: rabbitmq.md, label: Implementations, sections: [Mapping, Provider Configurations, Composed Resources, Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "For the implementation picked below, the sections map each field to its provider, show the composed resources and list the limits the implementation enforces."}
+      - {file: rabbitmq.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
+      - {file: rabbitmq.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
       - <<: *schemas
         files:
         - {file: schemas/rabbitmqclass.yaml, label: RabbitMQClass}
@@ -107,8 +107,8 @@ nav:
         - {file: schemas/rabbitmqamazonmqconfig.yaml, label: RabbitMQAmazonMQConfig, choice: AWS}
     - label: Bucket
       tabs:
-      - {file: bucket.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: bucket.md, label: Implementations, sections: [Mapping, Provider Configurations, Composed Resources, Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "For the implementation picked below, the sections map each field to its provider, show the composed resources and list the limits the implementation enforces."}
+      - {file: bucket.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
+      - {file: bucket.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider, show the composed resources and list the limits, for the implementation picked."}
       - <<: *schemas
         files:
         - {file: schemas/bucketclass.yaml, label: BucketClass}
@@ -119,8 +119,8 @@ nav:
         - {file: schemas/bucketblobstorageconfig.yaml, label: BucketBlobStorageConfig, choice: Azure}
     - label: ArtifactRepository
       tabs:
-      - {file: artifact-repository.md, label: Design, omit: [Mapping, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
-      - {file: artifact-repository.md, label: Implementations, sections: [Mapping, Provider Configurations, Composed Resources, Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "For the implementation picked below, the sections map each field to its provider and show the composed resources."}
+      - {file: artifact-repository.md, label: Design, omit: [Fields, Provider Configurations, Composed Resources, Limits], tabSections: [Kinds]}
+      - {file: artifact-repository.md, label: Mapping, sections: [Fields, Provider Configurations, Composed Resources, Limits], splitTables: {Fields: {keep: [Field], header: Maps To}}, groupTables: {Limits: Implementation}, intro: "The sections below map each field to its provider and show the composed resources, for the implementation picked."}
       - <<: *schemas
         files:
         - {file: schemas/artifactrepositoryclass.yaml, label: ArtifactRepositoryClass}

@@ -254,7 +254,7 @@ spec:
 cloud names, and two `KafkaTopic` objects on one cluster could request the same topic and both
 manage it. The platform rejects the newer one instead, naming the object that holds the name.
 
-## Mapping
+## Fields
 
 The first table maps each common field to the implementation's provider. A setting the
 implementation lacks shows as ignored, with the reason (principle 1):

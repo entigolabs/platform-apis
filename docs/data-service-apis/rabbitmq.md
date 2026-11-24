@@ -208,7 +208,7 @@ spec:
 
 *`RabbitMQVirtualHost` in a broker.*
 
-## Mapping
+## Fields
 
 The first table maps each common field to Amazon MQ:
 

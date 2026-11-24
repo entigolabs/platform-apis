@@ -264,7 +264,7 @@ spec:
 
 *`MariaDBDatabase` with its default character set.*
 
-## Mapping
+## Fields
 
 The first table maps each common field to RDS. A setting RDS lacks shows as ignored, with the reason
 (principle 1):

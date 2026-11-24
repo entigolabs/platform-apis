@@ -193,7 +193,7 @@ spec:
 
 *`ValkeyServer` with two read replicas, one in another zone.*
 
-## Mapping
+## Fields
 
 The first table maps each common field to the implementation's provider. A setting the
 implementation lacks shows as ignored, with the reason (principle 1):
