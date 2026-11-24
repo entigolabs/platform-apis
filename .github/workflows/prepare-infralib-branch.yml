@@ -31,6 +31,9 @@ env:
   CHART_NAME: platform-apis
   INFRALIB_REPO: entigolabs/entigo-infralib
   INFRALIB_MODULE_PATH: modules/k8s/platform-apis
+  # The infralib branch the test branch starts from. Set to a feature branch only while a pull
+  # request needs infralib changes that are not merged yet, and back to main before merging.
+  INFRALIB_REF: rmit-52-oci-postgresqlcluster
 
 jobs:
   prepare:
@@ -49,6 +52,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.INFRALIB_REPO }}
+          ref: ${{ env.INFRALIB_REF }}
           token: ${{ secrets.INFRALIB_PAT }}
           path: infralib
 
