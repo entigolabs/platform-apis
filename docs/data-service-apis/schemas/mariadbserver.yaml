@@ -37,10 +37,10 @@ spec:
               version:
                 type: string
                 description: |-
-                  The major version, which has two numbers, such as "11.4". With
-                  autoMinorVersionUpgrade false, the full version, such as "11.4.10".
+                  The major version, which has two numbers, such as "11.4". Raising it upgrades
+                  the server; the backend applies minor versions itself.
                   Default: the class's template.
-                pattern: ^[0-9]+\.[0-9]+(\.[0-9]+)?$
+                pattern: ^[0-9]+\.[0-9]+$
               storage:
                 type: object
                 properties:
@@ -49,38 +49,10 @@ spec:
                     description: |-
                       Disk size in GB at creation, and its floor after: raising it grows the disk, and
                       a value below the real size is ignored. The disk can be larger: it is rounded up
-                      to a size the backend accepts, and autoGrow can take it further. The status
-                      shows the real size.
+                      to a size the backend accepts, and may grow further where the backend grows it.
+                      The status shows the real size.
                       Default: the class's template.
                     minimum: 1
-                  autoGrow:
-                    type: boolean
-                    description: |-
-                      Grow the disk as it fills.
-                      Default: fixed, true.
-                  maxSizeGB:
-                    type: integer
-                    description: |-
-                      The size autoGrow stops at.
-                      Default: the class's template.
-                    minimum: 1
-                  iops:
-                    type: integer
-                    description: |-
-                      Provisioned IOPS.
-                    minimum: 1
-                  throughputMBps:
-                    type: integer
-                    description: |-
-                      Provisioned throughput in MB/s.
-                    minimum: 1
-                x-kubernetes-validations:
-                - rule: |-
-                    !has(self.maxSizeGB)
-                    || !has(self.sizeGB)
-                    || self.maxSizeGB >= self.sizeGB
-                  message: maxSizeGB must be at least sizeGB; a value the object does not set comes from
-                    its class's template
               highAvailability:
                 type: boolean
                 description: |-
@@ -92,39 +64,6 @@ spec:
                 description: |-
                   Deleting the object is denied while true.
                   Default: fixed, true.
-              maintenanceWindow:
-                type: object
-                description: |-
-                  The weekly hour, in UTC, in which the cloud applies updates.
-                properties:
-                  day:
-                    type: string
-                    enum:
-                    - Mon
-                    - Tue
-                    - Wed
-                    - Thu
-                    - Fri
-                    - Sat
-                    - Sun
-                  hourUTC:
-                    type: integer
-                    minimum: 0
-                    maximum: 23
-                required:
-                - day
-                - hourUTC
-              autoMinorVersionUpgrade:
-                type: boolean
-                description: |-
-                  Apply new minor versions in the maintenance window. false keeps the minor
-                  written in version.
-                  Default: the class's template.
-              allowMajorVersionUpgrade:
-                type: boolean
-                description: |-
-                  Allow version to change to a later major.
-                  Default: fixed, false.
               backup:
                 type: object
                 properties:
@@ -135,25 +74,6 @@ spec:
                       0 turns automated backups and point-in-time restore off.
                       Default: the class's template.
                     minimum: 0
-                  pointInTimeDays:
-                    type: integer
-                    description: |-
-                      Days back restore.pointInTime can reach.
-                      Default: fixed, the lower of retentionDays and the backend's maximum; none with retentionDays 0.
-                    minimum: 1
-                  startHourUTC:
-                    type: integer
-                    description: |-
-                      The hour, in UTC, the daily backup starts.
-                    minimum: 0
-                    maximum: 23
-                x-kubernetes-validations:
-                - rule: |-
-                    !has(self.pointInTimeDays)
-                    || !has(self.retentionDays)
-                    || self.retentionDays > 0
-                  message: pointInTimeDays needs backups, which retentionDays 0 disables; a value the
-                    object does not set comes from its class's template
               parametersRefs:
                 type: array
                 description: |-
@@ -178,15 +98,6 @@ spec:
                   MariaDB settings for this object only, merged after parametersRefs.
                 additionalProperties:
                   type: string
-              parameterApplyMethod:
-                type: string
-                description: |-
-                  The moment changed parameters take effect. Immediate restarts the instance where
-                  a setting needs it.
-                  Default: fixed, Immediate.
-                enum:
-                - Immediate
-                - NextRestart
               restore:
                 type: object
                 description: |-
@@ -271,22 +182,11 @@ spec:
               message: observe can be removed but never set after creation
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.version) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.maintenanceWindow) && !has(self.autoMinorVersionUpgrade) && !has(self.allowMajorVersionUpgrade) && !has(self.backup) && !has(self.parametersRefs) && !has(self.parameters) && !has(self.parameterApplyMethod) && !has(self.restore))
+                || (!has(self.version) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.backup) && !has(self.parametersRefs) && !has(self.parameters) && !has(self.restore))
               message: an observed resource takes no other common field
             - rule: |-
                 has(self.restore) == has(oldSelf.restore) && (!has(self.restore) || self.restore == oldSelf.restore)
               message: restore is set at creation only
-            - rule: |-
-                !has(self.version)
-                || !has(oldSelf.version)
-                || (self.version.split('.')[0] + '.' + self.version.split('.')[1]) == (oldSelf.version.split('.')[0] + '.' + oldSelf.version.split('.')[1])
-                || (has(self.allowMajorVersionUpgrade) && self.allowMajorVersionUpgrade)
-              message: a major version change needs allowMajorVersionUpgrade
-            - rule: |-
-                !has(self.version)
-                || (self.version.split('.').size() == 3) == (has(self.autoMinorVersionUpgrade) && !self.autoMinorVersionUpgrade)
-              message: version takes a minor exactly when autoMinorVersionUpgrade is false; a value the
-                object does not set comes from its class's template
           status:
             type: object
             properties:
@@ -299,33 +199,12 @@ spec:
                     type: integer
                     description: |-
                       The actual disk size.
-                  autoGrow:
-                    type: boolean
-                  maxSizeGB:
-                    type: integer
-                  iops:
-                    type: integer
-                  throughputMBps:
-                    type: integer
               highAvailability:
-                type: boolean
-              maintenanceWindow:
-                type: object
-                properties:
-                  day:
-                    type: string
-                  hourUTC:
-                    type: integer
-              autoMinorVersionUpgrade:
                 type: boolean
               backup:
                 type: object
                 properties:
                   retentionDays:
-                    type: integer
-                  pointInTimeDays:
-                    type: integer
-                  startHourUTC:
                     type: integer
               endpoint:
                 type: object

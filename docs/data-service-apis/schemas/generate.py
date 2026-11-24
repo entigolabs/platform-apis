@@ -799,21 +799,17 @@ write("postgresqlcnpgconfig", provider_config_crd(
 
 # --- MariaDB -------------------------------------------------------------------------------
 
-MARIADB_MAJOR = lambda v: f"({v}.split('.')[0] + '.' + {v}.split('.')[1])"
 
 
 def mariadb_common():
-    return db_common("MariaDB", "The major version, which has two numbers, such as \"11.4\". With "
-                     "autoMinorVersionUpgrade false, the full version, such as \"11.4.10\".",
-                     "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$")
+    return db_common("MariaDB", "The major version, which has two numbers, such as \"11.4\". "
+                     "Raising it upgrades the server; the backend applies minor versions itself.",
+                     "^[0-9]+\\.[0-9]+$", thin=True)
 
 
 write("mariadbserver", xrd("MariaDBServer", "mariadbservers", "database.entigo.com",
-                           db_spec("MariaDBServer", "MariaDBClass", mariadb_common(),
-                                   MARIADB_MAJOR("self.version") + " == "
-                                   + MARIADB_MAJOR("oldSelf.version"),
-                                   "(self.version.split('.').size() == 3)"),
-                           db_status("MariaDB")))
+                           db_spec("MariaDBServer", "MariaDBClass", mariadb_common()),
+                           db_status("MariaDB", thin=True)))
 write("mariadbclass", class_crd("MariaDBClass", "mariadbclasses", "database.entigo.com",
                                 mariadb_common(), parameters="MariaDBParameters"))
 write("mariadbparameters", parameters_crd("MariaDBParameters", "mariadbparameters",
@@ -827,6 +823,20 @@ write("mariadbrdsconfig", provider_config_crd(
                                     "new one, since a group fits one major version."),
         "fromBackup": from_backup("An RDS snapshot ID to create the server from, such as "
                                   "status.provider.finalBackup of a deleted server."),
+        "minorVersion": field("string", "The full version to stay on, such as \"11.4.10\", which "
+                              "turns automatic minor upgrades off; its major must be the "
+                              "server's version. Unset, RDS applies minor versions in the "
+                              "maintenance window.", pattern="^[0-9]+\\.[0-9]+\\.[0-9]+$"),
+        "maxSizeGB": PG_MOVED["maxSizeGB"]("The size storage autoscaling stops at. Unset, the "
+                                           "implementation's ceiling."),
+        "iops": PG_MOVED["iops"]("Only from 400 GiB of disk."),
+        "throughputMBps": PG_MOVED["throughputMBps"]("Only from 400 GiB of disk."),
+        "maintenanceWindow": PG_MOVED["maintenanceWindow"](),
+        "backupStartHourUTC": PG_MOVED["backupStartHourUTC"](),
+        "parameterApplyMethod": field("string", "The moment changed parameters take effect. "
+                                      "Immediate restarts the instance where a setting needs it.",
+                                      default="fixed, Immediate",
+                                      enum=["Immediate", "NextRestart"]),
     }, {"instanceType": S(), "finalBackup": field(
         "string", "The ID the final backup receives when the server is deleted, for fromBackup."),
         "state": S(), "identifier": S(), "resourceId": S(), "engineVersionActual": S(),

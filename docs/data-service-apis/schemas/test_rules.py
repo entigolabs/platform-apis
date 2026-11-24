@@ -242,21 +242,16 @@ MA = {"version": "11.4", "storage": {"sizeGB": 20}, "providerConfigs": [MRDS]}
 create("MariaDB valid spec", "MariaDBServer", MA)
 create("MariaDB one-number version rejected", "MariaDBServer", w(MA, version="11"), False,
        "should match")
-MP = w(MA, version="11.4.10", autoMinorVersionUpgrade=False)
-create("MariaDB full version with minor upgrades off accepted", "MariaDBServer", MP)
-create("MariaDB full version with minor upgrades on rejected", "MariaDBServer",
-       w(MA, version="11.4.10"), False, "takes a minor exactly")
-create("MariaDB major only with minor upgrades off rejected", "MariaDBServer",
-       w(MP, version="11.4"), False, "takes a minor exactly")
-update("MariaDB minor change accepted", "MariaDBServer", MP, w(MP, version="11.4.11"))
-update("MariaDB major change without allowMajorVersionUpgrade rejected", "MariaDBServer", MA,
-       w(MA, version="11.8"), False, "allowMajorVersionUpgrade")
-update("MariaDB major change with allowMajorVersionUpgrade accepted", "MariaDBServer",
-       w(MA, allowMajorVersionUpgrade=True), w(MA, version="11.8", allowMajorVersionUpgrade=True))
+create("MariaDB full version rejected, the major only", "MariaDBServer", w(MA, version="11.4.10"),
+       False, "should match")
+update("MariaDB major change accepted", "MariaDBServer", MA, w(MA, version="11.8"))
+create("MariaDB maintenanceWindow, a backend's setting, rejected in the common spec", "MariaDBServer",
+       w(MA, maintenanceWindow={"day": "Sun", "hourUTC": 3}), False, "unknown field")
 update("MariaDB lowering storage.sizeGB accepted, the function ignores it", "MariaDBServer", MA,
        w(MA, storage={"sizeGB": 10}))
-create("MariaDB maxSizeGB below sizeGB rejected", "MariaDBServer",
-       w(MA, storage={"sizeGB": 100, "maxSizeGB": 50}), False, "maxSizeGB must be at least sizeGB")
+create("MariaDBRDSConfig minorVersion accepted", "MariaDBRDSConfig", {"minorVersion": "11.4.10"})
+create("MariaDBRDSConfig minorVersion without a patch rejected", "MariaDBRDSConfig",
+       {"minorVersion": "11.4"}, False, "should match")
 create("MariaDB readReplicas, a deferred capability, rejected", "MariaDBServer",
        w(MA, readReplicas=2), False, "unknown field")
 create("MariaDB observe with an entry accepted", "MariaDBServer",

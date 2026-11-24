@@ -44,6 +44,65 @@ spec:
                   An RDS snapshot ID to create the server from, such as
                   status.provider.finalBackup of a deleted server. Set at creation only; not with
                   restore.
+              minorVersion:
+                type: string
+                description: |-
+                  The full version to stay on, such as "11.4.10", which turns automatic minor
+                  upgrades off; its major must be the server's version. Unset, RDS applies minor
+                  versions in the maintenance window.
+                pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
+              maxSizeGB:
+                type: integer
+                description: |-
+                  The size storage autoscaling stops at. Unset, the implementation's ceiling.
+                minimum: 1
+              iops:
+                type: integer
+                description: |-
+                  Provisioned IOPS. Only from 400 GiB of disk.
+                minimum: 1
+              throughputMBps:
+                type: integer
+                description: |-
+                  Provisioned throughput in MB/s. Only from 400 GiB of disk.
+                minimum: 1
+              maintenanceWindow:
+                type: object
+                description: |-
+                  The weekly hour, in UTC, in which the cloud applies updates.
+                properties:
+                  day:
+                    type: string
+                    enum:
+                    - Mon
+                    - Tue
+                    - Wed
+                    - Thu
+                    - Fri
+                    - Sat
+                    - Sun
+                  hourUTC:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                required:
+                - day
+                - hourUTC
+              backupStartHourUTC:
+                type: integer
+                description: |-
+                  The hour, in UTC, the daily backup starts. Unset, the backend picks it.
+                minimum: 0
+                maximum: 23
+              parameterApplyMethod:
+                type: string
+                description: |-
+                  The moment changed parameters take effect. Immediate restarts the instance where
+                  a setting needs it.
+                  Default: fixed, Immediate.
+                enum:
+                - Immediate
+                - NextRestart
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)

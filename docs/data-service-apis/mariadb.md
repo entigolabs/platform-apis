@@ -35,16 +35,22 @@ spec:
     version: "11.4"
     storage:
       sizeGB: 50
-      maxSizeGB: 500
     providerConfig:
       apiVersion: aws.database.entigo.com/v1alpha1
       kind: MariaDBRDSConfig
       spec:
         instanceType: db.t4g.medium
+        maxSizeGB: 500
   enforced:                            # teams cannot change these
-    autoMinorVersionUpgrade: true
     backup:
       retentionDays: 7
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: MariaDBRDSConfig
+      spec:
+        maintenanceWindow:
+          day: Sun
+          hourUTC: 3
 ```
 
 *`MariaDBClass` for RDS.*
@@ -90,32 +96,28 @@ metadata:
   namespace: shop
 spec:
   className: standard                  # unset, the default class; without one, standalone
-  version: "11.4"                      # the full "11.4.10" with minor upgrades off
+  version: "11.4"                      # the major version
   storage:
     sizeGB: 20
-    autoGrow: true
-    maxSizeGB: 100                     # autoGrow ceiling
   highAvailability: false              # a standby in another zone
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
-  autoMinorVersionUpgrade: true
-  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7                   # backups kept; 0 disables them
-    startHourUTC: 2
   parametersRefs:
   - name: orders-tuning                # MariaDBParameters objects in this namespace, in order
   parameters:                          # this server's own settings, merged last
     max_connections: "200"
-  parameterApplyMethod: Immediate      # or NextRestart
   secretName: orders-db-admin          # unset, orders-db-dbadmin (principle 6)
   providerConfigs:
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: MariaDBRDSConfig
     spec:
       instanceType: db.t4g.small       # the RDS instance class
+      maxSizeGB: 100                   # the storage autoscaling ceiling
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      # minorVersion: "11.4.10"        # stay on this minor
       # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
       # fromBackup: orders-final       # an RDS snapshot ID, instead of restore
 ```
@@ -143,14 +145,18 @@ spec:
 
 *`MariaDBServer` restored from another server's backups.*
 
-`version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`, and RDS
-applies minor versions in the maintenance window. A major change is a change in the first two
-numbers.
+`version` is the major version, which has two numbers, such as `"11.4"` or `"10.11"`. Raising it
+upgrades the server, and RDS applies minor versions in the maintenance window its provider
+configuration sets. A major change is a change in the first two numbers.
+
+Settings that backends run differently, such as disk growth, provisioned IOPS, the maintenance
+window, the minor version and the backup hour, are in the backend's provider configuration
+(principle 1).
 
 `storage.sizeGB` is the size at creation and a floor afterwards: raising it grows the disk, and a
 value below the real size is ignored, so a rejected increase can still be corrected. RDS may round
-it up and `autoGrow` can take the disk further, so the status reports the actual size, and the
-platform never shrinks the disk back to `sizeGB`.
+it up and storage autoscaling can take the disk further, so the status reports the actual size, and
+the platform never shrinks the disk back to `sizeGB`.
 
 `highAvailability` is a portable feature: an object that requests it where its backend does not
 support it is refused when applied (principle 1).
@@ -269,58 +275,54 @@ spec:
 The first table maps each common field to RDS. A setting RDS lacks shows as ignored, with the reason
 (principle 1):
 
-| Field                      | AWS                                                                         |
-| -------------------------- | --------------------------------------------------------------------------- |
-| `observe`                  | `managementPolicies: [Observe]`                                             |
-| `version`                  | `engineVersion`; the full version with minor upgrades off                   |
-| `storage.sizeGB`           | `allocatedStorage`; below 20 rounded up to 20                               |
-| `storage.autoGrow`         | on with `maxAllocatedStorage`                                               |
-| `storage.maxSizeGB`        | `maxAllocatedStorage`; a deployment default, since RDS needs a ceiling      |
-| `storage.iops`             | `iops`                                                                      |
-| `storage.throughputMBps`   | `storageThroughput`                                                         |
-| `highAvailability`         | `multiAz`                                                                   |
-| `deletionProtection`       | `deletionProtection`                                                        |
-| `maintenanceWindow`        | `maintenanceWindow: sun:03:00-sun:03:30`                                    |
-| `autoMinorVersionUpgrade`  | `autoMinorVersionUpgrade`                                                   |
-| `allowMajorVersionUpgrade` | `allowMajorVersionUpgrade`                                                  |
-| `backup.retentionDays`     | `backupRetentionPeriod`; 0 disables backups                                 |
-| `backup.pointInTimeDays`   | the same setting; above `retentionDays` rejected                            |
-| `backup.startHourUTC`      | `backupWindow`, 30 minutes                                                  |
-| `parameters`               | a `ParameterGroup` of family `mariadb<major>`                               |
-| `parametersRefs`           | merged into `parameters`                                                    |
-| `parameterApplyMethod`     | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |
-| `restore.fromInstance`     | `restoreToPointInTime.sourceDbInstanceIdentifier`                           |
-| `restore.pointInTime`      | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`        |
+| Field                  | AWS                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `observe`              | `managementPolicies: [Observe]`                                                                                           |
+| `version`              | `engineVersion`; with `minorVersion`, that full version; raising the major sets `allowMajorVersionUpgrade` for the change |
+| `storage.sizeGB`       | `allocatedStorage`; below 20 rounded up to 20                                                                             |
+| `highAvailability`     | `multiAz`                                                                                                                 |
+| `deletionProtection`   | `deletionProtection`                                                                                                      |
+| `backup.retentionDays` | `backupRetentionPeriod`; 0 disables backups                                                                               |
+| `parameters`           | a `ParameterGroup` of family `mariadb<major>`                                                                             |
+| `parametersRefs`       | merged into `parameters`                                                                                                  |
+| `restore.fromInstance` | `restoreToPointInTime.sourceDbInstanceIdentifier`                                                                         |
+| `restore.pointInTime`  | `restoreToPointInTime.restoreTime`; unset, `useLatestRestorableTime`                                                      |
 
 *`MariaDBServer` common fields and their provider fields.*
 
 The second names the provider configuration kind and what its fields map to:
 
-| Field                | AWS                                  |
-| -------------------- | ------------------------------------ |
-| kind                 | `MariaDBRDSConfig`                   |
-| `id`                 | the console's Resource ID (`db-...`) |
-| `instanceType`       | `instanceClass`                      |
-| `fromBackup`         | `snapshotIdentifier`                 |
-| `parameterGroupName` | `parameterGroupName`                 |
+| Field                  | AWS                                                                         |
+| ---------------------- | --------------------------------------------------------------------------- |
+| kind                   | `MariaDBRDSConfig`                                                          |
+| `id`                   | the console's Resource ID (`db-...`)                                        |
+| `instanceType`         | `instanceClass`                                                             |
+| `fromBackup`           | `snapshotIdentifier`                                                        |
+| `parameterGroupName`   | `parameterGroupName`                                                        |
+| `minorVersion`         | `engineVersion` with that full version, `autoMinorVersionUpgrade: false`    |
+| `maxSizeGB`            | `maxAllocatedStorage`                                                       |
+| `iops`                 | `iops`                                                                      |
+| `throughputMBps`       | `storageThroughput`                                                         |
+| `maintenanceWindow`    | `maintenanceWindow: sun:03:00-sun:03:30`                                    |
+| `backupStartHourUTC`   | `backupWindow`, 30 minutes                                                  |
+| `parameterApplyMethod` | `ParameterGroup` `parameter[].applyMethod`: `immediate` or `pending-reboot` |
 
 *`MariaDBRDSConfig` fields.*
 
-**AWS:** provider keys are from the CRDs of [provider-upjet-aws
-v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0). RDS takes a
-version without its minor only while minor upgrades are on (`engineVersion` in
-`rds.aws.m.upbound.io_instances`), so a user who sets `autoMinorVersionUpgrade: false` writes the
-full version, such as `"11.4.10"`, and changes it to upgrade. A parameter group applies to one major
-version, so a major change is rejected unless `parameterGroupName` changes or is removed in the same
-edit. `storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an increase under 10% up to
-10%. `status.provider.finalBackup` is the ID the final snapshot will receive. Storage is gp3.
+**AWS:** provider keys are from the CRDs of
+[provider-upjet-aws v2.4.0](https://github.com/crossplane-contrib/provider-upjet-aws/releases/tag/v2.4.0).
+Only `minorVersion` turns minor upgrades off: it sets the full version in `engineVersion`, such as
+`"11.4.10"`, and the user changes it to upgrade. A parameter group applies to one major version, so
+a major change is rejected unless `parameterGroupName` changes or is removed in the same edit.
+`storage.sizeGB` is rounded up to at least 20 GiB, and RDS rounds an increase under 10% up to 10%.
+`status.provider.finalBackup` is the ID the final snapshot will receive. Storage is gp3.
 
 ## Provider Configurations
 
 Each backend's provider configuration kind holds the settings of that backend, with every field it
-takes; commented fields are alternatives or apply only with `observe`. The settings sit either in a
-separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair shows, and
-they override the class's settings for the same kind field by field (principle 2):
+takes; commented fields are optional, alternatives, or apply only with `observe`. The settings sit
+either in a separate object, named by an entry's `ref`, or inline in an entry's `spec`, as each pair
+shows, and they override the class's settings for the same kind field by field (principle 2):
 
 ```yaml Separate object
 ---
@@ -331,6 +333,15 @@ metadata:
   namespace: shop
 spec:
   instanceType: db.t4g.small       # the RDS instance class
+  maxSizeGB: 100                   # the storage autoscaling ceiling
+  maintenanceWindow:
+    day: Sun
+    hourUTC: 3
+  backupStartHourUTC: 2            # unset, RDS picks the hour
+  # minorVersion: "11.4.10"        # stay on this minor; unset, minor upgrades apply
+  # iops: 12000                    # from 400 GiB of disk
+  # throughputMBps: 500            # from 400 GiB of disk
+  # parameterApplyMethod: NextRestart  # unset, Immediate
   # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
   # fromBackup: orders-final       # an RDS snapshot ID, at creation only, instead of restore
   # id: orders-db                  # an existing instance's ID, with observe
@@ -349,6 +360,15 @@ spec:
     kind: MariaDBRDSConfig
     spec:
       instanceType: db.t4g.small       # the RDS instance class
+      maxSizeGB: 100                   # the storage autoscaling ceiling
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      backupStartHourUTC: 2            # unset, RDS picks the hour
+      # minorVersion: "11.4.10"        # stay on this minor; unset, minor upgrades apply
+      # iops: 12000                    # from 400 GiB of disk
+      # throughputMBps: 500            # from 400 GiB of disk
+      # parameterApplyMethod: NextRestart  # unset, Immediate
       # parameterGroupName: orders-mariadb114  # an existing group, instead of parameters
       # fromBackup: orders-final       # an RDS snapshot ID, at creation only, instead of restore
       # id: orders-db                  # an existing instance's ID, with observe
@@ -375,29 +395,25 @@ spec:
   version: "11.4"
   storage:
     sizeGB: 20
-    autoGrow: true
-    maxSizeGB: 100
   highAvailability: false
   deletionProtection: true
-  maintenanceWindow:
-    day: Sun
-    hourUTC: 3
-  autoMinorVersionUpgrade: true
-  allowMajorVersionUpgrade: false
   backup:
     retentionDays: 7
-    startHourUTC: 2
   parametersRefs:
   - name: orders-tuning
   parameters:
     max_connections: "200"
-  parameterApplyMethod: Immediate
   secretName: orders-db-admin
   providerConfigs:
   - apiVersion: aws.database.entigo.com/v1alpha1
     kind: MariaDBRDSConfig
     spec:
       instanceType: db.t4g.small
+      maxSizeGB: 100
+      maintenanceWindow:
+        day: Sun
+        hourUTC: 3
+      backupStartHourUTC: 2
 ```
 
 ```yaml AWS resource
@@ -419,8 +435,8 @@ spec:
     multiAz: false
     deletionProtection: true
     maintenanceWindow: sun:03:00-sun:03:30
-    autoMinorVersionUpgrade: true
-    allowMajorVersionUpgrade: false
+    autoMinorVersionUpgrade: true  # platform; no minorVersion
+    allowMajorVersionUpgrade: false  # platform; true for a major change
     backupRetentionPeriod: 7
     backupWindow: 02:00-02:30
     parameterGroupName: orders-db-7f3a2c  # composed from parametersRefs and parameters
@@ -457,9 +473,9 @@ outside them is rejected by the backend and shown as `CloudAccepted: False`. The
 reference, should validating them be decided later. Each limit holds as of its source: the provider
 release named, or the cloud's documentation as read in November 2026.
 
-| Field                            | Backend | Limit                     | Source                                                                     |
-| -------------------------------- | ------- | ------------------------- | -------------------------------------------------------------------------- |
-| `backup.retentionDays`           | AWS     | 0 to 35                   | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0     |
-| `storage.iops`, `throughputMBps` | AWS     | only from 400 GiB of disk | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0 |
+| Field                    | Backend | Limit                     | Source                                                                     |
+| ------------------------ | ------- | ------------------------- | -------------------------------------------------------------------------- |
+| `backup.retentionDays`   | AWS     | 0 to 35                   | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0     |
+| `iops`, `throughputMBps` | AWS     | only from 400 GiB of disk | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0 |
 
 *MariaDB field limits and their sources.*
