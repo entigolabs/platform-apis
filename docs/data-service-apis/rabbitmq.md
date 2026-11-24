@@ -78,8 +78,6 @@ accept are rejected by the cloud and reported as `CloudAccepted: False` (princip
 
 ### RabbitMQBroker
 
-#### Manifest
-
 A user creates a `RabbitMQBroker` with a manifest like the one below. It names its class and
 carries a provider configuration entry for Amazon MQ (principle 2):
 

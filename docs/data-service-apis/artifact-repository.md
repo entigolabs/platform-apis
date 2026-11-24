@@ -52,8 +52,6 @@ Artifact Registry repository holds many images, and an Azure registry holds repo
 on the first push, with no resource of their own. The API's unit is the image path, because an
 application owns its image path.
 
-#### Manifest
-
 A user creates an `ArtifactRepository` with a manifest like the one below. Tag immutability and
 lifecycle rules are in the entries of the backends that have them: both on ECR and Artifact
 Registry, immutability alone on OCIR, and neither on Azure (principle 1). Observing fails on Azure,

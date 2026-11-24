@@ -91,8 +91,6 @@ allow are rejected by the cloud and reported as `CloudAccepted: False` (principl
 
 ### PostgreSQLCluster
 
-#### Manifest
-
 A user creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
 carries one provider configuration entry per backend it may run on (principle 2); each deployment
 applies the entry of its own class's kind and ignores the others:

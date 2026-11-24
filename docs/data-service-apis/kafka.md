@@ -84,8 +84,6 @@ settings, and the others are rejected by the cloud and reported as `CloudAccepte
 
 ### KafkaCluster
 
-#### Manifest
-
 A user creates a `KafkaCluster` with a manifest like the one below. It names its class and carries
 one provider configuration entry per backend it may run on (principle 2):
 

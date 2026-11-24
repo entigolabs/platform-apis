@@ -84,8 +84,6 @@ rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### MariaDBServer
 
-#### Manifest
-
 A user creates a `MariaDBServer` with a manifest like the one below. It names its class and carries
 a provider configuration entry for RDS (principle 2):
 

@@ -41,8 +41,6 @@ spec:
 
 ### Bucket
 
-#### Manifest
-
 A user creates a `Bucket` with a manifest like the one below. Settings that only some backends have
 are in its provider configuration entries: `cors` on S3, Cloud Storage and Blob Storage, and
 `softDeleteDays` on Cloud Storage and Blob Storage (principle 1):

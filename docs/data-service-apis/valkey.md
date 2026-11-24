@@ -80,8 +80,6 @@ are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 A server has no sharding: its data is held on the primary and copied to each replica.
 
-#### Manifest
-
 A user creates a `ValkeyServer` with a manifest like the one below. It names its class and carries
 one provider configuration entry per backend it may run on (principle 2):
 
