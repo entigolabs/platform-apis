@@ -547,7 +547,8 @@ def db_common(engine, version_text, version_pattern, thin=False):
                    "maxSizeGB must be at least sizeGB" + FROM_CLASS)]),
         "highAvailability": field("boolean", "A standby in another zone, with automatic "
                                   "failover. Refused where the backend does not support "
-                                  "HighAvailability (principle 1).", default=DEFAULT),
+                                  "HighAvailability (principle 1).",
+                                  default="the class's template, else false"),
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
         "maintenanceWindow": window(),
@@ -559,7 +560,8 @@ def db_common(engine, version_text, version_pattern, thin=False):
         "backup": obj({
             "retentionDays": field("integer", "Days automated backups are kept, within the "
                                    "backend's own range (principle 10). 0 turns automated "
-                                   "backups and point-in-time restore off.", default=DEFAULT,
+                                   "backups and point-in-time restore off.",
+                                   default="the class's template, else 7",
                                    minimum=0),
             "pointInTimeDays": field("integer", "Days back restore.pointInTime can reach.",
                                      default="fixed, the lower of retentionDays and the "

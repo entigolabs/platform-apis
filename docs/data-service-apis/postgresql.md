@@ -191,6 +191,39 @@ spec:
 
 *`PostgreSQLCluster` using its class defaults.*
 
+In a deployment without a default class, a cluster that names no class is standalone (Common
+Design). It sets the values a class would otherwise supply, `version`, `storage.sizeGB` and each
+backend's size, and is refused when applied without them:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLCluster
+metadata:
+  name: orders-db
+  namespace: shop
+spec:                                  # no className: standalone
+  version: "17"                        # required without a class
+  storage:
+    sizeGB: 20                         # required without a class
+  providerConfigs:                     # each backend's size, also required
+  - apiVersion: aws.database.entigo.com/v1alpha1
+    kind: PostgreSQLRDSConfig
+    spec:
+      instanceType: db.t4g.small
+  - apiVersion: kubernetes.database.entigo.com/v1alpha1
+    kind: PostgreSQLCNPGConfig
+    spec:
+      cpu: "2"
+      memory: 8Gi
+```
+
+*Standalone `PostgreSQLCluster`.*
+
+Every field it leaves out takes the implementation's default, `highAvailability: false`,
+`deletionProtection: true` and `backup.retentionDays: 7`, and its status shows each with the source
+`implementation`.
+
 `restore` creates a cluster from another cluster's backups, at a point in time. A deleted cluster is
 restored instead with its provider configuration's `fromBackup` and the final backup's ID, such as
 an RDS snapshot ID. The status loses that ID with the cluster, so it is taken from the cloud

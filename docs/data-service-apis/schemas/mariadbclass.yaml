@@ -49,7 +49,7 @@ spec:
                     description: |-
                       A standby in another zone, with automatic failover. Refused where the backend
                       does not support HighAvailability (principle 1).
-                      Default: the class's template, else the implementation's.
+                      Default: the class's template, else false.
                   deletionProtection: &id004
                     type: boolean
                     description: |-
@@ -63,7 +63,7 @@ spec:
                         description: |-
                           Days automated backups are kept, within the backend's own range (principle 10).
                           0 turns automated backups and point-in-time restore off.
-                          Default: the class's template, else the implementation's.
+                          Default: the class's template, else 7.
                         minimum: 0
                   parameters: &id006
                     type: object
