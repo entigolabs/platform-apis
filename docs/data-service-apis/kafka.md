@@ -37,7 +37,6 @@ spec:
   template:
     deletionProtection: true
     version: "4.0"
-    brokers: 3
     storage:
       sizeGB: 100
     providerConfig:
@@ -45,6 +44,7 @@ spec:
       kind: KafkaMSKConfig
       spec:
         instanceType: kafka.m7g.large
+        brokers: 3
   enforced:                            # teams cannot change these
     highAvailability: true
   topicTemplate:                       # defaults for the topics on clusters of this class
@@ -97,7 +97,6 @@ metadata:
 spec:
   className: standard                  # unset, the default class; without one, standalone
   version: "4.0"                       # each backend accepts the versions it offers
-  brokers: 3
   storage:
     sizeGB: 100                        # per broker
   highAvailability: true               # survive the loss of one zone
@@ -111,6 +110,7 @@ spec:
     kind: KafkaMSKConfig
     spec:
       instanceType: kafka.m7g.large    # the broker instance type
+      brokers: 3
   - apiVersion: gcp.queue.entigo.com/v1alpha1
     kind: KafkaGCPConfig
     spec:
@@ -121,12 +121,15 @@ spec:
     spec:
       instanceType: VM.Standard.E5.Flex  # the broker shape
       ocpus: 2                         # per broker, required with a .Flex shape
+      brokers: 3
 ```
 
 *`KafkaCluster` with common fields and one entry per backend.*
 
-A cluster's size is its brokers times each broker's size. The backends size them differently, so the
-size is in each provider configuration (principle 2). No backend offers a maintenance window.
+A cluster's size is its brokers times each broker's size, except on GCP, which sizes the whole
+cluster and chooses its brokers itself. The backends size clusters differently, so the size and the
+number of brokers are in each provider configuration (principle 2). No backend offers a maintenance
+window.
 
 `highAvailability` is a portable feature: an object that requests it where its backend does not
 support it is refused when applied (principle 1).
@@ -137,7 +140,6 @@ applied, where each effective value came from, and the applied backend's own val
 ```yaml
 status:
   version: "4.0"
-  brokers: 3
   bootstrapServers: b-1.orders-kafka.abc.kafka.eu-north-1.amazonaws.com:9096,...
   providerConfig:
     applied: aws.queue.entigo.com/v1alpha1, KafkaMSKConfig
@@ -145,7 +147,7 @@ status:
     - gcp.queue.entigo.com/v1alpha1, KafkaGCPConfig
     - oci.queue.entigo.com/v1alpha1, KafkaOCIConfig
   effective:
-    brokers: { value: 3, source: object }
+    brokers: { value: 3, source: object/KafkaMSKConfig }
     deletionProtection: { value: true, source: object }
     instanceType: { value: kafka.m7g.large, source: object/KafkaMSKConfig }
   provider:                            # the shape KafkaMSKConfig's status defines
@@ -260,7 +262,6 @@ as ignored, with the reason (principle 1):
 | ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `observe`          | `managementPolicies: [Observe]`                             | rejected until the provider has a Kafka resource                                                            | `managementPolicies: [Observe]`                                                     |
 | `version`          | `kafkaVersion`                                              | `kafka_version`                                                                                             | `kafkaVersion`                                                                      |
-| `brokers`          | `numberOfBrokerNodes`                                       | ignored; chosen by the service                                                                              | `brokerShape.nodeCount`                                                             |
 | `storage.sizeGB`   | `brokerNodeGroupInfo.storageInfo.ebsStorageInfo.volumeSize` | `broker_capacity_config.disk_size_gib`                                                                      | `brokerShape.storageSizeInGbs`                                                      |
 | `highAvailability` | always; `false` ignored                                     | always three zones; `false` ignored                                                                         | `clusterType` `PRODUCTION` or `DEVELOPMENT`                                         |
 | `parameters`       | an MSK Configuration                                        | Kafka admin API, for settings GCP marks `cluster-wide`; `read-only` ones take effect after a broker restart | `KafkaClusterConfig`; `sasl.*`, `ssl.*` and others the service ignores are rejected |
@@ -278,6 +279,7 @@ The second names the backend's provider configuration kind and what its fields m
 | `vcpus`        |                                    | `capacity_config.vcpu_count`                              |                         |
 | `memoryGB`     |                                    | `capacity_config.memory_bytes`, in bytes                  |                         |
 | `ocpus`        |                                    |                                                           | `brokerShape.ocpuCount` |
+| `brokers`      | `numberOfBrokerNodes`              |                                                           | `brokerShape.nodeCount` |
 
 *Kafka provider configuration fields.*
 
@@ -287,9 +289,8 @@ The second names the backend's provider configuration kind and what its fields m
 
 **GCP:** the mapping names fields of the Terraform resource `google_managed_kafka_cluster`, since no
 Crossplane provider has one yet. GCP takes the cluster's total vCPU and memory, `vcpus` and
-`memoryGB`, and chooses the brokers itself, so `brokers` is ignored and stays empty in the
-status. `bootstrapServers` is `bootstrap_address`. The admin needs explicit ALLOW ACLs on every
-resource.
+`memoryGB`, and chooses the brokers itself. `bootstrapServers` is `bootstrap_address`. The admin
+needs explicit ALLOW ACLs on every resource.
 
 **OCI:** the size is the broker shape, `instanceType` with `ocpus`, times `brokers`.
 `bootstrapServers` is `kafkaBootstrapUrls`. Data at rest uses the service's own key, since OCI takes
@@ -312,6 +313,7 @@ metadata:
   namespace: shop
 spec:
   instanceType: kafka.m7g.large    # the broker instance type
+  brokers: 3                       # a multiple of the zone count
   # id: arn:aws:kafka:eu-north-1:123456789012:cluster/orders-kafka/abc  # with observe
 ```
 
@@ -328,6 +330,7 @@ spec:
     kind: KafkaMSKConfig
     spec:
       instanceType: kafka.m7g.large    # the broker instance type
+      brokers: 3                       # a multiple of the zone count
       # id: arn:aws:kafka:eu-north-1:123456789012:cluster/orders-kafka/abc  # with observe
 ```
 
@@ -375,6 +378,7 @@ metadata:
 spec:
   instanceType: VM.Standard.E5.Flex  # the broker shape
   ocpus: 2                         # per broker, required with a .Flex shape
+  brokers: 3                       # 1 to 30
   # id: ocid1.kafkacluster.oc1..example  # an existing cluster's OCID, with observe
 ```
 
@@ -392,6 +396,7 @@ spec:
     spec:
       instanceType: VM.Standard.E5.Flex  # the broker shape
       ocpus: 2                         # per broker, required with a .Flex shape
+      brokers: 3                       # 1 to 30
       # id: ocid1.kafkacluster.oc1..example  # an existing cluster's OCID, with observe
 ```
 
@@ -416,7 +421,6 @@ metadata:
 spec:
   className: standard
   version: "4.0"
-  brokers: 3
   storage:
     sizeGB: 100
   highAvailability: true
@@ -428,6 +432,7 @@ spec:
     kind: KafkaMSKConfig
     spec:
       instanceType: kafka.m7g.large
+      brokers: 3
   - apiVersion: gcp.queue.entigo.com/v1alpha1
     kind: KafkaGCPConfig
     spec:
@@ -438,6 +443,7 @@ spec:
     spec:
       instanceType: VM.Standard.E5.Flex
       ocpus: 2
+      brokers: 3
 ```
 
 ```yaml AWS resource
@@ -486,7 +492,6 @@ metadata:
 spec:
   className: standard
   version: "4.0"
-  brokers: 3
   storage:
     sizeGB: 100
   highAvailability: true
@@ -498,6 +503,7 @@ spec:
     kind: KafkaMSKConfig
     spec:
       instanceType: kafka.m7g.large
+      brokers: 3
   - apiVersion: gcp.queue.entigo.com/v1alpha1
     kind: KafkaGCPConfig
     spec:
@@ -508,6 +514,7 @@ spec:
     spec:
       instanceType: VM.Standard.E5.Flex
       ocpus: 2
+      brokers: 3
 ```
 
 ```yaml OCI resource

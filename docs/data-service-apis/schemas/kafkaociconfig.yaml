@@ -39,6 +39,12 @@ spec:
                   OCPUs per broker. Required with a .Flex shape.
                   Default: the class's template.
                 minimum: 1
+              brokers:
+                type: integer
+                description: |-
+                  The number of brokers.
+                  Default: the class's template.
+                minimum: 1
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
@@ -54,6 +60,8 @@ spec:
                 type: string
               ocpus:
                 type: number
+              brokers:
+                type: integer
               state:
                 type: string
         required:

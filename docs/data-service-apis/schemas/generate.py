@@ -950,7 +950,6 @@ def kafka_common():
     return {
         "version": field("string", "The Kafka version, such as \"4.0\". Each backend "
                          "accepts the versions it offers (principle 10).", default=DEFAULT),
-        "brokers": field("integer", "The number of brokers.", default=DEFAULT, minimum=1),
         "storage": obj({"sizeGB": field("integer", "Disk per broker, in GB.", default=DEFAULT,
                                         minimum=1)}),
         "highAvailability": field("boolean", "Survive the loss of one zone. Refused where the "
@@ -968,7 +967,6 @@ write("kafkacluster", xrd("KafkaCluster", "kafkaclusters", "queue.entigo.com",
                           class_spec("KafkaClass", kafka_common(), {}, [], []),
                           obj({
                               "version": S(),
-                              "brokers": field("integer"),
                               "storage": obj({"sizeGB": field("integer")}),
                               "highAvailability": field("boolean"),
                               "bootstrapServers": field("string", "The listener applications "
@@ -1001,7 +999,8 @@ write("kafkamskconfig", provider_config_crd(
     "KafkaMSKConfig", "kafkamskconfigs", "aws.queue.entigo.com", "Amazon MSK", {
         "instanceType": field("string", "The MSK broker instance type, such as kafka.m7g.large.",
                               default=DEFAULT),
-    }, {"instanceType": S(), "arn": S(), "kafkaVersion": S()}))
+        "brokers": field("integer", "The number of brokers.", default=DEFAULT, minimum=1),
+    }, {"instanceType": S(), "brokers": field("integer"), "arn": S(), "kafkaVersion": S()}))
 write("kafkagcpconfig", provider_config_crd(
     "KafkaGCPConfig", "kafkagcpconfigs", "gcp.queue.entigo.com",
     "Google Cloud Managed Service for Apache Kafka", {
@@ -1016,7 +1015,9 @@ write("kafkaociconfig", provider_config_crd(
                               default=DEFAULT),
         "ocpus": field("number", "OCPUs per broker. Required with a .Flex shape.",
                        default=DEFAULT, minimum=1),
-    }, {"id": S(), "instanceType": S(), "ocpus": field("number"), "state": S()}))
+        "brokers": field("integer", "The number of brokers.", default=DEFAULT, minimum=1),
+    }, {"id": S(), "instanceType": S(), "ocpus": field("number"), "brokers": field("integer"),
+        "state": S()}))
 
 # --- RabbitMQ --------------------------------------------------------------------------------
 

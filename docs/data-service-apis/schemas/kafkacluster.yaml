@@ -40,12 +40,6 @@ spec:
                   The Kafka version, such as "4.0". Each backend accepts the versions it offers
                   (principle 10).
                   Default: the class's template.
-              brokers:
-                type: integer
-                description: |-
-                  The number of brokers.
-                  Default: the class's template.
-                minimum: 1
               storage:
                 type: object
                 properties:
@@ -152,15 +146,13 @@ spec:
               message: observe can be removed but never set after creation
             - rule: |-
                 !(has(self.observe) && self.observe)
-                || (!has(self.version) && !has(self.brokers) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.parametersRefs) && !has(self.parameters))
+                || (!has(self.version) && !has(self.storage) && !has(self.highAvailability) && !has(self.deletionProtection) && !has(self.parametersRefs) && !has(self.parameters))
               message: an observed resource takes no other common field
           status:
             type: object
             properties:
               version:
                 type: string
-              brokers:
-                type: integer
               storage:
                 type: object
                 properties:

@@ -324,22 +324,24 @@ MSK = {"apiVersion": "aws.queue.entigo.com/v1alpha1", "kind": "KafkaMSKConfig",
        "spec": {"instanceType": "kafka.m7g.large"}}
 KGCP = {"apiVersion": "gcp.queue.entigo.com/v1alpha1", "kind": "KafkaGCPConfig",
         "spec": {"vcpus": 3, "memoryGB": 12}}
-KC = {"version": "4.0", "brokers": 3, "storage": {"sizeGB": 100}, "highAvailability": True,
+KC = {"version": "4.0", "storage": {"sizeGB": 100}, "highAvailability": True,
       "providerConfigs": [MSK, KGCP]}
 create("KafkaCluster valid spec", "KafkaCluster", KC)
 create("KafkaCluster instanceType at the top level rejected", "KafkaCluster",
        w(KC, instanceType="kafka.m7g.large"), False, "unknown field")
 create("KafkaCluster an aws block, the former form, rejected", "KafkaCluster",
        w(KC, aws={"instanceType": "kafka.m7g.large"}), False, "unknown field")
-create("KafkaCluster 0 brokers rejected", "KafkaCluster", w(KC, brokers=0), False,
+create("KafkaCluster brokers, a backend's setting, rejected in the common spec", "KafkaCluster",
+       w(KC, brokers=3), False, "unknown field")
+create("KafkaMSKConfig 0 brokers rejected", "KafkaMSKConfig", {"brokers": 0}, False,
        "should be greater than or equal to 1")
 create("KafkaCluster observe with an entry accepted", "KafkaCluster",
        {"observe": True, "providerConfigs": [{**MSK, "spec": {"id": "arn:aws:kafka:x"}}]})
 create("KafkaCluster observe with a common field rejected", "KafkaCluster",
-       {"observe": True, "brokers": 3, "providerConfigs": [{**MSK, "spec": {"id": "x"}}]}, False,
+       {"observe": True, "version": "4.0", "providerConfigs": [{**MSK, "spec": {"id": "x"}}]}, False,
        "takes no other common field")
 create("KafkaClass valid class", "KafkaClass",
-       {"template": {"brokers": 3, "providerConfig": MSK}, "enforced": {"deletionProtection": True}})
+       {"template": {"storage": {"sizeGB": 100}, "providerConfig": MSK}, "enforced": {"deletionProtection": True}})
 create("KafkaClass with topic defaults accepted", "KafkaClass",
        {"template": {"providerConfig": MSK}, "topicTemplate": {"partitions": 3, "replicationFactor": 3}})
 create("KafkaClass topic defaults of 0 partitions rejected", "KafkaClass",

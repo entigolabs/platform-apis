@@ -33,6 +33,12 @@ spec:
                 description: |-
                   The MSK broker instance type, such as kafka.m7g.large.
                   Default: the class's template.
+              brokers:
+                type: integer
+                description: |-
+                  The number of brokers.
+                  Default: the class's template.
+                minimum: 1
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)
@@ -44,6 +50,8 @@ spec:
             properties:
               instanceType:
                 type: string
+              brokers:
+                type: integer
               arn:
                 type: string
               kafkaVersion:
