@@ -6,13 +6,13 @@ Every data service API is built from the parts in Model and follows the principl
 
 Each data service is built from five parts:
 
-| Part                   | Definition                                                                                                                   | Owned by | Example                                       |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------- |
-| Core kind              | A portable API type a user writes, the same wherever it runs                                                                 | User     | a `PostgreSQLCluster`                         |
-| Backend                | The managed service or in-cluster software that runs a core kind's resources                                                 | Vendor   | RDS, Cloud SQL, CloudNativePG                 |
-| Implementation         | Entigo's code that runs a core kind on one backend: its composition logic, provider configuration kind and validation policy | Entigo   | the RDS implementation of `PostgreSQLCluster` |
-| Provider configuration | The settings that exist only in one backend, in a provider configuration kind its implementation defines                     | User     | a `PostgreSQLRDSConfig` with an RDS size      |
-| Class                  | A deployment's choice of backend, its defaults and the values a user cannot change                                           | Entigo   | a `PostgreSQLClass` named `standard`          |
+| Part                   | Definition                                                                                                                   | Owned by | Example                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------- |
+| Core kind              | A portable API type a user writes, the same wherever it runs                                                                 | User     | `PostgreSQLCluster`                       |
+| Backend                | The managed service or in-cluster software that runs a core kind's resources                                                 | Vendor   | RDS, Cloud SQL, CloudNativePG             |
+| Implementation         | Entigo's code that runs a core kind on one backend: its composition logic, provider configuration kind and validation policy | Entigo   | RDS implementation of `PostgreSQLCluster` |
+| Provider configuration | The settings that exist only in one backend, in a provider configuration kind its implementation defines                     | User     | `PostgreSQLRDSConfig` with an RDS size    |
+| Class                  | A deployment's choice of backend, its defaults and the values a user cannot change                                           | Entigo   | `PostgreSQLClass` named `standard`        |
 
 *Data service parts and their owners.*
 
