@@ -365,16 +365,16 @@ for a `RabbitMQBroker` itself:
 
 *`RabbitMQBroker` settings chosen by the platform.*
 
-## Cloud Limits
+## Limits
 
-The cloud enforces these limits itself, and the API does not check them (principle 10); a value
-outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
-reference, should validating them be decided later. Each limit holds as of its source: the provider
-release named, or the cloud's documentation as read in November 2026.
+The implementation enforces these limits itself, and the API does not check them (principle 10); a
+value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
+listed for reference, should validating them be decided later. Each limit holds as of its source:
+the provider release named, or the cloud's documentation as read in November 2026.
 
-| Field                    | Cloud | Limit                | Source                                                  |
-| ------------------------ | ----- | -------------------- | ------------------------------------------------------- |
-| `highAvailability: true` | AWS   | not on `mq.t3.micro` | Amazon MQ documentation, RabbitMQ broker instance types |
+| Field                    | Runs on | Limit                | Source                                                  |
+| ------------------------ | ------- | -------------------- | ------------------------------------------------------- |
+| `highAvailability: true` | AWS     | not on `mq.t3.micro` | Amazon MQ documentation, RabbitMQ broker instance types |
 
 *RabbitMQ field limits and their sources.*
 

@@ -334,7 +334,7 @@ spec:
 The first table maps each common field to the implementation's provider. A setting the
 implementation lacks shows as ignored, with the reason (principle 1):
 
-| Field                      | AWS                                                                         | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                | Any                                                                                |
+| Field                      | AWS                                                                         | GCP                                                                                                                                      | OCI                                                                                  | Azure                                                                                | Kubernetes                                                                         |
 | -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
 | `observe`                  | `managementPolicies: [Observe]`                                             | `managementPolicies: [Observe]`                                                                                                          | `managementPolicies: [Observe]`                                                      | `managementPolicies: [Observe]`                                                      | the named `Cluster` read as a required resource; nothing composed                  |
 | `version`                  | `engineVersion`; the full version with minor upgrades off                   | `databaseVersion: POSTGRES_17`; a full version ignored                                                                                   | `dbVersion: "17"`; a full version ignored                                            | `version: "17"`; a full version ignored                                              | `imageCatalogRef.major: 17`; a full version sets `imageName` with that tag         |
@@ -361,7 +361,7 @@ implementation lacks shows as ignored, with the reason (principle 1):
 
 The second names the implementation's provider configuration kind and what its fields map to:
 
-| Field                | AWS                                  | GCP                                                  | OCI                                                              | Azure                                                                    | Any                                                    |
+| Field                | AWS                                  | GCP                                                  | OCI                                                              | Azure                                                                    | Kubernetes                                             |
 | -------------------- | ------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ |
 | kind                 | `PostgreSQLRDSConfig`                | `PostgreSQLCloudSQLConfig`                           | `PostgreSQLOCIConfig`                                            | `PostgreSQLFlexibleServerConfig`                                         | `PostgreSQLCNPGConfig`                                 |
 | `id`                 | the console's Resource ID (`db-...`) | the instance name                                    | the DB system's OCID                                             | the server's resource ID; the function takes the name and resource group | the `Cluster`'s name in the object's namespace         |
@@ -408,7 +408,7 @@ v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/
 keeps no copy in another zone, so `highAvailability: true` maps to its zone-redundant mode only. No
 final backup is taken. The platform also creates a private DNS zone for the server.
 
-**Any:** keys are from the CRDs of [CloudNativePG
+**Kubernetes:** keys are from the CRDs of [CloudNativePG
 v1.30.2](https://github.com/cloudnative-pg/cloudnative-pg/releases/tag/v1.30.2) and its [Barman
 Cloud plugin v0.16.0](https://github.com/cloudnative-pg/plugin-barman-cloud/releases/tag/v0.16.0).
 The deployment installs the operator, the plugin and a `ClusterImageCatalog` with an image per
@@ -577,7 +577,7 @@ spec:
   # id: orders-db                  # an existing Cluster's name, with observe
 ```
 
-```yaml Any entry
+```yaml Kubernetes entry
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: PostgreSQLCluster
@@ -988,7 +988,7 @@ spec:
 
 *`PostgreSQLCluster` on Azure and its composed resource.*
 
-```yaml Object on any cloud
+```yaml Object on Kubernetes
 ---
 apiVersion: database.entigo.com/v1alpha2
 kind: PostgreSQLCluster
@@ -1047,7 +1047,7 @@ spec:
       memory: 8Gi
 ```
 
-```yaml Any resources
+```yaml Kubernetes resources
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -1109,7 +1109,7 @@ spec:
     name: barman-cloud.cloudnative-pg.io
 ```
 
-*`PostgreSQLCluster` in the cluster on any cloud, and its composed resources.*
+*`PostgreSQLCluster` on Kubernetes and its composed resources.*
 
 ## Platform Decisions
 
@@ -1127,26 +1127,26 @@ Besides the settings it makes for every service
 
 *`PostgreSQLCluster` settings chosen by the platform.*
 
-## Cloud Limits
+## Limits
 
-The cloud enforces these limits itself, and the API does not check them (principle 10); a value
-outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
-reference, should validating them be decided later. Each limit holds as of its source: the provider
-release named, or the cloud's documentation as read in November 2026.
+The implementation enforces these limits itself, and the API does not check them (principle 10); a
+value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
+listed for reference, should validating them be decided later. Each limit holds as of its source:
+the provider release named, or the cloud's documentation as read in November 2026.
 
-| Field                                     | Cloud | Limit                                                                           | Source                                                                                     |
-| ----------------------------------------- | ----- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `backup.retentionDays`                    | AWS   | 0 to 35                                                                         | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                     |
-| `backup.retentionDays`                    | Azure | 7 to 35                                                                         | `backupRetentionDays`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                   |
-| `backup.retentionDays`, `pointInTimeDays` | OCI   | up to 35                                                                        | OCI Database with PostgreSQL documentation, backups and point-in-time recovery             |
-| `backup.pointInTimeDays`                  | GCP   | 1 to 7; 1 to 35 on `ENTERPRISE_PLUS`                                            | `transactionLogRetentionDays`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
-| `storage.sizeGB`                          | GCP   | at least 10; 20 on `HYPERDISK_BALANCED`                                         | `settings.diskSize`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
-| `storage.iops`, `throughputMBps`          | AWS   | only from 400 GiB of disk                                                       | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                 |
-| `storage.iops`                            | OCI   | steps of 75,000                                                                 | `storageDetails.iops`, `PsqlDbSystem` CRD, crossplane-provider-oci v2.0.0                  |
-| `edition`                                 | GCP   | `ENTERPRISE`, `ENTERPRISE_PLUS`                                                 | `settings.edition`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                      |
-| `diskType`                                | GCP   | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED`                                        | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
-| `storageTier`                             | Azure | `P4` to `P80`                                                                   | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                           |
-| `storage.sizeGB`                          | Any   | never lowered; growing needs a StorageClass with `allowVolumeExpansion`         | `storage.size`, `Cluster` CRD, CloudNativePG v1.30.2; CloudNativePG documentation, storage |
-| `parameters`                              | Any   | not `port`, `listen_addresses`, `ssl` and the other settings the operator fixes | CloudNativePG documentation, PostgreSQL configuration, fixed parameters                    |
+| Field                                     | Runs on    | Limit                                                                           | Source                                                                                     |
+| ----------------------------------------- | ---------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `backup.retentionDays`                    | AWS        | 0 to 35                                                                         | `backupRetentionPeriod`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                     |
+| `backup.retentionDays`                    | Azure      | 7 to 35                                                                         | `backupRetentionDays`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                   |
+| `backup.retentionDays`, `pointInTimeDays` | OCI        | up to 35                                                                        | OCI Database with PostgreSQL documentation, backups and point-in-time recovery             |
+| `backup.pointInTimeDays`                  | GCP        | 1 to 7; 1 to 35 on `ENTERPRISE_PLUS`                                            | `transactionLogRetentionDays`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0           |
+| `storage.sizeGB`                          | GCP        | at least 10; 20 on `HYPERDISK_BALANCED`                                         | `settings.diskSize`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
+| `storage.iops`, `throughputMBps`          | AWS        | only from 400 GiB of disk                                                       | `iops`, `storageThroughput`, RDS `Instance` CRD, provider-upjet-aws v2.4.0                 |
+| `storage.iops`                            | OCI        | steps of 75,000                                                                 | `storageDetails.iops`, `PsqlDbSystem` CRD, crossplane-provider-oci v2.0.0                  |
+| `edition`                                 | GCP        | `ENTERPRISE`, `ENTERPRISE_PLUS`                                                 | `settings.edition`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                      |
+| `diskType`                                | GCP        | `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED`                                        | `settings.diskType`, `DatabaseInstance` CRD, provider-upjet-gcp v3.1.0                     |
+| `storageTier`                             | Azure      | `P4` to `P80`                                                                   | `storageTier`, `FlexibleServer` CRD, provider-upjet-azure v2.8.0                           |
+| `storage.sizeGB`                          | Kubernetes | never lowered; growing needs a StorageClass with `allowVolumeExpansion`         | `storage.size`, `Cluster` CRD, CloudNativePG v1.30.2; CloudNativePG documentation, storage |
+| `parameters`                              | Kubernetes | not `port`, `listen_addresses`, `ssl` and the other settings the operator fixes | CloudNativePG documentation, PostgreSQL configuration, fixed parameters                    |
 
 *PostgreSQL field limits and their sources.*

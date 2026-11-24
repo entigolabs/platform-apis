@@ -586,17 +586,17 @@ objects fails on every implementation: the `Bucket` stays in deletion, with the 
 composed bucket, and the user empties the bucket; `deletionProtection: false` only allows the object
 to be deleted.
 
-## Cloud Limits
+## Limits
 
-The cloud enforces these limits itself, and the API does not check them (principle 10); a value
-outside them is rejected by the cloud and shown as `CloudAccepted: False`. They are listed for
-reference, should validating them be decided later. Each limit holds as of its source: the provider
-release named, or the cloud's documentation as read in November 2026.
+The implementation enforces these limits itself, and the API does not check them (principle 10); a
+value outside them is rejected by the implementation and shown as `CloudAccepted: False`. They are
+listed for reference, should validating them be decided later. Each limit holds as of its source:
+the provider release named, or the cloud's documentation as read in November 2026.
 
-| Field            | Cloud | Limit         | Source                                                                               |
-| ---------------- | ----- | ------------- | ------------------------------------------------------------------------------------ |
-| `softDeleteDays` | GCP   | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
-| `softDeleteDays` | Azure | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
+| Field            | Runs on | Limit         | Source                                                                               |
+| ---------------- | ------- | ------------- | ------------------------------------------------------------------------------------ |
+| `softDeleteDays` | GCP     | 0, or 7 to 90 | `softDeletePolicy.retentionDurationSeconds`, `Bucket` CRD, provider-upjet-gcp v3.1.0 |
+| `softDeleteDays` | Azure   | 1 to 365      | `deleteRetentionPolicy.days`, storage `Account` CRD, provider-upjet-azure v2.8.0     |
 
 *Bucket field limits and their sources.*
 
