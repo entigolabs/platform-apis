@@ -1168,27 +1168,27 @@ write("bucketblobstorageconfig", provider_config_crd(
 # --- ArtifactRepository ----------------------------------------------------------------------
 
 
+ARTIFACT_IMMUTABLE = lambda: field("boolean", "A pushed tag cannot be pushed again.",
+                                   default="fixed, false")
+ARTIFACT_LIFECYCLE = lambda text="": array(obj({
+    "tagPrefixes": array(field("string"), "Images with a tag starting with one of these."),
+    "tagPatterns": array(field("string"), "Images with a tag matching one of these wildcards."),
+    "untagged": field("boolean", "Images without a tag."),
+    "keepCount": field("integer", "Keep this many newest images.", minimum=1),
+    "expireAfterDays": field("integer", "Delete images this long after their push.", minimum=1),
+}, "One selector, or none for every image, and one bound.", rules=[
+    ("(has(self.tagPrefixes) ? 1 : 0) + (has(self.tagPatterns) ? 1 : 0) + "
+     "(has(self.untagged) ? 1 : 0) <= 1", "at most one selector"),
+    ("has(self.keepCount) != has(self.expireAfterDays)",
+     "exactly one of keepCount and expireAfterDays"),
+]), ("Delete old images. Set, it replaces the class's rules. " + text).strip())
+
+
 def artifact_repository_common():
     """ArtifactRepository's common fields (principle 1)."""
     return {
         "deletionProtection": field("boolean", "Deleting the object is denied while true.",
                                     default="fixed, true"),
-        "immutableTags": field("boolean", "A pushed tag cannot be pushed again.", default=DEFAULT),
-        "lifecycleRules": array(obj({
-            "tagPrefixes": array(field("string"), "Images with a tag starting with one of "
-                                 "these."),
-            "tagPatterns": array(field("string"), "Images with a tag matching one of these "
-                                 "wildcards."),
-            "untagged": field("boolean", "Images without a tag."),
-            "keepCount": field("integer", "Keep this many newest images.", minimum=1),
-            "expireAfterDays": field("integer", "Delete images this long after their push.",
-                                     minimum=1),
-        }, "One selector, or none for every image, and one bound.", rules=[
-            ("(has(self.tagPrefixes) ? 1 : 0) + (has(self.tagPatterns) ? 1 : 0) + "
-             "(has(self.untagged) ? 1 : 0) <= 1", "at most one selector"),
-            ("has(self.keepCount) != has(self.expireAfterDays)",
-             "exactly one of keepCount and expireAfterDays"),
-        ]), "Delete old images. Set, it replaces the class's rules.", default=DEFAULT),
     }
 
 
@@ -1225,13 +1225,16 @@ write("artifactrepositoryclass", class_crd("ArtifactRepositoryClass", "artifactr
                                            "artifact.entigo.com", artifact_repository_common()))
 write("artifactrepositoryecrconfig", provider_config_crd(
     "ArtifactRepositoryECRConfig", "artifactrepositoryecrconfigs", "aws.artifact.entigo.com",
-    "Amazon ECR", {}, {"arn": S()}))
+    "Amazon ECR", {"immutableTags": ARTIFACT_IMMUTABLE(), "lifecycleRules": ARTIFACT_LIFECYCLE()},
+    {"arn": S()}))
 write("artifactrepositoryartifactregistryconfig", provider_config_crd(
     "ArtifactRepositoryArtifactRegistryConfig", "artifactrepositoryartifactregistryconfigs",
-    "gcp.artifact.entigo.com", "Artifact Registry", {}, {"id": S()}))
+    "gcp.artifact.entigo.com", "Artifact Registry",
+    {"immutableTags": ARTIFACT_IMMUTABLE(), "lifecycleRules": ARTIFACT_LIFECYCLE(
+        "A rule that keeps the newest images works only without a selector.")}, {"id": S()}))
 write("artifactrepositoryocirconfig", provider_config_crd(
     "ArtifactRepositoryOCIRConfig", "artifactrepositoryocirconfigs", "oci.artifact.entigo.com",
-    "OCIR", {}, {"id": S()}))
+    "OCIR", {"immutableTags": ARTIFACT_IMMUTABLE()}, {"id": S()}))
 write("artifactrepositoryacrconfig", provider_config_crd(
     "ArtifactRepositoryACRConfig", "artifactrepositoryacrconfigs", "azure.artifact.entigo.com",
     "Azure Container Registry", {}, {"registryId": S()}))

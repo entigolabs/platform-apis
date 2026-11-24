@@ -32,15 +32,15 @@ metadata:
 spec:
   template:
     deletionProtection: true
-    immutableTags: true
-    lifecycleRules:
-    - untagged: true
-      expireAfterDays: 7
-    - keepCount: 100
     providerConfig:
       apiVersion: aws.artifact.entigo.com/v1alpha1
       kind: ArtifactRepositoryECRConfig
-      spec: {}
+      spec:
+        immutableTags: true
+        lifecycleRules:
+        - untagged: true
+          expireAfterDays: 7
+        - keepCount: 100
 ```
 
 *`ArtifactRepositoryClass` for ECR.*
@@ -52,10 +52,10 @@ Artifact Registry repository holds many images, and an Azure registry holds repo
 on the first push, with no resource of their own. The API's unit is the image path, because an
 application owns its image path.
 
-A user creates an `ArtifactRepository` with a manifest like the one below. A repository has no
-setting specific to one backend, so its manifest carries a provider configuration entry only to
-observe an existing repository, and that entry holds only the repository's `id` (principle 9).
-Observing fails on Azure, where a repository has no resource of its own:
+A user creates an `ArtifactRepository` with a manifest like the one below. Tag immutability and
+lifecycle rules are in the entries of the backends that have them: both on ECR and Artifact
+Registry, immutability alone on OCIR, and neither on Azure (principle 1). Observing fails on Azure,
+where a repository has no resource of its own:
 
 ```yaml
 ---
@@ -69,19 +69,34 @@ spec:
   name: orders-api                     # immutable; defaults to the object name
   path: backend                        # immutable; the image path is shop/backend/orders-api
   deletionProtection: true
-  immutableTags: false
-  lifecycleRules:
-  - tagPrefixes:
-    - develop
-    keepCount: 10
-  - tagPatterns:
-    - release-*
-    keepCount: 20
-  - untagged: true
-    expireAfterDays: 7
+  providerConfigs:                     # settings only some backends have (principle 1)
+  - apiVersion: aws.artifact.entigo.com/v1alpha1
+    kind: ArtifactRepositoryECRConfig
+    spec:
+      immutableTags: false
+      lifecycleRules:
+      - tagPrefixes:
+        - develop
+        keepCount: 10
+      - tagPatterns:
+        - release-*
+        keepCount: 20
+      - untagged: true
+        expireAfterDays: 7
+  - apiVersion: gcp.artifact.entigo.com/v1alpha1
+    kind: ArtifactRepositoryArtifactRegistryConfig
+    spec:
+      immutableTags: false
+      lifecycleRules:
+      - untagged: true
+        expireAfterDays: 7
+  - apiVersion: oci.artifact.entigo.com/v1alpha1
+    kind: ArtifactRepositoryOCIRConfig
+    spec:
+      immutableTags: false              # OCIR has no lifecycle rules
 ```
 
-*`ArtifactRepository` with common fields.*
+*`ArtifactRepository` with common fields and the entries of three backends.*
 
 The image path always starts with the namespace: `<namespace>/<path>/<name>`, or
 `<namespace>/<name>` without `path`. A registry holds each path once, and the provider finds a
@@ -93,9 +108,10 @@ rules that out within one cluster. Clusters that push to one registry are not ch
 other: their operator gives each its own registry, or keeps their namespace names distinct.
 
 A lifecycle rule has one selector (`tagPrefixes`, `tagPatterns`, `untagged`, or none for every
-image) and one bound (`keepCount` newest, or `expireAfterDays` since the push). `lifecycleRules`
-and `immutableTags` take the class's defaults, so a repository whose spec is empty is still cleaned
-up; `lifecycleRules` set on the object replace the class's rules.
+image) and one bound (`keepCount` newest, or `expireAfterDays` since the push). In an entry,
+`lifecycleRules` and `immutableTags` take the defaults of the class's provider configuration, so a
+repository with no entry is still cleaned up where its backend cleans up; `lifecycleRules` set in an
+entry replace the class's rules.
 
 An `ArtifactRepository` has no connection secret. The status shows `uri`, the image URI, with which
 entry applied, where each effective value came from, and the applied backend's own values (principle
@@ -107,7 +123,7 @@ status:
   providerConfig:
     applied: aws.artifact.entigo.com/v1alpha1, ArtifactRepositoryECRConfig
   effective:
-    immutableTags: { value: false, source: object }
+    immutableTags: { value: false, source: object/ArtifactRepositoryECRConfig }
     deletionProtection: { value: true, source: object }
   provider:                            # the shape ArtifactRepositoryECRConfig's status defines
     arn: ...
@@ -120,22 +136,22 @@ status:
 The first table maps each common field to the backend's provider. A setting the backend lacks shows
 as ignored, with the reason (principle 1):
 
-| Field                | AWS                             | GCP                                                                                                                                                                                                                                                    | OCI                                                                                                      | Azure                                                                                     |
-| -------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| the repository       | `Repository`                    | one `RegistryRepository` (`format: DOCKER`) per repository                                                                                                                                                                                             | `ContainerRepository`                                                                                    | a path in a platform-owned `Registry`; no resource of its own                             |
-| `observe`            | `managementPolicies: [Observe]` | `managementPolicies: [Observe]`                                                                                                                                                                                                                        | `managementPolicies: [Observe]`                                                                          | fails; an Azure repository has no resource of its own                                     |
-| `deletionProtection` | platform blocks deletion        | platform blocks deletion                                                                                                                                                                                                                               | platform blocks deletion                                                                                 | platform blocks deletion                                                                  |
-| `immutableTags`      | `imageTagMutability: IMMUTABLE` | `dockerConfig.immutableTags`                                                                                                                                                                                                                           | `isImmutable`                                                                                            | ignored, so tags can be overwritten; tag locks are set per tag through the Azure CLI only |
-| `lifecycleRules`     | `LifecyclePolicy`               | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped, and the images it covers are kept | ignored, so old images are not cleaned up; retention is console-only and counts days since the last pull | ignored, so old images are not cleaned up; only registry-wide untagged retention exists   |
+| Field                | AWS                             | GCP                                                        | OCI                             | Azure                                                         |
+| -------------------- | ------------------------------- | ---------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------- |
+| the repository       | `Repository`                    | one `RegistryRepository` (`format: DOCKER`) per repository | `ContainerRepository`           | a path in a platform-owned `Registry`; no resource of its own |
+| `observe`            | `managementPolicies: [Observe]` | `managementPolicies: [Observe]`                            | `managementPolicies: [Observe]` | fails; an Azure repository has no resource of its own         |
+| `deletionProtection` | platform blocks deletion        | platform blocks deletion                                   | platform blocks deletion        | platform blocks deletion                                      |
 
 *`ArtifactRepository` common fields and their provider fields.*
 
 The second names the backend's provider configuration kind and what its fields map to:
 
-| Field | AWS                                 | GCP                                        | OCI                            | Azure                                                                         |
-| ----- | ----------------------------------- | ------------------------------------------ | ------------------------------ | ----------------------------------------------------------------------------- |
-| kind  | `ArtifactRepositoryECRConfig`       | `ArtifactRepositoryArtifactRegistryConfig` | `ArtifactRepositoryOCIRConfig` | `ArtifactRepositoryACRConfig`                                                 |
-| `id`  | the repository name, the whole path | the repository ID                          | the repository's OCID          | accepted, but observing fails: an Azure repository has no resource of its own |
+| Field            | AWS                                 | GCP                                                                                                                                                                                                                                                    | OCI                            | Azure                                                                         |
+| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ | ----------------------------------------------------------------------------- |
+| kind             | `ArtifactRepositoryECRConfig`       | `ArtifactRepositoryArtifactRegistryConfig`                                                                                                                                                                                                             | `ArtifactRepositoryOCIRConfig` | `ArtifactRepositoryACRConfig`                                                 |
+| `id`             | the repository name, the whole path | the repository ID                                                                                                                                                                                                                                      | the repository's OCID          | accepted, but observing fails: an Azure repository has no resource of its own |
+| `immutableTags`  | `imageTagMutability: IMMUTABLE`     | `dockerConfig.immutableTags`                                                                                                                                                                                                                           | `isImmutable`                  |                                                                               |
+| `lifecycleRules` | `LifecyclePolicy`                   | `cleanupPolicies[]`. Rules that delete old images work. A rule that keeps the newest N works only for all images, not for some tags or for untagged images; a rule with `tagPatterns` or such a selector is skipped, and the images it covers are kept |                                |                                                                               |
 
 *Artifact repository provider configuration fields.*
 
@@ -155,9 +171,11 @@ Images are scanned by Defender for Containers.
 
 ## Provider Configurations
 
-Each backend's provider configuration kind for a repository holds only `id`, the existing repository
-an observed object names (principle 9); every other setting is a common field or a decision the
-platform makes. An entry for an object the platform creates is empty, so it can be left out.
+Each backend's provider configuration kind for a repository holds `id`, the existing repository an
+observed object names (principle 9), and the settings only some backends have: `immutableTags` on
+ECR, Artifact Registry and OCIR, and `lifecycleRules` on ECR and Artifact Registry, as the
+`ArtifactRepository` in [Kinds](#kinds) shows. Azure's kind holds `id` alone. An entry without
+settings can be left out.
 
 ## Composed Resources
 
@@ -181,16 +199,20 @@ spec:
   name: orders-api
   path: backend
   deletionProtection: true
-  immutableTags: false
-  lifecycleRules:
-  - tagPrefixes:
-    - develop
-    keepCount: 10
-  - tagPatterns:
-    - release-*
-    keepCount: 20
-  - untagged: true
-    expireAfterDays: 7
+  providerConfigs:
+  - apiVersion: aws.artifact.entigo.com/v1alpha1
+    kind: ArtifactRepositoryECRConfig
+    spec:
+      immutableTags: false
+      lifecycleRules:
+      - tagPrefixes:
+        - develop
+        keepCount: 10
+      - tagPatterns:
+        - release-*
+        keepCount: 20
+      - untagged: true
+        expireAfterDays: 7
 ```
 
 ```yaml AWS resources
@@ -252,16 +274,20 @@ spec:
   name: orders-api
   path: backend
   deletionProtection: true
-  immutableTags: false
-  lifecycleRules:
-  - tagPrefixes:
-    - develop
-    keepCount: 10
-  - tagPatterns:
-    - release-*
-    keepCount: 20
-  - untagged: true
-    expireAfterDays: 7
+  providerConfigs:
+  - apiVersion: gcp.artifact.entigo.com/v1alpha1
+    kind: ArtifactRepositoryArtifactRegistryConfig
+    spec:
+      immutableTags: false
+      lifecycleRules:
+      - tagPrefixes:
+        - develop
+        keepCount: 10
+      - tagPatterns:
+        - release-*
+        keepCount: 20
+      - untagged: true
+        expireAfterDays: 7
 ```
 
 ```yaml GCP resource
@@ -302,16 +328,11 @@ spec:
   name: orders-api
   path: backend
   deletionProtection: true
-  immutableTags: false
-  lifecycleRules:
-  - tagPrefixes:
-    - develop
-    keepCount: 10
-  - tagPatterns:
-    - release-*
-    keepCount: 20
-  - untagged: true
-    expireAfterDays: 7
+  providerConfigs:
+  - apiVersion: oci.artifact.entigo.com/v1alpha1
+    kind: ArtifactRepositoryOCIRConfig
+    spec:
+      immutableTags: false
 ```
 
 ```yaml OCI resource

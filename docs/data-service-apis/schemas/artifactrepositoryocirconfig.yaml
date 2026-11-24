@@ -27,6 +27,11 @@ spec:
                 description: |-
                   The OCIR ID of an existing resource to observe (principle 9). Set with observe;
                   it stays when observe is removed, and the object then owns the resource.
+              immutableTags:
+                type: boolean
+                description: |-
+                  A pushed tag cannot be pushed again.
+                  Default: fixed, false.
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)

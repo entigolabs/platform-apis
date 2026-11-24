@@ -28,6 +28,53 @@ spec:
                   The Artifact Registry ID of an existing resource to observe (principle 9). Set
                   with observe; it stays when observe is removed, and the object then owns the
                   resource.
+              immutableTags:
+                type: boolean
+                description: |-
+                  A pushed tag cannot be pushed again.
+                  Default: fixed, false.
+              lifecycleRules:
+                type: array
+                description: |-
+                  Delete old images. Set, it replaces the class's rules. A rule that keeps the
+                  newest images works only without a selector.
+                items:
+                  type: object
+                  description: |-
+                    One selector, or none for every image, and one bound.
+                  properties:
+                    tagPrefixes:
+                      type: array
+                      description: |-
+                        Images with a tag starting with one of these.
+                      items:
+                        type: string
+                    tagPatterns:
+                      type: array
+                      description: |-
+                        Images with a tag matching one of these wildcards.
+                      items:
+                        type: string
+                    untagged:
+                      type: boolean
+                      description: |-
+                        Images without a tag.
+                    keepCount:
+                      type: integer
+                      description: |-
+                        Keep this many newest images.
+                      minimum: 1
+                    expireAfterDays:
+                      type: integer
+                      description: |-
+                        Delete images this long after their push.
+                      minimum: 1
+                  x-kubernetes-validations:
+                  - rule: |-
+                      (has(self.tagPrefixes) ? 1 : 0) + (has(self.tagPatterns) ? 1 : 0) + (has(self.untagged) ? 1 : 0) <= 1
+                    message: at most one selector
+                  - rule: has(self.keepCount) != has(self.expireAfterDays)
+                    message: exactly one of keepCount and expireAfterDays
             x-kubernetes-validations:
             - rule: |-
                 has(self.id) == has(oldSelf.id) && (!has(self.id) || self.id == oldSelf.id)

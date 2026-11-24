@@ -493,18 +493,23 @@ for kind in ["BucketS3Config", "BucketCloudStorageConfig", "BucketObjectStorageC
 print("\n# ArtifactRepository")
 ECR = {"apiVersion": "aws.artifact.entigo.com/v1alpha1", "kind": "ArtifactRepositoryECRConfig",
        "spec": {}}
-CR = {"name": "orders-api", "path": "shop",
-      "lifecycleRules": [{"tagPrefixes": ["develop"], "keepCount": 10},
-                         {"untagged": True, "expireAfterDays": 7}, {"keepCount": 50}],
-      "providerConfigs": [ECR]}
+CR = {"name": "orders-api", "path": "shop", "providerConfigs": [ECR]}
+LR = [{"tagPrefixes": ["develop"], "keepCount": 10}, {"untagged": True, "expireAfterDays": 7},
+      {"keepCount": 50}]
 create("ArtifactRepository valid spec", "ArtifactRepository", CR)
-create("ArtifactRepository two selectors rejected", "ArtifactRepository",
-       w(CR, lifecycleRules=[{"tagPrefixes": ["a"], "untagged": True, "keepCount": 1}]), False,
+create("ArtifactRepository lifecycleRules, a backend's setting, rejected in the common spec",
+       "ArtifactRepository", w(CR, lifecycleRules=LR), False, "unknown field")
+create("ArtifactRepositoryECRConfig lifecycle rules accepted", "ArtifactRepositoryECRConfig",
+       {"immutableTags": True, "lifecycleRules": LR})
+create("ArtifactRepositoryECRConfig two selectors rejected", "ArtifactRepositoryECRConfig",
+       {"lifecycleRules": [{"tagPrefixes": ["a"], "untagged": True, "keepCount": 1}]}, False,
        "at most one selector")
-create("ArtifactRepository two bounds rejected", "ArtifactRepository",
-       w(CR, lifecycleRules=[{"keepCount": 1, "expireAfterDays": 1}]), False, "exactly one")
-create("ArtifactRepository no bound rejected", "ArtifactRepository",
-       w(CR, lifecycleRules=[{"untagged": True}]), False, "exactly one")
+create("ArtifactRepositoryECRConfig two bounds rejected", "ArtifactRepositoryECRConfig",
+       {"lifecycleRules": [{"keepCount": 1, "expireAfterDays": 1}]}, False, "exactly one")
+create("ArtifactRepositoryECRConfig no bound rejected", "ArtifactRepositoryECRConfig",
+       {"lifecycleRules": [{"untagged": True}]}, False, "exactly one")
+create("ArtifactRepositoryOCIRConfig lifecycleRules rejected, OCIR has none",
+       "ArtifactRepositoryOCIRConfig", {"lifecycleRules": LR}, False, "unknown field")
 update("ArtifactRepository changing name rejected", "ArtifactRepository", CR, w(CR, name="x"),
        False, "name is immutable")
 update("ArtifactRepository changing path rejected", "ArtifactRepository", CR, w(CR, path="x"),
@@ -518,11 +523,11 @@ create("ArtifactRepository an aws block, the former form, rejected", "ArtifactRe
 create("ArtifactRepository observe with an entry accepted", "ArtifactRepository",
        {"observe": True, "providerConfigs": [{**ECR, "spec": {"id": "shop/orders-api"}}]})
 create("ArtifactRepository observe with a common field rejected", "ArtifactRepository",
-       {"observe": True, "immutableTags": True, "providerConfigs": [{**ECR, "spec": {"id": "x"}}]},
+       {"observe": True, "deletionProtection": True, "providerConfigs": [{**ECR, "spec": {"id": "x"}}]},
        False, "takes no other common field")
 create("ArtifactRepositoryClass valid class", "ArtifactRepositoryClass",
-       {"template": {"immutableTags": True, "lifecycleRules": [{"untagged": True, "expireAfterDays": 7}],
-                     "providerConfig": ECR}, "enforced": {"deletionProtection": True}})
+       {"template": {"deletionProtection": True, "providerConfig": {**ECR, "spec": {
+           "immutableTags": True, "lifecycleRules": [{"untagged": True, "expireAfterDays": 7}]}}}})
 for kind in ["ArtifactRepositoryECRConfig", "ArtifactRepositoryArtifactRegistryConfig",
              "ArtifactRepositoryOCIRConfig", "ArtifactRepositoryACRConfig"]:
     create(f"{kind} with an id accepted", kind, {"id": "shop/orders-api"})

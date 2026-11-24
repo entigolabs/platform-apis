@@ -30,53 +30,6 @@ spec:
                     description: |-
                       Deleting the object is denied while true.
                       Default: fixed, true.
-                  immutableTags: &id002
-                    type: boolean
-                    description: |-
-                      A pushed tag cannot be pushed again.
-                      Default: the class's template.
-                  lifecycleRules: &id003
-                    type: array
-                    description: |-
-                      Delete old images. Set, it replaces the class's rules.
-                      Default: the class's template.
-                    items:
-                      type: object
-                      description: |-
-                        One selector, or none for every image, and one bound.
-                      properties:
-                        tagPrefixes:
-                          type: array
-                          description: |-
-                            Images with a tag starting with one of these.
-                          items:
-                            type: string
-                        tagPatterns:
-                          type: array
-                          description: |-
-                            Images with a tag matching one of these wildcards.
-                          items:
-                            type: string
-                        untagged:
-                          type: boolean
-                          description: |-
-                            Images without a tag.
-                        keepCount:
-                          type: integer
-                          description: |-
-                            Keep this many newest images.
-                          minimum: 1
-                        expireAfterDays:
-                          type: integer
-                          description: |-
-                            Delete images this long after their push.
-                          minimum: 1
-                      x-kubernetes-validations:
-                      - rule: |-
-                          (has(self.tagPrefixes) ? 1 : 0) + (has(self.tagPatterns) ? 1 : 0) + (has(self.untagged) ? 1 : 0) <= 1
-                        message: at most one selector
-                      - rule: has(self.keepCount) != has(self.expireAfterDays)
-                        message: exactly one of keepCount and expireAfterDays
                   providerConfig:
                     type: object
                     description: |-
@@ -108,8 +61,6 @@ spec:
                   value is refused when created or synced.
                 properties:
                   deletionProtection: *id001
-                  immutableTags: *id002
-                  lifecycleRules: *id003
                   providerConfig:
                     type: object
                     description: |-

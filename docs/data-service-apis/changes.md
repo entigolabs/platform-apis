@@ -619,15 +619,15 @@ spec:
 
 `Repository` becomes `ArtifactRepository`:
 
-| Today                           | Design                                                             | Reason                                                                                      |
-| ------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| kind `Repository`               | kind `ArtifactRepository`                                          | Holds any OCI artifact, and named after the concept (principle 8)                           |
-| `path`, free-form               | `path` under the namespace: `<namespace>/<path>/<name>`            | Namespaces keep paths apart in a cluster; image paths change                                |
-| (none)                          | `immutableTags`                                                    | Today a deployment-wide setting, now a class default; ECR's two exclusion modes are dropped |
-| `status.repositoryUri`          | `status.uri`                                                       | The same word everywhere                                                                    |
-| deployment-wide lifecycle rules | `lifecycleRules`, defaulting from the class                        | Rules per repository, with the same fields (principle 5)                                    |
-| (none)                          | `className`, and `id` in a provider configuration entry to observe | The kind's class (principle 5), and observing an existing repository (principle 9)          |
-| (none)                          | `status.providerConfig`, `status.effective`, `status.provider`     | The applied entry, each value's source, and the backend's own values (principle 4)          |
+| Today                           | Design                                                                               | Reason                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| kind `Repository`               | kind `ArtifactRepository`                                                            | Holds any OCI artifact, and named after the concept (principle 8)                                                             |
+| `path`, free-form               | `path` under the namespace: `<namespace>/<path>/<name>`                              | Namespaces keep paths apart in a cluster; image paths change                                                                  |
+| (none)                          | `immutableTags` in the ECR, Artifact Registry and OCIR entries                       | Today a deployment-wide setting, now a class default per backend, since Azure has none; ECR's two exclusion modes are dropped |
+| `status.repositoryUri`          | `status.uri`                                                                         | The same word everywhere                                                                                                      |
+| deployment-wide lifecycle rules | `lifecycleRules` in the ECR and Artifact Registry entries, defaulting from the class | Rules per repository, where the backend has them (principles 1 and 5)                                                         |
+| (none)                          | `className`, and `id` in a provider configuration entry to observe                   | The kind's class (principle 5), and observing an existing repository (principle 9)                                            |
+| (none)                          | `status.providerConfig`, `status.effective`, `status.provider`                       | The applied entry, each value's source, and the backend's own values (principle 4)                                            |
 
 *`ArtifactRepository` changes from `Repository`, with reasons.*
 
@@ -653,7 +653,11 @@ metadata:
   namespace: shop
 spec:
   path: backend                        # now under the namespace: shop/backend/orders-api
-  immutableTags: true                  # new
+  providerConfigs:                     # new
+  - apiVersion: aws.artifact.entigo.com/v1alpha1
+    kind: ArtifactRepositoryECRConfig
+    spec:
+      immutableTags: true              # new
 ```
 
 *`ArtifactRepository` compared with today's `Repository`.*
