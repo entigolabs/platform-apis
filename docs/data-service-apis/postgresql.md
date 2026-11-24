@@ -18,6 +18,71 @@ them, each with a provider configuration kind of its own: `PostgreSQLRDSConfig`,
 
 PostgreSQL is offered as five kinds, each with the manifest its owner writes.
 
+### PostgreSQLClass
+
+Entigo writes each deployment's classes: cluster-scoped objects that hold the defaults an object
+starts with (`template`) and the values it cannot change (`enforced`), each with common fields and
+one provider configuration, whose kind selects the implementation (principle 5):
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLClass
+metadata:
+  name: standard
+  annotations:
+    database.entigo.com/is-default-class: "true"
+spec:
+  template:
+    deletionProtection: true
+    version: "17"
+    storage:
+      sizeGB: 50
+      maxSizeGB: 500
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: PostgreSQLRDSConfig
+      spec:
+        instanceType: db.t4g.medium
+  enforced:                            # teams cannot change these
+    autoMinorVersionUpgrade: true
+    backup:
+      retentionDays: 7
+  parametersRefs:                      # beneath every cluster's own settings
+    - name: pg-baseline
+      namespace: platform-apis
+```
+
+*`PostgreSQLClass` for RDS.*
+
+A class with no provider configuration uses the one implementation its deployment installs, so it
+holds only common fields and can be copied to every deployment unchanged.
+
+### PostgreSQLParameters
+
+`PostgreSQLParameters` holds PostgreSQL settings that several clusters or a class share. A class and
+a cluster each list the ones they use in `parametersRefs`. The settings merge key by key, a later
+value winning: the class's list in order, then the cluster's, then the cluster's own `parameters`,
+so a team can put settings all its clusters share beneath one cluster's own tuning:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: PostgreSQLParameters
+metadata:
+  name: orders-tuning
+  namespace: shop
+spec:
+  parameters:
+    work_mem: 64MB
+    random_page_cost: "1.1"
+```
+
+*`PostgreSQLParameters` shared between a user's clusters.*
+
+A `PostgreSQLParameters` names no other, so references never chain. Settings the implementation does
+not allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
+
 ### PostgreSQLCluster
 
 A user creates a `PostgreSQLCluster` with a manifest like the one below. It names its class and
@@ -189,71 +254,6 @@ status:
 *`PostgreSQLCluster` status on AWS.*
 
 The connection secret `<instance>-dbadmin` holds the admin login, with the keys of principle 6.
-
-### PostgreSQLClass
-
-Entigo writes each deployment's classes: cluster-scoped objects that hold the defaults an object
-starts with (`template`) and the values it cannot change (`enforced`), each with common fields and
-one provider configuration, whose kind selects the implementation (principle 5):
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLClass
-metadata:
-  name: standard
-  annotations:
-    database.entigo.com/is-default-class: "true"
-spec:
-  template:
-    deletionProtection: true
-    version: "17"
-    storage:
-      sizeGB: 50
-      maxSizeGB: 500
-    providerConfig:
-      apiVersion: aws.database.entigo.com/v1alpha1
-      kind: PostgreSQLRDSConfig
-      spec:
-        instanceType: db.t4g.medium
-  enforced:                            # teams cannot change these
-    autoMinorVersionUpgrade: true
-    backup:
-      retentionDays: 7
-  parametersRefs:                      # beneath every cluster's own settings
-    - name: pg-baseline
-      namespace: platform-apis
-```
-
-*`PostgreSQLClass` for RDS.*
-
-A class with no provider configuration uses the one implementation its deployment installs, so it
-holds only common fields and can be copied to every deployment unchanged.
-
-### PostgreSQLParameters
-
-`PostgreSQLParameters` holds PostgreSQL settings that several clusters or a class share. A class and
-a cluster each list the ones they use in `parametersRefs`. The settings merge key by key, a later
-value winning: the class's list in order, then the cluster's, then the cluster's own `parameters`,
-so a team can put settings all its clusters share beneath one cluster's own tuning:
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: PostgreSQLParameters
-metadata:
-  name: orders-tuning
-  namespace: shop
-spec:
-  parameters:
-    work_mem: 64MB
-    random_page_cost: "1.1"
-```
-
-*`PostgreSQLParameters` shared between a user's clusters.*
-
-A `PostgreSQLParameters` names no other, so references never chain. Settings the implementation does
-not allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### PostgreSQLUser
 

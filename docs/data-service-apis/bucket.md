@@ -13,6 +13,33 @@ provider configuration kind of its own: `BucketS3Config`, `BucketCloudStorageCon
 
 Object storage is offered as two kinds, each with the manifest its owner writes.
 
+### BucketClass
+
+Entigo writes each deployment's classes, with the defaults a bucket starts with (`template`) and the
+values it cannot change (`enforced`) (principle 5):
+
+```yaml
+---
+apiVersion: storage.entigo.com/v1alpha2
+kind: BucketClass
+metadata:
+  name: standard
+  annotations:
+    storage.entigo.com/is-default-class: "true"
+spec:
+  template:
+    deletionProtection: true
+    softDeleteDays: 7
+    providerConfig:
+      apiVersion: aws.storage.entigo.com/v1alpha1
+      kind: BucketS3Config
+      spec: {}
+  enforced:                            # teams cannot change these
+    versioning: true
+```
+
+*`BucketClass` for S3.*
+
 ### Bucket
 
 A user creates a `Bucket` with a manifest like the one below. A bucket has no setting specific to
@@ -78,33 +105,6 @@ status:
 ```
 
 *`Bucket` status on AWS.*
-
-### BucketClass
-
-Entigo writes each deployment's classes, with the defaults a bucket starts with (`template`) and the
-values it cannot change (`enforced`) (principle 5):
-
-```yaml
----
-apiVersion: storage.entigo.com/v1alpha2
-kind: BucketClass
-metadata:
-  name: standard
-  annotations:
-    storage.entigo.com/is-default-class: "true"
-spec:
-  template:
-    deletionProtection: true
-    softDeleteDays: 7
-    providerConfig:
-      apiVersion: aws.storage.entigo.com/v1alpha1
-      kind: BucketS3Config
-      spec: {}
-  enforced:                            # teams cannot change these
-    versioning: true
-```
-
-*`BucketClass` for S3.*
 
 ## Mapping
 

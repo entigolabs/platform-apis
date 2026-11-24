@@ -41,9 +41,9 @@ nav:
       - {file: postgresql.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
-        - {file: schemas/postgresqlcluster.yaml, label: PostgreSQLCluster}
         - {file: schemas/postgresqlclass.yaml, label: PostgreSQLClass}
         - {file: schemas/postgresqlparameters.yaml, label: PostgreSQLParameters}
+        - {file: schemas/postgresqlcluster.yaml, label: PostgreSQLCluster}
         - {file: schemas/postgresqluser.yaml, label: PostgreSQLUser}
         - {file: schemas/postgresqldatabase.yaml, label: PostgreSQLDatabase}
         - {file: schemas/postgresqlrdsconfig.yaml, label: PostgreSQLRDSConfig}
@@ -57,9 +57,9 @@ nav:
       - {file: mariadb.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
-        - {file: schemas/mariadbserver.yaml, label: MariaDBServer}
         - {file: schemas/mariadbclass.yaml, label: MariaDBClass}
         - {file: schemas/mariadbparameters.yaml, label: MariaDBParameters}
+        - {file: schemas/mariadbserver.yaml, label: MariaDBServer}
         - {file: schemas/mariadbuser.yaml, label: MariaDBUser}
         - {file: schemas/mariadbdatabase.yaml, label: MariaDBDatabase}
         - {file: schemas/mariadbrdsconfig.yaml, label: MariaDBRDSConfig}
@@ -69,9 +69,9 @@ nav:
       - {file: valkey.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
-        - {file: schemas/valkeyserver.yaml, label: ValkeyServer}
         - {file: schemas/valkeyclass.yaml, label: ValkeyClass}
         - {file: schemas/valkeyparameters.yaml, label: ValkeyParameters}
+        - {file: schemas/valkeyserver.yaml, label: ValkeyServer}
         - {file: schemas/valkeyelasticacheconfig.yaml, label: ValkeyElastiCacheConfig}
         - {file: schemas/valkeymemorystoreconfig.yaml, label: ValkeyMemorystoreConfig}
         - {file: schemas/valkeyocicacheconfig.yaml, label: ValkeyOCICacheConfig}
@@ -81,9 +81,9 @@ nav:
       - {file: kafka.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, choiceNotes: {GCP: "In development: waits on Crossplane provider support"}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
-        - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
         - {file: schemas/kafkaclass.yaml, label: KafkaClass}
         - {file: schemas/kafkaparameters.yaml, label: KafkaParameters}
+        - {file: schemas/kafkacluster.yaml, label: KafkaCluster}
         - {file: schemas/kafkauser.yaml, label: KafkaUser}
         - {file: schemas/kafkatopic.yaml, label: KafkaTopic}
         - {file: schemas/kafkamskconfig.yaml, label: KafkaMSKConfig}
@@ -95,9 +95,9 @@ nav:
       - {file: rabbitmq.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
-        - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
         - {file: schemas/rabbitmqclass.yaml, label: RabbitMQClass}
         - {file: schemas/rabbitmqparameters.yaml, label: RabbitMQParameters}
+        - {file: schemas/rabbitmqbroker.yaml, label: RabbitMQBroker}
         - {file: schemas/rabbitmquser.yaml, label: RabbitMQUser}
         - {file: schemas/rabbitmqvirtualhost.yaml, label: RabbitMQVirtualHost}
         - {file: schemas/rabbitmqamazonmqconfig.yaml, label: RabbitMQAmazonMQConfig}
@@ -107,8 +107,8 @@ nav:
       - {file: bucket.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider, show the composed resources and list the limits the cloud enforces."}
       - <<: *schemas
         files:
-        - {file: schemas/bucket.yaml, label: Bucket}
         - {file: schemas/bucketclass.yaml, label: BucketClass}
+        - {file: schemas/bucket.yaml, label: Bucket}
         - {file: schemas/buckets3config.yaml, label: BucketS3Config}
         - {file: schemas/bucketcloudstorageconfig.yaml, label: BucketCloudStorageConfig}
         - {file: schemas/bucketobjectstorageconfig.yaml, label: BucketObjectStorageConfig}
@@ -119,8 +119,8 @@ nav:
       - {file: artifact-repository.md, label: Cloud Mapping, sections: [Mapping, Provider Configurations, Composed Resources, Cloud Limits], splitTables: {Mapping: {keep: [Field], header: Maps To}}, groupTables: {Cloud Limits: Cloud}, intro: "For the cloud picked below, the sections map each field to its provider and show the composed resources."}
       - <<: *schemas
         files:
-        - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
         - {file: schemas/artifactrepositoryclass.yaml, label: ArtifactRepositoryClass}
+        - {file: schemas/artifactrepository.yaml, label: ArtifactRepository}
         - {file: schemas/artifactrepositoryecrconfig.yaml, label: ArtifactRepositoryECRConfig}
         - {file: schemas/artifactrepositoryartifactregistryconfig.yaml, label: ArtifactRepositoryArtifactRegistryConfig}
         - {file: schemas/artifactrepositoryocirconfig.yaml, label: ArtifactRepositoryOCIRConfig}

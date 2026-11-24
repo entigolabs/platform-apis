@@ -17,6 +17,63 @@ runs Redis, not Valkey.
 
 Valkey is offered as three kinds, each with the manifest its owner writes.
 
+### ValkeyClass
+
+Entigo writes each deployment's classes, with the defaults a server starts with, in `template`, and
+the values it cannot change, in `enforced` (principle 5):
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyClass
+metadata:
+  name: standard
+  annotations:
+    database.entigo.com/is-default-class: "true"
+spec:
+  template:
+    deletionProtection: true
+    version: "8.1"
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: ValkeyElastiCacheConfig
+      spec:
+        instanceType: cache.t4g.medium
+  enforced:                            # teams cannot change these
+    autoMinorVersionUpgrade: true
+    backup:
+      retentionDays: 7
+```
+
+*`ValkeyClass` for ElastiCache.*
+
+Every implementation supports `HighAvailability` and `ReadReplicas`.
+
+### ValkeyParameters
+
+`ValkeyParameters` holds Valkey settings that several servers or a class share. A class and a server
+each list the ones they use in `parametersRefs`. The settings merge key by key, a later value
+winning: the class's list in order, then the server's, then the server's own `parameters`, so a team
+can put settings all its servers share beneath one server's own tuning:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: ValkeyParameters
+metadata:
+  name: orders-cache-tuning
+  namespace: shop
+spec:
+  parameters:
+    maxmemory-policy: allkeys-lru
+    timeout: "300"
+```
+
+*`ValkeyParameters` shared between a user's servers.*
+
+A `ValkeyParameters` names no other, so references never chain. Settings the implementation does not
+allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
+
 ### ValkeyServer
 
 A server has no sharding: its data is held on the primary and copied to each replica.
@@ -112,63 +169,6 @@ status:
 The connection secret `<instance>-credentials` holds `endpoint`, `port` (6379), `username: default`,
 `password` and `readerEndpoint`. `default` is the user a password-only client authenticates as, so a
 client that always sends a username and password works unchanged.
-
-### ValkeyClass
-
-Entigo writes each deployment's classes, with the defaults a server starts with, in `template`, and
-the values it cannot change, in `enforced` (principle 5):
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: ValkeyClass
-metadata:
-  name: standard
-  annotations:
-    database.entigo.com/is-default-class: "true"
-spec:
-  template:
-    deletionProtection: true
-    version: "8.1"
-    providerConfig:
-      apiVersion: aws.database.entigo.com/v1alpha1
-      kind: ValkeyElastiCacheConfig
-      spec:
-        instanceType: cache.t4g.medium
-  enforced:                            # teams cannot change these
-    autoMinorVersionUpgrade: true
-    backup:
-      retentionDays: 7
-```
-
-*`ValkeyClass` for ElastiCache.*
-
-Every implementation supports `HighAvailability` and `ReadReplicas`.
-
-### ValkeyParameters
-
-`ValkeyParameters` holds Valkey settings that several servers or a class share. A class and a server
-each list the ones they use in `parametersRefs`. The settings merge key by key, a later value
-winning: the class's list in order, then the server's, then the server's own `parameters`, so a team
-can put settings all its servers share beneath one server's own tuning:
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: ValkeyParameters
-metadata:
-  name: orders-cache-tuning
-  namespace: shop
-spec:
-  parameters:
-    maxmemory-policy: allkeys-lru
-    timeout: "300"
-```
-
-*`ValkeyParameters` shared between a user's servers.*
-
-A `ValkeyParameters` names no other, so references never chain. Settings the implementation does not
-allow are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ## Read Replicas
 

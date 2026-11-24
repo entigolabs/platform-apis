@@ -19,6 +19,69 @@ settings.
 
 Kafka is offered as five kinds, each with the manifest its owner writes.
 
+### KafkaClass
+
+Entigo writes each deployment's classes, with the defaults a cluster starts with (`template`), the
+values it cannot change (`enforced`) and the defaults of the topics on it (`topicTemplate`)
+(principle 5):
+
+```yaml
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaClass
+metadata:
+  name: standard
+  annotations:
+    queue.entigo.com/is-default-class: "true"
+spec:
+  template:
+    deletionProtection: true
+    version: "4.0"
+    brokers: 3
+    storage:
+      sizeGB: 100
+    providerConfig:
+      apiVersion: aws.queue.entigo.com/v1alpha1
+      kind: KafkaMSKConfig
+      spec:
+        instanceType: kafka.m7g.large
+  enforced:                            # teams cannot change these
+    highAvailability: true
+  topicTemplate:                       # defaults for the topics on clusters of this class
+    partitions: 3
+    replicationFactor: 3
+```
+
+*`KafkaClass` for MSK.*
+
+Every implementation supports `HighAvailability`.
+
+### KafkaParameters
+
+`KafkaParameters` holds broker settings that several clusters or a class share. A class and a
+cluster each list the ones they use in `parametersRefs`. The settings merge key by key, a later
+value winning: the class's list in order, then the cluster's, then the cluster's own `parameters`,
+so a team can put settings all its clusters share beneath one cluster's own tuning:
+
+```yaml
+---
+apiVersion: queue.entigo.com/v1alpha2
+kind: KafkaParameters
+metadata:
+  name: orders-brokers
+  namespace: shop
+spec:
+  parameters:
+    auto.create.topics.enable: "false"
+    log.retention.hours: "72"
+```
+
+*`KafkaParameters` shared between a user's clusters.*
+
+A `KafkaParameters` names no other, so references never chain. Each implementation allows only some
+settings, and the others are rejected by the cloud and reported as `CloudAccepted: False`
+(principle 10).
+
 ### KafkaCluster
 
 A user creates a `KafkaCluster` with a manifest like the one below. It names its class and carries
@@ -95,69 +158,6 @@ status:
 *`KafkaCluster` status on AWS.*
 
 A cluster has no secret of its own: applications log in with a `KafkaUser`'s secret.
-
-### KafkaClass
-
-Entigo writes each deployment's classes, with the defaults a cluster starts with (`template`), the
-values it cannot change (`enforced`) and the defaults of the topics on it (`topicTemplate`)
-(principle 5):
-
-```yaml
----
-apiVersion: queue.entigo.com/v1alpha2
-kind: KafkaClass
-metadata:
-  name: standard
-  annotations:
-    queue.entigo.com/is-default-class: "true"
-spec:
-  template:
-    deletionProtection: true
-    version: "4.0"
-    brokers: 3
-    storage:
-      sizeGB: 100
-    providerConfig:
-      apiVersion: aws.queue.entigo.com/v1alpha1
-      kind: KafkaMSKConfig
-      spec:
-        instanceType: kafka.m7g.large
-  enforced:                            # teams cannot change these
-    highAvailability: true
-  topicTemplate:                       # defaults for the topics on clusters of this class
-    partitions: 3
-    replicationFactor: 3
-```
-
-*`KafkaClass` for MSK.*
-
-Every implementation supports `HighAvailability`.
-
-### KafkaParameters
-
-`KafkaParameters` holds broker settings that several clusters or a class share. A class and a
-cluster each list the ones they use in `parametersRefs`. The settings merge key by key, a later
-value winning: the class's list in order, then the cluster's, then the cluster's own `parameters`,
-so a team can put settings all its clusters share beneath one cluster's own tuning:
-
-```yaml
----
-apiVersion: queue.entigo.com/v1alpha2
-kind: KafkaParameters
-metadata:
-  name: orders-brokers
-  namespace: shop
-spec:
-  parameters:
-    auto.create.topics.enable: "false"
-    log.retention.hours: "72"
-```
-
-*`KafkaParameters` shared between a user's clusters.*
-
-A `KafkaParameters` names no other, so references never chain. Each implementation allows only some
-settings, and the others are rejected by the cloud and reported as `CloudAccepted: False`
-(principle 10).
 
 ### KafkaUser
 

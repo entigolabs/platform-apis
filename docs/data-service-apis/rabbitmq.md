@@ -16,6 +16,62 @@ and Azure have no managed RabbitMQ. The API follows RabbitMQ's own concepts.
 
 RabbitMQ is offered as five kinds, each with the manifest its owner writes.
 
+### RabbitMQClass
+
+Entigo writes each deployment's classes, with the defaults a broker starts with (`template`) and the
+values it cannot change (`enforced`) (principle 5):
+
+```yaml
+---
+apiVersion: mq.entigo.com/v1alpha2
+kind: RabbitMQClass
+metadata:
+  name: standard
+  annotations:
+    mq.entigo.com/is-default-class: "true"
+spec:
+  template:
+    deletionProtection: true
+    version: "4.2"
+    providerConfig:
+      apiVersion: aws.mq.entigo.com/v1alpha1
+      kind: RabbitMQAmazonMQConfig
+      spec:
+        instanceType: mq.m7g.medium
+  enforced:                            # teams cannot change these
+    maintenanceWindow:
+      day: Sun
+      hourUTC: 3
+```
+
+*`RabbitMQClass` for Amazon MQ.*
+
+Amazon MQ supports `HighAvailability`.
+
+### RabbitMQParameters
+
+`RabbitMQParameters` holds `rabbitmq.conf` settings that several brokers or a class share. A class
+and a broker each list the ones they use in `parametersRefs`. The settings merge key by key, a later
+value winning: the class's list in order, then the broker's, then the broker's own `parameters`, so
+a team can put settings all its brokers share beneath one broker's own tuning:
+
+```yaml
+---
+apiVersion: mq.entigo.com/v1alpha2
+kind: RabbitMQParameters
+metadata:
+  name: orders-mq-tuning
+  namespace: shop
+spec:
+  parameters:
+    consumer_timeout: "1800000"
+```
+
+*`RabbitMQParameters` shared between a user's brokers.*
+
+A `RabbitMQParameters` names no other, so references never chain. Settings Amazon MQ does not
+accept are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
+
 ### RabbitMQBroker
 
 A user creates a `RabbitMQBroker` with a manifest like the one below. It names its class and
@@ -83,62 +139,6 @@ status:
 
 The connection secret is `<broker>-credentials`, with `endpoint` (the AMQPS host), `port` (5671),
 `username`, `password` and `managementEndpoint`.
-
-### RabbitMQClass
-
-Entigo writes each deployment's classes, with the defaults a broker starts with (`template`) and the
-values it cannot change (`enforced`) (principle 5):
-
-```yaml
----
-apiVersion: mq.entigo.com/v1alpha2
-kind: RabbitMQClass
-metadata:
-  name: standard
-  annotations:
-    mq.entigo.com/is-default-class: "true"
-spec:
-  template:
-    deletionProtection: true
-    version: "4.2"
-    providerConfig:
-      apiVersion: aws.mq.entigo.com/v1alpha1
-      kind: RabbitMQAmazonMQConfig
-      spec:
-        instanceType: mq.m7g.medium
-  enforced:                            # teams cannot change these
-    maintenanceWindow:
-      day: Sun
-      hourUTC: 3
-```
-
-*`RabbitMQClass` for Amazon MQ.*
-
-Amazon MQ supports `HighAvailability`.
-
-### RabbitMQParameters
-
-`RabbitMQParameters` holds `rabbitmq.conf` settings that several brokers or a class share. A class
-and a broker each list the ones they use in `parametersRefs`. The settings merge key by key, a later
-value winning: the class's list in order, then the broker's, then the broker's own `parameters`, so
-a team can put settings all its brokers share beneath one broker's own tuning:
-
-```yaml
----
-apiVersion: mq.entigo.com/v1alpha2
-kind: RabbitMQParameters
-metadata:
-  name: orders-mq-tuning
-  namespace: shop
-spec:
-  parameters:
-    consumer_timeout: "1800000"
-```
-
-*`RabbitMQParameters` shared between a user's brokers.*
-
-A `RabbitMQParameters` names no other, so references never chain. Settings Amazon MQ does not
-accept are rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### RabbitMQUser
 

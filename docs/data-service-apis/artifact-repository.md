@@ -16,6 +16,35 @@ with a provider configuration kind of its own: `ArtifactRepositoryECRConfig`,
 
 The artifact registry is offered as two kinds, each with the manifest its owner writes.
 
+### ArtifactRepositoryClass
+
+Entigo writes each deployment's classes, with the defaults a repository starts with (`template`)
+and the values it cannot change (`enforced`) (principle 5):
+
+```yaml
+---
+apiVersion: artifact.entigo.com/v1alpha2
+kind: ArtifactRepositoryClass
+metadata:
+  name: standard
+  annotations:
+    artifact.entigo.com/is-default-class: "true"
+spec:
+  template:
+    deletionProtection: true
+    immutableTags: true
+    lifecycleRules:
+    - untagged: true
+      expireAfterDays: 7
+    - keepCount: 100
+    providerConfig:
+      apiVersion: aws.artifact.entigo.com/v1alpha1
+      kind: ArtifactRepositoryECRConfig
+      spec: {}
+```
+
+*`ArtifactRepositoryClass` for ECR.*
+
 ### ArtifactRepository
 
 The implementations define a repository differently: ECR and OCIR have one repository per image
@@ -85,35 +114,6 @@ status:
 ```
 
 *`ArtifactRepository` status on AWS.*
-
-### ArtifactRepositoryClass
-
-Entigo writes each deployment's classes, with the defaults a repository starts with (`template`)
-and the values it cannot change (`enforced`) (principle 5):
-
-```yaml
----
-apiVersion: artifact.entigo.com/v1alpha2
-kind: ArtifactRepositoryClass
-metadata:
-  name: standard
-  annotations:
-    artifact.entigo.com/is-default-class: "true"
-spec:
-  template:
-    deletionProtection: true
-    immutableTags: true
-    lifecycleRules:
-    - untagged: true
-      expireAfterDays: 7
-    - keepCount: 100
-    providerConfig:
-      apiVersion: aws.artifact.entigo.com/v1alpha1
-      kind: ArtifactRepositoryECRConfig
-      spec: {}
-```
-
-*`ArtifactRepositoryClass` for ECR.*
 
 ## Mapping
 

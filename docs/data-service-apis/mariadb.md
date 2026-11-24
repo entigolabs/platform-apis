@@ -16,6 +16,66 @@ for MariaDB is retired.
 
 MariaDB is offered as five kinds, each with the manifest its owner writes.
 
+### MariaDBClass
+
+Entigo writes each deployment's classes, with the defaults a server starts with, in `template`, and
+the values it cannot change, in `enforced` (principle 5):
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBClass
+metadata:
+  name: standard
+  annotations:
+    database.entigo.com/is-default-class: "true"
+spec:
+  template:
+    deletionProtection: true
+    version: "11.4"
+    storage:
+      sizeGB: 50
+      maxSizeGB: 500
+    providerConfig:
+      apiVersion: aws.database.entigo.com/v1alpha1
+      kind: MariaDBRDSConfig
+      spec:
+        instanceType: db.t4g.medium
+  enforced:                            # teams cannot change these
+    autoMinorVersionUpgrade: true
+    backup:
+      retentionDays: 7
+```
+
+*`MariaDBClass` for RDS.*
+
+RDS supports `HighAvailability`.
+
+### MariaDBParameters
+
+`MariaDBParameters` holds MariaDB settings that several servers or a class share. A class and a
+server each list the ones they use in `parametersRefs`. The settings merge key by key, a later value
+winning: the class's list in order, then the server's, then the server's own `parameters`, so a team
+can put settings all its servers share beneath one server's own tuning:
+
+```yaml
+---
+apiVersion: database.entigo.com/v1alpha2
+kind: MariaDBParameters
+metadata:
+  name: orders-tuning
+  namespace: shop
+spec:
+  parameters:
+    innodb_lock_wait_timeout: "120"
+    long_query_time: "2"
+```
+
+*`MariaDBParameters` shared between a user's servers.*
+
+A `MariaDBParameters` names no other, so references never chain. Settings RDS does not allow are
+rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
+
 ### MariaDBServer
 
 A user creates a `MariaDBServer` with a manifest like the one below. It names its class and carries
@@ -123,66 +183,6 @@ status:
 *`MariaDBServer` status on AWS.*
 
 The connection secret `<instance>-dbadmin` holds the admin login, with the keys of principle 6.
-
-### MariaDBClass
-
-Entigo writes each deployment's classes, with the defaults a server starts with, in `template`, and
-the values it cannot change, in `enforced` (principle 5):
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: MariaDBClass
-metadata:
-  name: standard
-  annotations:
-    database.entigo.com/is-default-class: "true"
-spec:
-  template:
-    deletionProtection: true
-    version: "11.4"
-    storage:
-      sizeGB: 50
-      maxSizeGB: 500
-    providerConfig:
-      apiVersion: aws.database.entigo.com/v1alpha1
-      kind: MariaDBRDSConfig
-      spec:
-        instanceType: db.t4g.medium
-  enforced:                            # teams cannot change these
-    autoMinorVersionUpgrade: true
-    backup:
-      retentionDays: 7
-```
-
-*`MariaDBClass` for RDS.*
-
-RDS supports `HighAvailability`.
-
-### MariaDBParameters
-
-`MariaDBParameters` holds MariaDB settings that several servers or a class share. A class and a
-server each list the ones they use in `parametersRefs`. The settings merge key by key, a later value
-winning: the class's list in order, then the server's, then the server's own `parameters`, so a team
-can put settings all its servers share beneath one server's own tuning:
-
-```yaml
----
-apiVersion: database.entigo.com/v1alpha2
-kind: MariaDBParameters
-metadata:
-  name: orders-tuning
-  namespace: shop
-spec:
-  parameters:
-    innodb_lock_wait_timeout: "120"
-    long_query_time: "2"
-```
-
-*`MariaDBParameters` shared between a user's servers.*
-
-A `MariaDBParameters` names no other, so references never chain. Settings RDS does not allow are
-rejected by the cloud and reported as `CloudAccepted: False` (principle 10).
 
 ### MariaDBUser
 
