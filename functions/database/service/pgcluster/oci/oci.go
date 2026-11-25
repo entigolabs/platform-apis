@@ -494,16 +494,24 @@ func secret(name, namespace string, data map[string]string) client.Object {
 	}}
 }
 
-// currentPassword keeps the password the platform generated before, read from the observed Secret,
-// and generates one for a new cluster.
+// currentPassword keeps the password the platform generated before. It reads the password Secret,
+// or the admin Secret when the password Secret was deleted, so either restores the other. A new
+// cluster gets a generated password. Once the DB system exists in OCI a new password is never
+// generated: the provider would reset the database to it, and applications holding the old one
+// would fail to log in.
 func currentPassword(observed map[resource.Name]resource.ObservedComposed) (string, error) {
-	if o, ok := observed[resource.Name(namePassword)]; ok {
-		if v, found, _ := unstructured.NestedString(o.Resource.Object, "data", passwordKey); found && v != "" {
-			raw, err := base64.StdEncoding.DecodeString(v)
-			if err == nil && len(raw) > 0 {
-				return string(raw), nil
+	for _, name := range []string{namePassword, nameSecret} {
+		if o, ok := observed[resource.Name(name)]; ok {
+			if v, found, _ := unstructured.NestedString(o.Resource.Object, "data", passwordKey); found && v != "" {
+				if raw, err := base64.StdEncoding.DecodeString(v); err == nil && len(raw) > 0 {
+					return string(raw), nil
+				}
 			}
 		}
+	}
+	if o, ok := observed[resource.Name(nameDBSystem)]; ok && observedID(&o.Resource.Unstructured) != "" {
+		return "", errors.New("the admin password is lost: both the admin Secret and the password Secret are gone; " +
+			"recreate either with the current password under the key \"password\"")
 	}
 	return generatePassword()
 }

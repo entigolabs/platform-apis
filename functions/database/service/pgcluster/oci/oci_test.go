@@ -277,6 +277,32 @@ func TestInstanceCountChanges(t *testing.T) {
 	})
 }
 
+func TestPasswordKeptWhenASecretIsDeleted(t *testing.T) {
+	secret := func(password string) resource.ObservedComposed {
+		return resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+			"apiVersion": "v1", "kind": "Secret", "data": map[string]interface{}{passwordKey: base64.StdEncoding.EncodeToString([]byte(password))}}}}}
+	}
+	db := resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *obj(psqlAPIVersion, "PsqlDbSystem", "x", nil,
+		map[string]interface{}{"id": "ocid1.postgresqldbsystem.oc1..db"})}}
+
+	t.Run("the admin Secret restores the password Secret", func(t *testing.T) {
+		got, err := currentPassword(map[resource.Name]resource.ObservedComposed{nameSecret: secret("From-admin-1"), nameDBSystem: db})
+		if err != nil || got != "From-admin-1" {
+			t.Errorf("want the admin Secret's password, got %q, %v", got, err)
+		}
+	})
+	t.Run("both Secrets gone after creation is an error", func(t *testing.T) {
+		if _, err := currentPassword(map[resource.Name]resource.ObservedComposed{nameDBSystem: db}); err == nil {
+			t.Error("want an error instead of a new password")
+		}
+	})
+	t.Run("a new cluster gets a generated password", func(t *testing.T) {
+		if got, err := currentPassword(nil); err != nil || len(got) != 24 {
+			t.Errorf("want a generated password, got %q, %v", got, err)
+		}
+	})
+}
+
 func TestAdminSecret(t *testing.T) {
 	password := "Kept-password-1"
 	observed := observedComposed(nameNSG, obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"}))
