@@ -295,6 +295,7 @@ func ObservedStatus(observed *composed.Unstructured) (map[string]interface{}, er
 		if o.RetentionDays > 0 {
 			status.Backup = &v1alpha2.BackupStatus{RetentionDays: o.RetentionDays}
 		}
+		status.HighAvailability = o.HighAvailability
 		if o.Host != "" {
 			status.Endpoint = &v1alpha2.Endpoint{Host: o.Host, Port: o.Port}
 		}

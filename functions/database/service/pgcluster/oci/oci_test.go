@@ -402,12 +402,16 @@ func TestStatus(t *testing.T) {
 	db := composed.New()
 	db.SetUnstructuredContent(obj(psqlAPIVersion, "PsqlDbSystem", "x", nil, map[string]interface{}{
 		"id": "ocid1.postgresqldbsystem.oc1..x", "state": "ACTIVE", "dbVersion": "17.4", "shape": "PostgreSQL.VM.Standard.E5.Flex",
+		"instanceCount":    float64(2),
 		"networkDetails":   []interface{}{map[string]interface{}{"primaryDbEndpointPrivateIp": "10.0.3.7"}},
 		"managementPolicy": []interface{}{map[string]interface{}{"backupPolicy": []interface{}{map[string]interface{}{"retentionDays": float64(7)}}}},
 	}).Object)
 	o, err := Backend{}.Status(db)
 	if err != nil || o == nil {
 		t.Fatalf("want status, got %v, %v", o, err)
+	}
+	if o.HighAvailability == nil || !*o.HighAvailability {
+		t.Errorf("want high availability from two instances, got %v", o.HighAvailability)
 	}
 	if o.Version != "17.4" || o.Host != "10.0.3.7" || o.Port != port || o.RetentionDays != 7 ||
 		o.Provider["state"] != "ACTIVE" || o.Provider["instanceType"] != "PostgreSQL.VM.Standard.E5.Flex" {

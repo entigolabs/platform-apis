@@ -76,8 +76,10 @@ type Observed struct {
 	Version       string
 	SizeGB        int64
 	RetentionDays int64
-	Host          string
-	Port          int64
+	// HighAvailability is whether the cluster runs with a standby; nil when the backend cannot tell.
+	HighAvailability *bool
+	Host             string
+	Port             int64
 	// Provider holds the values only this backend has, in the shape its provider configuration
 	// kind's status defines.
 	Provider map[string]interface{}

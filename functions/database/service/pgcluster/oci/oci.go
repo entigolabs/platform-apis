@@ -578,6 +578,10 @@ func (Backend) Status(observed *composed.Unstructured) (*pgcluster.Observed, err
 	o := &pgcluster.Observed{Port: port, Provider: map[string]interface{}{}}
 	o.Version, _ = at["dbVersion"].(string)
 	o.Host = endpoint(&observed.Unstructured)
+	if n, ok := toInt64(at["instanceCount"]); ok {
+		ha := n > 1
+		o.HighAvailability = &ha
+	}
 	if policies, ok := at["managementPolicy"].([]interface{}); ok && len(policies) > 0 {
 		if p, ok := policies[0].(map[string]interface{}); ok {
 			if backups, ok := p["backupPolicy"].([]interface{}); ok && len(backups) > 0 {

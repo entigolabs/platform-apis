@@ -48,7 +48,8 @@ func (standIn) Status(observed *composed.Unstructured) (*Observed, error) {
 	if observed.GetKind() != "ConfigMap" {
 		return nil, nil
 	}
-	return &Observed{Version: "17.4", SizeGB: 25, RetentionDays: 7, Host: "db.example", Port: 5432,
+	ha := true
+	return &Observed{Version: "17.4", SizeGB: 25, RetentionDays: 7, HighAvailability: &ha, Host: "db.example", Port: 5432,
 		Provider: map[string]interface{}{"state": "running"}}, nil
 }
 
@@ -269,7 +270,7 @@ func TestStatus(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if status["version"] != "17.4" || status["endpoint"].(map[string]interface{})["host"] != "db.example" ||
+		if status["version"] != "17.4" || status["highAvailability"] != true || status["endpoint"].(map[string]interface{})["host"] != "db.example" ||
 			status["provider"].(map[string]interface{})["state"] != "running" {
 			t.Errorf("unexpected status %v", status)
 		}
