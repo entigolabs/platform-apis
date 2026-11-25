@@ -11,27 +11,21 @@ import (
 )
 
 // testPlatformApisOCI creates a Zone with one OKE node pool and a namespace pinned to it, and
-// checks that a Pod in the namespace runs on a node of that pool.
+// checks that a Pod in the namespace runs on a node of that pool. The PostgreSQLCluster suite runs
+// once the Zone is ready, as a team's workload in it.
 func testPlatformApisOCI(t *testing.T, e *env.Environment) {
 	c := k8s.Connect(t, e)
 	cluster, _ := setupKubectlClients(c.Context, e.Prefix)
 
 	cfg := loadSuiteConfig()
-	if cfg.Has("postgresqlcluster") {
-		t.Run("postgresqlcluster", func(t *testing.T) {
-			t.Parallel()
-			testPostgreSQLClusterOCI(t, cluster)
-		})
-	}
-
 	t.Run("packages", func(t *testing.T) {
 		checkPlatformApisHaveRequiredPackages(t, cluster, ZoneConfigurationName, TenancyFunctionName)
 	})
 	if t.Failed() {
 		return
 	}
-	if !cfg.Has("zone") {
-		t.Skip("the zone suite is not among the affected suites")
+	if !cfg.Has("zone") && !cfg.Has("postgresqlcluster") {
+		t.Skip("neither the zone nor the postgresqlcluster suite is among the affected suites")
 	}
 
 	t.Run("zone", func(t *testing.T) {
@@ -41,6 +35,13 @@ func testPlatformApisOCI(t *testing.T, e *env.Environment) {
 		waitZoneNodesReady(t, cluster, OCIZoneName)
 	})
 	if t.Failed() {
+		return
+	}
+
+	if cfg.Has("postgresqlcluster") {
+		t.Run("postgresqlcluster", func(t *testing.T) { testPostgreSQLClusterOCI(t, cluster) })
+	}
+	if !cfg.Has("zone") {
 		return
 	}
 

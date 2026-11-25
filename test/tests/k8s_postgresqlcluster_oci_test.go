@@ -27,6 +27,7 @@ func testPostgreSQLClusterOCI(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	t.Cleanup(func() { cleanupPostgreSQLClusterOCI(t, cluster, ns) })
 
 	applyFile(t, cluster, "./templates/postgresqlcluster_oci.yaml")
+	waitNamespacePoliciesReady(t, cluster, OCIZoneName, PostgreSQLClusterNamespace)
 
 	t.Run("refused-fields", func(t *testing.T) { testPostgreSQLClusterRefusals(t, ns) })
 	t.Run("deletion-protected", func(t *testing.T) {

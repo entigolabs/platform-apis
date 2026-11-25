@@ -4,6 +4,7 @@ kind: Namespace
 metadata:
   name: test-postgresqlcluster
   labels:
+    tenancy.entigo.com/zone: oci
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: baseline
 ---
