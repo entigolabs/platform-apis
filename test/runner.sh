@@ -55,11 +55,23 @@ run_helm_tests() {
       -schema-location default \
       -schema-location "$CRD_CATALOG"; then
     log_pass "Kubeconform validation"
-    return 0
   else
     log_fail "Kubeconform validation"
     return 1
   fi
+
+  # Render checks: each script in tests/ renders the chart with chosen values and asserts the output.
+  for check in tests/*.sh; do
+    [ -f "$check" ] || continue
+    log_info "Running $check..."
+    if bash "$check"; then
+      log_pass "$check"
+    else
+      log_fail "$check"
+      return 1
+    fi
+  done
+  return 0
 }
 
 # ============ MAIN ============
