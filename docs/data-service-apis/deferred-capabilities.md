@@ -21,6 +21,13 @@ A `PostgreSQLCluster` or `MariaDBServer` keeps read-only copies of itself, reque
 `readReplicas`, or, where the backend allows it, as replicas of their own sizes in its provider
 configuration.
 
+On AWS the RDS backend cannot offer them as one cluster. It runs a `PostgreSQLCluster` as one RDS
+DB instance, and `highAvailability` adds a standby that serves no reads. Read replicas there are
+separate DB instances with endpoints of their own. Replicas behind the cluster's own endpoints need
+a second AWS backend on Aurora, with a provider configuration kind of its own; the common spec stays
+as it is. OCI Database with PostgreSQL and CloudNativePG run several instances as one cluster
+already.
+
 Valkey keeps the read replicas it has today. The design as last written, with its rules, mappings,
 schemas and the open point on the reader endpoint in user secrets, is at commit
 [`3c74fd5`](https://github.com/entigolabs/platform-apis/tree/3c74fd58e082e1cc17c96b5d08e6aa2d1a73f2a1/docs/data-service-apis).
