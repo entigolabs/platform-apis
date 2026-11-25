@@ -240,6 +240,36 @@ func TestInstanceCountChanges(t *testing.T) {
 			t.Errorf("want the newest instance removed, got %v", ops)
 		}
 	})
+	t.Run("instances created together lose the highest-numbered first", func(t *testing.T) {
+		ops := compose(false, map[string]interface{}{"instanceCount": float64(2), "instances": []interface{}{
+			map[string]interface{}{"id": "ocid1.one", "displayName": "db-1", "timeCreated": "2026-11-25T08:00:00Z"},
+			map[string]interface{}{"id": "ocid1.two", "displayName": "db-2", "timeCreated": "2026-11-25T08:00:00Z"},
+		}})
+		if len(ops) != 1 || ops[0].(map[string]interface{})["selection"] != "instances[?id == 'ocid1.two']" {
+			t.Errorf("want db-2 removed, got %v", ops)
+		}
+	})
+	t.Run("an instance OCI refused as primary is skipped", func(t *testing.T) {
+		c := cluster(flexEntry)
+		c.Spec.HighAvailability = ptr(false)
+		db := obj(psqlAPIVersion, "PsqlDbSystem", "x", nil, two)
+		db.Object["spec"] = map[string]interface{}{"forProvider": map[string]interface{}{"patchOperations": []interface{}{
+			map[string]interface{}{"operation": "REMOVE", "selection": "instances[?id == 'ocid1.replica']"}}}}
+		db.Object["status"].(map[string]interface{})["conditions"] = []interface{}{map[string]interface{}{
+			"type": "Synced", "status": "False", "message": "update failed: 403-NotAllowed, Primary dbInstance can not be removed"}}
+		observed := observedComposed(nameNSG, nsg)
+		for k, v := range observedComposed(nameDBSystem, db) {
+			observed[k] = v
+		}
+		objs, err := pgcluster.Generate(c, required(), observed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ops, _, _ := unstructured.NestedSlice(objs[nameDBSystem].(*unstructured.Unstructured).Object, "spec", "forProvider", "patchOperations")
+		if len(ops) != 1 || ops[0].(map[string]interface{})["selection"] != "instances[?id == 'ocid1.first']" {
+			t.Errorf("want the other instance removed, got %v", ops)
+		}
+	})
 	t.Run("no patch once OCI reports the wanted count", func(t *testing.T) {
 		if ops := compose(true, two); len(ops) != 0 {
 			t.Errorf("want no patch operations, got %v", ops)

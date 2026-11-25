@@ -373,7 +373,9 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 // count. OCI adds and removes instances only through PatchDbSystem, and the provider requires a
 // patch whenever instanceCount changes. The provider sends whatever patchOperations holds on every
 // update, so it is set only while OCI reports another count, and dropped once the count is reached.
-// Removal takes the newest instances: OCI does not say which is primary, and refuses to remove it.
+// Removal takes the newest instances, the highest-numbered first among those created together. OCI
+// does not say which instance is primary and refuses to remove it; after such a refusal the
+// instance it refused is skipped, which also covers a primary that moved in a failover.
 func instancePatches(observed map[resource.Name]resource.ObservedComposed, name string, want int64) []interface{} {
 	o, ok := observed[resource.Name(nameDBSystem)]
 	if !ok {
@@ -396,23 +398,62 @@ func instancePatches(observed map[resource.Name]resource.ObservedComposed, name 
 		}
 		return ops
 	}
-	type instance struct{ id, created string }
+	refused := refusedPrimary(&o.Resource.Unstructured)
+	type instance struct{ id, created, name string }
 	var list []instance
 	for _, raw := range instances {
 		if m, ok := raw.(map[string]interface{}); ok {
 			id, _ := m["id"].(string)
 			created, _ := m["timeCreated"].(string)
-			if id != "" {
-				list = append(list, instance{id, created})
+			name, _ := m["displayName"].(string)
+			if id != "" && id != refused {
+				list = append(list, instance{id, created, name})
 			}
 		}
 	}
-	sort.Slice(list, func(i, j int) bool { return list[i].created > list[j].created })
-	for i := 0; i < int(have-want) && i < len(list)-1; i++ {
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].created != list[j].created {
+			return list[i].created > list[j].created
+		}
+		return list[i].name > list[j].name
+	})
+	// One instance always stays: the last one listed, or the refused primary, which is not listed.
+	removable := len(list) - 1
+	if refused != "" {
+		removable = len(list)
+	}
+	for i := 0; i < int(have-want) && i < removable; i++ {
 		ops = append(ops, map[string]interface{}{"operation": "REMOVE",
 			"selection": fmt.Sprintf("instances[?id == '%s']", list[i].id)})
 	}
 	return ops
+}
+
+// refusedPrimary returns the instance a REMOVE targeted when OCI refused it as the primary.
+func refusedPrimary(db *unstructured.Unstructured) string {
+	conditions, _, _ := unstructured.NestedSlice(db.Object, "status", "conditions")
+	refused := false
+	for _, raw := range conditions {
+		if c, ok := raw.(map[string]interface{}); ok && c["type"] == "Synced" && c["status"] == "False" {
+			msg, _ := c["message"].(string)
+			refused = strings.Contains(msg, "Primary dbInstance can not be removed")
+		}
+	}
+	if !refused {
+		return ""
+	}
+	ops, _, _ := unstructured.NestedSlice(db.Object, "spec", "forProvider", "patchOperations")
+	for _, raw := range ops {
+		if op, ok := raw.(map[string]interface{}); ok && op["operation"] == "REMOVE" {
+			sel, _ := op["selection"].(string)
+			if i := strings.Index(sel, "'"); i >= 0 {
+				if j := strings.LastIndex(sel, "'"); j > i {
+					return sel[i+1 : j]
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func toInt64(v interface{}) (int64, bool) {
