@@ -8,9 +8,8 @@ data:
   postgresqlBackends: {{- toYaml .Values.postgresqlcluster.backends | nindent 4 }}
 {{- if has "PostgreSQLOCIConfig.oci.database.entigo.com" .Values.postgresqlcluster.backends }}
 {{- $oci := deepCopy .Values.database.environmentConfig.oci }}
-{{- if kindIs "string" $oci.availabilityDomains }}
-{{- $_ := set $oci "availabilityDomains" (compact (splitList "," (nospace $oci.availabilityDomains))) }}
-{{- end }}
+{{- /* infralib passes a list output as one string with every element quoted; the CIDR helper unquotes and splits it */}}
+{{- $_ := set $oci "availabilityDomains" (include "platform-apis.normalizeCidrs" ($oci.availabilityDomains | default list) | fromJsonArray) }}
   oci: {{- toYaml $oci | nindent 4 }}
 {{- end }}
 {{- end }}
