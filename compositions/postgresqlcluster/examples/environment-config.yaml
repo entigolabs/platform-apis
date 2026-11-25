@@ -6,3 +6,11 @@ metadata:
 data:
   postgresqlBackends:
   - PostgreSQLOCIConfig.oci.database.entigo.com
+  oci:
+    providerConfig: crossplane-oracle
+    cluster: oke
+    vcn: vcn
+    databaseSubnetType: database
+    clientSecurityGroups:
+    - node
+    - pod

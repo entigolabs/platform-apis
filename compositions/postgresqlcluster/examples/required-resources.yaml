@@ -1,0 +1,43 @@
+---
+# The infralib observers (crossplane-oracle module) an OCI deployment provides.
+apiVersion: containerengine.oci.upbound.io/v1alpha1
+kind: Cluster
+metadata:
+  name: oke
+status:
+  atProvider:
+    compartmentId: ocid1.compartment.oc1..example
+---
+apiVersion: networking.oci.upbound.io/v1alpha1
+kind: Vcn
+metadata:
+  name: vcn
+status:
+  atProvider:
+    id: ocid1.vcn.oc1..example
+---
+apiVersion: networking.oci.upbound.io/v1alpha1
+kind: Subnet
+metadata:
+  name: database-0
+  labels:
+    subnet-type: database
+status:
+  atProvider:
+    id: ocid1.subnet.oc1..database
+---
+apiVersion: networking.oci.upbound.io/v1alpha1
+kind: NetworkSecurityGroup
+metadata:
+  name: node
+status:
+  atProvider:
+    id: ocid1.networksecuritygroup.oc1..node
+---
+apiVersion: networking.oci.upbound.io/v1alpha1
+kind: NetworkSecurityGroup
+metadata:
+  name: pod
+status:
+  atProvider:
+    id: ocid1.networksecuritygroup.oc1..pod
