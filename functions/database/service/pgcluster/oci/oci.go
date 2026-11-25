@@ -348,7 +348,13 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	if cfg.FromBackup != "" {
 		forProvider["source"] = []interface{}{map[string]interface{}{"sourceType": "BACKUP", "backupId": cfg.FromBackup}}
 	}
-	return managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
+	db := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
+	// The provider never reads instancesDetails back, so after creation it reports a change that
+	// forces replacement and refuses every update. A field set only in initProvider is ignored after
+	// creation; an empty list sends nothing on create.
+	db.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})["initProvider"] =
+		map[string]interface{}{"instancesDetails": []interface{}{}}
+	return db
 }
 
 func managed(apiVersion, kind, name, namespace string, env Environment, forProvider map[string]interface{}) client.Object {

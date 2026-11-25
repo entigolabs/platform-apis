@@ -138,6 +138,9 @@ func TestComposeTheDBSystem(t *testing.T) {
 		if backup["kind"] != "DAILY" || backup["retentionDays"] != int64(7) || backup["backupStart"] != "02:00" {
 			t.Errorf("want daily backups from 02:00 kept 7 days, the implementation's defaults, got %v", backup)
 		}
+		if v, ok := field(t, db, "spec", "initProvider", "instancesDetails").([]interface{}); !ok || len(v) != 0 {
+			t.Errorf("want an empty initProvider.instancesDetails, got %v", v)
+		}
 		pw := first(t, db, "spec", "forProvider", "credentials")["passwordDetails"].([]interface{})[0].(map[string]interface{})
 		if pw["passwordSecretRef"].(map[string]interface{})["name"] != objs[namePassword].GetName() {
 			t.Errorf("want the password from the generated Secret, got %v", pw)
