@@ -111,6 +111,7 @@ const (
 	PostgreSQLClusterSecret    = "pgc-oci-dbadmin"
 	PostgreSQLClusterClient    = "pgc-oci-client"
 	OCIDBSystemKind            = "psqldbsystems.psql.oci.m.upbound.io"
+	PostgreSQLOCIConfigKind    = "postgresqlociconfigs.oci.database.entigo.com"
 
 	// ── CronJob ───────────────────────────────────────────────────────────────
 

@@ -8,6 +8,18 @@ metadata:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: baseline
 ---
+# The cluster's OCI settings as a separate object, so the suite also checks that a change to it
+# reaches the DB system.
+apiVersion: oci.database.entigo.com/v1alpha1
+kind: PostgreSQLOCIConfig
+metadata:
+  name: pgc-oci
+  namespace: test-postgresqlcluster
+spec:
+  instanceType: PostgreSQL.VM.Standard.E5.Flex
+  ocpus: 2
+  memoryGB: 32
+---
 # A standalone cluster with only what the first iteration requires; every other common field takes
 # the implementation's default.
 apiVersion: database.entigo.com/v1alpha2
@@ -22,7 +34,5 @@ spec:
   providerConfigs:
   - apiVersion: oci.database.entigo.com/v1alpha1
     kind: PostgreSQLOCIConfig
-    spec:
-      instanceType: PostgreSQL.VM.Standard.E5.Flex
-      ocpus: 2
-      memoryGB: 32
+    ref:
+      name: pgc-oci

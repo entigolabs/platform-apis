@@ -78,24 +78,89 @@ func testPostgreSQLClusterOCI(t *testing.T, cluster *terrak8s.KubectlOptions) {
 		return
 	}
 
-	t.Run("connect", func(t *testing.T) {
-		applyFile(t, cluster, "./templates/postgresqlcluster_oci_client.yaml")
-		_, err := retry.DoWithRetryE(t, "psql client succeeds", 30, 10*time.Second, func() (string, error) {
-			phase, err := terrak8s.RunKubectlAndGetOutputE(t, ns, "get", "pod", PostgreSQLClusterClient, "-o", "jsonpath={.status.phase}")
-			if err != nil {
-				return "", err
-			}
-			if phase == "Failed" {
-				logs, _ := terrak8s.RunKubectlAndGetOutputE(t, ns, "logs", PostgreSQLClusterClient)
-				return "", retry.FatalError{Underlying: fmt.Errorf("client failed: %s", logs)}
-			}
-			if phase != "Succeeded" {
-				return "", fmt.Errorf("phase=%q", phase)
-			}
-			return phase, nil
-		})
+	t.Run("connect", func(t *testing.T) { testPostgreSQLClusterConnect(t, cluster, ns) })
+	if t.Failed() {
+		return
+	}
+
+	// Changes to the running cluster, each checked in OCI's own state and by connecting again.
+	db, err := getFirstByLabel(t, ns, OCIDBSystemKind, PostgreSQLClusterName)
+	require.NoError(t, err)
+	patch := func(t *testing.T, kind, name, spec string) {
+		t.Helper()
+		_, err := terrak8s.RunKubectlAndGetOutputE(t, ns, "patch", kind, name, "--type=merge", "-p", spec)
 		require.NoError(t, err)
+	}
+	atProvider := ".status.atProvider"
+	backupPolicy := atProvider + ".managementPolicy[0].backupPolicy[0]"
+
+	t.Run("high-availability", func(t *testing.T) {
+		patch(t, PostgreSQLClusterKind, PostgreSQLClusterName, `{"spec":{"highAvailability":true}}`)
+		waitFieldEquals(t, ns, PostgreSQLClusterKind, PostgreSQLClusterName, ".status.highAvailability", "true", 90, 10*time.Second)
+		waitFieldEquals(t, ns, OCIDBSystemKind, db, ".spec.forProvider.patchOperations", "", 30, 10*time.Second)
+		testPostgreSQLClusterConnect(t, cluster, ns)
+
+		patch(t, PostgreSQLClusterKind, PostgreSQLClusterName, `{"spec":{"highAvailability":false}}`)
+		waitFieldEquals(t, ns, PostgreSQLClusterKind, PostgreSQLClusterName, ".status.highAvailability", "false", 90, 10*time.Second)
+		waitFieldEquals(t, ns, OCIDBSystemKind, db, ".spec.forProvider.patchOperations", "", 30, 10*time.Second)
+		testPostgreSQLClusterConnect(t, cluster, ns)
 	})
+
+	t.Run("backups", func(t *testing.T) {
+		for _, step := range []struct{ days, field, want string }{
+			{"14", ".retentionDays", "14"}, {"0", ".kind", "NONE"}, {"7", ".kind", "DAILY"},
+		} {
+			patch(t, PostgreSQLClusterKind, PostgreSQLClusterName, `{"spec":{"backup":{"retentionDays":`+step.days+`}}}`)
+			waitFieldEquals(t, ns, OCIDBSystemKind, db, backupPolicy+step.field, step.want, 60, 10*time.Second)
+		}
+	})
+
+	t.Run("referenced-config", func(t *testing.T) {
+		// Only the referenced PostgreSQLOCIConfig changes; the cluster itself stays as it is.
+		patch(t, PostgreSQLOCIConfigKind, PostgreSQLClusterName, `{"spec":{"backupStartHourUTC":4}}`)
+		waitFieldEquals(t, ns, OCIDBSystemKind, db, backupPolicy+".backupStart", "04:00", 60, 10*time.Second)
+	})
+
+	t.Run("password-kept", func(t *testing.T) {
+		// A deleted password Secret is restored from the admin Secret, so the password does not change.
+		before := getField(t, ns, "secret", PostgreSQLClusterSecret, ".data.password")
+		secrets, err := terrak8s.RunKubectlAndGetOutputE(t, ns, "get", "secret", "-o", "name")
+		require.NoError(t, err)
+		var passwordSecret string
+		for _, s := range strings.Fields(secrets) {
+			if strings.HasPrefix(s, "secret/"+PostgreSQLClusterName+"-admin-password-") {
+				passwordSecret = strings.TrimPrefix(s, "secret/")
+			}
+		}
+		require.NotEmpty(t, passwordSecret, "the password Secret was not found")
+		_, err = terrak8s.RunKubectlAndGetOutputE(t, ns, "delete", "secret", passwordSecret)
+		require.NoError(t, err)
+		waitFieldEquals(t, ns, "secret", passwordSecret, ".data.password", before, 30, 10*time.Second)
+		require.Equal(t, before, getField(t, ns, "secret", PostgreSQLClusterSecret, ".data.password"))
+		testPostgreSQLClusterConnect(t, cluster, ns)
+	})
+}
+
+// testPostgreSQLClusterConnect runs the psql client pod once and requires its query to succeed.
+func testPostgreSQLClusterConnect(t *testing.T, cluster, ns *terrak8s.KubectlOptions) {
+	t.Helper()
+	_, _ = terrak8s.RunKubectlAndGetOutputE(t, ns, "delete", "pod", PostgreSQLClusterClient, "--ignore-not-found", "--wait=true")
+	applyFile(t, cluster, "./templates/postgresqlcluster_oci_client.yaml")
+	_, err := retry.DoWithRetryE(t, "psql client succeeds", 30, 10*time.Second, func() (string, error) {
+		phase, err := terrak8s.RunKubectlAndGetOutputE(t, ns, "get", "pod", PostgreSQLClusterClient, "-o", "jsonpath={.status.phase}")
+		if err != nil {
+			return "", err
+		}
+		if phase == "Failed" {
+			logs, _ := terrak8s.RunKubectlAndGetOutputE(t, ns, "logs", PostgreSQLClusterClient)
+			return "", retry.FatalError{Underlying: fmt.Errorf("client failed: %s", logs)}
+		}
+		if phase != "Succeeded" {
+			return "", fmt.Errorf("phase=%q", phase)
+		}
+		return phase, nil
+	})
+	require.NoError(t, err)
 }
 
 // testPostgreSQLClusterRefusals checks that the first iteration refuses fields it does not
