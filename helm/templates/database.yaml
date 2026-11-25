@@ -7,7 +7,11 @@ data:
 {{- if .Values.postgresqlcluster.install }}
   postgresqlBackends: {{- toYaml .Values.postgresqlcluster.backends | nindent 4 }}
 {{- if has "PostgreSQLOCIConfig.oci.database.entigo.com" .Values.postgresqlcluster.backends }}
-  oci: {{- toYaml .Values.database.environmentConfig.oci | nindent 4 }}
+{{- $oci := deepCopy .Values.database.environmentConfig.oci }}
+{{- if kindIs "string" $oci.availabilityDomains }}
+{{- $_ := set $oci "availabilityDomains" (compact (splitList "," (nospace $oci.availabilityDomains))) }}
+{{- end }}
+  oci: {{- toYaml $oci | nindent 4 }}
 {{- end }}
 {{- end }}
 {{- if .Values.postgresql.install }}

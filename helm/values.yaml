@@ -49,8 +49,8 @@ database:
     # OCI settings of the PostgreSQLCluster backend: the cluster-wide provider config, and the names
     # of the infralib observers (crossplane-oracle module) the DB system's compartment and network
     # come from. The DB system admits PostgreSQL from the client security groups.
-    # availabilityDomain is set only in regions with fewer than three availability domains, where OCI
-    # cannot keep storage regionally; storage then stays in that availability domain.
+    # availabilityDomains lists the region's availability domains, as a list or a comma-separated
+    # string (infralib's oke output). With fewer than three, storage stays in the first one.
     oci:
       providerConfig: crossplane-oracle
       cluster: oke
@@ -59,7 +59,7 @@ database:
       clientSecurityGroups:
       - node
       - pod
-      availabilityDomain: ""
+      availabilityDomains: []
 
 postgresql:
   install: true

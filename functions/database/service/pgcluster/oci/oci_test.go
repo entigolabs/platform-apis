@@ -166,7 +166,7 @@ func TestComposeTheDBSystem(t *testing.T) {
 		}
 	})
 
-	t.Run("storage is regional unless the deployment names an availability domain", func(t *testing.T) {
+	t.Run("storage is regional only in a region with three availability domains", func(t *testing.T) {
 		storage := func(req map[string][]resource.Required) map[string]interface{} {
 			objs, err := pgcluster.Generate(cluster(flexEntry), req, observedComposed(nameNSG, nsg))
 			if err != nil {
@@ -174,14 +174,19 @@ func TestComposeTheDBSystem(t *testing.T) {
 			}
 			return first(t, objs[nameDBSystem], "spec", "forProvider", "storageDetails")
 		}
-		if s := storage(required()); s["isRegionallyDurable"] != true || s["availabilityDomain"] != nil {
-			t.Errorf("want regional storage, got %v", s)
+		withADs := func(ads ...interface{}) map[string][]resource.Required {
+			req := required()
+			req[base.EnvironmentKey][0].Resource.Object["data"].(map[string]interface{})["oci"].(map[string]interface{})["availabilityDomains"] = ads
+			return req
 		}
-		req := required()
-		env := req[base.EnvironmentKey][0].Resource.Object["data"].(map[string]interface{})["oci"].(map[string]interface{})
-		env["availabilityDomain"] = "wAtM:eu-frankfurt-2-ad-1"
-		if s := storage(req); s["isRegionallyDurable"] != false || s["availabilityDomain"] != "wAtM:eu-frankfurt-2-ad-1" {
-			t.Errorf("want storage in the named availability domain, got %v", s)
+		if s := storage(required()); s["isRegionallyDurable"] != true || s["availabilityDomain"] != nil {
+			t.Errorf("want regional storage when the domains are not set, got %v", s)
+		}
+		if s := storage(withADs("x:AD-1", "x:AD-2", "x:AD-3")); s["isRegionallyDurable"] != true || s["availabilityDomain"] != nil {
+			t.Errorf("want regional storage with three domains, got %v", s)
+		}
+		if s := storage(withADs("wAtM:eu-frankfurt-2-ad-1")); s["isRegionallyDurable"] != false || s["availabilityDomain"] != "wAtM:eu-frankfurt-2-ad-1" {
+			t.Errorf("want storage in the only domain, got %v", s)
 		}
 	})
 
