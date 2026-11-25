@@ -359,8 +359,11 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	for i := range details {
 		details[i] = map[string]interface{}{"displayName": fmt.Sprintf("%s-%d", name, i+1)}
 	}
-	db.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})["initProvider"] =
-		map[string]interface{}{"instancesDetails": details}
+	spec := db.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})
+	spec["initProvider"] = map[string]interface{}{"instancesDetails": details}
+	// Without LateInitialize the provider does not copy its state into the spec, so a field the
+	// function stops setting, such as patchOperations once a count is reached, is removed.
+	spec["managementPolicies"] = []interface{}{"Observe", "Create", "Update", "Delete"}
 	return db
 }
 

@@ -138,6 +138,9 @@ func TestComposeTheDBSystem(t *testing.T) {
 		if backup["kind"] != "DAILY" || backup["retentionDays"] != int64(7) || backup["backupStart"] != "02:00" {
 			t.Errorf("want daily backups from 02:00 kept 7 days, the implementation's defaults, got %v", backup)
 		}
+		if v := field(t, db, "spec", "managementPolicies").([]interface{}); len(v) != 4 || v[3] != "Delete" {
+			t.Errorf("want every management policy but LateInitialize, got %v", v)
+		}
 		if v, ok := field(t, db, "spec", "initProvider", "instancesDetails").([]interface{}); !ok || len(v) != 1 {
 			t.Errorf("want one initProvider.instancesDetails entry per instance, got %v", v)
 		}
