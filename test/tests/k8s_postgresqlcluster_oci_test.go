@@ -59,6 +59,13 @@ func testPostgreSQLClusterOCI(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			"highAvailability defaults to false: one instance")
 	})
 
+	t.Run("version-change-refused", func(t *testing.T) {
+		out, err := terrak8s.RunKubectlAndGetOutputE(t, ns, "patch", PostgreSQLClusterKind, PostgreSQLClusterName,
+			"--dry-run=server", "--type=merge", "-p", `{"spec":{"version":"18"}}`)
+		require.Error(t, err, "a version change must be refused")
+		require.Contains(t, out, "version cannot change yet")
+	})
+
 	t.Run("admin-secret", func(t *testing.T) {
 		for _, key := range []string{"endpoint", "port", "username", "password"} {
 			v := waitFieldNonEmpty(t, ns, "secret", PostgreSQLClusterSecret, ".data."+key, 30, 10*time.Second)

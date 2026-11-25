@@ -76,6 +76,9 @@ spec:
   - expression: "has(object.spec.storage) && has(object.spec.storage.sizeGB)"
     message: "storage.sizeGB is required: a cluster without a class sets it"
     reason: Invalid
+  - expression: "oldObject == null || !has(oldObject.spec.version) || object.spec.version == oldObject.spec.version"
+    message: "version cannot change yet: an in-place major version upgrade is not available"
+    reason: Forbidden
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
