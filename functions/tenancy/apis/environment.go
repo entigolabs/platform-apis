@@ -18,6 +18,7 @@ type Environment struct {
 	AppProject                     AppProject         `json:"appProject"`
 	ArgoCDNamespace                string             `json:"argoCDNamespace"`
 	AWSProvider                    string             `json:"awsProvider"`
+	AMIReleaseVersion              string             `json:"amiReleaseVersion,omitempty"`
 	Cluster                        string             `json:"cluster"`
 	CreateAppsNamespace            bool               `json:"createAppsNamespace"`
 	ComputeSubnetType              string             `json:"computeSubnetType"`

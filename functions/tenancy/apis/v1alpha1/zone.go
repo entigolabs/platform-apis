@@ -68,10 +68,10 @@ type Pool struct {
 
 type Requirement struct {
 	// Requirement key
-	// +kubebuilder:validation:Enum=ami-type;instance-type;capacity-type;zone;min-size;max-size;desired-size;security-groups;oci/ocpus;oci/memory-gb;oci/image
+	// +kubebuilder:validation:Enum=ami-type;ami-release-version;instance-type;capacity-type;zone;min-size;max-size;desired-size;security-groups;oci/ocpus;oci/memory-gb;oci/image
 	Key string `json:"key"`
 
-	// Single value for capacity-type, min-size, max-size, or desired-size. Can be string or integer.
+	// Single value for capacity-type, min-size, max-size, desired-size, or ami-release-version. Can be string or integer.
 	Value intstr.IntOrString `json:"value,omitempty"`
 
 	// Array of values for instance-type or availability-zone

@@ -426,6 +426,9 @@ data:
   securityGroup: {{ .Values.zone.environmentConfig.securityGroup }}
   vpc: {{ .Values.zone.environmentConfig.vpc }}
   computeSubnetType: {{ .Values.zone.environmentConfig.computeSubnetType }}
+  {{- if .Values.zone.environmentConfig.amiReleaseVersion }}
+  amiReleaseVersion: {{ .Values.zone.environmentConfig.amiReleaseVersion | quote }}
+  {{- end }}
   podSecurity: {{ .Values.zone.environmentConfig.podSecurity }}
   {{- if .Values.zone.environmentConfig.tags }}
   tags: {{- toYaml .Values.zone.environmentConfig.tags | nindent 4 }}

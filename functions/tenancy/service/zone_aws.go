@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -413,6 +414,7 @@ func (g awsZoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2
 	var minSize float64 = 1
 	var maxSize float64 = -1
 	var amiType *string
+	var amiReleaseVersion string
 
 	for _, requirement := range pool.Requirements {
 		switch requirement.Key {
@@ -437,6 +439,8 @@ func (g awsZoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2
 		case "ami-type":
 			value := requirement.Value.String()
 			amiType = &value
+		case "ami-release-version":
+			amiReleaseVersion = requirement.Value.String()
 		}
 	}
 
@@ -445,6 +449,15 @@ func (g awsZoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2
 	}
 	if maxSize < 1 {
 		return "", nil, nil
+	}
+
+	amiTypeKey := "AL2023_x86_64_STANDARD"
+	if amiType != nil {
+		amiTypeKey = *amiType
+	}
+	releaseVersion, err := resolveReleaseVersion(amiReleaseVersion, amiTypeKey, g.env.AMIReleaseVersion)
+	if err != nil {
+		return "", nil, err
 	}
 
 	hash := GetInstanceTypesHash(instanceTypes, capacityType)
@@ -500,13 +513,14 @@ func (g awsZoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2
 				ClusterNameRef: &v1.Reference{
 					Name: g.cluster.GetName(),
 				},
-				Version:       g.cluster.Status.AtProvider.Version,
-				Region:        g.vpc.Status.AtProvider.Region,
-				UpdateConfig:  []eksv1beta1.UpdateConfigParameters{{MaxUnavailable: base.Float64Ptr(1)}},
-				AMIType:       amiType,
-				InstanceTypes: toInstanceTypePointers(instanceTypes),
-				SubnetIds:     subnetIds,
-				Labels:        eksLabels,
+				Version:        g.cluster.Status.AtProvider.Version,
+				Region:         g.vpc.Status.AtProvider.Region,
+				UpdateConfig:   []eksv1beta1.UpdateConfigParameters{{MaxUnavailable: base.Float64Ptr(1)}},
+				AMIType:        amiType,
+				ReleaseVersion: releaseVersion,
+				InstanceTypes:  toInstanceTypePointers(instanceTypes),
+				SubnetIds:      subnetIds,
+				Labels:         eksLabels,
 				NodeRoleArnRef: &v1.Reference{
 					Name: zoneName,
 				},
@@ -551,6 +565,36 @@ func toInstanceTypePointers(types []string) []*string {
 		ptrTypes[i] = &t
 	}
 	return ptrTypes
+}
+
+var releaseVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+-[0-9a-z]+$`)
+
+// resolveReleaseVersion maps the ami-release-version pool requirement to the NodeGroup's
+// releaseVersion: ""/"latest" unset (EKS latest), "infralib" the env map looked up by amiType, else a pin.
+func resolveReleaseVersion(value, amiType, infralibVersions string) (*string, error) {
+	switch value {
+	case "", "latest":
+		return nil, nil
+	case "infralib":
+		if infralibVersions == "" {
+			return nil, fmt.Errorf("ami-release-version \"infralib\" requested but no infralib release versions are configured in the environment")
+		}
+		var versions map[string]string
+		if err := json.Unmarshal([]byte(infralibVersions), &versions); err != nil {
+			return nil, fmt.Errorf("invalid infralib release versions %q: %w", infralibVersions, err)
+		}
+		version, ok := versions[amiType]
+		if !ok || version == "" {
+			return nil, fmt.Errorf("no infralib AMI release version for ami-type %q", amiType)
+		}
+		return &version, nil
+	default:
+		if !releaseVersionPattern.MatchString(value) {
+			return nil, fmt.Errorf("invalid ami-release-version %q: expected \"latest\", \"infralib\", or a release version such as 1.36.5-20261119", value)
+		}
+		v := value
+		return &v, nil
+	}
 }
 
 func (g awsZoneGenerator) generateTargetNetworkPolicies() (map[string]client.Object, error) {
