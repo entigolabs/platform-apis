@@ -348,6 +348,9 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	if cfg.FromBackup != "" {
 		forProvider["source"] = []interface{}{map[string]interface{}{"sourceType": "BACKUP", "backupId": cfg.FromBackup}}
 	}
+	if ops := instancePatches(in.Observed, name, instances); len(ops) > 0 {
+		forProvider["patchOperations"] = ops
+	}
 	db := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
 	// The provider never reads instancesDetails back, so after creation it reports a change that
 	// forces replacement and refuses every update. A field set only in initProvider is ignored after
@@ -359,6 +362,64 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	db.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})["initProvider"] =
 		map[string]interface{}{"instancesDetails": details}
 	return db
+}
+
+// instancePatches returns the patch operations that bring the DB system's instances to the wanted
+// count. OCI adds and removes instances only through PatchDbSystem, and the provider requires a
+// patch whenever instanceCount changes. The provider sends whatever patchOperations holds on every
+// update, so it is set only while OCI reports another count, and dropped once the count is reached.
+// Removal takes the newest instances: OCI does not say which is primary, and refuses to remove it.
+func instancePatches(observed map[resource.Name]resource.ObservedComposed, name string, want int64) []interface{} {
+	o, ok := observed[resource.Name(nameDBSystem)]
+	if !ok {
+		return nil
+	}
+	count, found, _ := unstructured.NestedFieldNoCopy(o.Resource.Object, "status", "atProvider", "instanceCount")
+	if !found {
+		return nil
+	}
+	have, ok := toInt64(count)
+	if !ok || have == want {
+		return nil
+	}
+	instances, _, _ := unstructured.NestedSlice(o.Resource.Object, "status", "atProvider", "instances")
+	var ops []interface{}
+	if want > have {
+		for i := have; i < want; i++ {
+			ops = append(ops, map[string]interface{}{"operation": "INSERT", "selection": "instances",
+				"value": map[string]interface{}{"displayName": fmt.Sprintf("%s-%d", name, i+1)}})
+		}
+		return ops
+	}
+	type instance struct{ id, created string }
+	var list []instance
+	for _, raw := range instances {
+		if m, ok := raw.(map[string]interface{}); ok {
+			id, _ := m["id"].(string)
+			created, _ := m["timeCreated"].(string)
+			if id != "" {
+				list = append(list, instance{id, created})
+			}
+		}
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].created > list[j].created })
+	for i := 0; i < int(have-want) && i < len(list)-1; i++ {
+		ops = append(ops, map[string]interface{}{"operation": "REMOVE",
+			"selection": fmt.Sprintf("instances[?id == '%s']", list[i].id)})
+	}
+	return ops
+}
+
+func toInt64(v interface{}) (int64, bool) {
+	switch n := v.(type) {
+	case int64:
+		return n, true
+	case float64:
+		return int64(n), true
+	case int:
+		return int64(n), true
+	}
+	return 0, false
 }
 
 func managed(apiVersion, kind, name, namespace string, env Environment, forProvider map[string]interface{}) client.Object {

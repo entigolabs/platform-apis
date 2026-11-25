@@ -197,6 +197,48 @@ func TestComposeTheDBSystem(t *testing.T) {
 	})
 }
 
+func TestInstanceCountChanges(t *testing.T) {
+	nsg := obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"})
+	compose := func(ha bool, atProvider map[string]interface{}) []interface{} {
+		t.Helper()
+		c := cluster(flexEntry)
+		c.Spec.HighAvailability = ptr(ha)
+		observed := observedComposed(nameNSG, nsg)
+		for k, v := range observedComposed(nameDBSystem, obj(psqlAPIVersion, "PsqlDbSystem", "x", nil, atProvider)) {
+			observed[k] = v
+		}
+		objs, err := pgcluster.Generate(c, required(), observed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ops, _, _ := unstructured.NestedSlice(objs[nameDBSystem].(*unstructured.Unstructured).Object, "spec", "forProvider", "patchOperations")
+		return ops
+	}
+	two := map[string]interface{}{"instanceCount": float64(2), "instances": []interface{}{
+		map[string]interface{}{"id": "ocid1.first", "timeCreated": "2026-11-25T08:00:00Z"},
+		map[string]interface{}{"id": "ocid1.replica", "timeCreated": "2026-11-25T09:00:00Z"},
+	}}
+
+	t.Run("adding an instance inserts one", func(t *testing.T) {
+		ops := compose(true, map[string]interface{}{"instanceCount": float64(1)})
+		if len(ops) != 1 || ops[0].(map[string]interface{})["operation"] != "INSERT" ||
+			ops[0].(map[string]interface{})["selection"] != "instances" {
+			t.Errorf("want one INSERT into instances, got %v", ops)
+		}
+	})
+	t.Run("removing an instance removes the newest", func(t *testing.T) {
+		ops := compose(false, two)
+		if len(ops) != 1 || ops[0].(map[string]interface{})["selection"] != "instances[?id == 'ocid1.replica']" {
+			t.Errorf("want the newest instance removed, got %v", ops)
+		}
+	})
+	t.Run("no patch once OCI reports the wanted count", func(t *testing.T) {
+		if ops := compose(true, two); len(ops) != 0 {
+			t.Errorf("want no patch operations, got %v", ops)
+		}
+	})
+}
+
 func TestAdminSecret(t *testing.T) {
 	password := "Kept-password-1"
 	observed := observedComposed(nameNSG, obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"}))
