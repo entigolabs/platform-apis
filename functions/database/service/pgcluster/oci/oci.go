@@ -351,9 +351,13 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	db := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
 	// The provider never reads instancesDetails back, so after creation it reports a change that
 	// forces replacement and refuses every update. A field set only in initProvider is ignored after
-	// creation; an empty list sends nothing on create.
+	// creation. The provider drops an empty list, so each instance gets an entry, as OCI requires.
+	details := make([]interface{}, instances)
+	for i := range details {
+		details[i] = map[string]interface{}{"displayName": fmt.Sprintf("%s-%d", name, i+1)}
+	}
 	db.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})["initProvider"] =
-		map[string]interface{}{"instancesDetails": []interface{}{}}
+		map[string]interface{}{"instancesDetails": details}
 	return db
 }
 
