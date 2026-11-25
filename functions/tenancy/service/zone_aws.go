@@ -451,11 +451,7 @@ func (g awsZoneGenerator) getNodeGroup(pool v1alpha1.Pool, launchTemplateObj ec2
 		return "", nil, nil
 	}
 
-	amiTypeKey := "AL2023_x86_64_STANDARD"
-	if amiType != nil {
-		amiTypeKey = *amiType
-	}
-	releaseVersion, err := resolveReleaseVersion(amiReleaseVersion, amiTypeKey, g.env.AMIReleaseVersion)
+	releaseVersion, err := resolveReleaseVersion(amiReleaseVersion, g.env.AMIReleaseVersion)
 	if err != nil {
 		return "", nil, err
 	}
@@ -570,24 +566,16 @@ func toInstanceTypePointers(types []string) []*string {
 var releaseVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+-[0-9a-z]+$`)
 
 // resolveReleaseVersion maps the ami-release-version pool requirement to the NodeGroup's
-// releaseVersion: ""/"latest" unset (EKS latest), "infralib" the env map looked up by amiType, else a pin.
-func resolveReleaseVersion(value, amiType, infralibVersions string) (*string, error) {
+// releaseVersion: ""/"latest" unset (EKS latest), "infralib" the env-supplied version, else a pin.
+func resolveReleaseVersion(value, infralibVersion string) (*string, error) {
 	switch value {
 	case "", "latest":
 		return nil, nil
 	case "infralib":
-		if infralibVersions == "" {
-			return nil, fmt.Errorf("ami-release-version \"infralib\" requested but no infralib release versions are configured in the environment")
+		if infralibVersion == "" {
+			return nil, fmt.Errorf("ami-release-version \"infralib\" requested but no infralib release version is configured in the environment")
 		}
-		var versions map[string]string
-		if err := json.Unmarshal([]byte(infralibVersions), &versions); err != nil {
-			return nil, fmt.Errorf("invalid infralib release versions %q: %w", infralibVersions, err)
-		}
-		version, ok := versions[amiType]
-		if !ok || version == "" {
-			return nil, fmt.Errorf("no infralib AMI release version for ami-type %q", amiType)
-		}
-		return &version, nil
+		return &infralibVersion, nil
 	default:
 		if !releaseVersionPattern.MatchString(value) {
 			return nil, fmt.Errorf("invalid ami-release-version %q: expected \"latest\", \"infralib\", or a release version such as 1.36.5-20261119", value)

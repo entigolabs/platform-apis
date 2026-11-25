@@ -98,8 +98,8 @@ func TestGetNodeGroupReleaseVersion(t *testing.T) {
 		}
 	})
 
-	t.Run("infralib aligns to environment version by ami-type", func(t *testing.T) {
-		g := newTestAWSGenerator(apis.Environment{AWSProvider: "aws-provider", AMIReleaseVersion: `{"AL2023_x86_64_STANDARD":"1.36.5-20261119"}`})
+	t.Run("infralib aligns to the environment version", func(t *testing.T) {
+		g := newTestAWSGenerator(apis.Environment{AWSProvider: "aws-provider", AMIReleaseVersion: pin})
 		value := "infralib"
 		rv, found := nodeGroupReleaseVersion(t, g, testPool(&value))
 		if !found || rv != pin {

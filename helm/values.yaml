@@ -281,9 +281,9 @@ zone:
     securityGroup: "eks-node"
     vpc: vpc
     computeSubnetType: compute
-    # JSON map of ami_type to AMI release version for the current infralib release, supplied by the
-    # infralib agent. Pools whose "ami-release-version" requirement is "infralib" are pinned to the
-    # version for their ami-type, so they track infralib upgrades. Empty disables "infralib" alignment.
+    # AMI release version of the infralib tools (or main) node group for the current infralib release,
+    # supplied by the infralib agent. Pools whose "ami-release-version" requirement is "infralib" are
+    # pinned to it, so they track infralib upgrades. Empty disables "infralib" alignment.
     amiReleaseVersion: ""
     # Lowest Pod Security Admission level a Namespace in a Zone is allowed to run at. Every
     # Namespace is labelled with this and can only be changed to a stricter level.
