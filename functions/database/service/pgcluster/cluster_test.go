@@ -54,6 +54,9 @@ func (standIn) Status(observed *composed.Unstructured) (*Observed, error) {
 	if observed.GetAnnotations()["backups"] == "off" {
 		o.RetentionDays = 0
 	}
+	if observed.GetAnnotations()["address"] == "none" {
+		o.Host = ""
+	}
 	return o, nil
 }
 
@@ -284,13 +287,16 @@ func TestStatus(t *testing.T) {
 		cm := composed.New()
 		cm.SetAPIVersion("v1")
 		cm.SetKind("ConfigMap")
-		cm.SetAnnotations(map[string]string{"backups": "off"})
+		cm.SetAnnotations(map[string]string{"backups": "off", "address": "none"})
 		status, err := ObservedStatus(cm)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if v, ok := status["backup"]; !ok || v != nil {
 			t.Errorf("want backup set to nil, which removes it, got %v", status)
+		}
+		if _, ok := status["endpoint"]; ok {
+			t.Errorf("want the endpoint left as it is while the DB system reports none, got %v", status)
 		}
 	})
 

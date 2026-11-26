@@ -307,7 +307,8 @@ func ObservedStatus(observed *composed.Unstructured) (map[string]interface{}, er
 			out["provider"] = o.Provider
 		}
 		// A value the cluster no longer has, such as backups turned off, is removed from the status.
-		for _, k := range []string{"storage", "backup", "endpoint"} {
+		// The endpoint is kept while the DB system reports none, as the admin Secret keeps it.
+		for _, k := range []string{"storage", "backup"} {
 			if _, ok := out[k]; !ok {
 				out[k] = nil
 			}
