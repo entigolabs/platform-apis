@@ -52,6 +52,8 @@ const (
 	defaultBackupStartHourUTC = 2
 	// regionalDomains is how many availability domains a region needs for regional storage.
 	regionalDomains = 3
+	// refusedPrimaryAnnotation keeps the instance OCI refused to remove as the primary.
+	refusedPrimaryAnnotation = "database.entigo.com/refused-primary"
 )
 
 // Environment is the OCI part of the deployment's database settings: the provider configuration,
@@ -350,10 +352,14 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	if cfg.FromBackup != "" {
 		forProvider["source"] = []interface{}{map[string]interface{}{"sourceType": "BACKUP", "backupId": cfg.FromBackup}}
 	}
-	if ops := instancePatches(in.Observed, name, instances); len(ops) > 0 {
+	ops, refused := instancePatches(in.Observed, name, instances)
+	if len(ops) > 0 {
 		forProvider["patchOperations"] = ops
 	}
 	db := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
+	if refused != "" {
+		db.SetAnnotations(map[string]string{refusedPrimaryAnnotation: refused})
+	}
 	// The provider never reads instancesDetails back, so after creation it reports a change that
 	// forces replacement and refuses every update. A field set only in initProvider is ignored after
 	// creation. The provider drops an empty list, so each instance gets an entry, as OCI requires.
@@ -374,20 +380,20 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 // patch whenever instanceCount changes. The provider sends whatever patchOperations holds on every
 // update, so it is set only while OCI reports another count, and dropped once the count is reached.
 // Removal takes the newest instances, the highest-numbered first among those created together. OCI
-// does not say which instance is primary and refuses to remove it; after such a refusal the
-// instance it refused is skipped, which also covers a primary that moved in a failover.
-func instancePatches(observed map[resource.Name]resource.ObservedComposed, name string, want int64) []interface{} {
+// does not say which instance is primary and refuses to remove it; the instance it refused is
+// skipped, and returned so the DB system keeps it in an annotation until the count is reached.
+func instancePatches(observed map[resource.Name]resource.ObservedComposed, name string, want int64) ([]interface{}, string) {
 	o, ok := observed[resource.Name(nameDBSystem)]
 	if !ok {
-		return nil
+		return nil, ""
 	}
 	count, found, _ := unstructured.NestedFieldNoCopy(o.Resource.Object, "status", "atProvider", "instanceCount")
 	if !found {
-		return nil
+		return nil, ""
 	}
 	have, ok := toInt64(count)
 	if !ok || have == want {
-		return nil
+		return nil, ""
 	}
 	instances, _, _ := unstructured.NestedSlice(o.Resource.Object, "status", "atProvider", "instances")
 	var ops []interface{}
@@ -396,9 +402,12 @@ func instancePatches(observed map[resource.Name]resource.ObservedComposed, name 
 			ops = append(ops, map[string]interface{}{"operation": "INSERT", "selection": "instances",
 				"value": map[string]interface{}{"displayName": fmt.Sprintf("%s-%d", name, i+1)}})
 		}
-		return ops
+		return ops, ""
 	}
-	refused := refusedPrimary(&o.Resource.Unstructured)
+	refused := o.Resource.GetAnnotations()[refusedPrimaryAnnotation]
+	if !hasInstance(instances, refused) {
+		refused = refusedPrimary(&o.Resource.Unstructured)
+	}
 	type instance struct{ id, created, name string }
 	var list []instance
 	for _, raw := range instances {
@@ -426,10 +435,21 @@ func instancePatches(observed map[resource.Name]resource.ObservedComposed, name 
 		ops = append(ops, map[string]interface{}{"operation": "REMOVE",
 			"selection": fmt.Sprintf("instances[?id == '%s']", list[i].id)})
 	}
-	return ops
+	return ops, refused
 }
 
-// refusedPrimary returns the instance a REMOVE targeted when OCI refused it as the primary.
+func hasInstance(instances []interface{}, id string) bool {
+	for _, raw := range instances {
+		if m, ok := raw.(map[string]interface{}); ok && id != "" && m["id"] == id {
+			return true
+		}
+	}
+	return false
+}
+
+// refusedPrimary returns the instance a REMOVE targeted when OCI refused it as the primary. It is
+// read only until the DB system records it: the provider repeats its last error after starting the
+// next update, so the refusal still shows once patchOperations names another instance.
 func refusedPrimary(db *unstructured.Unstructured) string {
 	conditions, _, _ := unstructured.NestedSlice(db.Object, "status", "conditions")
 	refused := false

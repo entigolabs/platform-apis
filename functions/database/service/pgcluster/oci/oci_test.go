@@ -269,6 +269,33 @@ func TestInstanceCountChanges(t *testing.T) {
 		if len(ops) != 1 || ops[0].(map[string]interface{})["selection"] != "instances[?id == 'ocid1.first']" {
 			t.Errorf("want the other instance removed, got %v", ops)
 		}
+		if got := objs[nameDBSystem].GetAnnotations()[refusedPrimaryAnnotation]; got != "ocid1.replica" {
+			t.Errorf("want the refused instance recorded, got %q", got)
+		}
+	})
+	// The provider repeats the refusal after it starts removing the other instance, while
+	// patchOperations already names that one.
+	t.Run("a recorded refusal outlasts the repeated error", func(t *testing.T) {
+		c := cluster(flexEntry)
+		c.Spec.HighAvailability = ptr(false)
+		db := obj(psqlAPIVersion, "PsqlDbSystem", "x", nil, two)
+		db.SetAnnotations(map[string]string{refusedPrimaryAnnotation: "ocid1.replica"})
+		db.Object["spec"] = map[string]interface{}{"forProvider": map[string]interface{}{"patchOperations": []interface{}{
+			map[string]interface{}{"operation": "REMOVE", "selection": "instances[?id == 'ocid1.first']"}}}}
+		db.Object["status"].(map[string]interface{})["conditions"] = []interface{}{map[string]interface{}{
+			"type": "Synced", "status": "False", "message": "update failed: 403-NotAllowed, Primary dbInstance can not be removed"}}
+		observed := observedComposed(nameNSG, nsg)
+		for k, v := range observedComposed(nameDBSystem, db) {
+			observed[k] = v
+		}
+		objs, err := pgcluster.Generate(c, required(), observed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ops, _, _ := unstructured.NestedSlice(objs[nameDBSystem].(*unstructured.Unstructured).Object, "spec", "forProvider", "patchOperations")
+		if len(ops) != 1 || ops[0].(map[string]interface{})["selection"] != "instances[?id == 'ocid1.first']" {
+			t.Errorf("want ocid1.first still removed, got %v", ops)
+		}
 	})
 	t.Run("no patch once OCI reports the wanted count", func(t *testing.T) {
 		if ops := compose(true, two); len(ops) != 0 {
@@ -327,6 +354,7 @@ func TestAdminSecret(t *testing.T) {
 	if data["endpoint"] != "10.0.3.7" || data["port"] != "5432" || data["username"] != adminUsername || data["password"] != password {
 		t.Errorf("want endpoint, port, username and password, got %v", data)
 	}
+
 }
 
 // The framework copies every composed object as JSON-compatible values, which panics on Go types
