@@ -49,8 +49,12 @@ func (standIn) Status(observed *composed.Unstructured) (*Observed, error) {
 		return nil, nil
 	}
 	ha := true
-	return &Observed{Version: "17.4", SizeGB: 25, RetentionDays: 7, HighAvailability: &ha, Host: "db.example", Port: 5432,
-		Provider: map[string]interface{}{"state": "running"}}, nil
+	o := &Observed{Version: "17.4", SizeGB: 25, RetentionDays: 7, HighAvailability: &ha, Host: "db.example", Port: 5432,
+		Provider: map[string]interface{}{"state": "running"}}
+	if observed.GetAnnotations()["backups"] == "off" {
+		o.RetentionDays = 0
+	}
+	return o, nil
 }
 
 func init() { Register(standIn{}) }
@@ -273,6 +277,20 @@ func TestStatus(t *testing.T) {
 		if status["version"] != "17.4" || status["highAvailability"] != true || status["endpoint"].(map[string]interface{})["host"] != "db.example" ||
 			status["provider"].(map[string]interface{})["state"] != "running" {
 			t.Errorf("unexpected status %v", status)
+		}
+	})
+
+	t.Run("a value the cluster no longer has is removed", func(t *testing.T) {
+		cm := composed.New()
+		cm.SetAPIVersion("v1")
+		cm.SetKind("ConfigMap")
+		cm.SetAnnotations(map[string]string{"backups": "off"})
+		status, err := ObservedStatus(cm)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v, ok := status["backup"]; !ok || v != nil {
+			t.Errorf("want backup set to nil, which removes it, got %v", status)
 		}
 	})
 

@@ -306,6 +306,12 @@ func ObservedStatus(observed *composed.Unstructured) (map[string]interface{}, er
 		if o.Provider != nil {
 			out["provider"] = o.Provider
 		}
+		// A value the cluster no longer has, such as backups turned off, is removed from the status.
+		for _, k := range []string{"storage", "backup", "endpoint"} {
+			if _, ok := out[k]; !ok {
+				out[k] = nil
+			}
+		}
 		return out, nil
 	}
 	return nil, nil

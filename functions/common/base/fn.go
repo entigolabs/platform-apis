@@ -381,7 +381,15 @@ func (f *Function) addStatus(rsp *fnv1.RunFunctionResponse, compositeResource *r
 	if err != nil || !found {
 		return err
 	}
-	maps.Copy(status, extraStatus)
+	// The composite's status starts from what it holds, so a field that no longer applies is removed
+	// by giving it a nil value.
+	for k, v := range extraStatus {
+		if v == nil {
+			delete(status, k)
+			continue
+		}
+		status[k] = v
+	}
 	err = unstructured.SetNestedField(compositeResource.Resource.Object, status, "status")
 	if err != nil {
 		return fmt.Errorf("cannot set status in composite resource: %w", err)

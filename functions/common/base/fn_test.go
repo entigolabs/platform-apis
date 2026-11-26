@@ -641,3 +641,31 @@ func TestRequiredResourcesPresent(t *testing.T) {
 		})
 	}
 }
+
+type statusGroupService struct {
+	mockGroupService
+}
+
+func (s *statusGroupService) GetObservedStatus(_ *composed.Unstructured) (map[string]interface{}, error) {
+	return map[string]interface{}{"version": "18", "backup": nil}, nil
+}
+
+func TestAddStatusRemovesNilFields(t *testing.T) {
+	f := NewFunction(logging.NewNopLogger(), &statusGroupService{}, "")
+	xr := makeComposite("shop")
+	xr.Resource.Object["status"] = map[string]interface{}{
+		"version": "17", "backup": map[string]interface{}{"retentionDays": int64(7)}, "kept": "yes",
+	}
+	observed := map[resource.Name]resource.ObservedComposed{"db": {Resource: composed.New()}}
+	rsp := &fnv1.RunFunctionResponse{}
+	if err := f.addStatus(rsp, xr, nil, observed); err != nil {
+		t.Fatal(err)
+	}
+	status := rsp.GetDesired().GetComposite().GetResource().AsMap()["status"].(map[string]interface{})
+	if _, ok := status["backup"]; ok {
+		t.Errorf("want backup removed, got %v", status)
+	}
+	if status["version"] != "18" || status["kept"] != "yes" {
+		t.Errorf("want version updated and other fields kept, got %v", status)
+	}
+}

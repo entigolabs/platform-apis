@@ -66,6 +66,8 @@ type GroupService interface {
 	GetSequence(object client.Object) Sequence
 	GetReadyStatus(observed *composed.Unstructured) resource.Ready
 	GetRequiredResources(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]*fnv1.ResourceSelector, error)
+	// GetObservedStatus returns status fields read from one composed resource. A nil value removes the
+	// field from the composite's status.
 	GetObservedStatus(observed *composed.Unstructured) (map[string]interface{}, error)
 }
 
