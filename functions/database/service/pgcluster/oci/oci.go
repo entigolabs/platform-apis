@@ -237,6 +237,11 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Without backups there is nothing to restore from, and pointInTimeDays is ignored.
+	if cfg.PointInTimeDays != nil && in.Spec.RetentionDays > 0 && *cfg.PointInTimeDays > in.Spec.RetentionDays {
+		return nil, fmt.Errorf("pointInTimeDays %d in the PostgreSQLOCIConfig entry exceeds backup.retentionDays %d",
+			*cfg.PointInTimeDays, in.Spec.RetentionDays)
+	}
 	net, err := readNetwork(env, in.Required)
 	if err != nil {
 		return nil, err
@@ -337,8 +342,13 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	if cfg.MaintenanceWindow != nil {
 		policy["maintenanceWindowStart"] = fmt.Sprintf("%s %02d:00", strings.ToUpper(cfg.MaintenanceWindow.Day), cfg.MaintenanceWindow.HourUTC)
 	}
-	if cfg.PointInTimeDays != nil && in.Spec.RetentionDays > 0 {
-		policy["pitrPolicy"] = []interface{}{map[string]interface{}{"kind": "STANDARD", "restoreDays": *cfg.PointInTimeDays}}
+	if in.Spec.RetentionDays > 0 {
+		// Unset, a restore reaches as far back as the backups are kept.
+		days := in.Spec.RetentionDays
+		if cfg.PointInTimeDays != nil {
+			days = *cfg.PointInTimeDays
+		}
+		policy["pitrPolicy"] = []interface{}{map[string]interface{}{"kind": "STANDARD", "restoreDays": days}}
 	}
 	nsgIDs := []interface{}{nsgID}
 	forProvider := map[string]interface{}{

@@ -321,6 +321,42 @@ func TestPasswordEditChangesTheDBSystem(t *testing.T) {
 	}
 }
 
+func TestPointInTimeDays(t *testing.T) {
+	nsg := obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"})
+	pitr := func(t *testing.T, entry string, retention int64) (interface{}, error) {
+		t.Helper()
+		c := cluster(entry)
+		c.Spec.Backup = &v1alpha2.Backup{RetentionDays: ptr(retention)}
+		objs, err := pgcluster.Generate(c, required(), observedComposed(nameNSG, nsg))
+		if err != nil {
+			return nil, err
+		}
+		policy := first(t, objs[nameDBSystem], "spec", "forProvider", "managementPolicy")
+		return policy["pitrPolicy"], nil
+	}
+	t.Run("unset, a restore reaches as far back as the backups", func(t *testing.T) {
+		got, err := pitr(t, flexEntry, 14)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p := got.([]interface{})[0].(map[string]interface{}); p["kind"] != "STANDARD" || p["restoreDays"] != int64(14) {
+			t.Errorf("want 14 restore days, got %v", got)
+		}
+	})
+	t.Run("more days than the backups are kept is refused", func(t *testing.T) {
+		_, err := pitr(t, `{"instanceType":"PostgreSQL.VM.Standard.E5.Flex","ocpus":2,"memoryGB":32,"pointInTimeDays":14}`, 7)
+		if err == nil || !strings.Contains(err.Error(), "exceeds backup.retentionDays 7") {
+			t.Errorf("want pointInTimeDays above retention refused, got %v", err)
+		}
+	})
+	t.Run("no point-in-time policy without backups, whatever the entry says", func(t *testing.T) {
+		got, err := pitr(t, `{"instanceType":"PostgreSQL.VM.Standard.E5.Flex","ocpus":2,"memoryGB":32,"pointInTimeDays":14}`, 0)
+		if err != nil || got != nil {
+			t.Errorf("want no policy, got %v, %v", got, err)
+		}
+	})
+}
+
 func TestDeletionProtectionLabel(t *testing.T) {
 	nsg := obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"})
 	for _, protected := range []bool{true, false} {
