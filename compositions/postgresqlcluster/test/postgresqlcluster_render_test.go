@@ -86,8 +86,9 @@ func TestPostgreSQLClusterCrossplaneRender(t *testing.T) {
 			if r.GetKind() == "PsqlDbSystem" {
 				policies, _, _ := unstructured.NestedStringSlice(r.Object, "spec", "managementPolicies")
 				require.NotContains(t, policies, "LateInitialize", "the provider must not take over patchOperations")
-				_, found, _ := unstructured.NestedFieldNoCopy(r.Object, "spec", "forProvider", "patchOperations")
-				require.False(t, found, "a new DB system needs no patch operations")
+				ops, found, _ := unstructured.NestedSlice(r.Object, "spec", "forProvider", "patchOperations")
+				require.True(t, found, "patchOperations is set, or the provider sends an empty patch after every update")
+				require.Empty(t, ops, "a new DB system needs no patch operations")
 			}
 		}
 	})
