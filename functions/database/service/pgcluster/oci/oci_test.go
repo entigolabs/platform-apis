@@ -302,19 +302,6 @@ func TestInstanceCountChanges(t *testing.T) {
 			t.Errorf("want no patch operations, got %v", ops)
 		}
 	})
-	// Unset, the provider sends an empty patch after every update, which OCI refuses.
-	t.Run("an empty list, not none, while nothing is patched", func(t *testing.T) {
-		c := cluster(flexEntry)
-		observed := observedComposed(nameNSG, nsg)
-		objs, err := pgcluster.Generate(c, required(), observed)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ops, found, _ := unstructured.NestedSlice(objs[nameDBSystem].(*unstructured.Unstructured).Object, "spec", "forProvider", "patchOperations")
-		if !found || ops == nil || len(ops) != 0 {
-			t.Errorf("want patchOperations set to an empty list, got %v (found %v)", ops, found)
-		}
-	})
 }
 
 // The provider rereads the password Secret only when the DB system changes, so an edited password

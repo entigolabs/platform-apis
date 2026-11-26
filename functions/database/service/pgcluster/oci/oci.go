@@ -383,12 +383,9 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 		forProvider["source"] = []interface{}{map[string]interface{}{"sourceType": "BACKUP", "backupId": cfg.FromBackup}}
 	}
 	ops, refused := instancePatches(in.Observed, name, instances)
-	if ops == nil {
-		// The provider follows every update with a patch, and sends an empty one, which OCI
-		// refuses, unless patchOperations is set; an empty list makes it skip the patch.
-		ops = []interface{}{}
+	if len(ops) > 0 {
+		forProvider["patchOperations"] = ops
 	}
-	forProvider["patchOperations"] = ops
 	db := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
 	annotations := map[string]string{}
 	if refused != "" {
@@ -421,8 +418,8 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	}
 	spec := db.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})
 	spec["initProvider"] = map[string]interface{}{"instancesDetails": details}
-	// Without LateInitialize the provider does not copy its state into the spec, so patchOperations
-	// holds only what the function sets, and is emptied once a count is reached.
+	// Without LateInitialize the provider does not copy its state into the spec, so a field the
+	// function stops setting, such as patchOperations once a count is reached, is removed.
 	spec["managementPolicies"] = []interface{}{"Observe", "Create", "Update", "Delete"}
 	return db
 }
@@ -430,7 +427,7 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 // instancePatches returns the patch operations that bring the DB system's instances to the wanted
 // count. OCI adds and removes instances only through PatchDbSystem, and the provider requires a
 // patch whenever instanceCount changes. The provider sends whatever patchOperations holds on every
-// update, so it holds operations only while OCI reports another count.
+// update, so it is set only while OCI reports another count, and dropped once the count is reached.
 // Removal takes the newest instances, the highest-numbered first among those created together. OCI
 // does not say which instance is primary and refuses to remove it; the instance it refused is
 // skipped, and returned so the DB system keeps it in an annotation until the count is reached.
