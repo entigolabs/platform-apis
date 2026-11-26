@@ -33,8 +33,10 @@ expect "list passes through" $'availabilityDomains:\n +- x:AD-1\n' "$(render -f 
 
 expect "unset becomes an empty list" 'availabilityDomains: \[\]' "$(render)"
 expect "version changes refused" 'version cannot change yet' "$(render)"
-expect "protected data deletion refused except by Crossplane and the garbage collector" \
-    $'database.entigo.com/deletion-protection: "true"[^-]*(.*\n)+.*crossplane-system:(.*\n)+.*generic-garbage-collector' "$(render)"
+# The garbage collector is the only exemption: matchConditions holds it alone.
+expect "protected data deletion refused except by the garbage collector" \
+    $'database.entigo.com/deletion-protection: "true"\n(.*\n)+  matchConditions:\n  - name: not-garbage-collector\n    expression: \'request.userInfo.username != "system:serviceaccount:kube-system:generic-garbage-collector"\'\n  validations:\n  - expression: "false"' \
+    "$(render)"
 
 if KUBE_VERSION=1.35.0 render >/dev/null 2>&1; then
     echo "FAIL: Kubernetes below 1.36 refused"

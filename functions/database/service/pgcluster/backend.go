@@ -55,8 +55,9 @@ type Spec struct {
 }
 
 // DeletionProtectionLabel marks a composed resource that holds the cluster's data while deletion
-// protection is on. Admission refuses to delete it, except for Crossplane and the garbage collector
-// removing a cluster that is no longer protected.
+// protection is on. Admission refuses to delete it, Crossplane included when the function stops
+// composing it; only the garbage collector may, removing a cluster deleted just after its
+// protection was switched off.
 const DeletionProtectionLabel = "database.entigo.com/deletion-protection"
 
 // Entry is the provider configuration entry the deployment applies, with its settings resolved

@@ -136,12 +136,11 @@ spec:
       operations: ["DELETE"]
       resources: ["*"]
       scope: Namespaced
+  # Crossplane is not exempt: it deletes only what the function stops composing, which must not take
+  # a protected cluster's data. Deleting a cluster leaves its resources to the garbage collector,
+  # and the label can still be set when a cluster is deleted right after its protection is switched
+  # off.
   matchConditions:
-  # Crossplane deletes what a cluster no longer composes, and the garbage collector deletes what a
-  # deleted cluster composed; the label can still be set when a cluster is deleted right after its
-  # protection is switched off.
-  - name: not-crossplane
-    expression: '!request.userInfo.username.startsWith("system:serviceaccount:{{ .Values.zone.crossplaneNamespace }}:")'
   - name: not-garbage-collector
     expression: 'request.userInfo.username != "system:serviceaccount:kube-system:generic-garbage-collector"'
   validations:
