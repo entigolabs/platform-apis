@@ -321,6 +321,18 @@ Deletion protection is enforced by a `ValidatingAdmissionPolicy`, which refuses 
 whose `deletionProtection` is true. It guards against accidental deletion: the user sets it to false
 before deleting the object, so a class sets it in `template`, never in `enforced`.
 
+Protection also covers the composed resource that holds the data, such as a DB system: deleting it
+would delete the data while the object stays protected, and Crossplane would then create an empty
+one in its place. While protection is on, the platform labels that resource, and a second policy
+refuses to delete it for anyone but the garbage collector, which deletes it with its object.
+Crossplane is not exempt, so a composition that stops composing the resource cannot delete it
+either.
+
+A namespace deleted while it holds a protected object therefore stays in deletion: the namespace
+controller cannot delete the object or its data, but it does delete the object's Secrets, and the
+terminating namespace accepts no new ones. Only switching protection off ends it, and that deletes
+the data; a backup the cloud keeps after deletion is the way back.
+
 Every kind is deleted in the foreground (`defaultCompositeDeletePolicy: Foreground`, as today's
 PostgreSQL and MariaDB kinds are): an object stays in deletion until its composed resources are
 gone, so a resource the cloud refuses to delete keeps its object, with the cloud's error on that
