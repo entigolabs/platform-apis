@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
@@ -389,6 +390,15 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	annotations := map[string]string{}
 	if refused != "" {
 		annotations[refusedPrimaryAnnotation] = refused
+	}
+	// The provider keeps the OCID in its own state and records it in the external-name annotation
+	// only through late initialization, which the management policies below leave out. Without it,
+	// a restarted provider no longer finds the DB system: it creates another one, and deleting the
+	// cluster leaves the first one in OCI.
+	if o, ok := in.Observed[resource.Name(nameDBSystem)]; ok {
+		if id := observedID(&o.Resource.Unstructured); id != "" {
+			annotations[meta.AnnotationKeyExternalName] = id
+		}
 	}
 	if o, ok := in.Observed[resource.Name(namePassword)]; ok && o.Resource.GetResourceVersion() != "" {
 		annotations[passwordVersionAnnotation] = o.Resource.GetResourceVersion()

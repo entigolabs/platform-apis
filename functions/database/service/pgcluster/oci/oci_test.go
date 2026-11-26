@@ -357,6 +357,31 @@ func TestPointInTimeDays(t *testing.T) {
 	})
 }
 
+// Without the OCID in the external-name annotation, a restarted provider no longer finds the DB
+// system.
+func TestDBSystemExternalName(t *testing.T) {
+	observed := observedComposed(nameNSG, obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"}))
+	objs, err := pgcluster.Generate(cluster(flexEntry), required(), observed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := objs[nameDBSystem].GetAnnotations()["crossplane.io/external-name"]; ok {
+		t.Error("want no external name before OCI reports an OCID")
+	}
+	observed[resource.Name(nameDBSystem)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *obj(psqlAPIVersion, "PsqlDbSystem", "x", nil,
+		map[string]interface{}{"id": "ocid1.postgresqldbsystem.oc1..x"})}}
+	pwSecret := &unstructured.Unstructured{Object: map[string]interface{}{"apiVersion": "v1", "kind": "Secret",
+		"data": map[string]interface{}{passwordKey: base64.StdEncoding.EncodeToString([]byte("Kept-password-1"))}}}
+	observed[resource.Name(namePassword)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *pwSecret}}
+	objs, err = pgcluster.Generate(cluster(flexEntry), required(), observed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := objs[nameDBSystem].GetAnnotations()["crossplane.io/external-name"]; got != "ocid1.postgresqldbsystem.oc1..x" {
+		t.Errorf("want the OCID as the external name, got %q", got)
+	}
+}
+
 func TestDeletionProtectionLabel(t *testing.T) {
 	nsg := obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"})
 	for _, protected := range []bool{true, false} {
