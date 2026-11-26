@@ -94,6 +94,7 @@ spec:
                               description: Requirement key
                               enum:
                                 - ami-type
+                                - ami-release-version
                                 - instance-type
                                 - capacity-type
                                 - zone
@@ -107,7 +108,7 @@ spec:
                             # Single value - accepts string or integer
                             value:
                               x-kubernetes-int-or-string: true
-                              description: Single value for capacity-type, min-size, max-size, or desired-size. Can be string or integer.
+                              description: Single value for capacity-type, min-size, max-size, desired-size, or ami-release-version. Can be string or integer.
                             # Array of values - used for instance-type, zone
                             values:
                               type: array
