@@ -349,10 +349,23 @@ func TestPointInTimeDays(t *testing.T) {
 			t.Errorf("want pointInTimeDays above retention refused, got %v", err)
 		}
 	})
-	t.Run("no point-in-time policy without backups, whatever the entry says", func(t *testing.T) {
+	// The provider keeps a policy that is left out, so backups turned off must state none.
+	t.Run("none without backups, whatever the entry says", func(t *testing.T) {
 		got, err := pitr(t, `{"instanceType":"PostgreSQL.VM.Standard.E5.Flex","ocpus":2,"memoryGB":32,"pointInTimeDays":14}`, 0)
-		if err != nil || got != nil {
-			t.Errorf("want no policy, got %v, %v", got, err)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p, _ := got.([]interface{}); len(p) != 1 || p[0].(map[string]interface{})["kind"] != "NONE" {
+			t.Errorf("want kind NONE, got %v", got)
+		}
+	})
+	t.Run("an explicit value below the retention is kept", func(t *testing.T) {
+		got, err := pitr(t, `{"instanceType":"PostgreSQL.VM.Standard.E5.Flex","ocpus":2,"memoryGB":32,"pointInTimeDays":3}`, 7)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p := got.([]interface{})[0].(map[string]interface{}); p["restoreDays"] != int64(3) {
+			t.Errorf("want 3 restore days, got %v", got)
 		}
 	})
 }

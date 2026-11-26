@@ -353,6 +353,9 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 			days = *cfg.PointInTimeDays
 		}
 		policy["pitrPolicy"] = []interface{}{map[string]interface{}{"kind": "STANDARD", "restoreDays": days}}
+	} else {
+		// The provider keeps a policy that is left out, so turning backups off states none.
+		policy["pitrPolicy"] = []interface{}{map[string]interface{}{"kind": "NONE"}}
 	}
 	nsgIDs := []interface{}{nsgID}
 	forProvider := map[string]interface{}{
