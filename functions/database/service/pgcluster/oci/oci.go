@@ -273,6 +273,11 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	if o, ok := in.Observed[resource.Name(nameNSG)]; ok {
 		nsgID = observedID(&o.Resource.Unstructured)
 	}
+	if o, ok := in.Observed[resource.Name(nameDBSystem)]; ok && nsgID == "" {
+		// A DB system left out of the desired resources is deleted, so once it exists it keeps the
+		// security group it has, even while the security group's resource reports no OCID.
+		nsgID = composedNSG(&o.Resource.Unstructured)
+	}
 	if nsgID == "" {
 		// The DB system names its security group by OCID, which exists once OCI has created it.
 		return out, nil
@@ -280,7 +285,13 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	out[nameDBSystem] = dbSystem(in, cfg, net, env, resourceName, nsgID, passwordSecret, tags)
 
 	if o, ok := in.Observed[resource.Name(nameDBSystem)]; ok {
-		if host := endpoint(&o.Resource.Unstructured); host != "" {
+		host := endpoint(&o.Resource.Unstructured)
+		if host == "" {
+			// The admin Secret is deleted when left out, so it keeps its address while the DB
+			// system reports none.
+			host = secretValue(in.Observed, nameSecret, "endpoint")
+		}
+		if host != "" {
 			out[nameSecret] = secret(in.Spec.SecretName, c.Namespace, map[string]string{
 				"endpoint": host, "port": fmt.Sprint(port), "username": adminUsername, "password": password,
 			})
@@ -521,12 +532,8 @@ func secret(name, namespace string, data map[string]string) client.Object {
 // would fail to log in.
 func currentPassword(observed map[resource.Name]resource.ObservedComposed) (string, error) {
 	for _, name := range []string{namePassword, nameSecret} {
-		if o, ok := observed[resource.Name(name)]; ok {
-			if v, found, _ := unstructured.NestedString(o.Resource.Object, "data", passwordKey); found && v != "" {
-				if raw, err := base64.StdEncoding.DecodeString(v); err == nil && len(raw) > 0 {
-					return string(raw), nil
-				}
-			}
+		if v := secretValue(observed, name, passwordKey); v != "" {
+			return v, nil
 		}
 	}
 	if o, ok := observed[resource.Name(nameDBSystem)]; ok && observedID(&o.Resource.Unstructured) != "" {
@@ -534,6 +541,20 @@ func currentPassword(observed map[resource.Name]resource.ObservedComposed) (stri
 			"recreate either with the current password under the key \"password\"")
 	}
 	return generatePassword()
+}
+
+// secretValue returns a key of a composed Secret, or "" when the Secret or the key is missing.
+func secretValue(observed map[resource.Name]resource.ObservedComposed, name, key string) string {
+	o, ok := observed[resource.Name(name)]
+	if !ok {
+		return ""
+	}
+	v, _, _ := unstructured.NestedString(o.Resource.Object, "data", key)
+	raw, err := base64.StdEncoding.DecodeString(v)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }
 
 // generatePassword returns 24 characters that meet OCI's rule for admin passwords: upper and lower
@@ -577,6 +598,21 @@ func generatePassword() (string, error) {
 		out[i], out[j.Int64()] = out[j.Int64()], out[i]
 	}
 	return string(out), nil
+}
+
+// composedNSG returns the security group the DB system was composed with.
+func composedNSG(dbSystem *unstructured.Unstructured) string {
+	details, _, _ := unstructured.NestedSlice(dbSystem.Object, "spec", "forProvider", "networkDetails")
+	if len(details) == 0 {
+		return ""
+	}
+	m, _ := details[0].(map[string]interface{})
+	ids, _ := m["nsgIds"].([]interface{})
+	if len(ids) == 0 {
+		return ""
+	}
+	id, _ := ids[0].(string)
+	return id
 }
 
 func endpoint(dbSystem *unstructured.Unstructured) string {

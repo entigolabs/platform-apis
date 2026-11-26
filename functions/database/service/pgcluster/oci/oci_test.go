@@ -304,6 +304,28 @@ func TestInstanceCountChanges(t *testing.T) {
 	})
 }
 
+func TestDBSystemKeptWhileItsSecurityGroupReportsNoOCID(t *testing.T) {
+	observed := observedComposed(nameNSG, obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{}))
+	db := obj(psqlAPIVersion, "PsqlDbSystem", "x", nil, map[string]interface{}{"id": "ocid1.postgresqldbsystem.oc1..x"})
+	db.Object["spec"] = map[string]interface{}{"forProvider": map[string]interface{}{
+		"networkDetails": []interface{}{map[string]interface{}{"nsgIds": []interface{}{"ocid1.nsg.oc1..db"}}}}}
+	observed[resource.Name(nameDBSystem)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *db}}
+	pwSecret := &unstructured.Unstructured{Object: map[string]interface{}{"apiVersion": "v1", "kind": "Secret",
+		"data": map[string]interface{}{passwordKey: base64.StdEncoding.EncodeToString([]byte("Kept-password-1"))}}}
+	observed[resource.Name(namePassword)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *pwSecret}}
+
+	objs, err := pgcluster.Generate(cluster(flexEntry), required(), observed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if objs[nameDBSystem] == nil {
+		t.Fatal("want the DB system kept, or Crossplane deletes it")
+	}
+	if got := first(t, objs[nameDBSystem], "spec", "forProvider", "networkDetails")["nsgIds"]; got.([]interface{})[0] != "ocid1.nsg.oc1..db" {
+		t.Errorf("want the security group it has, got %v", got)
+	}
+}
+
 func TestPasswordKeptWhenASecretIsDeleted(t *testing.T) {
 	secret := func(password string) resource.ObservedComposed {
 		return resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
@@ -355,6 +377,20 @@ func TestAdminSecret(t *testing.T) {
 		t.Errorf("want endpoint, port, username and password, got %v", data)
 	}
 
+	t.Run("kept while the DB system reports no address", func(t *testing.T) {
+		admin := &unstructured.Unstructured{Object: map[string]interface{}{"apiVersion": "v1", "kind": "Secret",
+			"data": map[string]interface{}{"endpoint": base64.StdEncoding.EncodeToString([]byte("10.0.3.7"))}}}
+		observed[resource.Name(nameSecret)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *admin}}
+		observed[resource.Name(nameDBSystem)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *obj(psqlAPIVersion, "PsqlDbSystem", "x", nil,
+			map[string]interface{}{})}}
+		objs, err := pgcluster.Generate(cluster(flexEntry), required(), observed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if objs[nameSecret] == nil || field(t, objs[nameSecret], "stringData", "endpoint") != "10.0.3.7" {
+			t.Error("want the admin Secret kept with its address, or Crossplane deletes it")
+		}
+	})
 }
 
 // The framework copies every composed object as JSON-compatible values, which panics on Go types
