@@ -30,8 +30,9 @@ tag whose OCID no `PsqlDbSystem` names in `crossplane.io/external-name` is one. 
 4. The DB system stays `Synced: False` and the cluster `Ready: False`. Every retry resets the
    password again; later changes still reach OCI.
 
-A DB system that has added or removed an instance since its creation is not affected. Terraform
-OCI provider 9.11.0 skips the empty patch.
+A DB system that has added or removed an instance since its creation is not affected, so turning
+`highAvailability` on and off once clears a stuck one and keeps later password changes safe.
+Terraform OCI provider 9.11.0 skips the empty patch.
 
 **A major version change is refused.** Changing `spec.version` would replace the DB system; the
 in-place upgrade needs Terraform OCI provider 9.11.0. Upstream:
