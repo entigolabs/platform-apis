@@ -1,12 +1,18 @@
 package test
 
 import (
+	"context"
+	"encoding/base64"
+	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"text/template"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	terrak8s "github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -36,7 +42,7 @@ type kyvernoArgoAppData struct {
 }
 
 type kyvernoKubeconfigData struct {
-	CA, Server, ClusterName, Region, KeyID, Secret string
+	CA, Server, Token string
 }
 
 type kyvernoRepositoryData struct {
@@ -47,6 +53,13 @@ type kyvernoPodData struct {
 	Name, Namespace string
 	NodeSelector    map[string]string
 }
+
+const (
+	eksTokenPrefix        = "k8s-aws-v1."
+	eksClusterIDHeader    = "x-k8s-aws-id"
+	eksTokenExpirySeconds = "60"
+	eksEmptyPayloadHash   = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+)
 
 // ensureKyvernoTestNamespace creates the shared kyverno-test namespace if it does not exist,
 // then waits until the zone composition has reconciled the per-namespace Kyverno policies.
@@ -108,7 +121,7 @@ func roleKubectlOptions(t *testing.T, base *terrak8s.KubectlOptions, keyID, secr
 	require.NoError(t, err, "read cluster server from kubeconfig")
 
 	kubeconfig := renderTemplate(t, "./templates/kyverno_kubeconfig.yaml", kyvernoKubeconfigData{
-		CA: ca, Server: server, ClusterName: clusterName, Region: region, KeyID: keyID, Secret: secret,
+		CA: ca, Server: server, Token: eksToken(t, region, clusterName, keyID, secret),
 	})
 
 	f, ferr := os.CreateTemp("", "kubeconfig-role-*.yaml")
@@ -119,6 +132,22 @@ func roleKubectlOptions(t *testing.T, base *terrak8s.KubectlOptions, keyID, secr
 	require.NoError(t, f.Close())
 
 	return terrak8s.NewKubectlOptions("role-context", f.Name(), "")
+}
+
+func eksToken(t *testing.T, region, clusterName, keyID, secret string) string {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet,
+		fmt.Sprintf("https://sts.%s.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15", region), nil)
+	require.NoError(t, err, "build STS request")
+	req.Header.Set(eksClusterIDHeader, clusterName)
+	query := req.URL.Query()
+	query.Set("X-Amz-Expires", eksTokenExpirySeconds)
+	req.URL.RawQuery = query.Encode()
+
+	creds := aws.Credentials{AccessKeyID: keyID, SecretAccessKey: secret}
+	signed, _, err := v4.NewSigner().PresignHTTP(context.Background(), creds, req, eksEmptyPayloadHash, "sts", region, time.Now())
+	require.NoError(t, err, "presign STS request")
+	return fmt.Sprintf("%s%s", eksTokenPrefix, base64.RawURLEncoding.EncodeToString([]byte(signed)))
 }
 
 // kyvernoApply applies yamlStr so admission webhooks fire against real resources.
