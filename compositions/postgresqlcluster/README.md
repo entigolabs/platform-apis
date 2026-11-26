@@ -17,6 +17,9 @@ Terraform OCI provider 9.0.0. These limits come from that provider and stay unti
 3. The restarted provider has no ID for the DB system and creates another one. The first stays in
    OCI, unmanaged and billed.
 
+A restart has the same effect while the provider recreates a DB system someone deleted in OCI:
+until the new one is active, the managed resource still names the deleted OCID.
+
 Find a leftover by its freeform tag `entigo-resource`, `<namespace>-<cluster>`: a DB system with the
 tag whose OCID no `PsqlDbSystem` names in `crossplane.io/external-name` is one. Upstream:
 [crossplane/upjet#561](https://github.com/crossplane/upjet/issues/561).
