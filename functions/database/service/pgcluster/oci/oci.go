@@ -395,8 +395,14 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	// only through late initialization, which the management policies below leave out. Without it,
 	// a restarted provider no longer finds the DB system: it creates another one, and deleting the
 	// cluster leaves the first one in OCI.
+	// The annotation is kept while the status has no OCID, as after a restore that drops status:
+	// the function owns it, so leaving it out would remove it before the provider reads it.
 	if o, ok := in.Observed[resource.Name(nameDBSystem)]; ok {
-		if id := observedID(&o.Resource.Unstructured); id != "" {
+		id := observedID(&o.Resource.Unstructured)
+		if id == "" {
+			id = o.Resource.GetAnnotations()[meta.AnnotationKeyExternalName]
+		}
+		if id != "" {
 			annotations[meta.AnnotationKeyExternalName] = id
 		}
 	}

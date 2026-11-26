@@ -380,6 +380,20 @@ func TestDBSystemExternalName(t *testing.T) {
 	if got := objs[nameDBSystem].GetAnnotations()["crossplane.io/external-name"]; got != "ocid1.postgresqldbsystem.oc1..x" {
 		t.Errorf("want the OCID as the external name, got %q", got)
 	}
+
+	// After a restore that drops status, the annotation is all that still names the DB system.
+	t.Run("kept while the status has no OCID", func(t *testing.T) {
+		restored := obj(psqlAPIVersion, "PsqlDbSystem", "x", nil, map[string]interface{}{})
+		restored.SetAnnotations(map[string]string{"crossplane.io/external-name": "ocid1.postgresqldbsystem.oc1..x"})
+		observed[resource.Name(nameDBSystem)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *restored}}
+		objs, err := pgcluster.Generate(cluster(flexEntry), required(), observed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := objs[nameDBSystem].GetAnnotations()["crossplane.io/external-name"]; got != "ocid1.postgresqldbsystem.oc1..x" {
+			t.Errorf("want the external name kept, got %q", got)
+		}
+	})
 }
 
 func TestDeletionProtectionLabel(t *testing.T) {
