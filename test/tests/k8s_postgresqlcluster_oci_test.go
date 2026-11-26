@@ -147,10 +147,46 @@ func testPostgreSQLClusterOCI(t *testing.T, cluster *terrak8s.KubectlOptions) {
 		require.Equal(t, before, getField(t, ns, "secret", PostgreSQLClusterSecret, ".data.password"))
 		testPostgreSQLClusterConnect(t, cluster, ns)
 	})
+
+	t.Run("password-edited", func(t *testing.T) {
+		// An edited password reaches the admin Secret at once and OCI within seconds, well before the
+		// provider's next poll, minutes later.
+		passwordSecret := strings.TrimPrefix(firstSecret(t, ns, PostgreSQLClusterName+"-admin-password-"), "secret/")
+		password := fmt.Sprintf("Edited-%d-x", time.Now().UnixNano())
+		_, err := terrak8s.RunKubectlAndGetOutputE(t, ns, "patch", "secret", passwordSecret, "--type=merge",
+			"-p", fmt.Sprintf(`{"stringData":{"password":%q}}`, password))
+		require.NoError(t, err)
+		waitFieldEquals(t, ns, "secret", PostgreSQLClusterSecret, ".data.password",
+			base64.StdEncoding.EncodeToString([]byte(password)), 30, 10*time.Second)
+		_, err = retry.DoWithRetryE(t, "connect with the edited password", 6, 20*time.Second, func() (string, error) {
+			return "", postgreSQLClusterConnectE(t, cluster, ns)
+		})
+		require.NoError(t, err)
+	})
+}
+
+// firstSecret returns the first Secret whose name starts with prefix, as secret/<name>.
+func firstSecret(t *testing.T, ns *terrak8s.KubectlOptions, prefix string) string {
+	t.Helper()
+	secrets, err := terrak8s.RunKubectlAndGetOutputE(t, ns, "get", "secret", "-o", "name")
+	require.NoError(t, err)
+	for _, s := range strings.Fields(secrets) {
+		if strings.HasPrefix(s, "secret/"+prefix) {
+			return s
+		}
+	}
+	t.Fatalf("no Secret named %s*", prefix)
+	return ""
 }
 
 // testPostgreSQLClusterConnect runs the psql client pod once and requires its query to succeed.
 func testPostgreSQLClusterConnect(t *testing.T, cluster, ns *terrak8s.KubectlOptions) {
+	t.Helper()
+	require.NoError(t, postgreSQLClusterConnectE(t, cluster, ns))
+}
+
+// postgreSQLClusterConnectE runs the psql client pod once and returns why its query failed, if it did.
+func postgreSQLClusterConnectE(t *testing.T, cluster, ns *terrak8s.KubectlOptions) error {
 	t.Helper()
 	_, _ = terrak8s.RunKubectlAndGetOutputE(t, ns, "delete", "pod", PostgreSQLClusterClient, "--ignore-not-found", "--wait=true")
 	applyFile(t, cluster, "./templates/postgresqlcluster_oci_client.yaml")
@@ -168,7 +204,7 @@ func testPostgreSQLClusterConnect(t *testing.T, cluster, ns *terrak8s.KubectlOpt
 		}
 		return phase, nil
 	})
-	require.NoError(t, err)
+	return err
 }
 
 // testPostgreSQLClusterRefusals checks that the first iteration refuses fields it does not
