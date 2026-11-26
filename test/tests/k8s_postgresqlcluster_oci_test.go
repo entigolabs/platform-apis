@@ -101,6 +101,8 @@ func testPostgreSQLClusterOCI(t *testing.T, cluster *terrak8s.KubectlOptions) {
 	}
 	atProvider := ".status.atProvider"
 	backupPolicy := atProvider + ".managementPolicy[0].backupPolicy[0]"
+	// The provider's status can trail OCI by its poll interval, about 10 minutes, after a change.
+	const statusRetries = 90
 
 	t.Run("high-availability", func(t *testing.T) {
 		patch(t, PostgreSQLClusterKind, PostgreSQLClusterName, `{"spec":{"highAvailability":true}}`)
@@ -119,14 +121,14 @@ func testPostgreSQLClusterOCI(t *testing.T, cluster *terrak8s.KubectlOptions) {
 			{"14", ".retentionDays", "14"}, {"0", ".kind", "NONE"}, {"7", ".kind", "DAILY"},
 		} {
 			patch(t, PostgreSQLClusterKind, PostgreSQLClusterName, `{"spec":{"backup":{"retentionDays":`+step.days+`}}}`)
-			waitFieldEquals(t, ns, OCIDBSystemKind, db, backupPolicy+step.field, step.want, 60, 10*time.Second)
+			waitFieldEquals(t, ns, OCIDBSystemKind, db, backupPolicy+step.field, step.want, statusRetries, 10*time.Second)
 		}
 	})
 
 	t.Run("referenced-config", func(t *testing.T) {
 		// Only the referenced PostgreSQLOCIConfig changes; the cluster itself stays as it is.
 		patch(t, PostgreSQLOCIConfigKind, PostgreSQLClusterName, `{"spec":{"backupStartHourUTC":4}}`)
-		waitFieldEquals(t, ns, OCIDBSystemKind, db, backupPolicy+".backupStart", "04:00", 60, 10*time.Second)
+		waitFieldEquals(t, ns, OCIDBSystemKind, db, backupPolicy+".backupStart", "04:00", statusRetries, 10*time.Second)
 	})
 
 	t.Run("password-kept", func(t *testing.T) {
