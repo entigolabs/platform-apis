@@ -3,6 +3,7 @@ module github.com/entigolabs/entigo-infralib
 go 1.26.0
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.47.1
 	github.com/entigolabs/entigo-infralib-test v0.8.8
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/stretchr/testify v1.11.1
@@ -12,6 +13,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/aws/aws-sdk-go v1.44.122 // indirect
+	github.com/aws/smithy-go v1.28.1 // indirect
 	github.com/boombuler/barcode v1.0.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
