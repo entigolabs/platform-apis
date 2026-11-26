@@ -304,6 +304,23 @@ func TestInstanceCountChanges(t *testing.T) {
 	})
 }
 
+// The provider rereads the password Secret only when the DB system changes, so an edited password
+// changes the DB system too.
+func TestPasswordEditChangesTheDBSystem(t *testing.T) {
+	observed := observedComposed(nameNSG, obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"}))
+	pwSecret := &unstructured.Unstructured{Object: map[string]interface{}{"apiVersion": "v1", "kind": "Secret",
+		"data": map[string]interface{}{passwordKey: base64.StdEncoding.EncodeToString([]byte("Edited-password-1"))}}}
+	pwSecret.SetResourceVersion("4711")
+	observed[resource.Name(namePassword)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *pwSecret}}
+	objs, err := pgcluster.Generate(cluster(flexEntry), required(), observed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := objs[nameDBSystem].GetAnnotations()[passwordVersionAnnotation]; got != "4711" {
+		t.Errorf("want the password Secret's version on the DB system, got %q", got)
+	}
+}
+
 func TestDeletionProtectionLabel(t *testing.T) {
 	nsg := obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"})
 	for _, protected := range []bool{true, false} {

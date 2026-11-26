@@ -54,6 +54,11 @@ const (
 	regionalDomains = 3
 	// refusedPrimaryAnnotation keeps the instance OCI refused to remove as the primary.
 	refusedPrimaryAnnotation = "database.entigo.com/refused-primary"
+	// passwordVersionAnnotation follows the password Secret's resourceVersion. The provider rereads
+	// the Secret only when the DB system changes or at its next poll, minutes later, while the
+	// admin Secret takes a new password at once; changing the DB system makes it apply the password
+	// right away.
+	passwordVersionAnnotation = "database.entigo.com/password-version"
 )
 
 // Environment is the OCI part of the deployment's database settings: the provider configuration,
@@ -368,8 +373,15 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 		forProvider["patchOperations"] = ops
 	}
 	db := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
+	annotations := map[string]string{}
 	if refused != "" {
-		db.SetAnnotations(map[string]string{refusedPrimaryAnnotation: refused})
+		annotations[refusedPrimaryAnnotation] = refused
+	}
+	if o, ok := in.Observed[resource.Name(namePassword)]; ok && o.Resource.GetResourceVersion() != "" {
+		annotations[passwordVersionAnnotation] = o.Resource.GetResourceVersion()
+	}
+	if len(annotations) > 0 {
+		db.SetAnnotations(annotations)
 	}
 	if in.Spec.DeletionProtection {
 		db.SetLabels(map[string]string{pgcluster.DeletionProtectionLabel: "true"})
