@@ -33,6 +33,8 @@ expect "list passes through" $'availabilityDomains:\n +- x:AD-1\n' "$(render -f 
 
 expect "unset becomes an empty list" 'availabilityDomains: \[\]' "$(render)"
 expect "version changes refused" 'version cannot change yet' "$(render)"
+expect "protected data deletion refused except by Crossplane and the garbage collector" \
+    $'database.entigo.com/deletion-protection: "true"[^-]*(.*\n)+.*crossplane-system:(.*\n)+.*generic-garbage-collector' "$(render)"
 
 if KUBE_VERSION=1.35.0 render >/dev/null 2>&1; then
     echo "FAIL: Kubernetes below 1.36 refused"

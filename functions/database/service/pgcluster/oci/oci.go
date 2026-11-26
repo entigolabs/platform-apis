@@ -371,6 +371,9 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	if refused != "" {
 		db.SetAnnotations(map[string]string{refusedPrimaryAnnotation: refused})
 	}
+	if in.Spec.DeletionProtection {
+		db.SetLabels(map[string]string{pgcluster.DeletionProtectionLabel: "true"})
+	}
 	// The provider never reads instancesDetails back, so after creation it reports a change that
 	// forces replacement and refuses every update. A field set only in initProvider is ignored after
 	// creation. The provider drops an empty list, so each instance gets an entry, as OCI requires.

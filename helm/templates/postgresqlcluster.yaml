@@ -117,4 +117,46 @@ spec:
   validationActions: [Deny]
   matchResources:
     namespaceSelector: {}
+---
+# Deleting the resource that holds a protected cluster's data, such as its DB system, deletes the
+# data, and Crossplane then creates an empty one in its place.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: platform-apis-postgresqlcluster-data-deletion
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    objectSelector:
+      matchLabels:
+        database.entigo.com/deletion-protection: "true"
+    resourceRules:
+    - apiGroups: ["*"]
+      apiVersions: ["*"]
+      operations: ["DELETE"]
+      resources: ["*"]
+      scope: Namespaced
+  matchConditions:
+  # Crossplane deletes what a cluster no longer composes, and the garbage collector deletes what a
+  # deleted cluster composed; the label can still be set when a cluster is deleted right after its
+  # protection is switched off.
+  - name: not-crossplane
+    expression: '!request.userInfo.username.startsWith("system:serviceaccount:{{ .Values.zone.crossplaneNamespace }}:")'
+  - name: not-garbage-collector
+    expression: 'request.userInfo.username != "system:serviceaccount:kube-system:generic-garbage-collector"'
+  validations:
+  - expression: "false"
+    messageExpression: >-
+      request.kind.kind + " holds the data of a PostgreSQLCluster protected from deletion. Set spec.deletionProtection to false on the PostgreSQLCluster first."
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: platform-apis-postgresqlcluster-data-deletion
+spec:
+  policyName: platform-apis-postgresqlcluster-data-deletion
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector: {}
 {{- end }}

@@ -66,6 +66,14 @@ func testPostgreSQLClusterOCI(t *testing.T, cluster *terrak8s.KubectlOptions) {
 		require.Contains(t, out, "version cannot change yet")
 	})
 
+	t.Run("db-system-deletion-refused", func(t *testing.T) {
+		db, err := getFirstByLabel(t, ns, OCIDBSystemKind, PostgreSQLClusterName)
+		require.NoError(t, err)
+		out, err := terrak8s.RunKubectlAndGetOutputE(t, ns, "delete", OCIDBSystemKind, db, "--dry-run=server")
+		require.Error(t, err, "deleting a protected cluster's DB system must be refused")
+		require.Contains(t, out, "protected from deletion")
+	})
+
 	t.Run("admin-secret", func(t *testing.T) {
 		for _, key := range []string{"endpoint", "port", "username", "password"} {
 			v := waitFieldNonEmpty(t, ns, "secret", PostgreSQLClusterSecret, ".data."+key, 30, 10*time.Second)

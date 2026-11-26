@@ -304,6 +304,22 @@ func TestInstanceCountChanges(t *testing.T) {
 	})
 }
 
+func TestDeletionProtectionLabel(t *testing.T) {
+	nsg := obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"})
+	for _, protected := range []bool{true, false} {
+		c := cluster(flexEntry)
+		c.Spec.DeletionProtection = ptr(protected)
+		objs, err := pgcluster.Generate(c, required(), observedComposed(nameNSG, nsg))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, labelled := objs[nameDBSystem].GetLabels()[pgcluster.DeletionProtectionLabel]
+		if labelled != protected {
+			t.Errorf("protected %v: want the DB system labelled %v, got %v", protected, protected, labelled)
+		}
+	}
+}
+
 func TestDBSystemKeptWhileItsSecurityGroupReportsNoOCID(t *testing.T) {
 	observed := observedComposed(nameNSG, obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{}))
 	db := obj(psqlAPIVersion, "PsqlDbSystem", "x", nil, map[string]interface{}{"id": "ocid1.postgresqldbsystem.oc1..x"})
