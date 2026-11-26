@@ -97,7 +97,7 @@ func TestComposeBeforeTheSecurityGroupExists(t *testing.T) {
 			t.Errorf("want %s composed", name)
 		}
 	}
-	if objs[nameDBSystem] != nil || objs[nameSecret] != nil {
+	if objs[nameDBSystem] != nil || objs[nameSecret+"orders-db-dbadmin"] != nil {
 		t.Error("the DB system waits for its security group's OCID, and the admin Secret for its address")
 	}
 	if got := field(t, objs[nameNSG], "spec", "forProvider", "compartmentId"); got != "ocid1.compartment.oc1..zone" {
@@ -404,7 +404,7 @@ func TestPasswordKeptWhenASecretIsDeleted(t *testing.T) {
 		map[string]interface{}{"id": "ocid1.postgresqldbsystem.oc1..db"})}}
 
 	t.Run("the admin Secret restores the password Secret", func(t *testing.T) {
-		got, err := currentPassword(map[resource.Name]resource.ObservedComposed{nameSecret: secret("From-admin-1"), nameDBSystem: db})
+		got, err := currentPassword(map[resource.Name]resource.ObservedComposed{nameSecret + "orders-db-dbadmin": secret("From-admin-1"), nameDBSystem: db})
 		if err != nil || got != "From-admin-1" {
 			t.Errorf("want the admin Secret's password, got %q, %v", got, err)
 		}
@@ -437,7 +437,7 @@ func TestAdminSecret(t *testing.T) {
 	if got := field(t, objs[namePassword], "stringData", passwordKey); got != password {
 		t.Errorf("want the generated password kept, got %v", got)
 	}
-	s := objs[nameSecret]
+	s := objs[nameSecret+"orders-db-dbadmin"]
 	if s.GetName() != "orders-db-dbadmin" {
 		t.Errorf("want the admin Secret orders-db-dbadmin, got %s", s.GetName())
 	}
@@ -449,15 +449,32 @@ func TestAdminSecret(t *testing.T) {
 	t.Run("kept while the DB system reports no address", func(t *testing.T) {
 		admin := &unstructured.Unstructured{Object: map[string]interface{}{"apiVersion": "v1", "kind": "Secret",
 			"data": map[string]interface{}{"endpoint": base64.StdEncoding.EncodeToString([]byte("10.0.3.7"))}}}
-		observed[resource.Name(nameSecret)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *admin}}
+		observed[resource.Name(nameSecret+"orders-db-dbadmin")] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *admin}}
 		observed[resource.Name(nameDBSystem)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *obj(psqlAPIVersion, "PsqlDbSystem", "x", nil,
 			map[string]interface{}{})}}
 		objs, err := pgcluster.Generate(cluster(flexEntry), required(), observed)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if objs[nameSecret] == nil || field(t, objs[nameSecret], "stringData", "endpoint") != "10.0.3.7" {
+		if s := objs[nameSecret+"orders-db-dbadmin"]; s == nil || field(t, s, "stringData", "endpoint") != "10.0.3.7" {
 			t.Error("want the admin Secret kept with its address, or Crossplane deletes it")
+		}
+	})
+
+	// Crossplane keeps the name of a resource under an existing key, so a new name needs a new key.
+	t.Run("a new secretName composes the Secret under a new key", func(t *testing.T) {
+		c := cluster(flexEntry)
+		c.Spec.SecretName = ptr("orders-login")
+		objs, err := pgcluster.Generate(c, required(), observed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if objs[nameSecret+"orders-db-dbadmin"] != nil {
+			t.Error("want the Secret under the old name no longer composed, so Crossplane deletes it")
+		}
+		s := objs[nameSecret+"orders-login"]
+		if s == nil || s.GetName() != "orders-login" || field(t, s, "stringData", passwordKey) != password {
+			t.Errorf("want orders-login composed with the current password, got %v", s)
 		}
 	})
 }

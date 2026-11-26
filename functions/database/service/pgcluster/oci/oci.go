@@ -38,11 +38,14 @@ const (
 	keyClientNSG    = "OCIClientNSG-"
 	subnetTypeLabel = "subnet-type"
 
-	nameDBSystem  = "db-system"
-	nameNSG       = "security-group"
-	nameRule      = "security-rule-"
-	namePassword  = "admin-password"
-	nameSecret    = "admin-secret"
+	nameDBSystem = "db-system"
+	nameNSG      = "security-group"
+	nameRule     = "security-rule-"
+	namePassword = "admin-password"
+	// nameSecret prefixes the admin Secret's key, which ends in the Secret's name: Crossplane keeps
+	// the name of a resource under an existing key, so a new secretName needs a new key, and the
+	// Secret under the old key is then deleted.
+	nameSecret    = "admin-secret-"
 	adminUsername = "dbadmin"
 	port          = int64(5432)
 	passwordKey   = "password"
@@ -299,10 +302,10 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 		if host == "" {
 			// The admin Secret is deleted when left out, so it keeps its address while the DB
 			// system reports none.
-			host = secretValue(in.Observed, nameSecret, "endpoint")
+			host = adminSecretValue(in.Observed, "endpoint")
 		}
 		if host != "" {
-			out[nameSecret] = secret(in.Spec.SecretName, c.Namespace, map[string]string{
+			out[nameSecret+in.Spec.SecretName] = secret(in.Spec.SecretName, c.Namespace, map[string]string{
 				"endpoint": host, "port": fmt.Sprint(port), "username": adminUsername, "password": password,
 			})
 		}
@@ -556,10 +559,11 @@ func secret(name, namespace string, data map[string]string) client.Object {
 // generated: the provider would reset the database to it, and applications holding the old one
 // would fail to log in.
 func currentPassword(observed map[resource.Name]resource.ObservedComposed) (string, error) {
-	for _, name := range []string{namePassword, nameSecret} {
-		if v := secretValue(observed, name, passwordKey); v != "" {
-			return v, nil
-		}
+	if v := secretValue(observed, namePassword, passwordKey); v != "" {
+		return v, nil
+	}
+	if v := adminSecretValue(observed, passwordKey); v != "" {
+		return v, nil
 	}
 	if o, ok := observed[resource.Name(nameDBSystem)]; ok && observedID(&o.Resource.Unstructured) != "" {
 		return "", errors.New("the admin password is lost: both the admin Secret and the password Secret are gone; " +
@@ -580,6 +584,18 @@ func secretValue(observed map[resource.Name]resource.ObservedComposed, name, key
 		return ""
 	}
 	return string(raw)
+}
+
+// adminSecretValue returns a key of the observed admin Secret, under whichever name it has.
+func adminSecretValue(observed map[resource.Name]resource.ObservedComposed, key string) string {
+	for name := range observed {
+		if strings.HasPrefix(string(name), nameSecret) {
+			if v := secretValue(observed, string(name), key); v != "" {
+				return v
+			}
+		}
+	}
+	return ""
 }
 
 // generatePassword returns 24 characters that meet OCI's rule for admin passwords: upper and lower
