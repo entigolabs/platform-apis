@@ -21,6 +21,8 @@ const (
 	EnvironmentName = "platform-apis-database"
 	// refKeyPrefix keys the separate provider configuration object an entry names by ref.
 	refKeyPrefix = "ProviderConfig"
+	// secretKey keys the Secret the cluster's secretName names, if it exists.
+	secretKey = "ConnectionSecret"
 
 	SourceObject         = "object"
 	SourceImplementation = "implementation"
@@ -138,11 +140,8 @@ func effectiveSpec(c *v1alpha2.PostgreSQLCluster, d Defaults, id string) (Spec, 
 	}
 	out := Spec{
 		Parameters: s.Parameters,
-		SecretName: base.GenerateEligibleKubernetesFullName(c.Name + "-dbadmin"),
+		SecretName: connectionSecretName(c),
 		Cloud:      map[string]bool{},
-	}
-	if s.SecretName != nil && *s.SecretName != "" {
-		out.SecretName = *s.SecretName
 	}
 	if isObserved(c) {
 		for _, f := range cloudFields {
@@ -188,6 +187,31 @@ func effectiveSpec(c *v1alpha2.PostgreSQLCluster, d Defaults, id string) (Spec, 
 		put("backup.retentionDays", out.RetentionDays, SourceImplementation)
 	}
 	return out, sources, nil
+}
+
+// connectionSecretName is the Secret the cluster's connection details go to.
+func connectionSecretName(c *v1alpha2.PostgreSQLCluster) string {
+	if c.Spec.SecretName != nil && *c.Spec.SecretName != "" {
+		return *c.Spec.SecretName
+	}
+	return base.GenerateEligibleKubernetesFullName(c.Name + "-dbadmin")
+}
+
+// checkSecret refuses a secretName that names a Secret something else owns. Crossplane would take
+// such a Secret over, write the connection details into it, and delete it with the cluster.
+func checkSecret(c *v1alpha2.PostgreSQLCluster, required map[string][]resource.Required) error {
+	for _, r := range required[secretKey] {
+		if r.Resource == nil {
+			continue
+		}
+		for _, o := range r.Resource.GetOwnerReferences() {
+			if o.Controller != nil && *o.Controller && o.UID == c.UID {
+				return nil
+			}
+		}
+		return fmt.Errorf("Secret %s already exists and does not belong to this cluster: set another secretName", r.Resource.GetName())
+	}
+	return nil
 }
 
 // entryID returns the id of the existing resource an entry names, which every backend's provider
@@ -270,6 +294,13 @@ func Required(xr client.Object, required map[string][]resource.Required) (map[st
 	if !ok {
 		return nil, fmt.Errorf("expected a PostgreSQLCluster, got %T", xr)
 	}
+	ns := c.Namespace
+	out[secretKey] = &fnv1.ResourceSelector{
+		ApiVersion: "v1",
+		Kind:       "Secret",
+		Match:      &fnv1.ResourceSelector_MatchName{MatchName: connectionSecretName(c)},
+		Namespace:  &ns,
+	}
 	env, err := getEnvironment(required)
 	if err != nil {
 		return nil, err
@@ -279,7 +310,6 @@ func Required(xr client.Object, required map[string][]resource.Required) (map[st
 		return nil, err
 	}
 	if sel.entry.Ref != nil {
-		ns := c.Namespace
 		out[refKeyPrefix] = &fnv1.ResourceSelector{
 			ApiVersion: sel.entry.APIVersion,
 			Kind:       sel.entry.Kind,
@@ -323,6 +353,9 @@ func input(c *v1alpha2.PostgreSQLCluster, sel selection, required map[string][]r
 func Generate(c *v1alpha2.PostgreSQLCluster, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (map[string]client.Object, error) {
 	env, err := getEnvironment(required)
 	if err != nil {
+		return nil, err
+	}
+	if err := checkSecret(c, required); err != nil {
 		return nil, err
 	}
 	sel, err := selectEntry(c, env)

@@ -286,6 +286,46 @@ func TestGenerate(t *testing.T) {
 	})
 }
 
+func TestConnectionSecretOwnedElsewhere(t *testing.T) {
+	c := cluster(entry(standInAPI, "PostgreSQLStandInConfig", `{"size":"small"}`))
+	c.UID = "uid-1"
+	c.Spec.SecretName = ptr("orders-login")
+	required := environment(standInKind)
+	selectors, err := Required(c, required)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel := selectors[secretKey]; sel == nil || sel.GetKind() != "Secret" || sel.GetMatchName() != "orders-login" || sel.GetNamespace() != "shop" {
+		t.Fatalf("want the Secret secretName names required in the cluster's namespace, got %v", sel)
+	}
+	existing := func(owners ...interface{}) []resource.Required {
+		meta := map[string]interface{}{"name": "orders-login", "namespace": "shop"}
+		if len(owners) > 0 {
+			meta["ownerReferences"] = owners
+		}
+		return []resource.Required{{Resource: &unstructured.Unstructured{Object: map[string]interface{}{
+			"apiVersion": "v1", "kind": "Secret", "metadata": meta}}}}
+	}
+
+	required[secretKey] = existing()
+	if _, err := Generate(c, required, nil); err == nil || !strings.Contains(err.Error(), "does not belong to this cluster") {
+		t.Errorf("want a Secret without an owner refused, got %v", err)
+	}
+	required[secretKey] = existing(map[string]interface{}{"apiVersion": "v1", "kind": "ConfigMap", "name": "x", "uid": "uid-2", "controller": true})
+	if _, err := Generate(c, required, nil); err == nil {
+		t.Error("want a Secret controlled by something else refused")
+	}
+	required[secretKey] = existing(map[string]interface{}{"apiVersion": "database.entigo.com/v1alpha2", "kind": "PostgreSQLCluster",
+		"name": "orders-db", "uid": "uid-1", "controller": true})
+	if _, err := Generate(c, required, nil); err != nil {
+		t.Errorf("want the cluster's own Secret accepted, got %v", err)
+	}
+	required[secretKey] = []resource.Required{}
+	if _, err := Generate(c, required, nil); err != nil {
+		t.Errorf("want a Secret that does not exist yet accepted, got %v", err)
+	}
+}
+
 func TestStatus(t *testing.T) {
 	t.Run("the composite's status names the applied entry and each value's source", func(t *testing.T) {
 		c := cluster(entry(otherAPI, "PostgreSQLOtherConfig", `{}`), entry(standInAPI, "PostgreSQLStandInConfig", `{}`))
