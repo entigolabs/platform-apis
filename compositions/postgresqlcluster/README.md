@@ -55,6 +55,10 @@ tag whose OCID no `PsqlDbSystem` names in `crossplane.io/external-name` is one. 
 4. The DB system stays `Synced: False` and the cluster `Ready: False`. Every retry resets the
    password again; later changes still reach OCI.
 
+Taking over a DB system that never scaled has the same effect: the takeover's update reaches OCI,
+then the empty patch is refused and the DB system stays `Synced: False`. Whether the toggle below
+clears it there is untested.
+
 A DB system that has added or removed an instance since its creation is not affected, so turning
 `highAvailability` on and off once clears a stuck one and keeps later password changes safe.
 Terraform OCI provider 9.11.0 skips the empty patch.
