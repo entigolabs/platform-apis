@@ -102,10 +102,6 @@ spec:
             properties:
               instanceType:
                 type: string
-              finalBackup:
-                type: string
-                description: |-
-                  The ID the final backup receives when the cluster is deleted, for fromBackup.
               state:
                 type: string
               id:
