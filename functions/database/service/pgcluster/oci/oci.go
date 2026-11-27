@@ -18,6 +18,7 @@ import (
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
+	"github.com/entigolabs/platform-apis/apis/v1alpha2"
 	"github.com/entigolabs/platform-apis/service/pgcluster"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -253,8 +254,8 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	db := observedDB(in.Observed)
 	if db != nil {
 		if have := db.GetAnnotations()[existingIDAnnotation]; have != in.ID {
-			return nil, fmt.Errorf("the PostgreSQLOCIConfig entry's id %q differs from %q, the DB system this cluster was "+
-				"created with or observed: a cluster never moves to another DB system", in.ID, have)
+			return nil, base.NotAccepted(fmt.Errorf("the PostgreSQLOCIConfig entry's id %q differs from %q, the DB system this cluster was "+
+				"created with or observed: a cluster never moves to another DB system", in.ID, have))
 		}
 	}
 	if in.Observe {
@@ -282,8 +283,8 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 		return nil, errors.New("the PostgreSQLOCIConfig entry sets fromBackup, which creates a DB system, and id, which takes over an existing one")
 	}
 	if in.Spec.Cloud["backup.retentionDays"] && (cfg.BackupStartHourUTC != nil || cfg.PointInTimeDays != nil) {
-		return nil, errors.New("backupStartHourUTC and pointInTimeDays in the PostgreSQLOCIConfig entry change the DB system's " +
-			"backups, which it keeps while backup.retentionDays is unset: set backup.retentionDays too")
+		return nil, base.NotAccepted(errors.New("backupStartHourUTC and pointInTimeDays in the PostgreSQLOCIConfig entry change the DB system's " +
+			"backups, which it keeps while backup.retentionDays is unset: set backup.retentionDays too"))
 	}
 	// Without backups there is nothing to restore from, and pointInTimeDays is ignored.
 	if cfg.PointInTimeDays != nil && in.Spec.RetentionDays > 0 && *cfg.PointInTimeDays > in.Spec.RetentionDays {
@@ -506,8 +507,8 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 		case in.Spec.Cloud["version"]:
 			version = haveVersion
 		case majorVersion(haveVersion) != version:
-			return nil, fmt.Errorf("version %s differs from DB system %s's version %s, and a major version upgrade is not available",
-				version, in.ID, haveVersion)
+			return nil, base.NotAccepted(fmt.Errorf("version %s differs from DB system %s's version %s, and a major version upgrade is not available",
+				version, in.ID, haveVersion))
 		}
 	}
 	instances := int64(1)
@@ -984,4 +985,63 @@ func (Backend) Status(observed *composed.Unstructured) (*pgcluster.Observed, err
 	}
 	// OCI reports no storage size, so status.storage stays empty.
 	return o, nil
+}
+
+// Effective returns the entry's settings as the backend applies them: those the entry sets, the
+// backend's defaults for the backup start and point-in-time days, and, on an existing DB system,
+// its own shape where the entry sets none.
+func (Backend) Effective(entry pgcluster.Entry, spec pgcluster.Spec, status v1alpha2.PostgreSQLClusterStatus) map[string]pgcluster.Value {
+	var cfg Config
+	if len(entry.Spec) > 0 && json.Unmarshal(entry.Spec, &cfg) != nil {
+		return nil
+	}
+	out := map[string]pgcluster.Value{}
+	set := func(field string, v interface{}) {
+		out[field] = pgcluster.Value{Value: v, Source: pgcluster.SourceObject}
+	}
+	if cfg.ID != "" {
+		set("id", cfg.ID)
+	}
+	if cfg.InstanceType != "" {
+		set("instanceType", cfg.InstanceType)
+	}
+	if cfg.OCPUs != nil {
+		set("ocpus", *cfg.OCPUs)
+	}
+	if cfg.MemoryGB != nil {
+		set("memoryGB", *cfg.MemoryGB)
+	}
+	if cfg.IOPS != nil {
+		set("iops", *cfg.IOPS)
+	}
+	if cfg.MaintenanceWindow != nil {
+		set("maintenanceWindow", cfg.MaintenanceWindow)
+	}
+	if cfg.FromBackup != "" {
+		set("fromBackup", cfg.FromBackup)
+	}
+	if cfg.BackupStartHourUTC != nil {
+		set("backupStartHourUTC", *cfg.BackupStartHourUTC)
+	}
+	if cfg.PointInTimeDays != nil {
+		set("pointInTimeDays", *cfg.PointInTimeDays)
+	}
+	if !spec.Cloud["backup.retentionDays"] && spec.RetentionDays > 0 {
+		if cfg.BackupStartHourUTC == nil {
+			out["backupStartHourUTC"] = pgcluster.Value{Value: defaultBackupStartHourUTC, Source: pgcluster.SourceImplementation}
+		}
+		if cfg.PointInTimeDays == nil {
+			out["pointInTimeDays"] = pgcluster.Value{Value: spec.RetentionDays, Source: pgcluster.SourceImplementation}
+		}
+	}
+	if cfg.ID != "" && cfg.InstanceType == "" {
+		var provider map[string]interface{}
+		if status.Provider != nil {
+			_ = json.Unmarshal(status.Provider.Raw, &provider)
+		}
+		for field, from := range map[string]string{"instanceType": "instanceType", "ocpus": "instanceOcpuCount", "memoryGB": "instanceMemorySizeInGbs"} {
+			out[field] = pgcluster.Value{Value: provider[from], Source: pgcluster.SourceCloud}
+		}
+	}
+	return out
 }

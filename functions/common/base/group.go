@@ -78,6 +78,36 @@ type CompositeStatusProvider interface {
 	GetCompositeStatus(compositeResource *composite.Unstructured, required map[string][]resource.Required) (map[string]interface{}, error)
 }
 
+// CloudAcceptedCondition shows on the user's object whether the cloud, or the backend before it,
+// accepted the object: the cloud's rejection otherwise appears only on the provider's own object.
+const CloudAcceptedCondition = "CloudAccepted"
+
+// NotAcceptedError marks a refusal by the cloud or the backend, such as an operation the backend
+// cannot perform. The function reports it as CloudAccepted: False as well as failing, so nothing
+// composed changes.
+type NotAcceptedError struct{ Err error }
+
+func (e *NotAcceptedError) Error() string { return e.Err.Error() }
+func (e *NotAcceptedError) Unwrap() error { return e.Err }
+
+// NotAccepted marks err as a refusal by the cloud or the backend.
+func NotAccepted(err error) error { return &NotAcceptedError{Err: err} }
+
+// Condition is a condition a GroupService reports on the composite resource.
+type Condition struct {
+	Type    string
+	Status  bool
+	Reason  string
+	Message string
+}
+
+// ConditionProvider is an optional interface that GroupService implementations can implement to
+// report conditions on the composite resource after it composed. A false condition is also emitted
+// as a warning event.
+type ConditionProvider interface {
+	GetConditions(compositeResource *composite.Unstructured, observed map[resource.Name]resource.ObservedComposed) []Condition
+}
+
 // PostStatusProcessor is an optional interface that GroupService implementations can implement
 // to perform custom status aggregation (e.g., collecting arrays from multiple resources)
 type PostStatusProcessor interface {

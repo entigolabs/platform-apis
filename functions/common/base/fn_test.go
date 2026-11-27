@@ -3,6 +3,7 @@ package base
 import (
 	"context"
 	"fmt"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -667,5 +668,50 @@ func TestAddStatusRemovesNilFields(t *testing.T) {
 	}
 	if status["version"] != "18" || status["kept"] != "yes" {
 		t.Errorf("want version updated and other fields kept, got %v", status)
+	}
+}
+
+type conditionGroupService struct {
+	mockGroupService
+	conditions []Condition
+}
+
+func (s *conditionGroupService) GetConditions(_ *composite.Unstructured, _ map[resource.Name]resource.ObservedComposed) []Condition {
+	return s.conditions
+}
+
+func TestReportRefusal(t *testing.T) {
+	rsp := &fnv1.RunFunctionResponse{}
+	reportRefusal(rsp, errors.Wrap(NotAccepted(errors.New("version differs")), "cannot compose"))
+	c := rsp.GetConditions()
+	if len(c) != 1 || c[0].GetType() != CloudAcceptedCondition || c[0].GetStatus() != fnv1.Status_STATUS_CONDITION_FALSE ||
+		c[0].GetMessage() != "version differs" {
+		t.Errorf("want CloudAccepted false with the refusal, got %v", c)
+	}
+	rsp = &fnv1.RunFunctionResponse{}
+	reportRefusal(rsp, errors.New("no environment"))
+	if len(rsp.GetConditions()) != 0 {
+		t.Errorf("want no condition for another error, got %v", rsp.GetConditions())
+	}
+}
+
+func TestReportConditions(t *testing.T) {
+	svc := &conditionGroupService{conditions: []Condition{
+		{Type: CloudAcceptedCondition, Status: false, Reason: "Rejected", Message: "DB system: 400"},
+	}}
+	f := NewFunction(logging.NewNopLogger(), svc, "")
+	rsp := &fnv1.RunFunctionResponse{}
+	f.reportConditions(rsp, makeComposite("shop"), nil)
+	if c := rsp.GetConditions(); len(c) != 1 || c[0].GetStatus() != fnv1.Status_STATUS_CONDITION_FALSE || c[0].GetReason() != "Rejected" {
+		t.Errorf("want the false condition, got %v", c)
+	}
+	if r := rsp.GetResults(); len(r) != 1 || r[0].GetSeverity() != fnv1.Severity_SEVERITY_WARNING {
+		t.Errorf("want a warning event for a false condition, got %v", r)
+	}
+	svc.conditions = []Condition{{Type: CloudAcceptedCondition, Status: true, Reason: "Accepted"}}
+	rsp = &fnv1.RunFunctionResponse{}
+	f.reportConditions(rsp, makeComposite("shop"), nil)
+	if c := rsp.GetConditions(); len(c) != 1 || c[0].GetStatus() != fnv1.Status_STATUS_CONDITION_TRUE || len(rsp.GetResults()) != 0 {
+		t.Errorf("want the true condition and no warning, got %v %v", c, rsp.GetResults())
 	}
 }

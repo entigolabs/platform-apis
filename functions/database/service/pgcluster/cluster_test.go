@@ -60,6 +60,17 @@ func (standIn) Status(observed *composed.Unstructured) (*Observed, error) {
 	return o, nil
 }
 
+func (standIn) Effective(entry Entry, _ Spec, _ v1alpha2.PostgreSQLClusterStatus) map[string]Value {
+	var e struct {
+		Size string `json:"size"`
+	}
+	_ = json.Unmarshal(entry.Spec, &e)
+	if e.Size == "" {
+		return map[string]Value{"size": {Value: "medium", Source: SourceImplementation}}
+	}
+	return map[string]Value{"size": {Value: e.Size, Source: SourceObject}}
+}
+
 func init() { Register(standIn{}) }
 
 func environment(backends ...string) map[string][]resource.Required {
@@ -392,4 +403,49 @@ func TestStatus(t *testing.T) {
 			t.Errorf("want no status, got %v, %v", status, err)
 		}
 	})
+}
+
+func TestEffectiveEntryValues(t *testing.T) {
+	status, err := CompositeStatus(cluster(entry(standInAPI, "PostgreSQLStandInConfig", `{"size":"small"}`)), environment(standInKind))
+	if err != nil {
+		t.Fatal(err)
+	}
+	size := status["effective"].(map[string]interface{})["size"].(map[string]interface{})
+	if size["value"] != "small" || size["source"] != "object/PostgreSQLStandInConfig" {
+		t.Errorf("want the entry's value with the entry's kind as its source, got %v", size)
+	}
+	status, err = CompositeStatus(cluster(entry(standInAPI, "PostgreSQLStandInConfig", `{}`)), environment(standInKind))
+	if err != nil {
+		t.Fatal(err)
+	}
+	size = status["effective"].(map[string]interface{})["size"].(map[string]interface{})
+	if size["value"] != "medium" || size["source"] != SourceImplementation {
+		t.Errorf("want the backend's default, got %v", size)
+	}
+}
+
+func TestConditions(t *testing.T) {
+	managed := func(kind, synced, msg string) resource.ObservedComposed {
+		u := composed.New()
+		u.SetKind(kind)
+		u.Object["spec"] = map[string]interface{}{"forProvider": map[string]interface{}{}}
+		u.Object["status"] = map[string]interface{}{"conditions": []interface{}{
+			map[string]interface{}{"type": "Synced", "status": synced, "message": msg}}}
+		return resource.ObservedComposed{Resource: u}
+	}
+	secret := composed.New()
+	secret.SetKind("Secret")
+
+	got := Conditions(map[resource.Name]resource.ObservedComposed{"db-system": managed("PsqlDbSystem", "True", ""), "secret": {Resource: secret}})
+	if len(got) != 1 || got[0].Type != base.CloudAcceptedCondition || !got[0].Status {
+		t.Errorf("want CloudAccepted true, got %v", got)
+	}
+	got = Conditions(map[resource.Name]resource.ObservedComposed{
+		"db-system": managed("PsqlDbSystem", "False", "update failed: async update failed: 400-InvalidParameter"),
+		"rule":      managed("NetworkSecurityGroupSecurityRule", "False", "cannot resolve references: referenced field was empty"),
+	})
+	if len(got) != 1 || got[0].Status || !strings.Contains(got[0].Message, "PsqlDbSystem db-system: update failed") ||
+		strings.Contains(got[0].Message, "references") {
+		t.Errorf("want CloudAccepted false with the cloud's message alone, got %v", got)
+	}
 }

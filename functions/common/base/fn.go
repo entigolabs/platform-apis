@@ -96,6 +96,7 @@ func (f *Function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 
 	err = f.addDesiredComposedResources(rsp, compositeResource, requiredResources, observed, desired)
 	if err != nil {
+		reportRefusal(rsp, err)
 		response.Fatal(rsp, errors.Wrapf(err, "cannot add desired composed resources to %T", rsp))
 		return rsp, nil
 	}
@@ -106,8 +107,36 @@ func (f *Function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 		return rsp, nil
 	}
 
+	f.reportConditions(rsp, compositeResource, observed)
+
 	f.log.Debug("Successfully composed resources", "kind", compositeResource.Resource.GetKind(), "count", len(desired))
 	return rsp, nil
+}
+
+// reportRefusal shows a refusal by the cloud or the backend as CloudAccepted: False. Crossplane
+// applies a fatal result's conditions too.
+func reportRefusal(rsp *fnv1.RunFunctionResponse, err error) {
+	var refused *NotAcceptedError
+	if errors.As(err, &refused) {
+		response.ConditionFalse(rsp, CloudAcceptedCondition, "Refused").WithMessage(refused.Error()).TargetComposite()
+	}
+}
+
+// reportConditions adds the conditions the GroupService reports. Crossplane keeps a condition a
+// function stops returning, so a service reports each of its conditions every time.
+func (f *Function) reportConditions(rsp *fnv1.RunFunctionResponse, compositeResource *resource.Composite, observed map[resource.Name]resource.ObservedComposed) {
+	provider, ok := f.groupService.(ConditionProvider)
+	if !ok {
+		return
+	}
+	for _, c := range provider.GetConditions(compositeResource.Resource, observed) {
+		if c.Status {
+			response.ConditionTrue(rsp, c.Type, c.Reason).WithMessage(c.Message).TargetComposite()
+			continue
+		}
+		response.ConditionFalse(rsp, c.Type, c.Reason).WithMessage(c.Message).TargetComposite()
+		response.Warning(rsp, errors.New(c.Message))
+	}
 }
 
 func getObservedCompositeResource(req *fnv1.RunFunctionRequest) (*resource.Composite, error) {

@@ -38,6 +38,7 @@ type GroupImpl struct {
 
 var _ base.GroupService = &GroupImpl{}
 var _ base.CompositeStatusProvider = &GroupImpl{}
+var _ base.ConditionProvider = &GroupImpl{}
 
 func (g *GroupImpl) SetLogger(log logging.Logger) {
 	g.log = log
@@ -94,6 +95,14 @@ func toPostgreSQLCluster(compositeResource *composite.Unstructured) (*v1alpha2.P
 		return nil, fmt.Errorf("cannot read PostgreSQLCluster %s: %w", compositeResource.GetName(), err)
 	}
 	return c, nil
+}
+
+// GetConditions reports whether the cloud accepted a PostgreSQLCluster.
+func (g *GroupImpl) GetConditions(compositeResource *composite.Unstructured, observed map[resource.Name]resource.ObservedComposed) []base.Condition {
+	if compositeResource.GetKind() != apis.XRKindPostgreSQLCluster {
+		return nil
+	}
+	return pgcluster.Conditions(observed)
 }
 
 // GetCompositeStatus adds the status a PostgreSQLCluster takes from itself and its deployment.

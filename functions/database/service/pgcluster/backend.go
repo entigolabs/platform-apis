@@ -34,6 +34,16 @@ type Backend interface {
 	// Status reads the cluster's actual values from one observed resource, or returns nil when
 	// that resource holds none.
 	Status(observed *composed.Unstructured) (*Observed, error)
+	// Effective returns the effective values of the entry's settings, keyed by their field names in
+	// the entry, from the entry, the cluster's effective spec and its status.
+	Effective(entry Entry, spec Spec, status v1alpha2.PostgreSQLClusterStatus) map[string]Value
+}
+
+// Value is one effective value of an entry's setting and where it came from: SourceObject for the
+// entry, SourceImplementation for the backend's default, or SourceCloud for an existing resource's.
+type Value struct {
+	Value  interface{}
+	Source string
 }
 
 // Defaults are an implementation's fixed values for the common fields a cluster may leave unset.
@@ -112,17 +122,17 @@ func (in Input) Tags() map[string]interface{} {
 // be observed from any Zone, but taking it over needs one.
 func CheckTags(in Input, tags map[string]interface{}, takeover bool) error {
 	if in.Workspace == "" {
-		return errors.New("this deployment sets no workspace, so an existing resource's workspace tag cannot be checked")
+		return base.NotAccepted(errors.New("this deployment sets no workspace, so an existing resource's workspace tag cannot be checked"))
 	}
 	if got, _ := tags[WorkspaceTag].(string); got != in.Workspace {
-		return fmt.Errorf("resource %s has %s %q, not this workspace %q", in.ID, WorkspaceTag, got, in.Workspace)
+		return base.NotAccepted(fmt.Errorf("resource %s has %s %q, not this workspace %q", in.ID, WorkspaceTag, got, in.Workspace))
 	}
 	zone, tagged := tags[ZoneTag].(string)
 	switch {
 	case tagged && zone != in.Zone:
-		return fmt.Errorf("resource %s has %s %q, not this cluster's Zone %q", in.ID, ZoneTag, zone, in.Zone)
+		return base.NotAccepted(fmt.Errorf("resource %s has %s %q, not this cluster's Zone %q", in.ID, ZoneTag, zone, in.Zone))
 	case takeover && !tagged:
-		return fmt.Errorf("taking over resource %s needs its %s tag to name Zone %q", in.ID, ZoneTag, in.Zone)
+		return base.NotAccepted(fmt.Errorf("taking over resource %s needs its %s tag to name Zone %q", in.ID, ZoneTag, in.Zone))
 	}
 	return nil
 }

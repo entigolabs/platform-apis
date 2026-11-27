@@ -2,6 +2,8 @@ package oci
 
 import (
 	"encoding/base64"
+	"errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
 	"testing"
 
@@ -384,5 +386,44 @@ func TestTakenOverDBSystemKeepsItsBackupsUnlessRetentionIsSet(t *testing.T) {
 		if _, err := pgcluster.Generate(c, inZone(), o); err != nil {
 			t.Errorf("%s: want it applied with backup.retentionDays set, got %v", entry, err)
 		}
+	}
+}
+
+func TestEffectiveEntryValuesOnOCI(t *testing.T) {
+	status, err := pgcluster.CompositeStatus(cluster(flexEntry), required())
+	if err != nil {
+		t.Fatal(err)
+	}
+	eff := status["effective"].(map[string]interface{})
+	for field, want := range map[string][2]interface{}{
+		"instanceType":       {"PostgreSQL.VM.Standard.E5.Flex", "object/PostgreSQLOCIConfig"},
+		"ocpus":              {int64(2), "object/PostgreSQLOCIConfig"},
+		"backupStartHourUTC": {int64(defaultBackupStartHourUTC), pgcluster.SourceImplementation},
+		"pointInTimeDays":    {int64(7), pgcluster.SourceImplementation},
+	} {
+		got, _ := eff[field].(map[string]interface{})
+		if got["value"] != want[0] || got["source"] != want[1] {
+			t.Errorf("%s: want %v from %v, got %v", field, want[0], want[1], got)
+		}
+	}
+
+	c := takenOver(`{"id":"` + existingID + `"}`)
+	c.Status.Provider = &runtime.RawExtension{Raw: []byte(`{"instanceType":"PostgreSQL.VM.Standard.E4.Flex","instanceOcpuCount":4}`)}
+	status, err = pgcluster.CompositeStatus(c, required())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := status["effective"].(map[string]interface{})["instanceType"].(map[string]interface{})
+	if got["value"] != "PostgreSQL.VM.Standard.E4.Flex" || got["source"] != pgcluster.SourceCloud {
+		t.Errorf("want the existing DB system's shape from the cloud, got %v", got)
+	}
+}
+
+func TestRefusalsAreNotAccepted(t *testing.T) {
+	_, err := pgcluster.Generate(takenOver(`{"id":"ocid1.postgresqldbsystem.oc1..other"}`), inZone(),
+		observedComposed(nameDBSystem, existingDB(tagged(true))))
+	var refused *base.NotAcceptedError
+	if !errors.As(err, &refused) {
+		t.Errorf("want a refusal reported as CloudAccepted false, got %v", err)
 	}
 }

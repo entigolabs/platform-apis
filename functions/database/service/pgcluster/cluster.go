@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -12,6 +13,7 @@ import (
 	"github.com/crossplane/function-sdk-go/resource/composed"
 	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha2"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -394,6 +396,14 @@ func CompositeStatus(c *v1alpha2.PostgreSQLCluster, required map[string][]resour
 		return nil, nil
 	}
 	cloudSources(c, spec.Cloud, sources)
+	for field, v := range sel.backend.Effective(entry, spec, c.Status) {
+		source := v.Source
+		if source == SourceObject {
+			source = SourceObject + "/" + entry.Kind
+		}
+		raw, _ := json.Marshal(v.Value)
+		sources[field] = v1alpha2.Effective{Value: runtime.RawExtension{Raw: raw}, Source: source}
+	}
 	status := v1alpha2.PostgreSQLClusterStatus{
 		ConnectionSecret: spec.SecretName,
 		ProviderConfig:   &v1alpha2.ProviderConfigStatus{Applied: entryName(sel.entry), Ignored: sel.ignored},
@@ -445,4 +455,39 @@ func ObservedStatus(observed *composed.Unstructured) (map[string]interface{}, er
 		return out, nil
 	}
 	return nil, nil
+}
+
+// rejectedPrefixes begin the Synced message of a managed resource whose cloud call failed, as
+// crossplane-runtime words it. A resource waiting for a reference is not rejected.
+var rejectedPrefixes = []string{"create failed", "update failed", "delete failed", "observe failed"}
+
+// Conditions reports CloudAccepted: false with the cloud's message while any managed resource the
+// cluster composed fails its cloud call, and true otherwise.
+func Conditions(observed map[resource.Name]resource.ObservedComposed) []base.Condition {
+	var rejected []string
+	for name, o := range observed {
+		if _, managed, _ := unstructured.NestedMap(o.Resource.Object, "spec", "forProvider"); !managed {
+			continue
+		}
+		conditions, _, _ := unstructured.NestedSlice(o.Resource.Object, "status", "conditions")
+		for _, raw := range conditions {
+			c, _ := raw.(map[string]interface{})
+			msg, _ := c["message"].(string)
+			if c["type"] != "Synced" || c["status"] != "False" {
+				continue
+			}
+			for _, p := range rejectedPrefixes {
+				if strings.HasPrefix(msg, p) {
+					rejected = append(rejected, fmt.Sprintf("%s %s: %s", o.Resource.GetKind(), name, msg))
+					break
+				}
+			}
+		}
+	}
+	if len(rejected) == 0 {
+		return []base.Condition{{Type: base.CloudAcceptedCondition, Status: true, Reason: "Accepted"}}
+	}
+	sort.Strings(rejected)
+	return []base.Condition{{Type: base.CloudAcceptedCondition, Status: false, Reason: "Rejected",
+		Message: strings.Join(rejected, "; ")}}
 }
