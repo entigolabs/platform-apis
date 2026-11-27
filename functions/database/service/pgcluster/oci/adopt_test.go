@@ -55,6 +55,7 @@ func existingDB(tags map[string]interface{}, policies ...interface{}) *unstructu
 		policies = []interface{}{"Observe"}
 	}
 	db.Object["spec"] = map[string]interface{}{"forProvider": map[string]interface{}{}, "managementPolicies": policies}
+	db.SetAnnotations(map[string]string{existingIDAnnotation: existingID})
 	return db
 }
 
@@ -320,4 +321,68 @@ func TestExistingDBSystemKeepsItsSourceAndPlacement(t *testing.T) {
 			t.Errorf("want its storage where it was created, got %v", storage)
 		}
 	})
+}
+
+func TestClusterNeverMovesToAnotherDBSystem(t *testing.T) {
+	other := `{"id":"ocid1.postgresqldbsystem.oc1..other"}`
+	nsg := obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"})
+	withNSG := func(db *unstructured.Unstructured) map[resource.Name]resource.ObservedComposed {
+		o := observedComposed(nameDBSystem, db)
+		o[resource.Name(nameNSG)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *nsg}}
+		return o
+	}
+	cases := map[string]struct {
+		cluster  *v1alpha2.PostgreSQLCluster
+		observed map[resource.Name]resource.ObservedComposed
+	}{
+		"a created cluster given an id":        {takenOver(other), withNSG(composedDB(t, flexEntry))},
+		"an observed cluster given another id": {observedCluster(other), observedComposed(nameDBSystem, existingDB(tagged(true)))},
+		"a takeover that also changes the id":  {takenOver(other), withNSG(existingDB(tagged(true)))},
+		"a taken-over cluster given another id": {takenOver(other),
+			withNSG(existingDB(tagged(true), "Observe", "Create", "Update", "Delete"))},
+		"a taken-over cluster that loses its id": {cluster(flexEntry),
+			withNSG(existingDB(tagged(true), "Observe", "Create", "Update", "Delete"))},
+	}
+	for name, tc := range cases {
+		t.Run("refuses "+name, func(t *testing.T) {
+			_, err := pgcluster.Generate(tc.cluster, inZone(), tc.observed)
+			if err == nil || !strings.Contains(err.Error(), "never moves to another DB system") {
+				t.Errorf("want it refused, got %v", err)
+			}
+		})
+	}
+
+	t.Run("marks the DB system it observes and takes over", func(t *testing.T) {
+		entry := `{"id":"` + existingID + `"}`
+		objs, err := pgcluster.Generate(observedCluster(entry), inZone(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if objs[nameDBSystem].GetAnnotations()[existingIDAnnotation] != existingID {
+			t.Error("want the observed DB system marked with its id")
+		}
+		objs, err = pgcluster.Generate(takenOver(entry), inZone(), withNSG(existingDB(tagged(true))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if objs[nameDBSystem].GetAnnotations()[existingIDAnnotation] != existingID {
+			t.Error("want the DB system kept marked once taken over")
+		}
+	})
+}
+
+func TestTakenOverDBSystemKeepsItsBackupsUnlessRetentionIsSet(t *testing.T) {
+	nsg := obj(networkingAPIVersion, "NetworkSecurityGroup", "x", nil, map[string]interface{}{"id": "ocid1.nsg.oc1..db"})
+	o := observedComposed(nameDBSystem, existingDB(tagged(true), "Observe", "Create", "Update", "Delete"))
+	o[resource.Name(nameNSG)] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: *nsg}}
+	for _, entry := range []string{`{"id":"` + existingID + `","backupStartHourUTC":5}`, `{"id":"` + existingID + `","pointInTimeDays":3}`} {
+		if _, err := pgcluster.Generate(takenOver(entry), inZone(), o); err == nil || !strings.Contains(err.Error(), "set backup.retentionDays") {
+			t.Errorf("%s: want it refused while the DB system keeps its backups, got %v", entry, err)
+		}
+		c := takenOver(entry)
+		c.Spec.Backup = &v1alpha2.Backup{RetentionDays: ptr(int64(7))}
+		if _, err := pgcluster.Generate(c, inZone(), o); err != nil {
+			t.Errorf("%s: want it applied with backup.retentionDays set, got %v", entry, err)
+		}
+	}
 }

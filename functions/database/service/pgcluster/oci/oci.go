@@ -63,6 +63,10 @@ const (
 	// admin Secret takes a new password at once; changing the DB system makes it apply the password
 	// right away.
 	passwordVersionAnnotation = "database.entigo.com/password-version"
+	// existingIDAnnotation records the id of the existing DB system a cluster observes or took over.
+	// A DB system the platform created has none. The entry's id must match it on every reconcile, so
+	// no edit, such as a ref pointed at another object, moves the cluster to another DB system.
+	existingIDAnnotation = "database.entigo.com/existing-id"
 )
 
 // Environment is the OCI part of the deployment's database settings: the provider configuration,
@@ -246,13 +250,19 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	c := in.Cluster
 	hash := base.GenerateFNVHash(c.UID)
 	resourceName := base.GenerateEligibleKubernetesName(c.Name+"-"+hash, 63)
+	db := observedDB(in.Observed)
+	if db != nil {
+		if have := db.GetAnnotations()[existingIDAnnotation]; have != in.ID {
+			return nil, fmt.Errorf("the PostgreSQLOCIConfig entry's id %q differs from %q, the DB system this cluster was "+
+				"created with or observed: a cluster never moves to another DB system", in.ID, have)
+		}
+	}
 	if in.Observe {
 		if cfg != (Config{ID: cfg.ID}) {
 			return nil, errors.New("an observed cluster's PostgreSQLOCIConfig entry holds only id")
 		}
 		return composeObserved(in, env, resourceName)
 	}
-	db := observedDB(in.Observed)
 	// The DB system stays observe-only until the cluster has taken it over.
 	takingOver := in.ID != "" && observeOnly(db)
 	if takingOver {
@@ -270,6 +280,10 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	}
 	if in.ID != "" && cfg.FromBackup != "" {
 		return nil, errors.New("the PostgreSQLOCIConfig entry sets fromBackup, which creates a DB system, and id, which takes over an existing one")
+	}
+	if in.Spec.Cloud["backup.retentionDays"] && (cfg.BackupStartHourUTC != nil || cfg.PointInTimeDays != nil) {
+		return nil, errors.New("backupStartHourUTC and pointInTimeDays in the PostgreSQLOCIConfig entry change the DB system's " +
+			"backups, which it keeps while backup.retentionDays is unset: set backup.retentionDays too")
 	}
 	// Without backups there is nothing to restore from, and pointInTimeDays is ignored.
 	if cfg.PointInTimeDays != nil && in.Spec.RetentionDays > 0 && *cfg.PointInTimeDays > in.Spec.RetentionDays {
@@ -380,7 +394,7 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 // Secret once OCI reports its address. The Secret holds no password: OCI never returns it.
 func composeObserved(in pgcluster.Input, env Environment, name string) (map[string]client.Object, error) {
 	dbObj := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, map[string]interface{}{})
-	dbObj.SetAnnotations(map[string]string{meta.AnnotationKeyExternalName: in.ID})
+	dbObj.SetAnnotations(map[string]string{meta.AnnotationKeyExternalName: in.ID, existingIDAnnotation: in.ID})
 	dbObj.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})["managementPolicies"] = []interface{}{"Observe"}
 	out := map[string]client.Object{nameDBSystem: dbObj}
 	db := observedDB(in.Observed)
@@ -657,6 +671,7 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	}
 	if in.ID != "" {
 		annotations[meta.AnnotationKeyExternalName] = in.ID
+		annotations[existingIDAnnotation] = in.ID
 	}
 	if o, ok := in.Observed[resource.Name(namePassword)]; ok && o.Resource.GetResourceVersion() != "" {
 		annotations[passwordVersionAnnotation] = o.Resource.GetResourceVersion()
