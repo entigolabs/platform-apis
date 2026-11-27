@@ -246,7 +246,7 @@ the Crossplane provider takes. An observed resource takes no other spec fields.
 
 A resource can be observed only when its workspace tag (a label on GCP) names this cluster's
 workspace, and only from a namespace of the Zone its Zone tag names, or from any Zone when it has no
-Zone tag. Its owner sets the tags in the cloud. The platform reads them before it uses the resource,
+Zone tag. Its owner sets the tags in the cloud: `entigo:workspace` and `entigo:zone` on AWS and OCI. The platform reads them before it uses the resource,
 and a resource that fails the check is refused with `CloudAccepted: False`. A resource without a
 Zone tag is read only: no kind inside it, such as a user or a database, is created on it. The
 parent's status records whether the resource has a Zone tag, and the function of a kind inside it
@@ -259,12 +259,17 @@ gets no class default and is not sent, so the resource keeps its value, which th
 the source `cloud`. From then on the platform changes the resource to match the object, and deleting
 the object deletes the resource, as for a resource the platform created.
 
-The check holds only where users can create the platform's kinds and nothing else, so it has a
-prerequisite: kcp serves no Crossplane provider kinds, and a Zone's Argo CD project and roles allow
-only the platform's and Kubernetes' own groups. Today's Argo CD project does not yet limit itself to
-an allowlist of groups. A user who could create a Crossplane provider's resource directly could
-observe anything without the check, so the platform refuses `observe: true` until the allowlist is
-in place.
+An observed object's connection secret holds no `password`: no cloud returns a resource's admin
+password. Where its backend can set one, the platform sets a new password at takeover. Where it
+cannot, the object's owner writes the current password into the connection secret once, and the
+platform keeps it there.
+
+The check holds only where users can create the platform's kinds and nothing else. A user who could
+create a Crossplane provider's resource directly could observe anything without the check. kcp
+serves no Crossplane provider kinds, and in a Zone's namespaces the platform's admission policy
+refuses any resource in a group ending in `.m.upbound.io` or `.m.crossplane.io` that Crossplane
+itself does not create, whoever sends it, Argo CD included. A provider in another group needs the
+allowlist of [Follow-Up Work](follow-up-work.md) item 4 first.
 
 ## Resource Names
 

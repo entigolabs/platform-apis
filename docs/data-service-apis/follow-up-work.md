@@ -114,8 +114,9 @@ Today the AppProject blocks `*.m.upbound.io` but allows every other namespaced k
 provider outside it, such as provider-sql or provider-kubernetes, can be synced past the platform's
 functions. Its `namespaceResourceWhitelist` should list the groups the Zone's role allows, so a
 provider installed later is blocked by default. The `observe` check in
-[Common Design](common-design.md#observed-resources) depends on this allowlist, and the platform
-refuses `observe: true` until it is in place.
+[Common Design](common-design.md#observed-resources) relies on the admission policy that refuses
+provider kinds in groups ending in `.m.upbound.io` and `.m.crossplane.io`; a provider in another
+group needs this allowlist.
 
 #### 5 Show cloud rejections in Argo CD health
 

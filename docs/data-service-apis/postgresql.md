@@ -451,7 +451,10 @@ IP address.
 v2.0.0](https://github.com/oracle/crossplane-provider-oci/releases/tag/v2.0.0). `storage.sizeGB`
 stays empty in the status, since OCI reports no size. No final backup is taken, and `endpoint.host`
 is an IP address. Storage is encrypted with the service's own key, since crossplane-provider-oci
-v2.0.0 has no key field for OCI Database with PostgreSQL.
+v2.0.0 has no key field for OCI Database with PostgreSQL. The provider cannot set the admin password
+of a DB system it did not create: OCI reports no admin user for it, so the provider reads setting
+one as replacing the DB system. A DB system taken over keeps its password, which the cluster's owner
+writes into the connection secret.
 
 **Azure:** provider keys are from the CRDs of [provider-upjet-azure
 v2.8.0](https://github.com/crossplane-contrib/provider-upjet-azure/releases/tag/v2.8.0).
