@@ -157,8 +157,8 @@ func TestTakeOverAnObservedDBSystem(t *testing.T) {
 		if !observeOnly(objs[nameDBSystem].(*unstructured.Unstructured)) || objs[nameNSG] == nil {
 			t.Errorf("want the DB system still observed and its security group composed, got %v", objs)
 		}
-		if p := field(t, objs[namePassword], "stringData", passwordKey).(string); len(p) != 24 {
-			t.Error("want a new password generated: OCI never returns the one the DB system has")
+		if objs[namePassword] != nil {
+			t.Error("want no password Secret: the provider cannot set the password of a DB system it did not create")
 		}
 	})
 
@@ -190,8 +190,8 @@ func TestTakeOverAnObservedDBSystem(t *testing.T) {
 		if backup["retentionDays"] != float64(30) || backup["backupStart"] != "04:00" {
 			t.Errorf("want its own backups, got %v", backup)
 		}
-		if first(t, db, "spec", "forProvider", "credentials")["username"] != "owner" {
-			t.Error("want the user it was created with")
+		if _, ok := fp["credentials"]; ok {
+			t.Error("want no credentials: the provider would replace the DB system to set them")
 		}
 		tags := field(t, db, "spec", "forProvider", "freeformTags").(map[string]interface{})
 		if tags["team"] != "orders" || tags["entigo-resource"] != "shop-orders-db" || tags[pgcluster.ZoneTag] != "shop" {
@@ -201,8 +201,22 @@ func TestTakeOverAnObservedDBSystem(t *testing.T) {
 			t.Error("want the default deletion protection once it holds the cluster's data")
 		}
 		data := field(t, objs[nameSecret+"orders-db-dbadmin"], "stringData").(map[string]interface{})
-		if data["username"] != "owner" || data["password"] == nil {
-			t.Errorf("want the owner's user with the new password, got %v", data)
+		if data["username"] != "owner" || data["password"] != nil {
+			t.Errorf("want the owner's user and no password until the owner writes it, got %v", data)
+		}
+	})
+
+	t.Run("keeps the password the cluster's owner writes into the admin Secret", func(t *testing.T) {
+		o := observed(existingDB(tagged(true), "Observe", "Create", "Update", "Delete"))
+		o[resource.Name(nameSecret+"orders-db-dbadmin")] = resource.ObservedComposed{Resource: &composed.Unstructured{Unstructured: unstructured.Unstructured{
+			Object: map[string]interface{}{"apiVersion": "v1", "kind": "Secret",
+				"data": map[string]interface{}{passwordKey: base64.StdEncoding.EncodeToString([]byte("Owners-pass-1"))}}}}}
+		objs, err := pgcluster.Generate(takenOver(entry), inZone(), o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := field(t, objs[nameSecret+"orders-db-dbadmin"], "stringData", passwordKey); got != "Owners-pass-1" {
+			t.Errorf("want the owner's password kept, got %v", got)
 		}
 	})
 

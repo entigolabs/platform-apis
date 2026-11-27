@@ -307,12 +307,19 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	}
 
 	passwordSecret := base.GenerateEligibleKubernetesFullName(c.Name + "-admin-password-" + hash)
-	// Taking over gives the DB system a password the platform knows: OCI never returns the one it has.
-	password, err := currentPassword(in.Observed, takingOver)
-	if err != nil {
-		return nil, err
+	var password string
+	if in.ID == "" {
+		password, err = currentPassword(in.Observed)
+		if err != nil {
+			return nil, err
+		}
+		out[namePassword] = secret(passwordSecret, c.Namespace, map[string]string{passwordKey: password, "type": passwordType})
+	} else {
+		// The provider cannot set the password of a DB system it did not create: OCI reports no admin
+		// user, so sending one reads as replacing the DB system. The DB system keeps its password,
+		// and the admin Secret holds it once the cluster's owner writes it there.
+		password = adminSecretValue(in.Observed, passwordKey)
 	}
-	out[namePassword] = secret(passwordSecret, c.Namespace, map[string]string{passwordKey: password, "type": passwordType})
 
 	nsgID := ""
 	if o, ok := in.Observed[resource.Name(nameNSG)]; ok {
@@ -359,9 +366,11 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 			host = adminSecretValue(in.Observed, "endpoint")
 		}
 		if host != "" {
-			out[nameSecret+in.Spec.SecretName] = secret(in.Spec.SecretName, c.Namespace, map[string]string{
-				"endpoint": host, "port": fmt.Sprint(port), "username": username(db), "password": password,
-			})
+			data := map[string]string{"endpoint": host, "port": fmt.Sprint(port), "username": username(db)}
+			if password != "" {
+				data[passwordKey] = password
+			}
+			out[nameSecret+in.Spec.SecretName] = secret(in.Spec.SecretName, c.Namespace, data)
 		}
 	}
 	return out, nil
@@ -591,14 +600,16 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 		"storageDetails":   []interface{}{storage},
 		"managementPolicy": []interface{}{policy},
 		"networkDetails":   []interface{}{map[string]interface{}{"subnetId": subnetID, "nsgIds": nsgIDs}},
-		"credentials": []interface{}{map[string]interface{}{
-			"username": username(db),
+		"freeformTags":     tags,
+	}
+	if in.ID == "" {
+		forProvider["credentials"] = []interface{}{map[string]interface{}{
+			"username": adminUsername,
 			"passwordDetails": []interface{}{map[string]interface{}{
 				"passwordSecretRef":     map[string]interface{}{"name": passwordSecret, "key": passwordKey},
 				"passwordTypeSecretRef": map[string]interface{}{"name": passwordSecret, "key": "type"},
 			}},
-		}},
-		"freeformTags": tags,
+		}}
 	}
 	if cfg.OCPUs != nil {
 		forProvider["instanceOcpuCount"] = *cfg.OCPUs
@@ -815,15 +826,14 @@ func secret(name, namespace string, data map[string]string) client.Object {
 // cluster gets a generated password. Once the DB system exists in OCI a new password is never
 // generated: the provider would reset the database to it, and applications holding the old one
 // would fail to log in.
-// A DB system being taken over gets a new password, which the provider sets in OCI.
-func currentPassword(observed map[resource.Name]resource.ObservedComposed, takingOver bool) (string, error) {
+func currentPassword(observed map[resource.Name]resource.ObservedComposed) (string, error) {
 	if v := secretValue(observed, namePassword, passwordKey); v != "" {
 		return v, nil
 	}
 	if v := adminSecretValue(observed, passwordKey); v != "" {
 		return v, nil
 	}
-	if o, ok := observed[resource.Name(nameDBSystem)]; ok && observedID(&o.Resource.Unstructured) != "" && !takingOver {
+	if o, ok := observed[resource.Name(nameDBSystem)]; ok && observedID(&o.Resource.Unstructured) != "" {
 		return "", errors.New("the admin password is lost: both the admin Secret and the password Secret are gone; " +
 			"recreate either with the current password under the key \"password\"")
 	}
