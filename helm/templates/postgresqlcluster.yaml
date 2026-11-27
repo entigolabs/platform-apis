@@ -58,9 +58,6 @@ spec:
   - expression: "!has(object.spec.className)"
     message: "className is not available yet: PostgreSQLCluster runs without a class"
     reason: Forbidden
-  - expression: "!has(object.spec.observe)"
-    message: "observe is not available yet"
-    reason: Forbidden
   - expression: "!has(object.spec.parametersRefs)"
     message: "parametersRefs is not available yet"
     reason: Forbidden
@@ -70,12 +67,43 @@ spec:
   - expression: "!has(object.spec.restore)"
     message: "restore is not available yet"
     reason: Forbidden
-  - expression: "has(object.spec.version)"
+  # An observed cluster sets neither, and once taken over it may leave them to the DB system.
+  - expression: |-
+      has(object.spec.version) || (has(object.spec.observe) && object.spec.observe)
+      || (oldObject != null && !has(oldObject.spec.version))
     message: "version is required: a cluster without a class sets it"
     reason: Invalid
-  - expression: "has(object.spec.storage) && has(object.spec.storage.sizeGB)"
+  - expression: |-
+      (has(object.spec.storage) && has(object.spec.storage.sizeGB)) || (has(object.spec.observe) && object.spec.observe)
+      || (oldObject != null && !(has(oldObject.spec.storage) && has(oldObject.spec.storage.sizeGB)))
     message: "storage.sizeGB is required: a cluster without a class sets it"
     reason: Invalid
+  # An entry's object, named by ref, is checked when the cluster is composed.
+  - expression: |-
+      !(has(object.spec.observe) && object.spec.observe)
+      || (has(object.spec.providerConfigs) && object.spec.providerConfigs.exists(e, has(e.ref) || (has(e.spec) && has(e.spec.id))))
+    message: "observe needs the id of the resource to observe in its provider configuration entry"
+    reason: Invalid
+  - expression: |-
+      oldObject != null || (has(object.spec.observe) && object.spec.observe) || !has(object.spec.providerConfigs)
+      || !object.spec.providerConfigs.exists(e, has(e.spec) && has(e.spec.id))
+    message: "id names an existing resource, which a cluster observes first: create it with observe: true"
+    reason: Invalid
+  # A provider configuration object keeps these by its own schema; an inline entry keeps them here.
+  - expression: |-
+      oldObject == null || !has(object.spec.providerConfigs) || !has(oldObject.spec.providerConfigs)
+      || object.spec.providerConfigs.all(e, !has(e.spec) || oldObject.spec.providerConfigs.all(o,
+        o.kind != e.kind || o.apiVersion.split('/')[0] != e.apiVersion.split('/')[0] || !has(o.spec)
+        || (has(e.spec.id) == has(o.spec.id) && (!has(e.spec.id) || e.spec.id == o.spec.id))))
+    message: "id is set at creation only"
+    reason: Forbidden
+  - expression: |-
+      oldObject == null || !has(object.spec.providerConfigs) || !has(oldObject.spec.providerConfigs)
+      || object.spec.providerConfigs.all(e, !has(e.spec) || oldObject.spec.providerConfigs.all(o,
+        o.kind != e.kind || o.apiVersion.split('/')[0] != e.apiVersion.split('/')[0] || !has(o.spec)
+        || (has(e.spec.fromBackup) == has(o.spec.fromBackup) && (!has(e.spec.fromBackup) || e.spec.fromBackup == o.spec.fromBackup))))
+    message: "fromBackup is set at creation only"
+    reason: Forbidden
   - expression: "oldObject == null || !has(oldObject.spec.version) || object.spec.version == oldObject.spec.version"
     message: "version cannot change yet: an in-place major version upgrade is not available"
     reason: Forbidden
@@ -103,8 +131,11 @@ spec:
       operations: ["DELETE"]
       resources: ["postgresqlclusters"]
   validations:
-  # Unset, deletionProtection takes the implementation's default, true.
-  - expression: "has(oldObject.spec.deletionProtection) && oldObject.spec.deletionProtection == false"
+  # Unset, deletionProtection takes the implementation's default, true. An observed cluster holds no
+  # data of its own: deleting it leaves the resource it observes.
+  - expression: |-
+      (has(oldObject.spec.deletionProtection) && oldObject.spec.deletionProtection == false)
+      || (has(oldObject.spec.observe) && oldObject.spec.observe)
     message: "PostgreSQLCluster is protected from deletion. Set spec.deletionProtection to false before deleting."
     reason: Forbidden
 ---

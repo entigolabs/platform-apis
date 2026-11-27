@@ -6,6 +6,7 @@ package pgcluster
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
+	"github.com/entigolabs/function-base/base"
 	"github.com/entigolabs/platform-apis/apis/v1alpha2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -52,6 +54,9 @@ type Spec struct {
 	RetentionDays      int64
 	Parameters         map[string]string
 	SecretName         string
+	// Cloud names the common fields a cluster on an existing resource leaves unset, as
+	// "version" or "backup.retentionDays": the resource keeps its own value for them.
+	Cloud map[string]bool
 }
 
 // DeletionProtectionLabel marks a composed resource that holds the cluster's data while deletion
@@ -75,6 +80,51 @@ type Input struct {
 	Entry    Entry
 	Required map[string][]resource.Required
 	Observed map[resource.Name]resource.ObservedComposed
+	// ID is the existing resource the entry names, observed while Observe is set and owned once
+	// observe is removed; "" for a resource the platform creates.
+	ID      string
+	Observe bool
+	// Zone and Workspace are where the cluster runs, which an existing resource's tags must name.
+	Zone      string
+	Workspace string
+}
+
+// The tags that name the workspace and the Zone a cloud resource belongs to.
+const (
+	WorkspaceTag = base.TenancyWorkspaceAWSTag
+	ZoneTag      = base.TenancyZoneAWSTag
+)
+
+// Tags returns the workspace and Zone tags the platform puts on every cloud resource it creates.
+func (in Input) Tags() map[string]interface{} {
+	tags := map[string]interface{}{}
+	if in.Workspace != "" {
+		tags[WorkspaceTag] = in.Workspace
+	}
+	if in.Zone != "" {
+		tags[ZoneTag] = in.Zone
+	}
+	return tags
+}
+
+// CheckTags refuses an existing resource whose tags do not let this cluster use it. The workspace
+// tag must name this workspace. A Zone tag must name the cluster's Zone; a resource without one may
+// be observed from any Zone, but taking it over needs one.
+func CheckTags(in Input, tags map[string]interface{}, takeover bool) error {
+	if in.Workspace == "" {
+		return errors.New("this deployment sets no workspace, so an existing resource's workspace tag cannot be checked")
+	}
+	if got, _ := tags[WorkspaceTag].(string); got != in.Workspace {
+		return fmt.Errorf("resource %s has %s %q, not this workspace %q", in.ID, WorkspaceTag, got, in.Workspace)
+	}
+	zone, tagged := tags[ZoneTag].(string)
+	switch {
+	case tagged && zone != in.Zone:
+		return fmt.Errorf("resource %s has %s %q, not this cluster's Zone %q", in.ID, ZoneTag, zone, in.Zone)
+	case takeover && !tagged:
+		return fmt.Errorf("taking over resource %s needs its %s tag to name Zone %q", in.ID, ZoneTag, in.Zone)
+	}
+	return nil
 }
 
 // Observed is the part of the status a backend reads from the resources it composed.

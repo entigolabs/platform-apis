@@ -158,6 +158,8 @@ func byName(apiVersion, kind, name string) *fnv1.ResourceSelector {
 	return &fnv1.ResourceSelector{ApiVersion: apiVersion, Kind: kind, Match: &fnv1.ResourceSelector_MatchName{MatchName: name}}
 }
 
+// parseConfig reads the entry. A DB system the platform creates needs its shape; an existing one,
+// named by id, keeps its own unless the entry sets one.
 func parseConfig(raw json.RawMessage) (Config, error) {
 	var c Config
 	if len(raw) > 0 {
@@ -165,7 +167,7 @@ func parseConfig(raw json.RawMessage) (Config, error) {
 			return c, fmt.Errorf("cannot read the PostgreSQLOCIConfig entry: %w", err)
 		}
 	}
-	if c.InstanceType == "" {
+	if c.InstanceType == "" && c.ID == "" {
 		return c, errors.New("the PostgreSQLOCIConfig entry sets instanceType, the DB system shape")
 	}
 	if strings.HasSuffix(c.InstanceType, ".Flex") && (c.OCPUs == nil || c.MemoryGB == nil) {
@@ -241,6 +243,34 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	if err != nil {
 		return nil, err
 	}
+	c := in.Cluster
+	hash := base.GenerateFNVHash(c.UID)
+	resourceName := base.GenerateEligibleKubernetesName(c.Name+"-"+hash, 63)
+	if in.Observe {
+		if cfg != (Config{ID: cfg.ID}) {
+			return nil, errors.New("an observed cluster's PostgreSQLOCIConfig entry holds only id")
+		}
+		return composeObserved(in, env, resourceName)
+	}
+	db := observedDB(in.Observed)
+	// The DB system stays observe-only until the cluster has taken it over.
+	takingOver := in.ID != "" && observeOnly(db)
+	if takingOver {
+		if observedID(db) == "" {
+			return nil, fmt.Errorf("id names DB system %s to take over, which the cluster observes first: "+
+				"create the cluster with observe: true, then remove observe", in.ID)
+		}
+		if err := pgcluster.CheckTags(in, freeformTags(db), true); err != nil {
+			return nil, err
+		}
+	}
+	if in.ID != "" && db == nil {
+		return nil, fmt.Errorf("id names DB system %s to take over, which the cluster observes first: "+
+			"create the cluster with observe: true, then remove observe", in.ID)
+	}
+	if in.ID != "" && cfg.FromBackup != "" {
+		return nil, errors.New("the PostgreSQLOCIConfig entry sets fromBackup, which creates a DB system, and id, which takes over an existing one")
+	}
 	// Without backups there is nothing to restore from, and pointInTimeDays is ignored.
 	if cfg.PointInTimeDays != nil && in.Spec.RetentionDays > 0 && *cfg.PointInTimeDays > in.Spec.RetentionDays {
 		return nil, fmt.Errorf("pointInTimeDays %d in the PostgreSQLOCIConfig entry exceeds backup.retentionDays %d",
@@ -250,10 +280,10 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := in.Cluster
-	hash := base.GenerateFNVHash(c.UID)
-	resourceName := base.GenerateEligibleKubernetesName(c.Name+"-"+hash, 63)
 	tags := map[string]interface{}{"entigo-resource": c.Namespace + "-" + c.Name}
+	for k, v := range in.Tags() {
+		tags[k] = v
+	}
 
 	out := map[string]client.Object{}
 	out[nameNSG] = managed(networkingAPIVersion, "NetworkSecurityGroup", resourceName, c.Namespace, env, map[string]interface{}{
@@ -277,7 +307,8 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	}
 
 	passwordSecret := base.GenerateEligibleKubernetesFullName(c.Name + "-admin-password-" + hash)
-	password, err := currentPassword(in.Observed)
+	// Taking over gives the DB system a password the platform knows: OCI never returns the one it has.
+	password, err := currentPassword(in.Observed, takingOver)
 	if err != nil {
 		return nil, err
 	}
@@ -287,19 +318,41 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	if o, ok := in.Observed[resource.Name(nameNSG)]; ok {
 		nsgID = observedID(&o.Resource.Unstructured)
 	}
-	if o, ok := in.Observed[resource.Name(nameDBSystem)]; ok && nsgID == "" {
+	if db != nil && nsgID == "" {
 		// A DB system left out of the desired resources is deleted, so once it exists it keeps the
 		// security group it has, even while the security group's resource reports no OCID.
-		nsgID = composedNSG(&o.Resource.Unstructured)
+		nsgID = composedNSG(db)
 	}
 	if nsgID == "" {
-		// The DB system names its security group by OCID, which exists once OCI has created it.
+		// The DB system names its security group by OCID, which exists once OCI has created it. A DB
+		// system being taken over stays observed until then.
+		if takingOver {
+			observed, err := composeObserved(in, env, resourceName)
+			if err != nil {
+				return nil, err
+			}
+			for k, v := range observed {
+				out[k] = v
+			}
+		}
 		return out, nil
 	}
-	out[nameDBSystem] = dbSystem(in, cfg, net, env, resourceName, nsgID, passwordSecret, tags)
+	if in.ID != "" {
+		// The DB system keeps the tags its owner set.
+		merged := freeformTags(db)
+		for k, v := range tags {
+			merged[k] = v
+		}
+		tags = merged
+	}
+	dbObj, err := dbSystem(in, cfg, net, env, resourceName, nsgID, passwordSecret, tags, db)
+	if err != nil {
+		return nil, err
+	}
+	out[nameDBSystem] = dbObj
 
-	if o, ok := in.Observed[resource.Name(nameDBSystem)]; ok {
-		host := endpoint(&o.Resource.Unstructured)
+	if db != nil {
+		host := endpoint(db)
 		if host == "" {
 			// The admin Secret is deleted when left out, so it keeps its address while the DB
 			// system reports none.
@@ -307,17 +360,141 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 		}
 		if host != "" {
 			out[nameSecret+in.Spec.SecretName] = secret(in.Spec.SecretName, c.Namespace, map[string]string{
-				"endpoint": host, "port": fmt.Sprint(port), "username": adminUsername, "password": password,
+				"endpoint": host, "port": fmt.Sprint(port), "username": username(db), "password": password,
 			})
 		}
 	}
 	return out, nil
 }
 
-func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name, nsgID, passwordSecret string, tags map[string]interface{}) client.Object {
+// composeObserved returns the observe-only DB system an observed cluster reads, and the admin
+// Secret once OCI reports its address. The Secret holds no password: OCI never returns it.
+func composeObserved(in pgcluster.Input, env Environment, name string) (map[string]client.Object, error) {
+	dbObj := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, map[string]interface{}{})
+	dbObj.SetAnnotations(map[string]string{meta.AnnotationKeyExternalName: in.ID})
+	dbObj.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})["managementPolicies"] = []interface{}{"Observe"}
+	out := map[string]client.Object{nameDBSystem: dbObj}
+	db := observedDB(in.Observed)
+	if db == nil || observedID(db) == "" {
+		return out, nil
+	}
+	if err := pgcluster.CheckTags(in, freeformTags(db), false); err != nil {
+		return nil, err
+	}
+	host := endpoint(db)
+	if host == "" {
+		host = adminSecretValue(in.Observed, "endpoint")
+	}
+	if host != "" {
+		out[nameSecret+in.Spec.SecretName] = secret(in.Spec.SecretName, in.Cluster.Namespace, map[string]string{
+			"endpoint": host, "port": fmt.Sprint(port), "username": username(db),
+		})
+	}
+	return out, nil
+}
+
+func observedDB(observed map[resource.Name]resource.ObservedComposed) *unstructured.Unstructured {
+	if o, ok := observed[resource.Name(nameDBSystem)]; ok {
+		return &o.Resource.Unstructured
+	}
+	return nil
+}
+
+// observeOnly reports whether the DB system is still only observed.
+func observeOnly(db *unstructured.Unstructured) bool {
+	if db == nil {
+		return false
+	}
+	policies, _, _ := unstructured.NestedStringSlice(db.Object, "spec", "managementPolicies")
+	return len(policies) == 1 && policies[0] == "Observe"
+}
+
+func freeformTags(db *unstructured.Unstructured) map[string]interface{} {
+	out := map[string]interface{}{}
+	if db == nil {
+		return out
+	}
+	tags, _, _ := unstructured.NestedMap(db.Object, "status", "atProvider", "freeformTags")
+	for k, v := range tags {
+		out[k] = v
+	}
+	return out
+}
+
+// existing returns a field of the DB system as it already is: as the function composed it, or as
+// OCI reports it for a DB system the cluster took over and has not composed yet.
+func existing(db *unstructured.Unstructured, field string) (interface{}, bool) {
+	if db == nil {
+		return nil, false
+	}
+	for _, from := range []string{"spec", "status"} {
+		parent := "forProvider"
+		if from == "status" {
+			parent = "atProvider"
+		}
+		if v, ok, _ := unstructured.NestedFieldCopy(db.Object, from, parent, field); ok && v != nil {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+// existingFirst returns the first entry of a DB system's list field, such as its storageDetails,
+// as it already is.
+func existingFirst(db *unstructured.Unstructured, field string) map[string]interface{} {
+	v, ok := existing(db, field)
+	if !ok {
+		return nil
+	}
+	list, _ := v.([]interface{})
+	if len(list) == 0 {
+		return nil
+	}
+	m, _ := list[0].(map[string]interface{})
+	return m
+}
+
+// username returns the DB system's admin user: the platform's own, or the one a DB system taken
+// over was created with.
+func username(db *unstructured.Unstructured) string {
+	if c := existingFirst(db, "credentials"); c != nil {
+		if u, _ := c["username"].(string); u != "" {
+			return u
+		}
+	}
+	if db != nil {
+		if u, _, _ := unstructured.NestedString(db.Object, "status", "atProvider", "adminUsername"); u != "" {
+			return u
+		}
+	}
+	return adminUsername
+}
+
+func majorVersion(v string) string {
+	major, _, _ := strings.Cut(v, ".")
+	return major
+}
+
+func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name, nsgID, passwordSecret string, tags map[string]interface{}, db *unstructured.Unstructured) (client.Object, error) {
+	version := in.Spec.Version
+	if have, ok := existing(db, "dbVersion"); ok && in.ID != "" {
+		haveVersion, _ := have.(string)
+		switch {
+		case in.Spec.Cloud["version"]:
+			version = haveVersion
+		case majorVersion(haveVersion) != version:
+			return nil, fmt.Errorf("version %s differs from DB system %s's version %s, and a major version upgrade is not available",
+				version, in.ID, haveVersion)
+		}
+	}
 	instances := int64(1)
 	if in.Spec.HighAvailability {
 		instances = 2
+	}
+	if in.Spec.Cloud["highAvailability"] {
+		if have, ok := existing(db, "instanceCount"); ok {
+			instances, _ = toInt64(have)
+		}
 	}
 	storage := map[string]interface{}{
 		"systemType": "OCI_OPTIMIZED_STORAGE",
@@ -328,6 +505,16 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	if ads := env.OCI.AvailabilityDomains; len(ads) > 0 && len(ads) < regionalDomains {
 		storage["isRegionallyDurable"] = false
 		storage["availabilityDomain"] = ads[0]
+	}
+	// An existing DB system keeps where its storage is: OCI cannot move it, and the deployment's
+	// availability domains may have changed since.
+	if have := existingFirst(db, "storageDetails"); have != nil {
+		storage = map[string]interface{}{}
+		for _, k := range []string{"systemType", "isRegionallyDurable", "availabilityDomain"} {
+			if v, ok := have[k]; ok && v != nil && v != "" {
+				storage[k] = v
+			}
+		}
 	}
 	if cfg.IOPS != nil {
 		storage["iops"] = fmt.Sprint(*cfg.IOPS)
@@ -343,32 +530,69 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 		backup = map[string]interface{}{"kind": "NONE"}
 	}
 	policy := map[string]interface{}{"backupPolicy": []interface{}{backup}}
+	if in.Spec.Cloud["backup.retentionDays"] {
+		// The DB system keeps its own backups and point-in-time recovery.
+		policy = map[string]interface{}{}
+		if have := existingFirst(db, "managementPolicy"); have != nil {
+			for _, k := range []string{"backupPolicy", "pitrPolicy", "maintenanceWindowStart"} {
+				if v, ok := have[k]; ok && v != nil {
+					policy[k] = v
+				}
+			}
+		}
+	}
 	if cfg.MaintenanceWindow != nil {
 		policy["maintenanceWindowStart"] = fmt.Sprintf("%s %02d:00", strings.ToUpper(cfg.MaintenanceWindow.Day), cfg.MaintenanceWindow.HourUTC)
 	}
-	if in.Spec.RetentionDays > 0 {
+	switch {
+	case in.Spec.Cloud["backup.retentionDays"]:
+	case in.Spec.RetentionDays > 0:
 		// Unset, a restore reaches as far back as the backups are kept.
 		days := in.Spec.RetentionDays
 		if cfg.PointInTimeDays != nil {
 			days = *cfg.PointInTimeDays
 		}
 		policy["pitrPolicy"] = []interface{}{map[string]interface{}{"kind": "STANDARD", "restoreDays": days}}
-	} else {
+	default:
 		// The provider keeps a policy that is left out, so turning backups off states none.
 		policy["pitrPolicy"] = []interface{}{map[string]interface{}{"kind": "NONE"}}
 	}
+	// An existing DB system keeps its compartment, name and subnet, which OCI cannot change or the
+	// deployment may have changed since, and the security groups its owner gave it.
+	compartmentID, displayName, subnetID := net.compartmentID, name, net.subnetID
+	if v, ok := existing(db, "compartmentId"); ok {
+		compartmentID, _ = v.(string)
+	}
+	if v, ok := existing(db, "displayName"); ok {
+		displayName, _ = v.(string)
+	}
 	nsgIDs := []interface{}{nsgID}
+	if have := existingFirst(db, "networkDetails"); have != nil {
+		if v, _ := have["subnetId"].(string); v != "" {
+			subnetID = v
+		}
+		ids, _ := have["nsgIds"].([]interface{})
+		for _, id := range ids {
+			if id != nsgID {
+				nsgIDs = append(nsgIDs, id)
+			}
+		}
+	}
+	shape := cfg.InstanceType
+	if v, ok := existing(db, "shape"); ok && shape == "" {
+		shape, _ = v.(string)
+	}
 	forProvider := map[string]interface{}{
-		"compartmentId":    net.compartmentID,
-		"displayName":      name,
-		"dbVersion":        in.Spec.Version,
-		"shape":            cfg.InstanceType,
+		"compartmentId":    compartmentID,
+		"displayName":      displayName,
+		"dbVersion":        version,
+		"shape":            shape,
 		"instanceCount":    instances,
 		"storageDetails":   []interface{}{storage},
 		"managementPolicy": []interface{}{policy},
-		"networkDetails":   []interface{}{map[string]interface{}{"subnetId": net.subnetID, "nsgIds": nsgIDs}},
+		"networkDetails":   []interface{}{map[string]interface{}{"subnetId": subnetID, "nsgIds": nsgIDs}},
 		"credentials": []interface{}{map[string]interface{}{
-			"username": adminUsername,
+			"username": username(db),
 			"passwordDetails": []interface{}{map[string]interface{}{
 				"passwordSecretRef":     map[string]interface{}{"name": passwordSecret, "key": passwordKey},
 				"passwordTypeSecretRef": map[string]interface{}{"name": passwordSecret, "key": "type"},
@@ -378,18 +602,28 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	}
 	if cfg.OCPUs != nil {
 		forProvider["instanceOcpuCount"] = *cfg.OCPUs
+	} else if v, ok := existing(db, "instanceOcpuCount"); ok && cfg.InstanceType == "" {
+		forProvider["instanceOcpuCount"] = v
 	}
 	if cfg.MemoryGB != nil {
 		forProvider["instanceMemorySizeInGbs"] = *cfg.MemoryGB
+	} else if v, ok := existing(db, "instanceMemorySizeInGbs"); ok && cfg.InstanceType == "" {
+		forProvider["instanceMemorySizeInGbs"] = v
 	}
-	if cfg.FromBackup != "" {
+	// The source applies at creation only: once the DB system exists it keeps the one it was created
+	// from, whatever the entry says now.
+	if db != nil {
+		if v, ok, _ := unstructured.NestedFieldCopy(db.Object, "spec", "forProvider", "source"); ok {
+			forProvider["source"] = v
+		}
+	} else if cfg.FromBackup != "" {
 		forProvider["source"] = []interface{}{map[string]interface{}{"sourceType": "BACKUP", "backupId": cfg.FromBackup}}
 	}
-	ops, refused := instancePatches(in.Observed, name, instances)
+	ops, refused := instancePatches(in.Observed, displayName, instances)
 	if len(ops) > 0 {
 		forProvider["patchOperations"] = ops
 	}
-	db := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
+	dbObj := managed(psqlAPIVersion, "PsqlDbSystem", name, in.Cluster.Namespace, env, forProvider)
 	annotations := map[string]string{}
 	if refused != "" {
 		annotations[refusedPrimaryAnnotation] = refused
@@ -400,23 +634,27 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	// cluster leaves the first one in OCI.
 	// The annotation is kept while the status has no OCID, as after a restore that drops status:
 	// the function owns it, so leaving it out would remove it before the provider reads it.
-	if o, ok := in.Observed[resource.Name(nameDBSystem)]; ok {
-		id := observedID(&o.Resource.Unstructured)
+	// A DB system taken over is the one its id names.
+	if db != nil {
+		id := observedID(db)
 		if id == "" {
-			id = o.Resource.GetAnnotations()[meta.AnnotationKeyExternalName]
+			id = db.GetAnnotations()[meta.AnnotationKeyExternalName]
 		}
 		if id != "" {
 			annotations[meta.AnnotationKeyExternalName] = id
 		}
 	}
+	if in.ID != "" {
+		annotations[meta.AnnotationKeyExternalName] = in.ID
+	}
 	if o, ok := in.Observed[resource.Name(namePassword)]; ok && o.Resource.GetResourceVersion() != "" {
 		annotations[passwordVersionAnnotation] = o.Resource.GetResourceVersion()
 	}
 	if len(annotations) > 0 {
-		db.SetAnnotations(annotations)
+		dbObj.SetAnnotations(annotations)
 	}
 	if in.Spec.DeletionProtection {
-		db.SetLabels(map[string]string{pgcluster.DeletionProtectionLabel: "true"})
+		dbObj.SetLabels(map[string]string{pgcluster.DeletionProtectionLabel: "true"})
 	}
 	// The provider never reads instancesDetails back, so after creation it reports a change that
 	// forces replacement and refuses every update. A field set only in initProvider is ignored after
@@ -425,12 +663,12 @@ func dbSystem(in pgcluster.Input, cfg Config, net network, env Environment, name
 	for i := range details {
 		details[i] = map[string]interface{}{"displayName": fmt.Sprintf("%s-%d", name, i+1)}
 	}
-	spec := db.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})
+	spec := dbObj.(*unstructured.Unstructured).Object["spec"].(map[string]interface{})
 	spec["initProvider"] = map[string]interface{}{"instancesDetails": details}
 	// Without LateInitialize the provider does not copy its state into the spec, so a field the
 	// function stops setting, such as patchOperations once a count is reached, is removed.
 	spec["managementPolicies"] = []interface{}{"Observe", "Create", "Update", "Delete"}
-	return db
+	return dbObj, nil
 }
 
 // instancePatches returns the patch operations that bring the DB system's instances to the wanted
@@ -577,14 +815,15 @@ func secret(name, namespace string, data map[string]string) client.Object {
 // cluster gets a generated password. Once the DB system exists in OCI a new password is never
 // generated: the provider would reset the database to it, and applications holding the old one
 // would fail to log in.
-func currentPassword(observed map[resource.Name]resource.ObservedComposed) (string, error) {
+// A DB system being taken over gets a new password, which the provider sets in OCI.
+func currentPassword(observed map[resource.Name]resource.ObservedComposed, takingOver bool) (string, error) {
 	if v := secretValue(observed, namePassword, passwordKey); v != "" {
 		return v, nil
 	}
 	if v := adminSecretValue(observed, passwordKey); v != "" {
 		return v, nil
 	}
-	if o, ok := observed[resource.Name(nameDBSystem)]; ok && observedID(&o.Resource.Unstructured) != "" {
+	if o, ok := observed[resource.Name(nameDBSystem)]; ok && observedID(&o.Resource.Unstructured) != "" && !takingOver {
 		return "", errors.New("the admin password is lost: both the admin Secret and the password Secret are gone; " +
 			"recreate either with the current password under the key \"password\"")
 	}

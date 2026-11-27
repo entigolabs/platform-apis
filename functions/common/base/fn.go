@@ -21,6 +21,14 @@ import (
 )
 
 // Function composes entigo resources.
+// currentWorkspace is the workspace the function runs in, for the services that check a cloud
+// resource's workspace tag.
+var currentWorkspace string
+
+// Workspace returns the Entigo Platform workspace the function runs in, or "" when the deployment
+// sets none.
+func Workspace() string { return currentWorkspace }
+
 type Function struct {
 	fnv1.UnimplementedFunctionRunnerServiceServer
 
@@ -30,6 +38,7 @@ type Function struct {
 }
 
 func NewFunction(log logging.Logger, groupService GroupService, workspace string) *Function {
+	currentWorkspace = workspace
 	return &Function{
 		log:          log,
 		groupService: groupService,

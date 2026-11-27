@@ -147,7 +147,7 @@ func TestEffectiveSpec(t *testing.T) {
 	d := standIn{}.Defaults()
 
 	t.Run("unset fields take the implementation's defaults", func(t *testing.T) {
-		spec, sources, err := effectiveSpec(cluster(), d)
+		spec, sources, err := effectiveSpec(cluster(), d, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -170,7 +170,7 @@ func TestEffectiveSpec(t *testing.T) {
 		c.Spec.DeletionProtection = ptr(false)
 		c.Spec.Backup = &v1alpha2.Backup{RetentionDays: ptr(int64(0))}
 		c.Spec.SecretName = ptr("orders-login")
-		spec, sources, err := effectiveSpec(c, d)
+		spec, sources, err := effectiveSpec(c, d, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -186,9 +186,53 @@ func TestEffectiveSpec(t *testing.T) {
 		c := cluster()
 		c.Spec.Version = nil
 		c.Spec.Storage = nil
-		_, _, err := effectiveSpec(c, d)
+		_, _, err := effectiveSpec(c, d, "")
 		if err == nil || !strings.Contains(err.Error(), "version and storage.sizeGB") {
 			t.Fatalf("want both values named, got %v", err)
+		}
+	})
+}
+
+func TestEffectiveSpecOfAnExistingResource(t *testing.T) {
+	d := standIn{}.Defaults()
+
+	t.Run("unset fields keep the resource's values, not the defaults", func(t *testing.T) {
+		c := cluster()
+		c.Spec.Version = nil
+		c.Spec.Storage = nil
+		c.Spec.Backup = &v1alpha2.Backup{RetentionDays: ptr(int64(14))}
+		c.Status.Version = "16"
+		c.Status.HighAvailability = ptr(true)
+		spec, sources, err := effectiveSpec(c, d, "existing")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range []string{"version", "storage.sizeGB", "highAvailability"} {
+			if !spec.Cloud[f] {
+				t.Errorf("want %s kept from the resource", f)
+			}
+		}
+		if spec.Cloud["backup.retentionDays"] || spec.RetentionDays != 14 || !spec.DeletionProtection {
+			t.Errorf("want the cluster's retention and the default deletion protection, got %+v", spec)
+		}
+		cloudSources(c, spec.Cloud, sources)
+		if sources["version"].Source != SourceCloud || string(sources["version"].Value.Raw) != `"16"` ||
+			string(sources["highAvailability"].Value.Raw) != "true" || sources["backup.retentionDays"].Source != SourceObject {
+			t.Errorf("want the resource's values recorded as the cloud's, got %v", sources)
+		}
+	})
+
+	t.Run("an observed cluster takes every value from the resource", func(t *testing.T) {
+		c := cluster()
+		c.Spec.Observe = ptr(true)
+		c.Spec.Version = nil
+		c.Spec.Storage = nil
+		spec, _, err := effectiveSpec(c, d, "existing")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(spec.Cloud) != len(cloudFields) || spec.DeletionProtection {
+			t.Errorf("want every value from the resource and no deletion protection, got %+v", spec)
 		}
 	})
 }

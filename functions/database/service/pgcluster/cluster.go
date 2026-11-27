@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	fnv1 "github.com/crossplane/function-sdk-go/proto/v1"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/resource/composed"
@@ -23,7 +24,13 @@ const (
 
 	SourceObject         = "object"
 	SourceImplementation = "implementation"
+	// SourceCloud marks a value an existing resource keeps, as its status shows it.
+	SourceCloud = "cloud"
 )
+
+// cloudFields are the common fields an existing resource keeps its own value for when the cluster
+// leaves them unset.
+var cloudFields = []string{"version", "storage.sizeGB", "highAvailability", "backup.retentionDays"}
 
 // Environment is the part of the deployment's settings a PostgreSQLCluster reads: the backends the
 // deployment installs, each as "<Kind>.<group>" of its provider configuration kind.
@@ -100,15 +107,24 @@ func selectEntry(c *v1alpha2.PostgreSQLCluster, env Environment) (selection, err
 	return sel, nil
 }
 
+// isObserved reports whether the cluster observes an existing resource.
+func isObserved(c *v1alpha2.PostgreSQLCluster) bool {
+	return c.Spec.Observe != nil && *c.Spec.Observe
+}
+
 // effectiveSpec puts the implementation's defaults beneath the cluster's own values and records
 // where each value came from. A value without a default that the cluster leaves unset is refused.
-func effectiveSpec(c *v1alpha2.PostgreSQLCluster, d Defaults) (Spec, map[string]v1alpha2.Effective, error) {
+// A cluster on an existing resource, named by id, takes no defaults for the fields the resource
+// has: one it leaves unset keeps the resource's value, recorded as the cloud's. An observed cluster
+// sets none of them.
+func effectiveSpec(c *v1alpha2.PostgreSQLCluster, d Defaults, id string) (Spec, map[string]v1alpha2.Effective, error) {
 	s := c.Spec
+	existing := id != ""
 	var missing []string
-	if s.Version == nil || *s.Version == "" {
+	if !existing && (s.Version == nil || *s.Version == "") {
 		missing = append(missing, "version")
 	}
-	if s.Storage == nil || s.Storage.SizeGB == nil {
+	if !existing && (s.Storage == nil || s.Storage.SizeGB == nil) {
 		missing = append(missing, "storage.sizeGB")
 	}
 	if len(missing) > 0 {
@@ -120,36 +136,98 @@ func effectiveSpec(c *v1alpha2.PostgreSQLCluster, d Defaults) (Spec, map[string]
 		raw, _ := json.Marshal(value)
 		sources[field] = v1alpha2.Effective{Value: runtime.RawExtension{Raw: raw}, Source: source}
 	}
+	out := Spec{
+		Parameters: s.Parameters,
+		SecretName: base.GenerateEligibleKubernetesFullName(c.Name + "-dbadmin"),
+		Cloud:      map[string]bool{},
+	}
+	if s.SecretName != nil && *s.SecretName != "" {
+		out.SecretName = *s.SecretName
+	}
+	if isObserved(c) {
+		for _, f := range cloudFields {
+			out.Cloud[f] = true
+		}
+		return out, sources, nil
+	}
 	boolOf := func(field string, v *bool, def bool) bool {
-		if v != nil {
+		switch {
+		case v != nil:
 			put(field, *v, SourceObject)
 			return *v
+		case existing && field != "deletionProtection":
+			out.Cloud[field] = true
+			return false
 		}
 		put(field, def, SourceImplementation)
 		return def
 	}
 
-	out := Spec{
-		Version:    *s.Version,
-		SizeGB:     *s.Storage.SizeGB,
-		Parameters: s.Parameters,
-		SecretName: base.GenerateEligibleKubernetesFullName(c.Name + "-dbadmin"),
+	if s.Version != nil && *s.Version != "" {
+		out.Version = *s.Version
+		put("version", out.Version, SourceObject)
+	} else {
+		out.Cloud["version"] = true
 	}
-	put("version", out.Version, SourceObject)
-	put("storage.sizeGB", out.SizeGB, SourceObject)
+	if s.Storage != nil && s.Storage.SizeGB != nil {
+		out.SizeGB = *s.Storage.SizeGB
+		put("storage.sizeGB", out.SizeGB, SourceObject)
+	} else {
+		out.Cloud["storage.sizeGB"] = true
+	}
 	out.HighAvailability = boolOf("highAvailability", s.HighAvailability, d.HighAvailability)
 	out.DeletionProtection = boolOf("deletionProtection", s.DeletionProtection, d.DeletionProtection)
-	if s.Backup != nil && s.Backup.RetentionDays != nil {
+	switch {
+	case s.Backup != nil && s.Backup.RetentionDays != nil:
 		out.RetentionDays = *s.Backup.RetentionDays
 		put("backup.retentionDays", out.RetentionDays, SourceObject)
-	} else {
+	case existing:
+		out.Cloud["backup.retentionDays"] = true
+	default:
 		out.RetentionDays = d.RetentionDays
 		put("backup.retentionDays", out.RetentionDays, SourceImplementation)
 	}
-	if s.SecretName != nil && *s.SecretName != "" {
-		out.SecretName = *s.SecretName
-	}
 	return out, sources, nil
+}
+
+// entryID returns the id of the existing resource an entry names, which every backend's provider
+// configuration kind holds under the same key.
+func entryID(e Entry) (string, error) {
+	var v struct {
+		ID string `json:"id"`
+	}
+	if len(e.Spec) == 0 {
+		return "", nil
+	}
+	if err := json.Unmarshal(e.Spec, &v); err != nil {
+		return "", fmt.Errorf("cannot read the %s entry: %w", e.Kind, err)
+	}
+	return v.ID, nil
+}
+
+// cloudSources records the values an existing resource keeps, as the cluster's status shows them.
+func cloudSources(c *v1alpha2.PostgreSQLCluster, cloud map[string]bool, sources map[string]v1alpha2.Effective) {
+	st := c.Status
+	values := map[string]interface{}{}
+	if st.Version != "" {
+		values["version"] = st.Version
+	}
+	if st.Storage != nil && st.Storage.SizeGB > 0 {
+		values["storage.sizeGB"] = st.Storage.SizeGB
+	}
+	if st.HighAvailability != nil {
+		values["highAvailability"] = *st.HighAvailability
+	}
+	if st.Backup != nil {
+		values["backup.retentionDays"] = st.Backup.RetentionDays
+	}
+	for _, f := range cloudFields {
+		if !cloud[f] {
+			continue
+		}
+		raw, _ := json.Marshal(values[f])
+		sources[f] = v1alpha2.Effective{Value: runtime.RawExtension{Raw: raw}, Source: SourceCloud}
+	}
 }
 
 // resolveEntry returns the entry's settings: its inline spec, or the spec of the separate object
@@ -221,15 +299,24 @@ func Required(xr client.Object, required map[string][]resource.Required) (map[st
 }
 
 func input(c *v1alpha2.PostgreSQLCluster, sel selection, required map[string][]resource.Required, observed map[resource.Name]resource.ObservedComposed) (Input, error) {
-	spec, _, err := effectiveSpec(c, sel.backend.Defaults())
-	if err != nil {
-		return Input{}, err
-	}
 	entry, err := resolveEntry(sel.entry, required)
 	if err != nil {
 		return Input{}, err
 	}
-	return Input{Cluster: c, Spec: spec, Entry: entry, Required: required, Observed: observed}, nil
+	id, err := entryID(entry)
+	if err != nil {
+		return Input{}, err
+	}
+	if isObserved(c) && id == "" {
+		return Input{}, fmt.Errorf("observe needs the id of the resource to observe in the %s entry", entry.Kind)
+	}
+	spec, _, err := effectiveSpec(c, sel.backend.Defaults(), id)
+	if err != nil {
+		return Input{}, err
+	}
+	return Input{Cluster: c, Spec: spec, Entry: entry, Required: required, Observed: observed,
+		ID: id, Observe: isObserved(c), Zone: base.GetTenancyZone(required, logging.NewNopLogger()),
+		Workspace: base.Workspace()}, nil
 }
 
 // Generate returns the resources that run the cluster on the deployment's backend.
@@ -261,10 +348,19 @@ func CompositeStatus(c *v1alpha2.PostgreSQLCluster, required map[string][]resour
 		// The cluster is refused; Generate reports why.
 		return nil, nil
 	}
-	spec, sources, err := effectiveSpec(c, sel.backend.Defaults())
+	entry, err := resolveEntry(sel.entry, required)
 	if err != nil {
 		return nil, nil
 	}
+	id, err := entryID(entry)
+	if err != nil {
+		return nil, nil
+	}
+	spec, sources, err := effectiveSpec(c, sel.backend.Defaults(), id)
+	if err != nil {
+		return nil, nil
+	}
+	cloudSources(c, spec.Cloud, sources)
 	status := v1alpha2.PostgreSQLClusterStatus{
 		ConnectionSecret: spec.SecretName,
 		ProviderConfig:   &v1alpha2.ProviderConfigStatus{Applied: entryName(sel.entry), Ignored: sel.ignored},

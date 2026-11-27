@@ -456,18 +456,18 @@ func TestPasswordKeptWhenASecretIsDeleted(t *testing.T) {
 		map[string]interface{}{"id": "ocid1.postgresqldbsystem.oc1..db"})}}
 
 	t.Run("the admin Secret restores the password Secret", func(t *testing.T) {
-		got, err := currentPassword(map[resource.Name]resource.ObservedComposed{nameSecret + "orders-db-dbadmin": secret("From-admin-1"), nameDBSystem: db})
+		got, err := currentPassword(map[resource.Name]resource.ObservedComposed{nameSecret + "orders-db-dbadmin": secret("From-admin-1"), nameDBSystem: db}, false)
 		if err != nil || got != "From-admin-1" {
 			t.Errorf("want the admin Secret's password, got %q, %v", got, err)
 		}
 	})
 	t.Run("both Secrets gone after creation is an error", func(t *testing.T) {
-		if _, err := currentPassword(map[resource.Name]resource.ObservedComposed{nameDBSystem: db}); err == nil {
+		if _, err := currentPassword(map[resource.Name]resource.ObservedComposed{nameDBSystem: db}, false); err == nil {
 			t.Error("want an error instead of a new password")
 		}
 	})
 	t.Run("a new cluster gets a generated password", func(t *testing.T) {
-		if got, err := currentPassword(nil); err != nil || len(got) != 24 {
+		if got, err := currentPassword(nil, false); err != nil || len(got) != 24 {
 			t.Errorf("want a generated password, got %q, %v", got, err)
 		}
 	})
