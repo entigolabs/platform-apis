@@ -63,6 +63,18 @@ A DB system that has added or removed an instance since its creation is not affe
 `highAvailability` on and off once clears a stuck one and keeps later password changes safe.
 Terraform OCI provider 9.11.0 skips the empty patch.
 
+**A client security group that briefly reports no OCID moves the others' rules.** The cluster's
+security group gets one rule per client security group in the deployment, keyed by its position in
+the list.
+
+1. The deployment lists client security groups `node` and `pod`, which get `security-rule-0` and
+   `security-rule-1`.
+2. The observer of `node` reports no OCID for a moment.
+3. The function skips `node`: `pod`'s rule moves to `security-rule-0`, and `security-rule-1` is
+   deleted.
+4. Once `node` reports its OCID again, both rules change back. Workloads behind either group may
+   lose database access in between.
+
 **A major version change is refused.** Changing `spec.version` would replace the DB system; the
 in-place upgrade needs Terraform OCI provider 9.11.0. Upstream:
 [oracle/crossplane-provider-oci#156](https://github.com/oracle/crossplane-provider-oci/issues/156).
