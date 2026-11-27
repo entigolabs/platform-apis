@@ -268,8 +268,8 @@ The check holds only where users can create the platform's kinds and nothing els
 create a Crossplane provider's resource directly could observe anything without the check. kcp
 serves no Crossplane provider kinds, and in a Zone's namespaces the platform's admission policy
 refuses any resource in a group ending in `.m.upbound.io` or `.m.crossplane.io` that Crossplane
-itself does not create, whoever sends it, Argo CD included. A provider in another group needs the
-allowlist of [Follow-Up Work](follow-up-work.md) item 4 first.
+itself does not create, whoever sends it, Argo CD included. A provider in another group needs a
+Zone's Argo CD project limited to an allowlist of kinds first.
 
 ## Resource Names
 
