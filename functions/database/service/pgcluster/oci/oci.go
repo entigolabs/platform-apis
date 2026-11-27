@@ -254,8 +254,16 @@ func (Backend) Compose(in pgcluster.Input) (map[string]client.Object, error) {
 	db := observedDB(in.Observed)
 	if db != nil {
 		if have := db.GetAnnotations()[existingIDAnnotation]; have != in.ID {
-			return nil, base.NotAccepted(fmt.Errorf("the PostgreSQLOCIConfig entry's id %q differs from %q, the DB system this cluster was "+
-				"created with or observed: a cluster never moves to another DB system", in.ID, have))
+			var err error
+			switch {
+			case have == "":
+				err = fmt.Errorf("the PostgreSQLOCIConfig entry names DB system %s, but this cluster runs on the DB system it created", in.ID)
+			case in.ID == "":
+				err = fmt.Errorf("the PostgreSQLOCIConfig entry names no id, but this cluster runs on DB system %s", have)
+			default:
+				err = fmt.Errorf("the PostgreSQLOCIConfig entry names DB system %s, but this cluster runs on DB system %s", in.ID, have)
+			}
+			return nil, base.NotAccepted(fmt.Errorf("%w: a cluster never moves to another DB system", err))
 		}
 	}
 	if in.Observe {
