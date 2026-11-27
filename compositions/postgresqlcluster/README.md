@@ -18,13 +18,17 @@ A cluster can observe a DB system created outside the platform, and then take it
 3. Removing `observe` takes the DB system over. A common field the cluster leaves unset keeps the
    DB system's value, and the status shows it with the source `cloud`. The platform adds the
    cluster's security group beside the DB system's own, and keeps its compartment, name, subnet,
-   storage placement and tags. From then on, deleting the cluster deletes the DB system.
+   storage placement and tags. The DB system must be in the deployment's VCN: OCI attaches a
+   security group only to resources in its own VCN. From then on, deleting the cluster deletes the
+   DB system.
 4. The cluster's owner writes the DB system's admin password into the connection Secret once, under
    `password`, and the platform keeps it there. The platform cannot set or rotate that password:
    OCI reports no admin user for the DB system, so the provider reads setting one as replacing the
    DB system, and refuses.
 
-A deployment without a workspace refuses `observe`: it has nothing to check the tag against.
+A deployment without a workspace refuses `observe`: it has nothing to check the tag against. A
+cluster stays on the DB system it was created with or observed: an entry whose `id` changes, by
+any edit, is refused.
 
 ## Known Limits of the OCI Backend
 
@@ -74,6 +78,16 @@ the list.
    deleted.
 4. Once `node` reports its OCID again, both rules change back. Workloads behind either group may
    lose database access in between.
+
+**Observing shows any DB system's details before the tags are checked.**
+
+1. A user creates a cluster with `observe: true` and the OCID of a DB system they do not own.
+2. The function composes the observe-only managed resource, and the provider fills its status with
+   the DB system's address, compartment, subnet, admin user and tags.
+3. The function then refuses the cluster on the tags, but the managed resource stays, and anyone who
+   can read managed resources in the namespace reads those details.
+
+The tags can be read only through the managed resource, so the check cannot come first.
 
 **A major version change is refused.** Changing `spec.version` would replace the DB system; the
 in-place upgrade needs Terraform OCI provider 9.11.0. Upstream:
