@@ -4,6 +4,28 @@
 same whatever runs it. The deployment chooses the backend; the cluster's `providerConfigs` entry for
 that backend holds its own settings, such as the OCI shape.
 
+## Existing DB Systems
+
+A cluster can observe a DB system created outside the platform, and then take it over.
+
+1. The DB system's owner tags it in OCI: freeform tag `entigo:workspace` names the deployment's
+   workspace, and `entigo:zone` names the Zone of the namespace that will hold the cluster. A DB
+   system without `entigo:zone` can be observed from any Zone, but not taken over.
+2. A cluster with `observe: true` and the DB system's OCID as `id` in its `PostgreSQLOCIConfig`
+   entry observes it. It sets no other common field, and the entry holds only `id`. The platform
+   never changes the DB system, and deleting the cluster leaves it in OCI. The connection Secret
+   holds the address and the admin user, but no password: OCI never returns it.
+3. Removing `observe` takes the DB system over. A common field the cluster leaves unset keeps the
+   DB system's value, and the status shows it with the source `cloud`. The platform adds the
+   cluster's security group beside the DB system's own, and keeps its compartment, name, subnet,
+   storage placement and tags. From then on, deleting the cluster deletes the DB system.
+4. The cluster's owner writes the DB system's admin password into the connection Secret once, under
+   `password`, and the platform keeps it there. The platform cannot set or rotate that password:
+   OCI reports no admin user for the DB system, so the provider reads setting one as replacing the
+   DB system, and refuses.
+
+A deployment without a workspace refuses `observe`: it has nothing to check the tag against.
+
 ## Known Limits of the OCI Backend
 
 The OCI backend composes a `PsqlDbSystem` through crossplane-provider-oci v2.0.0, which embeds
